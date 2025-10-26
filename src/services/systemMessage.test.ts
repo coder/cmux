@@ -186,7 +186,12 @@ Special mode instructions.
       projectPath: projectDir,
     };
 
-    const systemMessage = await buildSystemMessage(metadata, runtime, workspaceDir, "My-Special_Mode!");
+    const systemMessage = await buildSystemMessage(
+      metadata,
+      runtime,
+      workspaceDir,
+      "My-Special_Mode!"
+    );
 
     // Tag should be sanitized to only contain valid characters
     expect(systemMessage).toContain("<my-special_mode->");

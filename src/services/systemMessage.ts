@@ -1,7 +1,7 @@
 import * as os from "os";
 import * as path from "path";
 import type { WorkspaceMetadata } from "@/types/workspace";
-import { gatherInstructionSets, readInstructionSet, INSTRUCTION_FILE_NAMES } from "@/utils/main/instructionFiles";
+import { readInstructionSet, INSTRUCTION_FILE_NAMES } from "@/utils/main/instructionFiles";
 import { extractModeSection } from "@/utils/main/markdown";
 import type { Runtime } from "@/runtime/Runtime";
 import { readFileString } from "@/utils/runtime/helpers";
@@ -55,7 +55,7 @@ function getSystemDirectory(): string {
 /**
  * Read instruction set from a workspace using the runtime abstraction.
  * This supports both local workspaces and remote SSH workspaces.
- * 
+ *
  * @param runtime - Runtime instance (may be local or SSH)
  * @param workspacePath - Path to workspace directory
  * @returns Combined instruction content, or null if no base file exists
@@ -96,13 +96,13 @@ async function readInstructionSetFromRuntime(
 /**
  * Builds a system message for the AI model by combining multiple instruction sources.
  *
- * Instruction sources are layered in this order:
- * 1. Global instructions: ~/.cmux/AGENTS.md (+ AGENTS.local.md)
- * 2. Workspace instructions: <workspacePath>/AGENTS.md (+ AGENTS.local.md) - if exists
- * 3. Project instructions: <projectPath>/AGENTS.md (+ AGENTS.local.md) - fallback if workspace doesn't have one
- * 4. Mode-specific context (if mode provided): Extract a section titled "Mode: <mode>"
- *    (case-insensitive) from the instruction file. We search at most one section in
- *    precedence order: workspace instructions first, then project, then global instructions.
+ * Instruction sources are layered as follows:
+ * 1. Global instructions: ~/.cmux/AGENTS.md (+ AGENTS.local.md) - always included
+ * 2. Context instructions: EITHER workspace OR project AGENTS.md (not both)
+ *    - Workspace: <workspacePath>/AGENTS.md (+ AGENTS.local.md) - if exists (read via runtime)
+ *    - Project: <projectPath>/AGENTS.md (+ AGENTS.local.md) - fallback if workspace doesn't exist
+ * 3. Mode-specific context (if mode provided): Extract a section titled "Mode: <mode>"
+ *    (case-insensitive) from the instruction file. Priority: context instructions, then global.
  *
  * Each instruction file location is searched for in priority order:
  * - AGENTS.md
@@ -138,43 +138,35 @@ export async function buildSystemMessage(
   const systemDir = getSystemDirectory();
   const projectDir = metadata.projectPath;
 
-  // Read workspace instructions using runtime (may be remote for SSH)
-  // Try to read AGENTS.md from workspace directory first
+  // Layer 1: Global instructions (always included)
+  const globalInstructions = await readInstructionSet(systemDir);
+
+  // Layer 2: Workspace OR Project instructions (not both)
+  // Try workspace first (via runtime, may be remote for SSH)
+  // Fall back to project if workspace doesn't have AGENTS.md
   const workspaceInstructions = await readInstructionSetFromRuntime(runtime, workspacePath);
+  const projectInstructions = workspaceInstructions ? null : await readInstructionSet(projectDir);
 
-  // Gather instruction sets from global and project directories (always local)
-  // Note: We gather from both systemDir and projectDir, but workspace is handled separately
-  const localInstructionDirs = [systemDir, projectDir];
-  const localInstructionSegments = await gatherInstructionSets(localInstructionDirs);
-
-  // Combine all instruction sources
-  // Priority: global, workspace (if found), project (as fallback)
-  const allSegments = [...localInstructionSegments];
-  if (workspaceInstructions) {
-    // Insert workspace instructions after global (index 0) but before project
-    allSegments.splice(1, 0, workspaceInstructions);
-  }
-  const customInstructions = allSegments.join("\n\n");
+  // Combine instruction sources
+  // Result: global + (workspace OR project)
+  const instructionSegments = [
+    globalInstructions,
+    workspaceInstructions ?? projectInstructions,
+  ].filter(Boolean);
+  const customInstructions = instructionSegments.join("\n\n");
 
   // Look for a "Mode: <mode>" section inside instruction sets
-  // Priority: workspace instructions, then project, then global
+  // Priority: workspace (or project fallback), then global
+  // We only check the workspace OR project instructions, not both
   // This behavior is documented in docs/instruction-files.md - keep both in sync when changing.
   let modeContent: string | null = null;
   if (mode) {
-    if (workspaceInstructions) {
-      modeContent = extractModeSection(workspaceInstructions, mode);
+    const contextInstructions = workspaceInstructions ?? projectInstructions;
+    if (contextInstructions) {
+      modeContent = extractModeSection(contextInstructions, mode);
     }
-    if (!modeContent) {
-      const projectInstructions = await readInstructionSet(projectDir);
-      if (projectInstructions) {
-        modeContent = extractModeSection(projectInstructions, mode);
-      }
-    }
-    if (!modeContent) {
-      const globalInstructions = await readInstructionSet(systemDir);
-      if (globalInstructions) {
-        modeContent = extractModeSection(globalInstructions, mode);
-      }
+    if (!modeContent && globalInstructions) {
+      modeContent = extractModeSection(globalInstructions, mode);
     }
   }
 
