@@ -8,6 +8,7 @@ import type { Mock } from "bun:test";
 
 describe("buildSystemMessage", () => {
   let tempDir: string;
+  let projectDir: string;
   let workspaceDir: string;
   let globalDir: string;
   let mockHomedir: Mock<typeof os.homedir>;
@@ -15,8 +16,10 @@ describe("buildSystemMessage", () => {
   beforeEach(async () => {
     // Create temp directory for test
     tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "systemMessage-test-"));
+    projectDir = path.join(tempDir, "project");
     workspaceDir = path.join(tempDir, "workspace");
     globalDir = path.join(tempDir, ".cmux");
+    await fs.mkdir(projectDir, { recursive: true });
     await fs.mkdir(workspaceDir, { recursive: true });
     await fs.mkdir(globalDir, { recursive: true });
 
@@ -33,9 +36,9 @@ describe("buildSystemMessage", () => {
   });
 
   test("includes mode-specific section when mode is provided", async () => {
-    // Write instruction file with mode section
+    // Write instruction file with mode section to projectDir
     await fs.writeFile(
-      path.join(workspaceDir, "AGENTS.md"),
+      path.join(projectDir, "AGENTS.md"),
       `# General Instructions
 Always be helpful.
 
@@ -49,7 +52,7 @@ Use diagrams where appropriate.
       id: "test-workspace",
       name: "test-workspace",
       projectName: "test-project",
-      projectPath: tempDir,
+      projectPath: projectDir,
     };
 
     const systemMessage = await buildSystemMessage(metadata, workspaceDir, "plan");
@@ -65,9 +68,9 @@ Use diagrams where appropriate.
   });
 
   test("excludes mode-specific section when mode is not provided", async () => {
-    // Write instruction file with mode section
+    // Write instruction file with mode section to projectDir
     await fs.writeFile(
-      path.join(workspaceDir, "AGENTS.md"),
+      path.join(projectDir, "AGENTS.md"),
       `# General Instructions
 Always be helpful.
 
@@ -80,7 +83,7 @@ Focus on planning and design.
       id: "test-workspace",
       name: "test-workspace",
       projectName: "test-project",
-      projectPath: tempDir,
+      projectPath: projectDir,
     };
 
     const systemMessage = await buildSystemMessage(metadata, workspaceDir);
@@ -94,7 +97,7 @@ Focus on planning and design.
     expect(systemMessage).toContain("Focus on planning and design");
   });
 
-  test("prefers workspace mode section over global mode section", async () => {
+  test("prefers project mode section over global mode section", async () => {
     // Write global instruction file with mode section
     await fs.writeFile(
       path.join(globalDir, "AGENTS.md"),
@@ -105,13 +108,13 @@ Global plan instructions.
 `
     );
 
-    // Write workspace instruction file with mode section
+    // Write project instruction file with mode section
     await fs.writeFile(
-      path.join(workspaceDir, "AGENTS.md"),
-      `# Workspace Instructions
+      path.join(projectDir, "AGENTS.md"),
+      `# Project Instructions
 
 ## Mode: Plan
-Workspace plan instructions (should win).
+Project plan instructions (should win).
 `
     );
 
@@ -119,19 +122,19 @@ Workspace plan instructions (should win).
       id: "test-workspace",
       name: "test-workspace",
       projectName: "test-project",
-      projectPath: tempDir,
+      projectPath: projectDir,
     };
 
     const systemMessage = await buildSystemMessage(metadata, workspaceDir, "plan");
 
-    // Should include workspace mode section in the <plan> tag (workspace wins)
-    expect(systemMessage).toMatch(/<plan>\s*Workspace plan instructions \(should win\)\./s);
+    // Should include project mode section in the <plan> tag (project wins)
+    expect(systemMessage).toMatch(/<plan>\s*Project plan instructions \(should win\)\./s);
     // Global instructions are still present in <custom-instructions> section (that's correct)
-    // But the mode-specific <plan> section should only have workspace content
+    // But the mode-specific <plan> section should only have project content
     expect(systemMessage).not.toMatch(/<plan>[^<]*Global plan instructions/s);
   });
 
-  test("falls back to global mode section when workspace has none", async () => {
+  test("falls back to global mode section when project has none", async () => {
     // Write global instruction file with mode section
     await fs.writeFile(
       path.join(globalDir, "AGENTS.md"),
@@ -142,11 +145,11 @@ Global plan instructions.
 `
     );
 
-    // Write workspace instruction file WITHOUT mode section
+    // Write project instruction file WITHOUT mode section
     await fs.writeFile(
-      path.join(workspaceDir, "AGENTS.md"),
-      `# Workspace Instructions
-Just general workspace stuff.
+      path.join(projectDir, "AGENTS.md"),
+      `# Project Instructions
+Just general project stuff.
 `
     );
 
@@ -154,7 +157,7 @@ Just general workspace stuff.
       id: "test-workspace",
       name: "test-workspace",
       projectName: "test-project",
-      projectPath: tempDir,
+      projectPath: projectDir,
     };
 
     const systemMessage = await buildSystemMessage(metadata, workspaceDir, "plan");
@@ -165,7 +168,7 @@ Just general workspace stuff.
 
   test("handles mode with special characters by sanitizing tag name", async () => {
     await fs.writeFile(
-      path.join(workspaceDir, "AGENTS.md"),
+      path.join(projectDir, "AGENTS.md"),
       `## Mode: My-Special_Mode!
 Special mode instructions.
 `
@@ -175,7 +178,7 @@ Special mode instructions.
       id: "test-workspace",
       name: "test-workspace",
       projectName: "test-project",
-      projectPath: tempDir,
+      projectPath: projectDir,
     };
 
     const systemMessage = await buildSystemMessage(metadata, workspaceDir, "My-Special_Mode!");

@@ -5,9 +5,11 @@
 cmux layers instructions from two locations:
 
 1. `~/.cmux/AGENTS.md` (+ optional `AGENTS.local.md`) — global defaults
-2. `<workspace>/AGENTS.md` (+ optional `AGENTS.local.md`) — workspace-specific context
+2. `<project>/AGENTS.md` (+ optional `AGENTS.local.md`) — project-specific context
 
 Priority within each location: `AGENTS.md` → `AGENT.md` → `CLAUDE.md` (first match wins). If the base file is found, cmux also appends `AGENTS.local.md` from the same directory when present.
+
+**Note**: Instructions are read from the project root (where the main repository is located), not from individual workspace directories. This ensures consistent instructions across all workspaces for a project.
 
 ## Mode Prompts
 
@@ -19,7 +21,7 @@ cmux reads mode context from sections inside your instruction files. Add a headi
 
 Rules:
 
-- Workspace instructions are checked first, then global instructions
+- Project instructions are checked first, then global instructions
 - The first matching section wins (at most one section is used)
 - The section's content is everything until the next heading of the same or higher level
 - Missing sections are ignored (no error)

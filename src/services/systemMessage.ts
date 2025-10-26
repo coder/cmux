@@ -55,10 +55,10 @@ function getSystemDirectory(): string {
  *
  * Instruction sources are layered in this order:
  * 1. Global instructions: ~/.cmux/AGENTS.md (+ AGENTS.local.md)
- * 2. Workspace instructions: <workspace>/AGENTS.md (+ AGENTS.local.md)
+ * 2. Project instructions: <projectPath>/AGENTS.md (+ AGENTS.local.md)
  * 3. Mode-specific context (if mode provided): Extract a section titled "Mode: <mode>"
  *    (case-insensitive) from the instruction file. We search at most one section in
- *    precedence order: workspace instructions first, then global instructions.
+ *    precedence order: project instructions first, then global instructions.
  *
  * Each instruction file location is searched for in priority order:
  * - AGENTS.md
@@ -68,8 +68,8 @@ function getSystemDirectory(): string {
  * If a base instruction file is found, its corresponding .local.md variant is also
  * checked and appended when building the instruction set (useful for personal preferences not committed to git).
  *
- * @param metadata - Workspace metadata
- * @param workspacePath - Absolute path to the workspace worktree directory
+ * @param metadata - Workspace metadata (contains projectPath for reading AGENTS.md)
+ * @param workspacePath - Absolute path to the workspace directory (for environment context)
  * @param mode - Optional mode name (e.g., "plan", "exec") - looks for {MODE}.md files if provided
  * @param additionalSystemInstructions - Optional additional system instructions to append at the end
  * @returns System message string with all instruction sources combined
@@ -90,21 +90,22 @@ export async function buildSystemMessage(
   }
 
   const systemDir = getSystemDirectory();
-  const workspaceDir = workspacePath;
+  const projectDir = metadata.projectPath;
 
-  // Gather instruction sets from both global and workspace directories
-  // Global instructions apply first, then workspace-specific ones
-  const instructionDirectories = [systemDir, workspaceDir];
+  // Gather instruction sets from both global and project directories
+  // Global instructions apply first, then project-specific ones
+  // Note: We read from projectPath (the main repo) not workspacePath (the worktree)
+  const instructionDirectories = [systemDir, projectDir];
   const instructionSegments = await gatherInstructionSets(instructionDirectories);
   const customInstructions = instructionSegments.join("\n\n");
 
-  // Look for a "Mode: <mode>" section inside instruction sets, preferring workspace over global
+  // Look for a "Mode: <mode>" section inside instruction sets, preferring project over global
   // This behavior is documented in docs/instruction-files.md - keep both in sync when changing.
   let modeContent: string | null = null;
   if (mode) {
-    const workspaceInstructions = await readInstructionSet(workspaceDir);
-    if (workspaceInstructions) {
-      modeContent = extractModeSection(workspaceInstructions, mode);
+    const projectInstructions = await readInstructionSet(projectDir);
+    if (projectInstructions) {
+      modeContent = extractModeSection(projectInstructions, mode);
     }
     if (!modeContent) {
       const globalInstructions = await readInstructionSet(systemDir);
@@ -115,7 +116,8 @@ export async function buildSystemMessage(
   }
 
   // Build the final system message
-  const environmentContext = buildEnvironmentContext(workspaceDir);
+  // Use workspacePath for environment context (where code actually executes)
+  const environmentContext = buildEnvironmentContext(workspacePath);
   const trimmedPrelude = PRELUDE.trim();
   let systemMessage = `${trimmedPrelude}\n\n${environmentContext}`;
 
