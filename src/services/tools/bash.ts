@@ -139,6 +139,12 @@ export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
           abortSignal.addEventListener("abort", abortListener);
         }
 
+        // Close stdin immediately - we don't need to send any input
+        // This is critical: not closing stdin can cause the runtime to wait forever
+        execStream.stdin.close().catch(() => {
+          // Ignore errors - stream might already be closed
+        });
+
         // Convert Web Streams to Node.js streams for readline
         // Type mismatch between Node.js ReadableStream and Web ReadableStream - safe to cast
         // eslint-disable-next-line @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-explicit-any
@@ -146,7 +152,7 @@ export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
         // eslint-disable-next-line @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-explicit-any
         const stderrNodeStream = Readable.fromWeb(execStream.stderr as any);
 
-        // Set up readline for both stdout and stderr to handle line buffering
+        // Set up readline for both stdout and stderr to handle buffering
         const stdoutReader = createInterface({ input: stdoutNodeStream });
         const stderrReader = createInterface({ input: stderrNodeStream });
 
