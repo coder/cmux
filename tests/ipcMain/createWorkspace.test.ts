@@ -341,36 +341,39 @@ describeIntegration("WORKSPACE_CREATE with both runtimes", () => {
               await new Promise((resolve) => setTimeout(resolve, getInitWaitTime()));
 
               // Verify the new branch was created from custom-trunk, not from default branch
-              // Use RUNTIME_EXEC to check files (works for both local and SSH runtimes)
+              // Use WORKSPACE_EXECUTE_BASH to check files (works for both local and SSH runtimes)
               
               // Check that trunk-file.txt exists (from custom-trunk)
-              const checkTrunkFileStream = await env.mockIpcRenderer.invoke(
-                IPC_CHANNELS.RUNTIME_EXEC,
+              const checkTrunkFileResult = await env.mockIpcRenderer.invoke(
+                IPC_CHANNELS.WORKSPACE_EXECUTE_BASH,
                 result.metadata.id,
                 `test -f trunk-file.txt && echo "exists" || echo "missing"`,
-                { timeout: 10 }
+                { timeout_secs: 10 }
               );
-              const trunkFileOutput = await readStream(checkTrunkFileStream.stdout);
+              expect(checkTrunkFileResult.success).toBe(true);
+              const trunkFileOutput = await readStream(checkTrunkFileResult.result.stdout);
               expect(trunkFileOutput.trim()).toBe("exists");
 
               // Check that other-file.txt does NOT exist (from other-branch)
-              const checkOtherFileStream = await env.mockIpcRenderer.invoke(
-                IPC_CHANNELS.RUNTIME_EXEC,
+              const checkOtherFileResult = await env.mockIpcRenderer.invoke(
+                IPC_CHANNELS.WORKSPACE_EXECUTE_BASH,
                 result.metadata.id,
                 `test -f other-file.txt && echo "exists" || echo "missing"`,
-                { timeout: 10 }
+                { timeout_secs: 10 }
               );
-              const otherFileOutput = await readStream(checkOtherFileStream.stdout);
+              expect(checkOtherFileResult.success).toBe(true);
+              const otherFileOutput = await readStream(checkOtherFileResult.result.stdout);
               expect(otherFileOutput.trim()).toBe("missing");
 
               // Verify git log shows the custom trunk commit
-              const gitLogStream = await env.mockIpcRenderer.invoke(
-                IPC_CHANNELS.RUNTIME_EXEC,
+              const gitLogResult = await env.mockIpcRenderer.invoke(
+                IPC_CHANNELS.WORKSPACE_EXECUTE_BASH,
                 result.metadata.id,
                 `git log --oneline --all`,
-                { timeout: 10 }
+                { timeout_secs: 10 }
               );
-              const logOutput = await readStream(gitLogStream.stdout);
+              expect(gitLogResult.success).toBe(true);
+              const logOutput = await readStream(gitLogResult.result.stdout);
               expect(logOutput).toContain("Custom trunk commit");
 
               await cleanup();
