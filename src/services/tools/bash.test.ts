@@ -23,7 +23,7 @@ function createTestBashTool(options?: { niceness?: number }) {
   const tool = createBashTool({
     cwd: process.cwd(),
     runtime: createRuntime({ type: "local", srcBaseDir: "/tmp" }),
-    tempDir: tempDir.path,
+    runtimeTempDir: tempDir.path,
     ...options,
   });
 
@@ -165,7 +165,7 @@ describe("bash tool", () => {
     const tool = createBashTool({
       cwd: process.cwd(),
       runtime: createRuntime({ type: "local", srcBaseDir: "/tmp" }),
-      tempDir: tempDir.path,
+      runtimeTempDir: tempDir.path,
       overflow_policy: "truncate",
     });
 
@@ -204,7 +204,7 @@ describe("bash tool", () => {
     const tool = createBashTool({
       cwd: process.cwd(),
       runtime: createRuntime({ type: "local", srcBaseDir: "/tmp" }),
-      tempDir: tempDir.path,
+      runtimeTempDir: tempDir.path,
       overflow_policy: "truncate",
     });
 
@@ -236,7 +236,7 @@ describe("bash tool", () => {
     const tool = createBashTool({
       cwd: process.cwd(),
       runtime: createRuntime({ type: "local", srcBaseDir: "/tmp" }),
-      tempDir: tempDir.path,
+      runtimeTempDir: tempDir.path,
       overflow_policy: "truncate",
     });
 
@@ -272,7 +272,7 @@ describe("bash tool", () => {
     const tool = createBashTool({
       cwd: tempDir.path, // Use tempDir as cwd so we can verify file creation
       runtime: createRuntime({ type: "local", srcBaseDir: "/tmp" }),
-      tempDir: tempDir.path,
+      runtimeTempDir: tempDir.path,
       // overflow_policy not specified - should default to tmpfile
     });
 
@@ -306,7 +306,7 @@ describe("bash tool", () => {
     const tool = createBashTool({
       cwd: process.cwd(),
       runtime: createRuntime({ type: "local", srcBaseDir: "/tmp" }),
-      tempDir: tempDir.path,
+      runtimeTempDir: tempDir.path,
     });
 
     // Generate ~50KB of output (well over 16KB display limit, under 100KB file limit)
@@ -358,7 +358,7 @@ describe("bash tool", () => {
     const tool = createBashTool({
       cwd: process.cwd(),
       runtime: createRuntime({ type: "local", srcBaseDir: "/tmp" }),
-      tempDir: tempDir.path,
+      runtimeTempDir: tempDir.path,
     });
 
     // Generate ~150KB of output (exceeds 100KB file limit)
@@ -401,7 +401,7 @@ describe("bash tool", () => {
     const tool = createBashTool({
       cwd: process.cwd(),
       runtime: createRuntime({ type: "local", srcBaseDir: "/tmp" }),
-      tempDir: tempDir.path,
+      runtimeTempDir: tempDir.path,
     });
 
     // Generate output that exceeds display limit but not file limit
@@ -443,7 +443,7 @@ describe("bash tool", () => {
     const tool = createBashTool({
       cwd: process.cwd(),
       runtime: createRuntime({ type: "local", srcBaseDir: "/tmp" }),
-      tempDir: tempDir.path,
+      runtimeTempDir: tempDir.path,
     });
 
     // Generate a single line exceeding 1KB limit, then try to output more
@@ -483,7 +483,7 @@ describe("bash tool", () => {
     const tool = createBashTool({
       cwd: process.cwd(),
       runtime: createRuntime({ type: "local", srcBaseDir: "/tmp" }),
-      tempDir: tempDir.path,
+      runtimeTempDir: tempDir.path,
     });
 
     // Generate ~15KB of output (just under 16KB display limit)
@@ -513,7 +513,7 @@ describe("bash tool", () => {
     const tool = createBashTool({
       cwd: process.cwd(),
       runtime: createRuntime({ type: "local", srcBaseDir: "/tmp" }),
-      tempDir: tempDir.path,
+      runtimeTempDir: tempDir.path,
     });
 
     // Generate exactly 300 lines (hits line limit exactly)
