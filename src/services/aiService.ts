@@ -425,7 +425,7 @@ export class AIService extends EventEmitter {
       const earlyAllTools = await getToolsForModel(modelString, {
         cwd: process.cwd(),
         runtime: earlyRuntime,
-        tempDir: os.tmpdir(),
+        runtimeTempDir: os.tmpdir(),
         secrets: {},
       });
       const earlyTools = applyToolPolicy(earlyAllTools, toolPolicy);

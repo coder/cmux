@@ -900,7 +900,7 @@ export class IpcMain {
             runtime,
             secrets: secretsToRecord(projectSecrets),
             niceness: options?.niceness,
-            tempDir: tempDir.path,
+            runtimeTempDir: tempDir.path,
             overflow_policy: "truncate",
           });
 
