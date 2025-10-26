@@ -798,7 +798,7 @@ echo "Init hook executed with tilde path"
 
             expect(exitCode).toBe(0);
             const remoteUrl = stdout.trim();
-            
+
             // Should be the original origin URL, not the bundle path
             expect(remoteUrl).toBe(originUrl);
             expect(remoteUrl).not.toContain(".bundle");
