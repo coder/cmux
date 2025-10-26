@@ -4,6 +4,8 @@ import { VERSION } from "@/version";
 import { TooltipWrapper, Tooltip } from "./Tooltip";
 import type { UpdateStatus } from "@/types/ipc";
 import { isTelemetryEnabled } from "@/telemetry";
+import { useApp } from "@/contexts/AppContext";
+import { RuntimeBadge } from "./RuntimeBadge";
 
 // Update check intervals
 const UPDATE_CHECK_INTERVAL_MS = 4 * 60 * 60 * 1000; // 4 hours
@@ -77,6 +79,12 @@ export function TitleBar() {
   const [isCheckingOnHover, setIsCheckingOnHover] = useState(false);
   const lastHoverCheckTime = useRef<number>(0);
   const telemetryEnabled = isTelemetryEnabled();
+
+  // Get selected workspace runtime config
+  const { selectedWorkspace, workspaceMetadata } = useApp();
+  const runtimeConfig = selectedWorkspace?.workspaceId
+    ? workspaceMetadata.get(selectedWorkspace.workspaceId)?.runtimeConfig
+    : undefined;
 
   useEffect(() => {
     // Skip update checks if telemetry is disabled
@@ -242,6 +250,7 @@ export function TitleBar() {
             </Tooltip>
           </TooltipWrapper>
         )}
+        <RuntimeBadge runtimeConfig={runtimeConfig} />
         <div className="min-w-0 cursor-text truncate text-xs font-normal tracking-wider select-text">
           cmux {gitDescribe ?? "(dev)"}
         </div>

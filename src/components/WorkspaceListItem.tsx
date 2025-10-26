@@ -9,6 +9,7 @@ import { ModelDisplay } from "./Messages/ModelDisplay";
 import { StatusIndicator } from "./StatusIndicator";
 import { useRename } from "@/contexts/WorkspaceRenameContext";
 import { cn } from "@/lib/utils";
+import { RuntimeBadge } from "./RuntimeBadge";
 
 export interface WorkspaceSelection {
   projectPath: string;
@@ -132,7 +133,7 @@ const WorkspaceListItemInner: React.FC<WorkspaceListItemProps> = ({
     <React.Fragment>
       <div
         className={cn(
-          "py-1.5 px-3 pl-7 cursor-pointer grid grid-cols-[auto_auto_1fr_auto] gap-2 items-center border-l-[3px] border-transparent transition-all duration-150 text-[13px] relative hover:bg-hover [&:hover_button]:opacity-100",
+          "py-1.5 px-3 pl-7 cursor-pointer grid grid-cols-[auto_auto_auto_1fr_auto] gap-2 items-center border-l-[3px] border-transparent transition-all duration-150 text-[13px] relative hover:bg-hover [&:hover_button]:opacity-100",
           isSelected && "bg-hover border-l-[#569cd6]"
         )}
         onClick={() =>
@@ -181,6 +182,7 @@ const WorkspaceListItemInner: React.FC<WorkspaceListItemProps> = ({
           workspaceId={workspaceId}
           tooltipPosition="right"
         />
+        <RuntimeBadge runtimeConfig={metadata.runtimeConfig} />
         {isEditing ? (
           <input
             className="bg-input-bg text-input-text border-input-border font-inherit focus:border-input-border-focus min-w-0 rounded-sm border px-1 py-0.5 text-right text-[13px] outline-none"
