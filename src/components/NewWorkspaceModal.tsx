@@ -2,10 +2,12 @@ import React, { useEffect, useId, useState } from "react";
 import { Modal, ModalInfo, ModalActions, CancelButton, PrimaryButton } from "./Modal";
 import { TooltipWrapper, Tooltip } from "./Tooltip";
 import { formatNewCommand } from "@/utils/chatCommands";
+import { getRuntimeKey } from "@/constants/storage";
 
 interface NewWorkspaceModalProps {
   isOpen: boolean;
   projectName: string;
+  projectPath: string;
   branches: string[];
   defaultTrunkBranch?: string;
   loadErrorMessage?: string | null;
@@ -20,6 +22,7 @@ const formFieldClasses =
 const NewWorkspaceModal: React.FC<NewWorkspaceModalProps> = ({
   isOpen,
   projectName,
+  projectPath,
   branches,
   defaultTrunkBranch,
   loadErrorMessage,
@@ -55,6 +58,25 @@ const NewWorkspaceModal: React.FC<NewWorkspaceModalProps> = ({
       return current;
     });
   }, [branches, defaultTrunkBranch, hasBranches]);
+
+  // Load saved runtime preference when modal opens
+  useEffect(() => {
+    if (isOpen && projectPath) {
+      const runtimeKey = getRuntimeKey(projectPath);
+      const savedRuntime = localStorage.getItem(runtimeKey);
+      if (savedRuntime) {
+        // Parse the saved runtime string (format: "ssh <host>" or undefined for local)
+        if (savedRuntime.startsWith("ssh ")) {
+          const host = savedRuntime.substring(4).trim();
+          setRuntimeMode("ssh");
+          setSshHost(host);
+        } else {
+          setRuntimeMode("local");
+          setSshHost("");
+        }
+      }
+    }
+  }, [isOpen, projectPath]);
 
   const handleCancel = () => {
     setBranchName("");
