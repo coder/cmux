@@ -199,7 +199,9 @@ export interface Runtime {
     oldName: string,
     newName: string,
     srcDir: string
-  ): Promise<{ success: true; oldPath: string; newPath: string } | { success: false; error: string }>;
+  ): Promise<
+    { success: true; oldPath: string; newPath: string } | { success: false; error: string }
+  >;
 
   /**
    * Delete workspace directory

@@ -475,7 +475,7 @@ export class IpcMain {
               if (workspaceEntry) {
                 workspaceEntry.name = newName;
                 workspaceEntry.path = newPath; // Update path to reflect new directory name
-                
+
                 // Update runtime workdir to match new path
                 if (workspaceEntry.runtimeConfig) {
                   workspaceEntry.runtimeConfig.workdir = newPath;

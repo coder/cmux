@@ -22,7 +22,6 @@ import { checkInitHookExists, createLineBufferedLoggers } from "./initHook";
 import { streamProcessToLogger } from "./streamProcess";
 import { expandTildeForSSH, cdCommandForSSH } from "./tildeExpansion";
 import { findBashPath } from "./executablePaths";
-import { execAsync } from "../utils/disposableExec";
 
 /**
  * Shescape instance for bash shell escaping.
@@ -662,9 +661,11 @@ export class SSHRuntime implements Runtime {
     oldName: string,
     newName: string,
     _srcDir: string
-  ): Promise<{ success: true; oldPath: string; newPath: string } | { success: false; error: string }> {
+  ): Promise<
+    { success: true; oldPath: string; newPath: string } | { success: false; error: string }
+  > {
     // Compute workspace paths on remote: {workdir}/{project-name}/{workspace-name}
-    const projectName = projectPath.split("/").pop() || projectPath;
+    const projectName = projectPath.split("/").pop() ?? projectPath;
     const oldPath = path.posix.join(this.config.workdir, projectName, oldName);
     const newPath = path.posix.join(this.config.workdir, projectName, newName);
 
@@ -672,13 +673,13 @@ export class SSHRuntime implements Runtime {
       // SSH runtimes use plain directories, not git worktrees
       // Just use mv to rename the directory on the remote host
       const moveCommand = `mv ${shescape.quote(oldPath)} ${shescape.quote(newPath)}`;
-      
+
       // Execute via the runtime's exec method (handles SSH connection multiplexing, etc.)
       const stream = await this.exec(moveCommand, {
         cwd: this.config.workdir,
         timeout: 30,
       });
-      
+
       await stream.stdin.close();
       const exitCode = await stream.exitCode;
 
@@ -696,7 +697,10 @@ export class SSHRuntime implements Runtime {
         } finally {
           stderrReader.releaseLock();
         }
-        return { success: false, error: `Failed to rename directory: ${stderr || "Unknown error"}` };
+        return {
+          success: false,
+          error: `Failed to rename directory: ${stderr || "Unknown error"}`,
+        };
       }
 
       return { success: true, oldPath, newPath };
@@ -713,20 +717,20 @@ export class SSHRuntime implements Runtime {
     _force: boolean
   ): Promise<{ success: true; deletedPath: string } | { success: false; error: string }> {
     // Compute workspace path on remote: {workdir}/{project-name}/{workspace-name}
-    const projectName = projectPath.split("/").pop() || projectPath;
+    const projectName = projectPath.split("/").pop() ?? projectPath;
     const deletedPath = path.posix.join(this.config.workdir, projectName, workspaceName);
 
     try {
       // SSH runtimes use plain directories, not git worktrees
       // Just use rm -rf to remove the directory on the remote host
       const removeCommand = `rm -rf ${shescape.quote(deletedPath)}`;
-      
+
       // Execute via the runtime's exec method (handles SSH connection multiplexing, etc.)
       const stream = await this.exec(removeCommand, {
         cwd: this.config.workdir,
         timeout: 30,
       });
-      
+
       await stream.stdin.close();
       const exitCode = await stream.exitCode;
 
@@ -744,7 +748,10 @@ export class SSHRuntime implements Runtime {
         } finally {
           stderrReader.releaseLock();
         }
-        return { success: false, error: `Failed to delete directory: ${stderr || "Unknown error"}` };
+        return {
+          success: false,
+          error: `Failed to delete directory: ${stderr || "Unknown error"}`,
+        };
       }
 
       return { success: true, deletedPath };

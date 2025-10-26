@@ -438,7 +438,9 @@ export class LocalRuntime implements Runtime {
     oldName: string,
     newName: string,
     srcDir: string
-  ): Promise<{ success: true; oldPath: string; newPath: string } | { success: false; error: string }> {
+  ): Promise<
+    { success: true; oldPath: string; newPath: string } | { success: false; error: string }
+  > {
     // Compute workspace paths: {srcDir}/{project-name}/{workspace-name}
     const projectName = path.basename(projectPath);
     const oldPath = path.join(srcDir, projectName, oldName);
@@ -447,10 +449,8 @@ export class LocalRuntime implements Runtime {
     try {
       // Use git worktree move to rename the worktree directory
       // This updates git's internal worktree metadata correctly
-      using proc = execAsync(
-        `git -C "${projectPath}" worktree move "${oldPath}" "${newPath}"`
-      );
-      const result = await proc.result;
+      using proc = execAsync(`git -C "${projectPath}" worktree move "${oldPath}" "${newPath}"`);
+      await proc.result;
 
       return { success: true, oldPath, newPath };
     } catch (error) {
@@ -476,12 +476,12 @@ export class LocalRuntime implements Runtime {
       using proc = execAsync(
         `git -C "${projectPath}" worktree remove${forceFlag} "${deletedPath}"`
       );
-      const result = await proc.result;
+      await proc.result;
 
       return { success: true, deletedPath };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      
+
       // If removal failed without --force and error mentions submodules, check if worktree is clean
       // Git refuses to remove worktrees with submodules unless --force is used, even if clean
       if (!force && message.includes("submodules")) {
@@ -491,26 +491,26 @@ export class LocalRuntime implements Runtime {
             `git -C "${deletedPath}" diff --quiet && git -C "${deletedPath}" diff --quiet --cached`
           );
           await statusProc.result;
-          
+
           // Worktree is clean - safe to use --force for submodule case
           try {
             using retryProc = execAsync(
               `git -C "${projectPath}" worktree remove --force "${deletedPath}"`
             );
-            const retryResult = await retryProc.result;
+            await retryProc.result;
             return { success: true, deletedPath };
           } catch (retryError) {
-            const retryMessage = retryError instanceof Error ? retryError.message : String(retryError);
+            const retryMessage =
+              retryError instanceof Error ? retryError.message : String(retryError);
             return { success: false, error: `Failed to remove worktree: ${retryMessage}` };
           }
-        } catch (statusError) {
+        } catch {
           // Worktree is dirty - don't auto-retry with --force, let user decide
           return { success: false, error: `Failed to remove worktree: ${message}` };
         }
       }
-      
+
       return { success: false, error: `Failed to remove worktree: ${message}` };
     }
   }
-
 }
