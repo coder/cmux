@@ -8,13 +8,26 @@ runs:
       with:
         bun-version: latest
 
-    - name: Cache bun dependencies
+    - name: Get Bun version
+      id: bun-version
+      shell: bash
+      run: echo "version=$(bun --version)" >> $GITHUB_OUTPUT
+
+    - name: Cache node_modules
+      uses: actions/cache@v4
+      with:
+        path: node_modules
+        key: ${{ runner.os }}-${{ runner.arch }}-bun-${{ steps.bun-version.outputs.version }}-node-modules-${{ hashFiles('**/bun.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-${{ runner.arch }}-bun-${{ steps.bun-version.outputs.version }}-node-modules-
+
+    - name: Cache bun install cache
       uses: actions/cache@v4
       with:
         path: ~/.bun/install/cache
-        key: ${{ runner.os }}-bun-${{ hashFiles('**/bun.lock') }}
+        key: ${{ runner.os }}-bun-cache-${{ hashFiles('**/bun.lock') }}
         restore-keys: |
-          ${{ runner.os }}-bun-
+          ${{ runner.os }}-bun-cache-
 
     - name: Cache Homebrew (macOS)
       if: runner.os == 'macOS'
