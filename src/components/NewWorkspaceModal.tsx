@@ -207,7 +207,9 @@ const NewWorkspaceModal: React.FC<NewWorkspaceModalProps> = ({
             id="runtimeMode"
             value={runtimeMode}
             onChange={(event) => {
-              const newMode = event.target.value as typeof RUNTIME_MODE.LOCAL | typeof RUNTIME_MODE.SSH;
+              const newMode = event.target.value as
+                | typeof RUNTIME_MODE.LOCAL
+                | typeof RUNTIME_MODE.SSH;
               setRuntimeOptions(newMode, newMode === RUNTIME_MODE.LOCAL ? "" : sshHost);
               setError(null);
             }}

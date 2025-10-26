@@ -19,7 +19,7 @@ export interface WorkspaceRuntimeOptions {
 /**
  * Hook to manage workspace creation runtime options with localStorage persistence.
  * Loads saved runtime preference for a project and provides consistent state management.
- * 
+ *
  * @param projectPath - Path to the project (used as key for localStorage)
  * @returns Runtime options state and setter
  */
@@ -41,7 +41,7 @@ export function useNewWorkspaceOptions(
     const runtimeKey = getRuntimeKey(projectPath);
     const savedRuntime = localStorage.getItem(runtimeKey);
     const parsed = parseRuntimeModeAndHost(savedRuntime);
-    
+
     setRuntimeMode(parsed.mode);
     setSshHost(parsed.host);
   }, [projectPath]);

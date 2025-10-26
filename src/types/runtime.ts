@@ -36,7 +36,7 @@ export type RuntimeConfig =
  * Parse runtime string from localStorage or UI input into mode and host
  * Format: "ssh <host>" -> { mode: "ssh", host: "<host>" }
  *         "local" or undefined -> { mode: "local", host: "" }
- * 
+ *
  * Use this for UI state management (localStorage, form inputs)
  */
 export function parseRuntimeModeAndHost(runtime: string | null | undefined): {
