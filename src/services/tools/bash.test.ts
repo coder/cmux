@@ -3,7 +3,6 @@ import { createBashTool } from "./bash";
 import type { BashToolArgs, BashToolResult } from "@/types/tools";
 import { BASH_MAX_TOTAL_BYTES } from "@/constants/toolLimits";
 import * as fs from "fs";
-import * as path from "path";
 import { TestTempDir } from "./testHelpers";
 import { createRuntime } from "@/runtime/runtimeFactory";
 
