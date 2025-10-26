@@ -24,6 +24,7 @@ import { expandTildeForSSH, cdCommandForSSH } from "./tildeExpansion";
 import { findBashPath } from "./executablePaths";
 import { getProjectName } from "../utils/runtime/helpers";
 import { getErrorMessage } from "../utils/errors";
+import { execAsync } from "../utils/disposableExec";
 
 /**
  * Shescape instance for bash shell escaping.
@@ -372,7 +373,24 @@ export class SSHRuntime implements Runtime {
     const bundleTempPath = `~/.cmux-bundle-${timestamp}.bundle`;
 
     try {
-      // Step 1: Create bundle locally and pipe to remote file via SSH
+      // Step 1: Get origin URL from local repository (if it exists)
+      let originUrl: string | null = null;
+      try {
+        using proc = execAsync(
+          `cd ${JSON.stringify(projectPath)} && git remote get-url origin 2>/dev/null || true`
+        );
+        const { stdout } = await proc.result;
+        const url = stdout.trim();
+        // Only use URL if it's not a bundle path (avoids propagating bundle paths)
+        if (url && !url.includes(".bundle") && !url.includes(".cmux-bundle")) {
+          originUrl = url;
+        }
+      } catch (error) {
+        // If we can't get origin, continue without it
+        initLogger.logStderr(`Could not get origin URL: ${getErrorMessage(error)}`);
+      }
+
+      // Step 2: Create bundle locally and pipe to remote file via SSH
       initLogger.logStep(`Creating git bundle...`);
       await new Promise<void>((resolve, reject) => {
         const sshArgs = this.buildSSHArgs(true);
@@ -405,7 +423,7 @@ export class SSHRuntime implements Runtime {
         });
       });
 
-      // Step 2: Clone from bundle on remote using this.exec
+      // Step 3: Clone from bundle on remote using this.exec
       initLogger.logStep(`Cloning repository on remote...`);
 
       // Expand tilde in destination path for git clone
@@ -427,7 +445,37 @@ export class SSHRuntime implements Runtime {
         throw new Error(`Failed to clone repository: ${cloneStderr || cloneStdout}`);
       }
 
-      // Step 3: Remove bundle file
+      // Step 4: Update origin remote if we have an origin URL
+      if (originUrl) {
+        initLogger.logStep(`Setting origin remote to ${originUrl}...`);
+        const setOriginStream = await this.exec(
+          `git -C ${cloneDestPath} remote set-url origin ${JSON.stringify(originUrl)}`,
+          {
+            cwd: "~",
+            timeout: 10,
+          }
+        );
+
+        const setOriginExitCode = await setOriginStream.exitCode;
+        if (setOriginExitCode !== 0) {
+          const stderr = await streamToString(setOriginStream.stderr);
+          log.info(`Failed to set origin remote: ${stderr}`);
+          // Continue anyway - this is not fatal
+        }
+      } else {
+        // No origin in local repo, remove the origin that points to bundle
+        initLogger.logStep(`Removing bundle origin remote...`);
+        const removeOriginStream = await this.exec(
+          `git -C ${cloneDestPath} remote remove origin 2>/dev/null || true`,
+          {
+            cwd: "~",
+            timeout: 10,
+          }
+        );
+        await removeOriginStream.exitCode;
+      }
+
+      // Step 5: Remove bundle file
       initLogger.logStep(`Cleaning up bundle file...`);
       const rmStream = await this.exec(`rm ${bundleTempPath}`, {
         cwd: "~",
@@ -826,7 +874,7 @@ export class SSHRuntime implements Runtime {
 /**
  * Helper to convert a ReadableStream to a string
  */
-async function streamToString(stream: ReadableStream<Uint8Array>): Promise<string> {
+export async function streamToString(stream: ReadableStream<Uint8Array>): Promise<string> {
   const reader = stream.getReader();
   const decoder = new TextDecoder("utf-8");
   let result = "";

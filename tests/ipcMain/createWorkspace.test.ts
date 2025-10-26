@@ -27,6 +27,9 @@ import {
 } from "../runtime/ssh-fixture";
 import type { RuntimeConfig } from "../../src/types/runtime";
 import type { FrontendWorkspaceMetadata } from "../../src/types/workspace";
+import { createRuntime } from "../../src/runtime/runtimeFactory";
+import type { SSHRuntime } from "../../src/runtime/SSHRuntime";
+import { streamToString } from "../../src/runtime/SSHRuntime";
 
 const execAsync = promisify(exec);
 
@@ -722,4 +725,94 @@ echo "Init hook executed with tilde path"
       });
     }
   );
+
+  // SSH-specific tests (outside matrix)
+  describe("SSH-specific behavior", () => {
+    test.concurrent(
+      "forwards origin remote instead of bundle path",
+      async () => {
+        // Skip if SSH server not available
+        if (!sshConfig) {
+          console.log("Skipping SSH-specific test: SSH server not available");
+          return;
+        }
+
+        const env = await createTestEnvironment();
+        const tempGitRepo = await createTempGitRepo();
+
+        try {
+          // Set up a real origin remote in the test repo
+          const originUrl = "https://github.com/example/test-repo.git";
+          await execAsync(`git remote add origin ${originUrl}`, {
+            cwd: tempGitRepo,
+          });
+
+          // Verify origin was added
+          const { stdout: originCheck } = await execAsync(`git remote get-url origin`, {
+            cwd: tempGitRepo,
+          });
+          expect(originCheck.trim()).toBe(originUrl);
+
+          const branchName = generateBranchName();
+          const trunkBranch = await detectDefaultTrunkBranch(tempGitRepo);
+
+          const runtimeConfig: RuntimeConfig = {
+            type: "ssh",
+            host: "localhost",
+            port: sshConfig.port,
+            username: sshConfig.username,
+            privateKeyPath: sshConfig.privateKeyPath,
+            srcBaseDir: "~/workspace",
+          };
+
+          const { result, cleanup } = await createWorkspaceWithCleanup(
+            env,
+            tempGitRepo,
+            branchName,
+            trunkBranch,
+            runtimeConfig
+          );
+
+          try {
+            expect(result.success).toBe(true);
+            if (!result.success) return;
+
+            // Wait for init to complete
+            await new Promise((resolve) => setTimeout(resolve, SSH_INIT_WAIT_MS));
+
+            // Create runtime to check remote on SSH host
+            const runtime = createRuntime(runtimeConfig);
+            const workspacePath = runtime.getWorkspacePath(tempGitRepo, branchName);
+
+            // Check that origin remote exists and points to the original URL, not the bundle
+            const checkOriginCmd = `git -C ${workspacePath} remote get-url origin`;
+            const originStream = await (runtime as SSHRuntime).exec(checkOriginCmd, {
+              cwd: "~",
+              timeout: 10,
+            });
+
+            const [stdout, stderr, exitCode] = await Promise.all([
+              streamToString(originStream.stdout),
+              streamToString(originStream.stderr),
+              originStream.exitCode,
+            ]);
+
+            expect(exitCode).toBe(0);
+            const remoteUrl = stdout.trim();
+            
+            // Should be the original origin URL, not the bundle path
+            expect(remoteUrl).toBe(originUrl);
+            expect(remoteUrl).not.toContain(".bundle");
+            expect(remoteUrl).not.toContain(".cmux-bundle");
+          } finally {
+            await cleanup();
+          }
+        } finally {
+          await cleanupTestEnvironment(env);
+          await cleanupTempGitRepo(tempGitRepo);
+        }
+      },
+      TEST_TIMEOUT_MS
+    );
+  });
 });
