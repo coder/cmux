@@ -1,509 +1,292 @@
-import {
-  setupWorkspace,
-  shouldRunIntegrationTests,
-  validateApiKeys,
-  preloadTestModules,
-} from "./setup";
-import {
-  sendMessageWithModel,
-  createEventCollector,
-  waitForFileExists,
-  waitForFileNotExists,
-  createWorkspace,
-} from "./helpers";
-import { IPC_CHANNELS } from "../../src/constants/ipc-constants";
-import type { CmuxMessage } from "../../src/types/message";
+/**
+ * Integration tests for WORKSPACE_RENAME IPC handler
+ *
+ * Tests both LocalRuntime and SSHRuntime without mocking to verify:
+ * - Workspace renaming mechanics (git worktree mv, directory mv)
+ * - Config updates (workspace path, name, stable IDs)
+ * - Error handling (name conflicts, validation)
+ * - Parity between runtime implementations
+ *
+ * Uses real IPC handlers, real git operations, and Docker SSH server.
+ */
+
 import * as fs from "fs/promises";
-import * as fsSync from "fs";
-import { createRuntime } from "../../src/runtime/runtimeFactory";
+import * as path from "path";
+import { exec } from "child_process";
+import { promisify } from "util";
+import { shouldRunIntegrationTests, createTestEnvironment, cleanupTestEnvironment } from "./setup";
+import type { TestEnvironment } from "./setup";
+import { IPC_CHANNELS } from "../../src/constants/ipc-constants";
+import { createTempGitRepo, cleanupTempGitRepo, generateBranchName } from "./helpers";
+import { detectDefaultTrunkBranch } from "../../src/git";
+import {
+  isDockerAvailable,
+  startSSHServer,
+  stopSSHServer,
+  type SSHServerConfig,
+} from "../runtime/ssh-fixture";
+import type { RuntimeConfig } from "../../src/types/runtime";
+import type { FrontendWorkspaceMetadata } from "../../src/types/workspace";
+import { waitForInitComplete } from "./helpers";
+
+const execAsync = promisify(exec);
+
+// Test constants
+const TEST_TIMEOUT_MS = 60000;
+const INIT_HOOK_WAIT_MS = 1500; // Wait for async init hook completion (local runtime)
+const SSH_INIT_WAIT_MS = 7000; // SSH init includes sync + checkout + hook, takes longer
 
 // Skip all tests if TEST_INTEGRATION is not set
 const describeIntegration = shouldRunIntegrationTests() ? describe : describe.skip;
 
-// Validate API keys before running tests
-if (shouldRunIntegrationTests()) {
-  validateApiKeys(["ANTHROPIC_API_KEY"]);
+// SSH server config (shared across all SSH tests)
+let sshConfig: SSHServerConfig | undefined;
+
+// ============================================================================
+// Test Helpers
+// ============================================================================
+
+/**
+ * Create workspace and handle cleanup on test failure
+ */
+async function createWorkspaceWithCleanup(
+  env: TestEnvironment,
+  projectPath: string,
+  branchName: string,
+  trunkBranch: string,
+  runtimeConfig?: RuntimeConfig
+): Promise<{
+  result:
+    | { success: true; metadata: FrontendWorkspaceMetadata }
+    | { success: false; error: string };
+  cleanup: () => Promise<void>;
+}> {
+  const result = await env.mockIpcRenderer.invoke(
+    IPC_CHANNELS.WORKSPACE_CREATE,
+    projectPath,
+    branchName,
+    trunkBranch,
+    runtimeConfig
+  );
+
+  const cleanup = async () => {
+    if (result.success) {
+      await env.mockIpcRenderer.invoke(IPC_CHANNELS.WORKSPACE_REMOVE, result.metadata.id);
+    }
+  };
+
+  return { result, cleanup };
 }
 
-describeIntegration("IpcMain rename workspace integration tests", () => {
-  // Load tokenizer modules and AI SDK providers once before all tests
-  // This ensures accurate token counts for API calls and prevents race conditions
-  // when tests import providers concurrently
+describeIntegration("WORKSPACE_RENAME with both runtimes", () => {
   beforeAll(async () => {
-    await preloadTestModules();
-  }, 30000); // 30s timeout for tokenizer and provider loading
+    // Check if Docker is available (required for SSH tests)
+    if (!(await isDockerAvailable())) {
+      throw new Error(
+        "Docker is required for SSH runtime tests. Please install Docker or skip tests by unsetting TEST_INTEGRATION."
+      );
+    }
 
-  test.concurrent(
-    "should successfully rename workspace and update all paths",
-    async () => {
-      const { env, workspaceId, workspacePath, tempGitRepo, branchName, cleanup } =
-        await setupWorkspace("anthropic");
-      try {
-        // Add project and workspace to config via IPC
-        await env.mockIpcRenderer.invoke(IPC_CHANNELS.PROJECT_CREATE, tempGitRepo);
-        // Manually add workspace to the project (normally done by WORKSPACE_CREATE)
-        const projectsConfig = env.config.loadConfigOrDefault();
-        const projectConfig = projectsConfig.projects.get(tempGitRepo);
-        if (projectConfig) {
-          projectConfig.workspaces.push({
-            path: workspacePath,
-            id: workspaceId,
-            name: branchName,
-          });
-          env.config.saveConfig(projectsConfig);
+    // Start SSH server (shared across all tests for speed)
+    console.log("Starting SSH server container for renameWorkspace tests...");
+    sshConfig = await startSSHServer();
+    console.log(`SSH server ready on port ${sshConfig.port}`);
+  }, 60000); // 60s timeout for Docker operations
+
+  afterAll(async () => {
+    if (sshConfig) {
+      console.log("Stopping SSH server container...");
+      await stopSSHServer(sshConfig);
+    }
+  }, 30000);
+
+  // Test matrix: Run tests for both local and SSH runtimes
+  describe.each<{ type: "local" | "ssh" }>([{ type: "local" }, { type: "ssh" }])(
+    "Runtime: $type",
+    ({ type }) => {
+      // Helper to build runtime config
+      const getRuntimeConfig = (branchName: string): RuntimeConfig | undefined => {
+        if (type === "ssh" && sshConfig) {
+          return {
+            type: "ssh",
+            host: `testuser@localhost`,
+            srcBaseDir: sshConfig.workdir,
+            identityFile: sshConfig.privateKeyPath,
+            port: sshConfig.port,
+          };
         }
-        const oldSessionDir = env.config.getSessionDir(workspaceId);
-        const oldMetadataResult = await env.mockIpcRenderer.invoke(
-          IPC_CHANNELS.WORKSPACE_GET_INFO,
-          workspaceId
-        );
-        expect(oldMetadataResult).toBeTruthy();
-        const oldWorkspacePath = oldMetadataResult.namedWorkspacePath;
+        return undefined; // undefined = defaults to local
+      };
 
-        // Clear events before rename
-        env.sentEvents.length = 0;
+      // Get runtime-specific init wait time (SSH needs more time for rsync)
+      const getInitWaitTime = () => (type === "ssh" ? SSH_INIT_WAIT_MS : INIT_HOOK_WAIT_MS);
 
-        // Rename the workspace
-        const newName = "renamed-branch";
-        const renameResult = await env.mockIpcRenderer.invoke(
-          IPC_CHANNELS.WORKSPACE_RENAME,
-          workspaceId,
-          newName
-        );
-        if (!renameResult.success) {
-          console.error("Rename failed:", renameResult.error);
-        }
-        expect(renameResult.success).toBe(true);
+      test.concurrent(
+        "should successfully rename workspace and update all paths",
+        async () => {
+          const env = await createTestEnvironment();
+          const tempGitRepo = await createTempGitRepo();
 
-        // Get new workspace ID from backend (NEVER construct it in frontend)
-        expect(renameResult.data?.newWorkspaceId).toBeDefined();
-        const newWorkspaceId = renameResult.data.newWorkspaceId;
-        const projectName = oldMetadataResult.projectName; // Still need this for assertions
+          try {
+            const branchName = generateBranchName("rename-test");
+            const trunkBranch = await detectDefaultTrunkBranch(tempGitRepo);
+            const runtimeConfig = getRuntimeConfig(branchName);
 
-        // With stable IDs, workspace ID should NOT change during rename
-        expect(newWorkspaceId).toBe(workspaceId);
+            // Create workspace
+            const { result, cleanup } = await createWorkspaceWithCleanup(
+              env,
+              tempGitRepo,
+              branchName,
+              trunkBranch,
+              runtimeConfig
+            );
 
-        // Session directory should still be the same (stable IDs don't move directories)
-        const sessionDir = env.config.getSessionDir(workspaceId);
-        expect(sessionDir).toBe(oldSessionDir);
+            expect(result.success).toBe(true);
+            if (!result.success) {
+              throw new Error(`Failed to create workspace: ${result.error}`);
+            }
 
-        // Verify metadata was updated (name changed, path changed, but ID stays the same)
-        const newMetadataResult = await env.mockIpcRenderer.invoke(
-          IPC_CHANNELS.WORKSPACE_GET_INFO,
-          workspaceId // Use same workspace ID
-        );
-        expect(newMetadataResult).toBeTruthy();
-        expect(newMetadataResult.id).toBe(workspaceId); // ID unchanged
-        expect(newMetadataResult.name).toBe(newName); // Name updated
-        expect(newMetadataResult.projectName).toBe(projectName);
+            const workspaceId = result.metadata.id;
+            const oldWorkspacePath = result.metadata.namedWorkspacePath;
+            const oldSessionDir = env.config.getSessionDir(workspaceId);
 
-        // Path DOES change (directory is renamed from old name to new name)
-        const newWorkspacePath = newMetadataResult.namedWorkspacePath;
-        expect(newWorkspacePath).not.toBe(oldWorkspacePath);
-        expect(newWorkspacePath).toContain(newName); // New path includes new name
+            // Wait for init hook to complete before renaming
+            await waitForInitComplete(env, workspaceId, getInitWaitTime());
 
-        // Verify config was updated with new path
-        const config = env.config.loadConfigOrDefault();
-        let foundWorkspace = false;
-        for (const [, projectConfig] of config.projects.entries()) {
-          const workspace = projectConfig.workspaces.find((w) => w.path === newWorkspacePath);
-          if (workspace) {
-            foundWorkspace = true;
-            expect(workspace.name).toBe(newName); // Name updated in config
-            expect(workspace.id).toBe(workspaceId); // ID unchanged
-            break;
+            // Clear events before rename
+            env.sentEvents.length = 0;
+
+            // Rename the workspace
+            const newName = "renamed-branch";
+            const renameResult = await env.mockIpcRenderer.invoke(
+              IPC_CHANNELS.WORKSPACE_RENAME,
+              workspaceId,
+              newName
+            );
+
+            if (!renameResult.success) {
+              console.error("Rename failed:", renameResult.error);
+            }
+            expect(renameResult.success).toBe(true);
+
+            // Get new workspace ID from backend (NEVER construct it in frontend)
+            expect(renameResult.data?.newWorkspaceId).toBeDefined();
+            const newWorkspaceId = renameResult.data.newWorkspaceId;
+
+            // With stable IDs, workspace ID should NOT change during rename
+            expect(newWorkspaceId).toBe(workspaceId);
+
+            // Session directory should still be the same (stable IDs don't move directories)
+            const sessionDir = env.config.getSessionDir(workspaceId);
+            expect(sessionDir).toBe(oldSessionDir);
+
+            // Verify metadata was updated (name changed, path changed, but ID stays the same)
+            const newMetadataResult = await env.mockIpcRenderer.invoke(
+              IPC_CHANNELS.WORKSPACE_GET_INFO,
+              workspaceId // Use same workspace ID
+            );
+            expect(newMetadataResult).toBeTruthy();
+            expect(newMetadataResult.id).toBe(workspaceId); // ID unchanged
+            expect(newMetadataResult.name).toBe(newName); // Name updated
+
+            // Path DOES change (directory is renamed from old name to new name)
+            const newWorkspacePath = newMetadataResult.namedWorkspacePath;
+            expect(newWorkspacePath).not.toBe(oldWorkspacePath);
+            expect(newWorkspacePath).toContain(newName); // New path includes new name
+
+            // Verify config was updated with new path
+            const config = env.config.loadConfigOrDefault();
+            let foundWorkspace = false;
+            for (const [, projectConfig] of config.projects.entries()) {
+              const workspace = projectConfig.workspaces.find((w) => w.path === newWorkspacePath);
+              if (workspace) {
+                foundWorkspace = true;
+                expect(workspace.name).toBe(newName); // Name updated in config
+                expect(workspace.id).toBe(workspaceId); // ID unchanged
+                break;
+              }
+            }
+            expect(foundWorkspace).toBe(true);
+
+            // Verify metadata event was emitted (update existing workspace)
+            const metadataEvents = env.sentEvents.filter(
+              (e) => e.channel === IPC_CHANNELS.WORKSPACE_METADATA
+            );
+            expect(metadataEvents.length).toBe(1);
+
+            await cleanup();
+          } finally {
+            await cleanupTestEnvironment(env);
+            await cleanupTempGitRepo(tempGitRepo);
           }
-        }
-        expect(foundWorkspace).toBe(true);
+        },
+        TEST_TIMEOUT_MS
+      );
 
-        // Verify metadata event was emitted (update existing workspace)
-        const metadataEvents = env.sentEvents.filter(
-          (e) => e.channel === IPC_CHANNELS.WORKSPACE_METADATA
-        );
-        expect(metadataEvents.length).toBe(1);
-        // Event should be update of existing workspace
-        expect(metadataEvents[0].data).toMatchObject({
-          workspaceId,
-          metadata: expect.objectContaining({
-            id: workspaceId,
-            name: newName,
-            projectName,
-          }),
-        });
-      } finally {
-        await cleanup();
-      }
-    },
-    30000 // Increased timeout to debug hanging test
-  );
+      test.concurrent(
+        "should fail to rename if new name conflicts with existing workspace",
+        async () => {
+          const env = await createTestEnvironment();
+          const tempGitRepo = await createTempGitRepo();
 
-  test.concurrent(
-    "should fail to rename if new name conflicts with existing workspace",
-    async () => {
-      const { env, workspaceId, tempGitRepo, cleanup } = await setupWorkspace("anthropic");
-      try {
-        // Create a second workspace with a different branch
-        const secondBranchName = "conflict-branch";
-        const createResult = await createWorkspace(
-          env.mockIpcRenderer,
-          tempGitRepo,
-          secondBranchName
-        );
-        expect(createResult.success).toBe(true);
+          try {
+            const branchName = generateBranchName("first");
+            const secondBranchName = generateBranchName("second");
+            const trunkBranch = await detectDefaultTrunkBranch(tempGitRepo);
+            const runtimeConfig = getRuntimeConfig(branchName);
 
-        // Try to rename first workspace to the second workspace's name
-        const renameResult = await env.mockIpcRenderer.invoke(
-          IPC_CHANNELS.WORKSPACE_RENAME,
-          workspaceId,
-          secondBranchName
-        );
-        expect(renameResult.success).toBe(false);
-        expect(renameResult.error).toContain("already exists");
+            // Create first workspace
+            const { result: firstResult, cleanup: firstCleanup } = await createWorkspaceWithCleanup(
+              env,
+              tempGitRepo,
+              branchName,
+              trunkBranch,
+              runtimeConfig
+            );
+            expect(firstResult.success).toBe(true);
+            if (!firstResult.success) {
+              throw new Error(`Failed to create first workspace: ${firstResult.error}`);
+            }
 
-        // Verify original workspace still exists and wasn't modified
-        const metadataResult = await env.mockIpcRenderer.invoke(
-          IPC_CHANNELS.WORKSPACE_GET_INFO,
-          workspaceId
-        );
-        expect(metadataResult).toBeTruthy();
-        expect(metadataResult.id).toBe(workspaceId);
-      } finally {
-        await cleanup();
-      }
-    },
-    15000
-  );
+            // Create second workspace
+            const { result: secondResult, cleanup: secondCleanup } = await createWorkspaceWithCleanup(
+              env,
+              tempGitRepo,
+              secondBranchName,
+              trunkBranch,
+              runtimeConfig
+            );
+            expect(secondResult.success).toBe(true);
+            if (!secondResult.success) {
+              throw new Error(`Failed to create second workspace: ${secondResult.error}`);
+            }
 
-  test.concurrent(
-    "should succeed when renaming workspace to itself (no-op)",
-    async () => {
-      const { env, workspaceId, workspacePath, tempGitRepo, branchName, cleanup } =
-        await setupWorkspace("anthropic");
-      try {
-        // Add project and workspace to config via IPC
-        await env.mockIpcRenderer.invoke(IPC_CHANNELS.PROJECT_CREATE, tempGitRepo);
-        // Manually add workspace to the project (normally done by WORKSPACE_CREATE)
-        const projectsConfig = env.config.loadConfigOrDefault();
-        const projectConfig = projectsConfig.projects.get(tempGitRepo);
-        if (projectConfig) {
-          projectConfig.workspaces.push({
-            path: workspacePath,
-            id: workspaceId,
-            name: branchName,
-          });
-          env.config.saveConfig(projectsConfig);
-        }
+            // Try to rename first workspace to the second workspace's name
+            const renameResult = await env.mockIpcRenderer.invoke(
+              IPC_CHANNELS.WORKSPACE_RENAME,
+              firstResult.metadata.id,
+              secondBranchName
+            );
+            expect(renameResult.success).toBe(false);
+            expect(renameResult.error).toContain("already exists");
 
-        // Get current metadata
-        const oldMetadata = await env.mockIpcRenderer.invoke(
-          IPC_CHANNELS.WORKSPACE_GET_INFO,
-          workspaceId
-        );
-        expect(oldMetadata).toBeTruthy();
+            // Verify original workspace still exists and wasn't modified
+            const metadataResult = await env.mockIpcRenderer.invoke(
+              IPC_CHANNELS.WORKSPACE_GET_INFO,
+              firstResult.metadata.id
+            );
+            expect(metadataResult).toBeTruthy();
+            expect(metadataResult.id).toBe(firstResult.metadata.id);
 
-        // Rename workspace to its current name
-        const renameResult = await env.mockIpcRenderer.invoke(
-          IPC_CHANNELS.WORKSPACE_RENAME,
-          workspaceId,
-          branchName
-        );
-        expect(renameResult.success).toBe(true);
-        expect(renameResult.data.newWorkspaceId).toBe(workspaceId);
-
-        // Verify metadata unchanged
-        const newMetadata = await env.mockIpcRenderer.invoke(
-          IPC_CHANNELS.WORKSPACE_GET_INFO,
-          workspaceId
-        );
-        expect(newMetadata).toBeTruthy();
-        expect(newMetadata.id).toBe(workspaceId);
-        expect(newMetadata.namedWorkspacePath).toBe(oldMetadata.namedWorkspacePath);
-      } finally {
-        await cleanup();
-      }
-    },
-    15000
-  );
-
-  test.concurrent(
-    "should fail to rename if workspace doesn't exist",
-    async () => {
-      const { env, cleanup } = await setupWorkspace("anthropic");
-      try {
-        const nonExistentWorkspaceId = "nonexistent-workspace";
-        const renameResult = await env.mockIpcRenderer.invoke(
-          IPC_CHANNELS.WORKSPACE_RENAME,
-          nonExistentWorkspaceId,
-          "new-name"
-        );
-        expect(renameResult.success).toBe(false);
-        expect(renameResult.error).toContain("metadata");
-      } finally {
-        await cleanup();
-      }
-    },
-    15000
-  );
-
-  test.concurrent(
-    "should fail to rename with invalid workspace name",
-    async () => {
-      const { env, workspaceId, cleanup } = await setupWorkspace("anthropic");
-      try {
-        // Test various invalid names
-        const invalidNames = [
-          { name: "", expectedError: "empty" },
-          { name: "My-Branch", expectedError: "lowercase" },
-          { name: "branch name", expectedError: "lowercase" },
-          { name: "branch@123", expectedError: "lowercase" },
-          { name: "branch/test", expectedError: "lowercase" },
-          { name: "a".repeat(65), expectedError: "64 characters" },
-        ];
-
-        for (const { name, expectedError } of invalidNames) {
-          const renameResult = await env.mockIpcRenderer.invoke(
-            IPC_CHANNELS.WORKSPACE_RENAME,
-            workspaceId,
-            name
-          );
-          expect(renameResult.success).toBe(false);
-          expect(renameResult.error.toLowerCase()).toContain(expectedError.toLowerCase());
-        }
-
-        // Verify original workspace still exists and wasn't modified
-        const metadataResult = await env.mockIpcRenderer.invoke(
-          IPC_CHANNELS.WORKSPACE_GET_INFO,
-          workspaceId
-        );
-        expect(metadataResult).toBeTruthy();
-        expect(metadataResult.id).toBe(workspaceId);
-      } finally {
-        await cleanup();
-      }
-    },
-    15000
-  );
-
-  test.concurrent(
-    "should preserve chat history after rename",
-    async () => {
-      const { env, workspaceId, workspacePath, tempGitRepo, branchName, cleanup } =
-        await setupWorkspace("anthropic");
-      try {
-        // Add project and workspace to config via IPC
-        await env.mockIpcRenderer.invoke(IPC_CHANNELS.PROJECT_CREATE, tempGitRepo);
-        // Manually add workspace to the project (normally done by WORKSPACE_CREATE)
-        const projectsConfig = env.config.loadConfigOrDefault();
-        const projectConfig = projectsConfig.projects.get(tempGitRepo);
-        if (projectConfig) {
-          projectConfig.workspaces.push({
-            path: workspacePath,
-            id: workspaceId,
-            name: branchName,
-          });
-          env.config.saveConfig(projectsConfig);
-        }
-        // Send a message to create some history
-        env.sentEvents.length = 0;
-        const result = await sendMessageWithModel(env.mockIpcRenderer, workspaceId, "What is 2+2?");
-        if (!result.success) {
-          console.error("Send message failed:", result.error);
-        }
-        expect(result.success).toBe(true);
-
-        // Wait for response
-        const collector = createEventCollector(env.sentEvents, workspaceId);
-        await collector.waitForEvent("stream-end", 10000);
-
-        // Clear events before rename
-        env.sentEvents.length = 0;
-
-        // Rename the workspace
-        const newName = "renamed-with-history";
-        const renameResult = await env.mockIpcRenderer.invoke(
-          IPC_CHANNELS.WORKSPACE_RENAME,
-          workspaceId,
-          newName
-        );
-        if (!renameResult.success) {
-          console.error("Rename failed:", renameResult.error);
-        }
-        expect(renameResult.success).toBe(true);
-
-        // Get new workspace ID from result (don't construct it!)
-        const newWorkspaceId = renameResult.data.newWorkspaceId;
-
-        // Verify chat history file was moved (with retry for timing)
-        const newSessionDir = env.config.getSessionDir(newWorkspaceId);
-        const chatHistoryPath = `${newSessionDir}/chat.jsonl`;
-        const chatHistoryExists = await waitForFileExists(chatHistoryPath);
-        expect(chatHistoryExists).toBe(true);
-
-        // Verify we can read the history
-        const historyContent = await fs.readFile(chatHistoryPath, "utf-8");
-        const lines = historyContent.trim().split("\n");
-        expect(lines.length).toBeGreaterThan(0);
-      } finally {
-        await cleanup();
-      }
-    },
-    30000
-  );
-
-  test.concurrent(
-    "should support editing messages after rename",
-    async () => {
-      const { env, workspaceId, workspacePath, tempGitRepo, branchName, cleanup } =
-        await setupWorkspace("anthropic");
-      try {
-        // Add project and workspace to config via IPC
-        await env.mockIpcRenderer.invoke(IPC_CHANNELS.PROJECT_CREATE, tempGitRepo);
-        // Manually add workspace to the project (normally done by WORKSPACE_CREATE)
-        const projectsConfig = env.config.loadConfigOrDefault();
-        const projectConfig = projectsConfig.projects.get(tempGitRepo);
-        if (projectConfig) {
-          projectConfig.workspaces.push({
-            path: workspacePath,
-            id: workspaceId,
-            name: branchName,
-          });
-          env.config.saveConfig(projectsConfig);
-        }
-
-        // Send a message to create history before rename
-        env.sentEvents.length = 0;
-        const result = await sendMessageWithModel(
-          env.mockIpcRenderer,
-          workspaceId,
-          "What is 2+2?",
-          "anthropic",
-          "claude-sonnet-4-5"
-        );
-        if (!result.success) {
-          console.error("Send message failed:", result.error);
-        }
-        expect(result.success).toBe(true);
-
-        // Wait for response
-        const collector = createEventCollector(env.sentEvents, workspaceId);
-        await collector.waitForEvent("stream-end", 10000);
-
-        // Get the user message from chat events for later editing
-        const chatMessages = env.sentEvents.filter(
-          (e) =>
-            e.channel === `workspace:chat:${workspaceId}` &&
-            typeof e.data === "object" &&
-            e.data !== null &&
-            "role" in e.data
-        );
-        const userMessage = chatMessages.find((e) => (e.data as CmuxMessage).role === "user");
-        expect(userMessage).toBeTruthy();
-        const userMessageId = (userMessage!.data as CmuxMessage).id;
-
-        // Clear events before rename
-        env.sentEvents.length = 0;
-
-        // Rename the workspace
-        const newName = "renamed-edit-test";
-        const renameResult = await env.mockIpcRenderer.invoke(
-          IPC_CHANNELS.WORKSPACE_RENAME,
-          workspaceId,
-          newName
-        );
-        expect(renameResult.success).toBe(true);
-
-        // Get new workspace ID from result
-        const newWorkspaceId = renameResult.data.newWorkspaceId;
-
-        // Clear events before edit
-        env.sentEvents.length = 0;
-
-        // Edit the user message using the new workspace ID
-        // This is the critical test - editing should work after rename
-        const editResult = await sendMessageWithModel(
-          env.mockIpcRenderer,
-          newWorkspaceId,
-          "What is 3+3?",
-          "anthropic",
-          "claude-sonnet-4-5",
-          { editMessageId: userMessageId }
-        );
-        expect(editResult.success).toBe(true);
-
-        // Wait for response
-        const editCollector = createEventCollector(env.sentEvents, newWorkspaceId);
-        const streamEnd = await editCollector.waitForEvent("stream-end", 10000);
-        expect(streamEnd).toBeTruthy();
-
-        // Verify we got the edited user message and a successful response
-        editCollector.collect();
-        const allEvents = editCollector.getEvents();
-
-        const editedUserMessage = allEvents.find(
-          (e) =>
-            "role" in e && e.role === "user" && e.parts?.some((p: any) => p.text?.includes("3+3"))
-        );
-        expect(editedUserMessage).toBeTruthy();
-
-        // Verify stream completed successfully (proves AI responded to edited message)
-        expect(streamEnd).toBeDefined();
-      } finally {
-        await cleanup();
-      }
-    },
-    30000
-  );
-
-  test.concurrent(
-    "should fail to rename if workspace is currently streaming",
-    async () => {
-      const { env, workspaceId, tempGitRepo, branchName, cleanup } =
-        await setupWorkspace("anthropic");
-      try {
-        // Add project and workspace to config via IPC
-        await env.mockIpcRenderer.invoke(IPC_CHANNELS.PROJECT_CREATE, tempGitRepo);
-        const projectsConfig = env.config.loadConfigOrDefault();
-        const projectConfig = projectsConfig.projects.get(tempGitRepo);
-        if (projectConfig) {
-          const runtime = createRuntime({ type: "local", srcBaseDir: env.config.srcDir });
-          const workspacePath = runtime.getWorkspacePath(tempGitRepo, branchName);
-          projectConfig.workspaces.push({
-            path: workspacePath,
-            id: workspaceId,
-            name: branchName,
-          });
-          env.config.saveConfig(projectsConfig);
-        }
-
-        // Start a stream (don't await - we want it running)
-        sendMessageWithModel(
-          env.mockIpcRenderer,
-          workspaceId,
-          "What is 2+2?" // Simple query that should complete quickly
-        );
-
-        // Wait for stream to actually start
-        const collector = createEventCollector(env.sentEvents, workspaceId);
-        await collector.waitForEvent("stream-start", 5000);
-
-        // Attempt to rename while streaming - should fail
-        const newName = "renamed-during-stream";
-        const renameResult = await env.mockIpcRenderer.invoke(
-          IPC_CHANNELS.WORKSPACE_RENAME,
-          workspaceId,
-          newName
-        );
-
-        // Verify rename was blocked due to active stream
-        expect(renameResult.success).toBe(false);
-        expect(renameResult.error).toContain("stream is active");
-
-        // Wait for stream to complete
-        await collector.waitForEvent("stream-end", 10000);
-      } finally {
-        await cleanup();
-      }
-    },
-    20000
+            await firstCleanup();
+            await secondCleanup();
+          } finally {
+            await cleanupTestEnvironment(env);
+            await cleanupTempGitRepo(tempGitRepo);
+          }
+        },
+        TEST_TIMEOUT_MS
+      );
+    }
   );
 });

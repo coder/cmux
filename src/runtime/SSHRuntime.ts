@@ -674,8 +674,12 @@ export class SSHRuntime implements Runtime {
 
     try {
       // SSH runtimes use plain directories, not git worktrees
+      // Expand tilde and quote paths (expandTildeForSSH handles both expansion and quoting)
+      const expandedOldPath = expandTildeForSSH(oldPath);
+      const expandedNewPath = expandTildeForSSH(newPath);
+
       // Just use mv to rename the directory on the remote host
-      const moveCommand = `mv ${shescape.quote(oldPath)} ${shescape.quote(newPath)}`;
+      const moveCommand = `mv ${expandedOldPath} ${expandedNewPath}`;
 
       // Execute via the runtime's exec method (handles SSH connection multiplexing, etc.)
       const stream = await this.exec(moveCommand, {
