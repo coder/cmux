@@ -318,6 +318,41 @@ export class SSHRuntime implements Runtime {
     };
   }
 
+  normalizePath(targetPath: string, basePath: string): string {
+    // For SSH, handle paths in a POSIX-like manner without accessing the remote filesystem
+    const target = targetPath.trim();
+    let base = basePath.trim();
+
+    // Normalize base path - remove trailing slash (except for root "/")
+    if (base.length > 1 && base.endsWith("/")) {
+      base = base.slice(0, -1);
+    }
+
+    // Handle special case: current directory
+    if (target === ".") {
+      return base;
+    }
+
+    // Handle tilde expansion - keep as-is for comparison
+    let normalizedTarget = target;
+    if (target === "~" || target.startsWith("~/")) {
+      normalizedTarget = target;
+    } else if (target.startsWith("/")) {
+      // Absolute path - use as-is
+      normalizedTarget = target;
+    } else {
+      // Relative path - resolve against base using POSIX path joining
+      normalizedTarget = base.endsWith("/") ? base + target : base + "/" + target;
+    }
+
+    // Remove trailing slash for comparison (except for root "/")
+    if (normalizedTarget.length > 1 && normalizedTarget.endsWith("/")) {
+      normalizedTarget = normalizedTarget.slice(0, -1);
+    }
+
+    return normalizedTarget;
+  }
+
   /**
    * Build common SSH arguments based on runtime config
    * @param includeHost - Whether to include the host in the args (for direct ssh commands)

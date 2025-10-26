@@ -1235,3 +1235,138 @@ fi
     expect(remainingProcesses).toBe(0);
   });
 });
+
+describe("SSH runtime redundant cd detection", () => {
+  // Helper to create bash tool with SSH runtime configuration
+  // Note: These tests check redundant cd detection logic only - they don't actually execute via SSH
+  function createTestBashToolWithSSH(cwd: string) {
+    const tempDir = new TestTempDir("test-bash-ssh");
+    const sshRuntime = createRuntime({
+      type: "ssh",
+      host: "test-host",
+      srcBaseDir: "/remote/base",
+    });
+
+    const tool = createBashTool({
+      cwd,
+      runtime: sshRuntime,
+      tempDir: tempDir.path,
+    });
+
+    return {
+      tool,
+      [Symbol.dispose]() {
+        tempDir[Symbol.dispose]();
+      },
+    };
+  }
+
+  it("should reject redundant cd to absolute path on SSH runtime", async () => {
+    const remoteCwd = "/home/user/project";
+    using testEnv = createTestBashToolWithSSH(remoteCwd);
+    const tool = testEnv.tool;
+
+    const args: BashToolArgs = {
+      script: `cd ${remoteCwd} && echo test`,
+      timeout_secs: 5,
+    };
+
+    const result = (await tool.execute!(args, mockToolCallOptions)) as BashToolResult;
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error).toContain("Redundant cd");
+      expect(result.error).toContain("already runs in");
+    }
+  });
+
+  it("should reject redundant cd with relative path (.) on SSH runtime", async () => {
+    const remoteCwd = "/home/user/project";
+    using testEnv = createTestBashToolWithSSH(remoteCwd);
+    const tool = testEnv.tool;
+
+    const args: BashToolArgs = {
+      script: "cd . && echo test",
+      timeout_secs: 5,
+    };
+
+    const result = (await tool.execute!(args, mockToolCallOptions)) as BashToolResult;
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error).toContain("Redundant cd");
+    }
+  });
+
+  it("should reject redundant cd with tilde path on SSH runtime", async () => {
+    const remoteCwd = "~/project";
+    using testEnv = createTestBashToolWithSSH(remoteCwd);
+    const tool = testEnv.tool;
+
+    const args: BashToolArgs = {
+      script: "cd ~/project && echo test",
+      timeout_secs: 5,
+    };
+
+    const result = (await tool.execute!(args, mockToolCallOptions)) as BashToolResult;
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error).toContain("Redundant cd");
+    }
+  });
+
+  it("should reject redundant cd with single tilde on SSH runtime", async () => {
+    const remoteCwd = "~";
+    using testEnv = createTestBashToolWithSSH(remoteCwd);
+    const tool = testEnv.tool;
+
+    const args: BashToolArgs = {
+      script: "cd ~ && echo test",
+      timeout_secs: 5,
+    };
+
+    const result = (await tool.execute!(args, mockToolCallOptions)) as BashToolResult;
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error).toContain("Redundant cd");
+    }
+  });
+
+  it("should handle trailing slashes in path comparison on SSH runtime", async () => {
+    const remoteCwd = "/home/user/project";
+    using testEnv = createTestBashToolWithSSH(remoteCwd);
+    const tool = testEnv.tool;
+
+    const args: BashToolArgs = {
+      script: "cd /home/user/project/ && echo test",
+      timeout_secs: 5,
+    };
+
+    const result = (await tool.execute!(args, mockToolCallOptions)) as BashToolResult;
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error).toContain("Redundant cd");
+    }
+  });
+
+  it("should handle cwd with trailing slash on SSH runtime", async () => {
+    const remoteCwd = "/home/user/project/";
+    using testEnv = createTestBashToolWithSSH(remoteCwd);
+    const tool = testEnv.tool;
+
+    const args: BashToolArgs = {
+      script: "cd /home/user/project && echo test",
+      timeout_secs: 5,
+    };
+
+    const result = (await tool.execute!(args, mockToolCallOptions)) as BashToolResult;
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error).toContain("Redundant cd");
+    }
+  });
+});

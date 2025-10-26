@@ -303,6 +303,16 @@ export class LocalRuntime implements Runtime {
     }
   }
 
+  normalizePath(targetPath: string, basePath: string): string {
+    // For local runtime, use Node.js path resolution
+    // Handle special case: current directory
+    const target = targetPath.trim();
+    if (target === ".") {
+      return path.resolve(basePath);
+    }
+    return path.resolve(basePath, target);
+  }
+
   getWorkspacePath(projectPath: string, workspaceName: string): string {
     const projectName = getProjectName(projectPath);
     return path.join(this.srcBaseDir, projectName, workspaceName);
