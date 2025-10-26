@@ -342,7 +342,7 @@ describeIntegration("WORKSPACE_CREATE with both runtimes", () => {
 
               // Verify the new branch was created from custom-trunk, not from default branch
               // Use WORKSPACE_EXECUTE_BASH to check files (works for both local and SSH runtimes)
-              
+
               // Check that trunk-file.txt exists (from custom-trunk)
               const checkTrunkFileResult = await env.mockIpcRenderer.invoke(
                 IPC_CHANNELS.WORKSPACE_EXECUTE_BASH,
