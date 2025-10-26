@@ -287,6 +287,7 @@ describe("StreamManager - Concurrent Stream Prevention", () => {
         "anthropic:claude-sonnet-4-5",
         2,
         "system",
+        runtime,
         undefined,
         {}
       ),
@@ -297,6 +298,7 @@ describe("StreamManager - Concurrent Stream Prevention", () => {
         "anthropic:claude-sonnet-4-5",
         3,
         "system",
+        runtime,
         undefined,
         {}
       ),
