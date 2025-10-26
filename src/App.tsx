@@ -25,7 +25,7 @@ import type { ThinkingLevel } from "./types/thinking";
 import type { RuntimeConfig } from "./types/runtime";
 import { CUSTOM_EVENTS } from "./constants/events";
 import { isWorkspaceForkSwitchEvent } from "./utils/workspaceFork";
-import { getThinkingLevelKey } from "./constants/storage";
+import { getThinkingLevelKey, getRuntimeKey } from "./constants/storage";
 import type { BranchListResult } from "./types/ipc";
 import { useTelemetry } from "./hooks/useTelemetry";
 import { parseRuntimeString } from "./utils/chatCommands";
@@ -268,6 +268,12 @@ function AppInner() {
       // Track workspace creation
       telemetry.workspaceCreated(newWorkspace.workspaceId);
       setSelectedWorkspace(newWorkspace);
+
+      // Save runtime preference for this project if provided
+      if (runtime) {
+        const runtimeKey = getRuntimeKey(workspaceModalProject);
+        localStorage.setItem(runtimeKey, runtime);
+      }
     }
   };
 
@@ -669,6 +675,7 @@ function AppInner() {
           <NewWorkspaceModal
             isOpen={workspaceModalOpen}
             projectName={workspaceModalProjectName}
+            projectPath={workspaceModalProject}
             branches={workspaceModalBranches}
             defaultTrunkBranch={workspaceModalDefaultTrunk}
             loadErrorMessage={workspaceModalLoadError}
