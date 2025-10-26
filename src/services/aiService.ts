@@ -508,6 +508,7 @@ export class AIService extends EventEmitter {
       // Build system message from workspace metadata
       const systemMessage = await buildSystemMessage(
         metadata,
+        runtime,
         workspacePath,
         mode,
         additionalSystemInstructions

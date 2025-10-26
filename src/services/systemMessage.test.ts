@@ -5,6 +5,7 @@ import { buildSystemMessage } from "./systemMessage";
 import type { WorkspaceMetadata } from "@/types/workspace";
 import { spyOn, describe, test, expect, beforeEach, afterEach } from "bun:test";
 import type { Mock } from "bun:test";
+import { LocalRuntime } from "@/runtime/LocalRuntime";
 
 describe("buildSystemMessage", () => {
   let tempDir: string;
@@ -12,6 +13,7 @@ describe("buildSystemMessage", () => {
   let workspaceDir: string;
   let globalDir: string;
   let mockHomedir: Mock<typeof os.homedir>;
+  let runtime: LocalRuntime;
 
   beforeEach(async () => {
     // Create temp directory for test
@@ -26,6 +28,9 @@ describe("buildSystemMessage", () => {
     // Mock homedir to return our test directory (getSystemDirectory will append .cmux)
     mockHomedir = spyOn(os, "homedir");
     mockHomedir.mockReturnValue(tempDir);
+
+    // Create a local runtime for tests
+    runtime = new LocalRuntime(tempDir);
   });
 
   afterEach(async () => {
@@ -55,7 +60,7 @@ Use diagrams where appropriate.
       projectPath: projectDir,
     };
 
-    const systemMessage = await buildSystemMessage(metadata, workspaceDir, "plan");
+    const systemMessage = await buildSystemMessage(metadata, runtime, workspaceDir, "plan");
 
     // Should include the mode-specific content
     expect(systemMessage).toContain("<plan>");
@@ -86,7 +91,7 @@ Focus on planning and design.
       projectPath: projectDir,
     };
 
-    const systemMessage = await buildSystemMessage(metadata, workspaceDir);
+    const systemMessage = await buildSystemMessage(metadata, runtime, workspaceDir);
 
     // Should NOT include the <plan> mode-specific tag
     expect(systemMessage).not.toContain("<plan>");
@@ -125,7 +130,7 @@ Project plan instructions (should win).
       projectPath: projectDir,
     };
 
-    const systemMessage = await buildSystemMessage(metadata, workspaceDir, "plan");
+    const systemMessage = await buildSystemMessage(metadata, runtime, workspaceDir, "plan");
 
     // Should include project mode section in the <plan> tag (project wins)
     expect(systemMessage).toMatch(/<plan>\s*Project plan instructions \(should win\)\./s);
@@ -160,7 +165,7 @@ Just general project stuff.
       projectPath: projectDir,
     };
 
-    const systemMessage = await buildSystemMessage(metadata, workspaceDir, "plan");
+    const systemMessage = await buildSystemMessage(metadata, runtime, workspaceDir, "plan");
 
     // Should include global mode section as fallback
     expect(systemMessage).toContain("Global plan instructions");
@@ -181,7 +186,7 @@ Special mode instructions.
       projectPath: projectDir,
     };
 
-    const systemMessage = await buildSystemMessage(metadata, workspaceDir, "My-Special_Mode!");
+    const systemMessage = await buildSystemMessage(metadata, runtime, workspaceDir, "My-Special_Mode!");
 
     // Tag should be sanitized to only contain valid characters
     expect(systemMessage).toContain("<my-special_mode->");

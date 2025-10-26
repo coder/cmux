@@ -700,10 +700,11 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
       "should include mode-specific instructions in system message",
       async () => {
         // Setup test environment
-        const { env, workspaceId, workspacePath, cleanup } = await setupWorkspace(provider);
+        const { env, workspaceId, tempGitRepo, cleanup } = await setupWorkspace(provider);
         try {
           // Write AGENTS.md with mode-specific sections containing distinctive markers
-          const agentsMdPath = path.join(workspacePath, "AGENTS.md");
+          // Note: AGENTS.md is read from project root, not workspace directory
+          const agentsMdPath = path.join(tempGitRepo, "AGENTS.md");
           const agentsMdContent = `# Instructions
 
 ## General Instructions
