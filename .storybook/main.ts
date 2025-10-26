@@ -19,6 +19,8 @@ const config: StorybookConfig = {
       resolve: {
         alias: {
           "@": path.join(process.cwd(), "src"),
+          // Use mermaid stub for Storybook to avoid initialization issues
+          "mermaid": path.join(process.cwd(), "src/mocks/mermaidStub.ts"),
           // Note: VERSION mocking for stable visual testing is handled by overwriting
           // src/version.ts in the Chromatic CI workflow, not via alias here
         },
