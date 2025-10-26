@@ -120,25 +120,6 @@ async function commitChanges(repoPath: string, message: string): Promise<void> {
 }
 
 /**
- * Read a ReadableStream to a string
- */
-async function readStream(stream: ReadableStream<Uint8Array>): Promise<string> {
-  const reader = stream.getReader();
-  const decoder = new TextDecoder();
-  let result = "";
-  try {
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      result += decoder.decode(value, { stream: true });
-    }
-  } finally {
-    reader.releaseLock();
-  }
-  return result;
-}
-
-/**
  * Create workspace and handle cleanup on test failure
  * Returns result and cleanup function
  */
@@ -347,34 +328,31 @@ describeIntegration("WORKSPACE_CREATE with both runtimes", () => {
               const checkTrunkFileResult = await env.mockIpcRenderer.invoke(
                 IPC_CHANNELS.WORKSPACE_EXECUTE_BASH,
                 result.metadata.id,
-                `test -f trunk-file.txt && echo "exists" || echo "missing"`,
-                { timeout_secs: 10 }
+                `test -f trunk-file.txt && echo "exists" || echo "missing"`
               );
               expect(checkTrunkFileResult.success).toBe(true);
-              const trunkFileOutput = await readStream(checkTrunkFileResult.result.stdout);
-              expect(trunkFileOutput.trim()).toBe("exists");
+              expect(checkTrunkFileResult.data.success).toBe(true);
+              expect(checkTrunkFileResult.data.output.trim()).toBe("exists");
 
               // Check that other-file.txt does NOT exist (from other-branch)
               const checkOtherFileResult = await env.mockIpcRenderer.invoke(
                 IPC_CHANNELS.WORKSPACE_EXECUTE_BASH,
                 result.metadata.id,
-                `test -f other-file.txt && echo "exists" || echo "missing"`,
-                { timeout_secs: 10 }
+                `test -f other-file.txt && echo "exists" || echo "missing"`
               );
               expect(checkOtherFileResult.success).toBe(true);
-              const otherFileOutput = await readStream(checkOtherFileResult.result.stdout);
-              expect(otherFileOutput.trim()).toBe("missing");
+              expect(checkOtherFileResult.data.success).toBe(true);
+              expect(checkOtherFileResult.data.output.trim()).toBe("missing");
 
               // Verify git log shows the custom trunk commit
               const gitLogResult = await env.mockIpcRenderer.invoke(
                 IPC_CHANNELS.WORKSPACE_EXECUTE_BASH,
                 result.metadata.id,
-                `git log --oneline --all`,
-                { timeout_secs: 10 }
+                `git log --oneline --all`
               );
               expect(gitLogResult.success).toBe(true);
-              const logOutput = await readStream(gitLogResult.result.stdout);
-              expect(logOutput).toContain("Custom trunk commit");
+              expect(gitLogResult.data.success).toBe(true);
+              expect(gitLogResult.data.output).toContain("Custom trunk commit");
 
               await cleanup();
             } finally {
