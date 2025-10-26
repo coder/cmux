@@ -9,10 +9,9 @@ import {
   createWorktree,
   listLocalBranches,
   detectDefaultTrunkBranch,
-  getMainWorktreeFromWorktree,
   getCurrentBranch,
 } from "@/git";
-import { removeWorktreeSafe, removeWorktree, pruneWorktrees } from "@/services/gitService";
+import { removeWorktree, pruneWorktrees } from "@/services/gitService";
 import { AIService } from "@/services/aiService";
 import { HistoryService } from "@/services/historyService";
 import { PartialService } from "@/services/partialService";
@@ -403,7 +402,7 @@ export class IpcMain {
 
     ipcMain.handle(
       IPC_CHANNELS.WORKSPACE_RENAME,
-      (_event, workspaceId: string, newName: string) => {
+      async (_event, workspaceId: string, newName: string) => {
         try {
           // Block rename during active streaming to prevent race conditions
           // (bash processes would have stale cwd, system message would be wrong)
@@ -446,26 +445,27 @@ export class IpcMain {
           if (!workspace) {
             return Err("Failed to find workspace in config");
           }
-          const { projectPath, workspacePath } = workspace;
+          const { projectPath } = workspace;
 
-          // Compute new path (based on name)
-          const oldPath = workspacePath;
-          const newPath = this.config.getWorkspacePath(projectPath, newName);
+          // Create runtime instance for this workspace
+          const runtime = createRuntime(
+            oldMetadata.runtimeConfig ?? { type: "local", workdir: workspace.workspacePath }
+          );
 
-          // Use git worktree move to rename the worktree directory
-          // This updates git's internal worktree metadata correctly
-          try {
-            const result = spawnSync("git", ["worktree", "move", oldPath, newPath], {
-              cwd: projectPath,
-            });
-            if (result.status !== 0) {
-              const stderr = result.stderr?.toString() || "Unknown error";
-              return Err(`Failed to move worktree: ${stderr}`);
-            }
-          } catch (error) {
-            const message = error instanceof Error ? error.message : String(error);
-            return Err(`Failed to move worktree: ${message}`);
+          // Delegate rename to runtime (handles both local and SSH)
+          // Runtime computes workspace paths internally from projectPath + workspace names + srcDir
+          const renameResult = await runtime.renameWorkspace(
+            projectPath,
+            oldName,
+            newName,
+            this.config.srcDir
+          );
+
+          if (!renameResult.success) {
+            return Err(renameResult.error);
           }
+
+          const { oldPath, newPath } = renameResult;
 
           // Update config with new name and path
           this.config.editConfig((config) => {
@@ -475,6 +475,11 @@ export class IpcMain {
               if (workspaceEntry) {
                 workspaceEntry.name = newName;
                 workspaceEntry.path = newPath; // Update path to reflect new directory name
+                
+                // Update runtime workdir to match new path
+                if (workspaceEntry.runtimeConfig) {
+                  workspaceEntry.runtimeConfig.workdir = newPath;
+                }
               }
             }
             return config;
@@ -1033,6 +1038,7 @@ export class IpcMain {
         log.info(`Workspace ${workspaceId} metadata not found, considering removal successful`);
         return { success: true };
       }
+      const metadata = metadataResult.data;
 
       // Get actual workspace path from config (handles both legacy and new format)
       const workspace = this.config.findWorkspace(workspaceId);
@@ -1040,64 +1046,59 @@ export class IpcMain {
         log.info(`Workspace ${workspaceId} metadata exists but not found in config`);
         return { success: true }; // Consider it already removed
       }
-      const workspacePath = workspace.workspacePath;
+      const { projectPath, workspacePath } = workspace;
 
-      // Get project path from the worktree itself
-      const foundProjectPath = await getMainWorktreeFromWorktree(workspacePath);
+      // Create runtime instance for this workspace
+      const runtime = createRuntime(
+        metadata.runtimeConfig ?? { type: "local", workdir: workspacePath }
+      );
 
-      // Remove git worktree if we found the project path
-      if (foundProjectPath) {
-        const worktreeExists = await fsPromises
-          .access(workspacePath)
-          .then(() => true)
-          .catch(() => false);
+      // Check if workspace directory exists
+      const workspaceExists = await fsPromises
+        .access(workspacePath)
+        .then(() => true)
+        .catch(() => false);
 
-        if (worktreeExists) {
-          // Use optimized removal unless force is explicitly requested
-          let gitResult: Awaited<ReturnType<typeof removeWorktreeSafe>>;
+      if (workspaceExists) {
+        // Delegate deletion to runtime (handles both local and SSH)
+        const deleteResult = await runtime.deleteWorkspace(
+          projectPath,
+          metadata.name,
+          this.config.srcDir,
+          options.force
+        );
 
-          if (options.force) {
-            // Force deletion: Use git worktree remove --force directly
-            gitResult = await removeWorktree(foundProjectPath, workspacePath, { force: true });
-          } else {
-            // Normal deletion: Use optimized rename-then-delete strategy
-            gitResult = await removeWorktreeSafe(foundProjectPath, workspacePath, {
-              onBackgroundDelete: (tempDir, error) => {
-                if (error) {
-                  log.info(
-                    `Background deletion failed for ${tempDir}: ${error.message ?? "unknown error"}`
-                  );
-                }
-              },
-            });
-          }
+        if (!deleteResult.success) {
+          const errorMessage = deleteResult.error;
+          const normalizedError = errorMessage.toLowerCase();
+          const looksLikeMissingWorktree =
+            normalizedError.includes("not a working tree") ||
+            normalizedError.includes("does not exist") ||
+            normalizedError.includes("no such file");
 
-          if (!gitResult.success) {
-            const errorMessage = gitResult.error ?? "Unknown error";
-            const normalizedError = errorMessage.toLowerCase();
-            const looksLikeMissingWorktree =
-              normalizedError.includes("not a working tree") ||
-              normalizedError.includes("does not exist") ||
-              normalizedError.includes("no such file");
-
-            if (looksLikeMissingWorktree) {
-              const pruneResult = await pruneWorktrees(foundProjectPath);
+          if (looksLikeMissingWorktree) {
+            // Worktree is already gone or stale - prune git records if this is a local worktree
+            if (metadata.runtimeConfig?.type !== "ssh") {
+              const pruneResult = await pruneWorktrees(projectPath);
               if (!pruneResult.success) {
                 log.info(
-                  `Failed to prune stale worktrees for ${foundProjectPath} after removeWorktree error: ${
+                  `Failed to prune stale worktrees for ${projectPath} after deleteWorkspace error: ${
                     pruneResult.error ?? "unknown error"
                   }`
                 );
               }
-            } else {
-              return gitResult;
             }
+          } else {
+            return { success: false, error: deleteResult.error };
           }
-        } else {
-          const pruneResult = await pruneWorktrees(foundProjectPath);
+        }
+      } else {
+        // Workspace directory doesn't exist - prune git records if this is a local worktree
+        if (metadata.runtimeConfig?.type !== "ssh") {
+          const pruneResult = await pruneWorktrees(projectPath);
           if (!pruneResult.success) {
             log.info(
-              `Failed to prune stale worktrees for ${foundProjectPath} after detecting missing workspace at ${workspacePath}: ${
+              `Failed to prune stale worktrees for ${projectPath} after detecting missing workspace at ${workspacePath}: ${
                 pruneResult.error ?? "unknown error"
               }`
             );
@@ -1111,11 +1112,7 @@ export class IpcMain {
         return { success: false, error: aiResult.error };
       }
 
-      // No longer need to remove symlinks (directory IS the workspace name)
-
       // Update config to remove the workspace from all projects
-      // We iterate through all projects instead of relying on foundProjectPath
-      // because the worktree might be deleted (so getMainWorktreeFromWorktree fails)
       const projectsConfig = this.config.loadConfigOrDefault();
       let configUpdated = false;
       for (const [_projectPath, projectConfig] of projectsConfig.projects.entries()) {

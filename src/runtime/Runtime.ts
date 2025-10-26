@@ -182,6 +182,42 @@ export interface Runtime {
    * @returns Result indicating success or error
    */
   initWorkspace(params: WorkspaceInitParams): Promise<WorkspaceInitResult>;
+
+  /**
+   * Rename workspace directory
+   * - LocalRuntime: Uses git worktree move (worktrees managed by git)
+   * - SSHRuntime: Uses mv (plain directories on remote, not worktrees)
+   * Runtime computes workspace paths internally from projectPath + workspace names.
+   * @param projectPath Project root path (local path, used for git commands in LocalRuntime and to extract project name)
+   * @param oldName Current workspace name
+   * @param newName New workspace name
+   * @param srcDir Source directory root (e.g., ~/.cmux/src) - used by LocalRuntime to compute paths, ignored by SSHRuntime
+   * @returns Promise resolving to Result with old/new paths on success, or error message
+   */
+  renameWorkspace(
+    projectPath: string,
+    oldName: string,
+    newName: string,
+    srcDir: string
+  ): Promise<{ success: true; oldPath: string; newPath: string } | { success: false; error: string }>;
+
+  /**
+   * Delete workspace directory
+   * - LocalRuntime: Uses git worktree remove with --force (handles uncommitted changes)
+   * - SSHRuntime: Uses rm -rf (plain directories on remote, not worktrees)
+   * Runtime computes workspace path internally from projectPath + workspaceName.
+   * @param projectPath Project root path (local path, used for git commands in LocalRuntime and to extract project name)
+   * @param workspaceName Workspace name to delete
+   * @param srcDir Source directory root (e.g., ~/.cmux/src) - used by LocalRuntime to compute paths, ignored by SSHRuntime
+   * @param force If true, force deletion even with uncommitted changes (LocalRuntime only)
+   * @returns Promise resolving to Result with deleted path on success, or error message
+   */
+  deleteWorkspace(
+    projectPath: string,
+    workspaceName: string,
+    srcDir: string,
+    force: boolean
+  ): Promise<{ success: true; deletedPath: string } | { success: false; error: string }>;
 }
 
 /**

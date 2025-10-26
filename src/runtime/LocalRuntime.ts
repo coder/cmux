@@ -432,4 +432,85 @@ export class LocalRuntime implements Runtime {
       });
     });
   }
+
+  async renameWorkspace(
+    projectPath: string,
+    oldName: string,
+    newName: string,
+    srcDir: string
+  ): Promise<{ success: true; oldPath: string; newPath: string } | { success: false; error: string }> {
+    // Compute workspace paths: {srcDir}/{project-name}/{workspace-name}
+    const projectName = path.basename(projectPath);
+    const oldPath = path.join(srcDir, projectName, oldName);
+    const newPath = path.join(srcDir, projectName, newName);
+
+    try {
+      // Use git worktree move to rename the worktree directory
+      // This updates git's internal worktree metadata correctly
+      using proc = execAsync(
+        `git -C "${projectPath}" worktree move "${oldPath}" "${newPath}"`
+      );
+      const result = await proc.result;
+
+      return { success: true, oldPath, newPath };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      return { success: false, error: `Failed to move worktree: ${message}` };
+    }
+  }
+
+  async deleteWorkspace(
+    projectPath: string,
+    workspaceName: string,
+    srcDir: string,
+    force: boolean
+  ): Promise<{ success: true; deletedPath: string } | { success: false; error: string }> {
+    // Compute workspace path: {srcDir}/{project-name}/{workspace-name}
+    const projectName = path.basename(projectPath);
+    const deletedPath = path.join(srcDir, projectName, workspaceName);
+
+    try {
+      // Use git worktree remove to delete the worktree
+      // This updates git's internal worktree metadata correctly
+      const forceFlag = force ? " --force" : "";
+      using proc = execAsync(
+        `git -C "${projectPath}" worktree remove${forceFlag} "${deletedPath}"`
+      );
+      const result = await proc.result;
+
+      return { success: true, deletedPath };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      
+      // If removal failed without --force and error mentions submodules, check if worktree is clean
+      // Git refuses to remove worktrees with submodules unless --force is used, even if clean
+      if (!force && message.includes("submodules")) {
+        // Check if worktree is clean (no uncommitted changes)
+        try {
+          using statusProc = execAsync(
+            `git -C "${deletedPath}" diff --quiet && git -C "${deletedPath}" diff --quiet --cached`
+          );
+          await statusProc.result;
+          
+          // Worktree is clean - safe to use --force for submodule case
+          try {
+            using retryProc = execAsync(
+              `git -C "${projectPath}" worktree remove --force "${deletedPath}"`
+            );
+            const retryResult = await retryProc.result;
+            return { success: true, deletedPath };
+          } catch (retryError) {
+            const retryMessage = retryError instanceof Error ? retryError.message : String(retryError);
+            return { success: false, error: `Failed to remove worktree: ${retryMessage}` };
+          }
+        } catch (statusError) {
+          // Worktree is dirty - don't auto-retry with --force, let user decide
+          return { success: false, error: `Failed to remove worktree: ${message}` };
+        }
+      }
+      
+      return { success: false, error: `Failed to remove worktree: ${message}` };
+    }
+  }
+
 }

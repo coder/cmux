@@ -6,6 +6,7 @@
  */
 
 // Jest globals are available automatically - no need to import
+import * as path from "path";
 import { shouldRunIntegrationTests } from "../testUtils";
 import {
   isDockerAvailable,
@@ -639,6 +640,392 @@ describeIntegration("Runtime integration tests", () => {
 
           expect(result.exitCode).not.toBe(0);
           expect(result.stderr.toLowerCase()).toContain("permission denied");
+        });
+      });
+
+      describe("renameWorkspace() - Workspace renaming", () => {
+        test.concurrent("successfully renames workspace and updates git worktree", async () => {
+          const runtime = createRuntime();
+          await using workspace = await TestWorkspace.create(runtime, type);
+
+          // Initialize a git repository
+          await execBuffered(runtime, "git init", {
+            cwd: workspace.path,
+            timeout: 30,
+          });
+          await execBuffered(runtime, 'git config user.email "test@example.com"', {
+            cwd: workspace.path,
+            timeout: 30,
+          });
+          await execBuffered(runtime, 'git config user.name "Test User"', {
+            cwd: workspace.path,
+            timeout: 30,
+          });
+          await execBuffered(runtime, 'echo "test" > test.txt && git add test.txt && git commit -m "initial"', {
+            cwd: workspace.path,
+            timeout: 30,
+          });
+
+          // Compute srcDir and paths - runtime uses srcDir/projectName/workspaceName pattern
+          const projectName = type === "ssh" ? path.basename(workspace.path) : path.basename(workspace.path);
+          const srcDir = type === "ssh" ? "/home/testuser/workspace" : path.dirname(workspace.path);
+          const getWorkspacePath = (name: string) => {
+            return type === "ssh"
+              ? `/home/testuser/workspace/${projectName}/${name}`
+              : `${srcDir}/${projectName}/${name}`;
+          };
+
+          // Create workspace directory structure
+          // - Local: Use git worktree (managed by git)
+          // - SSH: Create plain directory (not a git worktree)
+          const worktree1Path = getWorkspacePath("worktree-1");
+          if (type === "local") {
+            await execBuffered(
+              runtime,
+              `git worktree add -b feature-branch "${worktree1Path}"`,
+              {
+                cwd: workspace.path,
+                timeout: 30,
+              }
+            );
+          } else {
+            // SSH: Just create a directory (simulate workspace structure)
+            await execBuffered(
+              runtime,
+              `mkdir -p "${worktree1Path}" && echo "test" > "${worktree1Path}/test.txt"`,
+              {
+                cwd: workspace.path,
+                timeout: 30,
+              }
+            );
+          }
+
+          // Rename the worktree using runtime.renameWorkspace
+          const result = await runtime.renameWorkspace(
+            workspace.path,
+            "worktree-1",
+            "worktree-renamed",
+            srcDir
+          );
+
+          if (!result.success) {
+            console.error("Rename failed:", result.error);
+          }
+          expect(result.success).toBe(true);
+          if (result.success) {
+            expect(result.oldPath).toBe(worktree1Path);
+            expect(result.newPath).toBe(getWorkspacePath("worktree-renamed"));
+
+            // Verify worktree was physically renamed
+            const oldPathCheck = await execBuffered(runtime, `test -d "${result.oldPath}" && echo "exists" || echo "missing"`, {
+              cwd: workspace.path,
+              timeout: 30,
+            });
+            expect(oldPathCheck.stdout.trim()).toBe("missing");
+
+            const newPathCheck = await execBuffered(runtime, `test -d "${result.newPath}" && echo "exists" || echo "missing"`, {
+              cwd: workspace.path,
+              timeout: 30,
+            });
+            expect(newPathCheck.stdout.trim()).toBe("exists");
+
+            // Verify contents were preserved
+            if (type === "local") {
+              // For local, verify git worktree list shows updated path
+              const worktreeList = await execBuffered(runtime, "git worktree list", {
+                cwd: workspace.path,
+                timeout: 30,
+              });
+              expect(worktreeList.stdout).toContain(result.newPath);
+              expect(worktreeList.stdout).not.toContain(result.oldPath);
+            } else {
+              // For SSH, verify the file we created still exists
+              const fileCheck = await execBuffered(runtime, `test -f "${result.newPath}/test.txt" && echo "exists" || echo "missing"`, {
+                cwd: workspace.path,
+                timeout: 30,
+              });
+              expect(fileCheck.stdout.trim()).toBe("exists");
+            }
+          }
+
+          // Cleanup
+          if (type === "local") {
+            // Remove git worktree before workspace cleanup
+            await execBuffered(runtime, `git worktree remove "${getWorkspacePath("worktree-renamed")}"`, {
+              cwd: workspace.path,
+              timeout: 30,
+            }).catch(() => {
+              // Ignore errors during cleanup
+            });
+          } else {
+            // Remove directory
+            await execBuffered(runtime, `rm -rf "${getWorkspacePath("worktree-renamed")}"`, {
+              cwd: workspace.path,
+              timeout: 30,
+            }).catch(() => {
+              // Ignore errors during cleanup
+            });
+          }
+        });
+
+        test.concurrent("returns error when trying to rename non-existent worktree", async () => {
+          const runtime = createRuntime();
+          await using workspace = await TestWorkspace.create(runtime, type);
+
+          // Initialize a git repository
+          await execBuffered(runtime, "git init", {
+            cwd: workspace.path,
+            timeout: 30,
+          });
+          await execBuffered(runtime, 'git config user.email "test@example.com"', {
+            cwd: workspace.path,
+            timeout: 30,
+          });
+          await execBuffered(runtime, 'git config user.name "Test User"', {
+            cwd: workspace.path,
+            timeout: 30,
+          });
+          await execBuffered(runtime, 'echo "test" > test.txt && git add test.txt && git commit -m "initial"', {
+            cwd: workspace.path,
+            timeout: 30,
+          });
+
+          const projectName = path.basename(workspace.path);
+          const srcDir = type === "ssh" ? "/home/testuser/workspace" : path.dirname(workspace.path);
+
+          // Try to rename a worktree that doesn't exist
+          const result = await runtime.renameWorkspace(
+            workspace.path,
+            "non-existent",
+            "new-name",
+            srcDir
+          );
+
+          expect(result.success).toBe(false);
+          if (!result.success) {
+            // Error message differs between local (git worktree) and SSH (mv command)
+            if (type === "local") {
+              expect(result.error).toContain("Failed to move worktree");
+            } else {
+              expect(result.error).toContain("Failed to rename directory");
+            }
+          }
+        });
+      });
+
+      describe("deleteWorkspace() - Workspace deletion", () => {
+        test.concurrent("successfully deletes workspace and cleans up git worktree", async () => {
+          const runtime = createRuntime();
+          await using workspace = await TestWorkspace.create(runtime, type);
+
+          // Initialize a git repository
+          await execBuffered(runtime, "git init", {
+            cwd: workspace.path,
+            timeout: 30,
+          });
+          await execBuffered(runtime, 'git config user.email "test@example.com"', {
+            cwd: workspace.path,
+            timeout: 30,
+          });
+          await execBuffered(runtime, 'git config user.name "Test User"', {
+            cwd: workspace.path,
+            timeout: 30,
+          });
+          await execBuffered(runtime, 'echo "test" > test.txt && git add test.txt && git commit -m "initial"', {
+            cwd: workspace.path,
+            timeout: 30,
+          });
+
+          // Compute srcDir and paths - runtime uses srcDir/projectName/workspaceName pattern
+          const projectName = type === "ssh" ? path.basename(workspace.path) : path.basename(workspace.path);
+          const srcDir = type === "ssh" ? "/home/testuser/workspace" : path.dirname(workspace.path);
+          const getWorkspacePath = (name: string) => {
+            return type === "ssh"
+              ? `/home/testuser/workspace/${projectName}/${name}`
+              : `${srcDir}/${projectName}/${name}`;
+          };
+
+          // Create workspace directory structure
+          // - Local: Use git worktree (managed by git)
+          // - SSH: Create plain directory (not a git worktree)
+          const worktree1Path = getWorkspacePath("worktree-delete-test");
+          if (type === "local") {
+            await execBuffered(
+              runtime,
+              `git worktree add -b delete-test-branch "${worktree1Path}"`,
+              {
+                cwd: workspace.path,
+                timeout: 30,
+              }
+            );
+          } else {
+            // SSH: Just create a directory (simulate workspace structure)
+            await execBuffered(
+              runtime,
+              `mkdir -p "${worktree1Path}" && echo "test" > "${worktree1Path}/test.txt"`,
+              {
+                cwd: workspace.path,
+                timeout: 30,
+              }
+            );
+          }
+
+          // Verify workspace exists before deletion
+          const beforeCheck = await execBuffered(runtime, `test -d "${worktree1Path}" && echo "exists" || echo "missing"`, {
+            cwd: workspace.path,
+            timeout: 30,
+          });
+          expect(beforeCheck.stdout.trim()).toBe("exists");
+
+          // Delete the worktree using runtime.deleteWorkspace
+          const result = await runtime.deleteWorkspace(
+            workspace.path,
+            "worktree-delete-test",
+            srcDir,
+            false // force=false
+          );
+
+          if (!result.success) {
+            console.error("Delete failed:", result.error);
+          }
+          expect(result.success).toBe(true);
+          if (result.success) {
+            expect(result.deletedPath).toBe(worktree1Path);
+
+            // Verify workspace was physically deleted
+            const afterCheck = await execBuffered(runtime, `test -d "${result.deletedPath}" && echo "exists" || echo "missing"`, {
+              cwd: workspace.path,
+              timeout: 30,
+            });
+            expect(afterCheck.stdout.trim()).toBe("missing");
+
+            // For local, verify git worktree list doesn't show the deleted worktree
+            if (type === "local") {
+              const worktreeList = await execBuffered(runtime, "git worktree list", {
+                cwd: workspace.path,
+                timeout: 30,
+              });
+              expect(worktreeList.stdout).not.toContain(result.deletedPath);
+            }
+          }
+        });
+
+        test.concurrent("successfully force-deletes workspace with uncommitted changes (local only)", async () => {
+          const runtime = createRuntime();
+          await using workspace = await TestWorkspace.create(runtime, type);
+
+          // Skip this test for SSH since force flag only matters for git worktrees
+          if (type === "ssh") {
+            return;
+          }
+
+          // Initialize a git repository
+          await execBuffered(runtime, "git init", {
+            cwd: workspace.path,
+            timeout: 30,
+          });
+          await execBuffered(runtime, 'git config user.email "test@example.com"', {
+            cwd: workspace.path,
+            timeout: 30,
+          });
+          await execBuffered(runtime, 'git config user.name "Test User"', {
+            cwd: workspace.path,
+            timeout: 30,
+          });
+          await execBuffered(runtime, 'echo "test" > test.txt && git add test.txt && git commit -m "initial"', {
+            cwd: workspace.path,
+            timeout: 30,
+          });
+
+          const projectName = path.basename(workspace.path);
+          const srcDir = path.dirname(workspace.path);
+          const worktreePath = `${srcDir}/${projectName}/worktree-dirty`;
+
+          // Create worktree and add uncommitted changes
+          await execBuffered(
+            runtime,
+            `git worktree add -b dirty-branch "${worktreePath}"`,
+            {
+              cwd: workspace.path,
+              timeout: 30,
+            }
+          );
+          await execBuffered(
+            runtime,
+            `echo "uncommitted" > "${worktreePath}/dirty.txt"`,
+            {
+              cwd: workspace.path,
+              timeout: 30,
+            }
+          );
+
+          // Force delete should succeed even with uncommitted changes
+          const result = await runtime.deleteWorkspace(
+            workspace.path,
+            "worktree-dirty",
+            srcDir,
+            true // force=true
+          );
+
+          expect(result.success).toBe(true);
+          if (result.success) {
+            expect(result.deletedPath).toBe(worktreePath);
+
+            // Verify workspace was deleted
+            const afterCheck = await execBuffered(runtime, `test -d "${result.deletedPath}" && echo "exists" || echo "missing"`, {
+              cwd: workspace.path,
+              timeout: 30,
+            });
+            expect(afterCheck.stdout.trim()).toBe("missing");
+          }
+        });
+
+        test.concurrent("returns error when trying to delete non-existent workspace", async () => {
+          const runtime = createRuntime();
+          await using workspace = await TestWorkspace.create(runtime, type);
+
+          // Initialize a git repository (needed for local worktree commands)
+          if (type === "local") {
+            await execBuffered(runtime, "git init", {
+              cwd: workspace.path,
+              timeout: 30,
+            });
+            await execBuffered(runtime, 'git config user.email "test@example.com"', {
+              cwd: workspace.path,
+              timeout: 30,
+            });
+            await execBuffered(runtime, 'git config user.name "Test User"', {
+              cwd: workspace.path,
+              timeout: 30,
+            });
+            await execBuffered(runtime, 'echo "test" > test.txt && git add test.txt && git commit -m "initial"', {
+              cwd: workspace.path,
+              timeout: 30,
+            });
+          }
+
+          const projectName = path.basename(workspace.path);
+          const srcDir = type === "ssh" ? "/home/testuser/workspace" : path.dirname(workspace.path);
+
+          // Try to delete a workspace that doesn't exist
+          const result = await runtime.deleteWorkspace(
+            workspace.path,
+            "non-existent",
+            srcDir,
+            false
+          );
+
+          // For SSH with rm -rf, deleting non-existent directory succeeds (rm -rf is idempotent)
+          // For local git worktree, it should fail
+          if (type === "local") {
+            expect(result.success).toBe(false);
+            if (!result.success) {
+              expect(result.error).toContain("Failed to remove worktree");
+            }
+          } else {
+            // SSH: rm -rf non-existent is a no-op (succeeds)
+            expect(result.success).toBe(true);
+          }
         });
       });
     }
