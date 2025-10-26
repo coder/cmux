@@ -249,13 +249,14 @@ describeIntegration("WORKSPACE_RENAME with both runtimes", () => {
             }
 
             // Create second workspace
-            const { result: secondResult, cleanup: secondCleanup } = await createWorkspaceWithCleanup(
-              env,
-              tempGitRepo,
-              secondBranchName,
-              trunkBranch,
-              runtimeConfig
-            );
+            const { result: secondResult, cleanup: secondCleanup } =
+              await createWorkspaceWithCleanup(
+                env,
+                tempGitRepo,
+                secondBranchName,
+                trunkBranch,
+                runtimeConfig
+              );
             expect(secondResult.success).toBe(true);
             if (!secondResult.success) {
               throw new Error(`Failed to create second workspace: ${secondResult.error}`);
