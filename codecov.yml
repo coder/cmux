@@ -33,7 +33,7 @@ flags:
     carryforward: false
   integration-tests:
     paths:
-      - tests/**
+      - src/**
     carryforward: false
 
 # Ignore common non-source paths
