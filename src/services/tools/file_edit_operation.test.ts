@@ -1,4 +1,4 @@
-import { describe, test, expect, jest, beforeEach } from "@jest/globals";
+import { describe, test, expect, jest } from "@jest/globals";
 import { executeFileEditOperation } from "./file_edit_operation";
 import { WRITE_DENIED_PREFIX } from "@/types/tools";
 import { createRuntime } from "@/runtime/runtimeFactory";
@@ -9,7 +9,7 @@ const TEST_CWD = "/tmp";
 function createConfig(runtime?: Runtime) {
   return {
     cwd: TEST_CWD,
-    runtime: runtime || createRuntime({ type: "local", srcBaseDir: TEST_CWD }),
+    runtime: runtime ?? createRuntime({ type: "local", srcBaseDir: TEST_CWD }),
     tempDir: "/tmp",
   };
 }
@@ -40,8 +40,8 @@ describe("executeFileEditOperation", () => {
     const normalizePathCalls: Array<{ targetPath: string; basePath: string }> = [];
     
     const mockRuntime = {
-      stat: jest.fn<any, any>().mockRejectedValue(new Error("File not found")),
-      normalizePath: jest.fn<any, any>((targetPath: string, basePath: string) => {
+      stat: jest.fn<() => Promise<never>>().mockRejectedValue(new Error("File not found")),
+      normalizePath: jest.fn<(targetPath: string, basePath: string) => string>((targetPath: string, basePath: string) => {
         normalizePathCalls.push({ targetPath, basePath });
         // Mock SSH-style path normalization
         if (targetPath.startsWith("/")) return targetPath;
