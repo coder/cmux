@@ -8,7 +8,7 @@ const TEST_CWD = "/tmp";
 function createConfig() {
   return {
     cwd: TEST_CWD,
-    runtime: createRuntime({ type: "local", workdir: TEST_CWD }),
+    runtime: createRuntime({ type: "local", srcBaseDir: TEST_CWD }),
     tempDir: "/tmp",
   };
 }

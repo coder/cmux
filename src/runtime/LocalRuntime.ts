@@ -29,17 +29,17 @@ import { getErrorMessage } from "../utils/errors";
  * directly on the host machine using Node.js APIs.
  */
 export class LocalRuntime implements Runtime {
-  private readonly workdir: string;
+  private readonly srcBaseDir: string;
 
-  constructor(workdir: string) {
-    this.workdir = workdir;
+  constructor(srcBaseDir: string) {
+    this.srcBaseDir = srcBaseDir;
   }
 
   async exec(command: string, options: ExecOptions): Promise<ExecStream> {
     const startTime = performance.now();
 
-    // Determine working directory
-    const cwd = options.cwd ?? this.workdir;
+    // Use the specified working directory (must be a specific workspace path)
+    const cwd = options.cwd;
 
     // Check if working directory exists before spawning
     // This prevents confusing ENOENT errors from spawn()
@@ -305,7 +305,7 @@ export class LocalRuntime implements Runtime {
 
   getWorkspacePath(projectPath: string, workspaceName: string): string {
     const projectName = getProjectName(projectPath);
-    return path.join(this.workdir, projectName, workspaceName);
+    return path.join(this.srcBaseDir, projectName, workspaceName);
   }
 
   async createWorkspace(params: WorkspaceCreationParams): Promise<WorkspaceCreationResult> {
@@ -484,6 +484,33 @@ export class LocalRuntime implements Runtime {
       return { success: true, deletedPath };
     } catch (error) {
       const message = getErrorMessage(error);
+
+      // If force is enabled and git worktree remove failed, fall back to rm -rf
+      // This handles edge cases like submodules where git refuses to delete
+      if (force) {
+        try {
+          // Prune git's worktree records first (best effort)
+          try {
+            using pruneProc = execAsync(`git -C "${projectPath}" worktree prune`);
+            await pruneProc.result;
+          } catch {
+            // Ignore prune errors - we'll still try rm -rf
+          }
+
+          // Force delete the directory
+          using rmProc = execAsync(`rm -rf "${deletedPath}"`);
+          await rmProc.result;
+
+          return { success: true, deletedPath };
+        } catch (rmError) {
+          return {
+            success: false,
+            error: `Failed to remove worktree via git and rm: ${getErrorMessage(rmError)}`,
+          };
+        }
+      }
+
+      // force=false - return the git error without attempting rm -rf
       return { success: false, error: `Failed to remove worktree: ${message}` };
     }
   }

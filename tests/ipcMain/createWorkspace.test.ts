@@ -181,7 +181,7 @@ describeIntegration("WORKSPACE_CREATE with both runtimes", () => {
           return {
             type: "ssh",
             host: `testuser@localhost`,
-            workdir: `${sshConfig.workdir}/${branchName}`,
+            srcBaseDir: sshConfig.workdir,
             identityFile: sshConfig.privateKeyPath,
             port: sshConfig.port,
           };
@@ -511,7 +511,7 @@ exit 1
                 const tildeRuntimeConfig: RuntimeConfig = {
                   type: "ssh",
                   host: `testuser@localhost`,
-                  workdir: `~/workspace/${branchName}`,
+                  srcBaseDir: `~/workspace`,
                   identityFile: sshConfig!.privateKeyPath,
                   port: sshConfig!.port,
                 };
@@ -568,7 +568,7 @@ echo "Init hook executed with tilde path"
                 const tildeRuntimeConfig: RuntimeConfig = {
                   type: "ssh",
                   host: `testuser@localhost`,
-                  workdir: `~/workspace/${branchName}`,
+                  srcBaseDir: `~/workspace`,
                   identityFile: sshConfig!.privateKeyPath,
                   port: sshConfig!.port,
                 };

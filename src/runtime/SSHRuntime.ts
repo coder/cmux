@@ -38,7 +38,7 @@ export interface SSHRuntimeConfig {
   /** SSH host (can be hostname, user@host, or SSH config alias) */
   host: string;
   /** Working directory on remote host */
-  workdir: string;
+  srcBaseDir: string;
   /** Optional: Path to SSH private key (if not using ~/.ssh/config or ssh-agent) */
   identityFile?: string;
   /** Optional: SSH port (default: 22) */
@@ -78,8 +78,7 @@ export class SSHRuntime implements Runtime {
     const parts: string[] = [];
 
     // Add cd command if cwd is specified
-    const cwd = options.cwd ?? this.config.workdir;
-    parts.push(cdCommandForSSH(cwd));
+    parts.push(cdCommandForSSH(options.cwd));
 
     // Add environment variable exports
     if (options.env) {
@@ -192,7 +191,7 @@ export class SSHRuntime implements Runtime {
       start: async (controller: ReadableStreamDefaultController<Uint8Array>) => {
         try {
           const stream = await this.exec(`cat ${shescape.quote(path)}`, {
-            cwd: this.config.workdir,
+            cwd: this.config.srcBaseDir,
             timeout: 300, // 5 minutes - reasonable for large files
           });
 
@@ -245,7 +244,7 @@ export class SSHRuntime implements Runtime {
 
     const getExecStream = () => {
       execPromise ??= this.exec(writeCommand, {
-        cwd: this.config.workdir,
+        cwd: this.config.srcBaseDir,
         timeout: 300, // 5 minutes - reasonable for large files
       });
       return execPromise;
@@ -288,7 +287,7 @@ export class SSHRuntime implements Runtime {
     // Use stat with format string to get: size, mtime, type
     // %s = size, %Y = mtime (seconds since epoch), %F = file type
     const stream = await this.exec(`stat -c '%s %Y %F' ${shescape.quote(path)}`, {
-      cwd: this.config.workdir,
+      cwd: this.config.srcBaseDir,
       timeout: 10, // 10 seconds - stat should be fast
     });
 
@@ -363,7 +362,11 @@ export class SSHRuntime implements Runtime {
    * - No external dependencies (git is always available)
    * - Simpler implementation
    */
-  private async syncProjectToRemote(projectPath: string, initLogger: InitLogger): Promise<void> {
+  private async syncProjectToRemote(
+    projectPath: string,
+    workspacePath: string,
+    initLogger: InitLogger
+  ): Promise<void> {
     // Use timestamp-based bundle path to avoid conflicts (simpler than $$)
     const timestamp = Date.now();
     const bundleTempPath = `~/.cmux-bundle-${timestamp}.bundle`;
@@ -407,7 +410,7 @@ export class SSHRuntime implements Runtime {
 
       // Expand tilde in destination path for git clone
       // git doesn't expand tilde when it's quoted, so we need to expand it ourselves
-      const cloneDestPath = expandTildeForSSH(this.config.workdir);
+      const cloneDestPath = expandTildeForSSH(workspacePath);
 
       const cloneStream = await this.exec(`git clone --quiet ${bundleTempPath} ${cloneDestPath}`, {
         cwd: "~",
@@ -456,7 +459,11 @@ export class SSHRuntime implements Runtime {
   /**
    * Run .cmux/init hook on remote machine if it exists
    */
-  private async runInitHook(projectPath: string, initLogger: InitLogger): Promise<void> {
+  private async runInitHook(
+    projectPath: string,
+    workspacePath: string,
+    initLogger: InitLogger
+  ): Promise<void> {
     // Check if hook exists locally (we synced the project, so local check is sufficient)
     const hookExists = await checkInitHookExists(projectPath);
     if (!hookExists) {
@@ -464,7 +471,7 @@ export class SSHRuntime implements Runtime {
     }
 
     // Construct hook path - expand tilde if present
-    const remoteHookPath = `${this.config.workdir}/.cmux/init`;
+    const remoteHookPath = `${workspacePath}/.cmux/init`;
     initLogger.logStep(`Running init hook: ${remoteHookPath}`);
 
     // Expand tilde in hook path for execution
@@ -474,7 +481,7 @@ export class SSHRuntime implements Runtime {
     // Run hook remotely and stream output
     // No timeout - user init hooks can be arbitrarily long
     const hookStream = await this.exec(hookCommand, {
-      cwd: this.config.workdir,
+      cwd: workspacePath, // Run in the workspace directory
       timeout: 3600, // 1 hour - generous timeout for init hooks
     });
 
@@ -522,7 +529,7 @@ export class SSHRuntime implements Runtime {
 
   getWorkspacePath(projectPath: string, workspaceName: string): string {
     const projectName = getProjectName(projectPath);
-    return path.posix.join(this.config.workdir, projectName, workspaceName);
+    return path.posix.join(this.config.srcBaseDir, projectName, workspaceName);
   }
 
   async createWorkspace(params: WorkspaceCreationParams): Promise<WorkspaceCreationResult> {
@@ -536,31 +543,14 @@ export class SSHRuntime implements Runtime {
       // but the parent directory must exist first
       initLogger.logStep("Preparing remote workspace...");
       try {
-        // Get parent directory path
-        // For paths starting with ~/, expand to $HOME
-        let parentDirCommand: string;
-        if (this.config.workdir.startsWith("~/")) {
-          const pathWithoutTilde = this.config.workdir.slice(2);
-          // Extract parent: /a/b/c -> /a/b
-          const lastSlash = pathWithoutTilde.lastIndexOf("/");
-          if (lastSlash > 0) {
-            const parentPath = pathWithoutTilde.substring(0, lastSlash);
-            parentDirCommand = `mkdir -p "$HOME/${parentPath}"`;
-          } else {
-            // If no slash, parent is HOME itself (already exists)
-            parentDirCommand = "echo 'Using HOME as parent'";
-          }
-        } else {
-          // Extract parent from absolute path
-          const lastSlash = this.config.workdir.lastIndexOf("/");
-          if (lastSlash > 0) {
-            const parentPath = this.config.workdir.substring(0, lastSlash);
-            parentDirCommand = `mkdir -p ${JSON.stringify(parentPath)}`;
-          } else {
-            // Root directory (shouldn't happen, but handle it)
-            parentDirCommand = "echo 'Using root as parent'";
-          }
-        }
+        // Extract parent directory from workspace path
+        // Example: ~/workspace/project/branch -> ~/workspace/project
+        const lastSlash = workspacePath.lastIndexOf("/");
+        const parentDir = lastSlash > 0 ? workspacePath.substring(0, lastSlash) : "~";
+
+        // Expand tilde for mkdir command
+        const expandedParentDir = expandTildeForSSH(parentDir);
+        const parentDirCommand = `mkdir -p ${expandedParentDir}`;
 
         const mkdirStream = await this.exec(parentDirCommand, {
           cwd: "/tmp",
@@ -596,13 +586,14 @@ export class SSHRuntime implements Runtime {
   }
 
   async initWorkspace(params: WorkspaceInitParams): Promise<WorkspaceInitResult> {
-    const { projectPath, branchName, trunkBranch: _trunkBranch, initLogger } = params;
+    const { projectPath, branchName, trunkBranch: _trunkBranch, workspacePath, initLogger } =
+      params;
 
     try {
       // 1. Sync project to remote (opportunistic rsync with scp fallback)
       initLogger.logStep("Syncing project files to remote...");
       try {
-        await this.syncProjectToRemote(projectPath, initLogger);
+        await this.syncProjectToRemote(projectPath, workspacePath, initLogger);
       } catch (error) {
         const errorMsg = getErrorMessage(error);
         initLogger.logStderr(`Failed to sync project: ${errorMsg}`);
@@ -622,7 +613,7 @@ export class SSHRuntime implements Runtime {
       const checkoutCmd = `(git checkout ${JSON.stringify(branchName)} 2>/dev/null || git checkout -b ${JSON.stringify(branchName)} HEAD)`;
 
       const checkoutStream = await this.exec(checkoutCmd, {
-        cwd: this.config.workdir,
+        cwd: workspacePath, // Use the full workspace path for git operations
         timeout: 300, // 5 minutes for git checkout (can be slow on large repos)
       });
 
@@ -647,7 +638,7 @@ export class SSHRuntime implements Runtime {
       // Note: runInitHook calls logComplete() internally if hook exists
       const hookExists = await checkInitHookExists(projectPath);
       if (hookExists) {
-        await this.runInitHook(projectPath, initLogger);
+        await this.runInitHook(projectPath, workspacePath, initLogger);
       } else {
         // No hook - signal completion immediately
         initLogger.logComplete(0);
@@ -683,7 +674,7 @@ export class SSHRuntime implements Runtime {
 
       // Execute via the runtime's exec method (handles SSH connection multiplexing, etc.)
       const stream = await this.exec(moveCommand, {
-        cwd: this.config.workdir,
+        cwd: this.config.srcBaseDir,
         timeout: 30,
       });
 
@@ -731,7 +722,7 @@ export class SSHRuntime implements Runtime {
         const checkStream = await this.exec(
           `cd ${shescape.quote(deletedPath)} && git diff --quiet --exit-code && git diff --quiet --cached --exit-code`,
           {
-            cwd: this.config.workdir,
+            cwd: this.config.srcBaseDir,
             timeout: 10,
           }
         );
@@ -754,7 +745,7 @@ export class SSHRuntime implements Runtime {
 
       // Execute via the runtime's exec method (handles SSH connection multiplexing, etc.)
       const stream = await this.exec(removeCommand, {
-        cwd: this.config.workdir,
+        cwd: this.config.srcBaseDir,
         timeout: 30,
       });
 

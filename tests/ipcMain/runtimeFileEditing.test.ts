@@ -233,7 +233,7 @@ describeIntegration("Runtime File Editing Tools", () => {
           return {
             type: "ssh",
             host: `testuser@localhost`,
-            workdir: `${sshConfig.workdir}/${branchName}`,
+            srcBaseDir: `${sshConfig.workdir}/${branchName}`,
             identityFile: sshConfig.privateKeyPath,
             port: sshConfig.port,
           };

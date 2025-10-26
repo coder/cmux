@@ -312,6 +312,7 @@ export async function waitForInitComplete(
   timeoutMs = 5000
 ): Promise<void> {
   const startTime = Date.now();
+  let pollInterval = 50;
 
   while (Date.now() - startTime < timeoutMs) {
     // Check for init-end event in sentEvents
@@ -325,14 +326,33 @@ export async function waitForInitComplete(
     );
 
     if (initEndEvent) {
+      // Check if init succeeded (exitCode === 0)
+      const exitCode = (initEndEvent.data as any).exitCode;
+      if (exitCode !== 0) {
+        // Collect all init output for debugging
+        const initOutputEvents = env.sentEvents.filter(
+          (e) =>
+            e.channel === getChatChannel(workspaceId) &&
+            typeof e.data === "object" &&
+            e.data !== null &&
+            "type" in e.data &&
+            (e.data as any).type === "init-output"
+        );
+        const output = initOutputEvents
+          .map((e) => (e.data as any).line)
+          .filter(Boolean)
+          .join("\n");
+        throw new Error(`Init hook failed with exit code ${exitCode}:\n${output}`);
+      }
       return;
     }
 
-    await new Promise((resolve) => setTimeout(resolve, 50));
+    await new Promise((resolve) => setTimeout(resolve, pollInterval));
+    pollInterval = Math.min(pollInterval * 1.5, 500);
   }
 
-  // Timeout - init may have completed before we started watching or doesn't have a hook
-  console.log(`Note: init-end event not detected within ${timeoutMs}ms (may have completed early)`);
+  // Throw error on timeout - workspace creation must complete for tests to be valid
+  throw new Error(`Init did not complete within ${timeoutMs}ms - workspace may not be ready`);
 }
 
 /**

@@ -10,11 +10,43 @@
  */
 
 /**
+ * PATH TERMINOLOGY & HIERARCHY
+ *
+ * srcBaseDir (base directory for all workspaces):
+ *   - Where cmux stores ALL workspace directories
+ *   - Local: ~/.cmux/src
+ *   - SSH: /home/user/workspace (or custom remote path)
+ *
+ * Workspace Path Computation:
+ *   {srcBaseDir}/{projectName}/{workspaceName}
+ *
+ *   - projectName: basename(projectPath)
+ *     Example: "/Users/me/git/my-project" → "my-project"
+ *
+ *   - workspaceName: branch name or custom name
+ *     Example: "feature-123" or "main"
+ *
+ * Full Example (Local):
+ *   srcBaseDir:    ~/.cmux/src
+ *   projectPath:   /Users/me/git/my-project (local git repo)
+ *   projectName:   my-project (extracted)
+ *   workspaceName: feature-123
+ *   → Workspace:   ~/.cmux/src/my-project/feature-123
+ *
+ * Full Example (SSH):
+ *   srcBaseDir:    /home/user/workspace
+ *   projectPath:   /Users/me/git/my-project (local git repo)
+ *   projectName:   my-project (extracted)
+ *   workspaceName: feature-123
+ *   → Workspace:   /home/user/workspace/my-project/feature-123
+ */
+
+/**
  * Options for executing a command
  */
 export interface ExecOptions {
-  /** Working directory for command execution (defaults to runtime's workdir) */
-  cwd?: string;
+  /** Working directory for command execution */
+  cwd: string;
   /** Environment variables to inject */
   env?: Record<string, string>;
   /**

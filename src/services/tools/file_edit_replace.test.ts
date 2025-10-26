@@ -59,7 +59,7 @@ describe("file_edit_replace_string tool", () => {
     await setupFile(testFilePath, "Hello world\nThis is a test\nGoodbye world");
     const tool = createFileEditReplaceStringTool({
       cwd: testDir,
-      runtime: createRuntime({ type: "local", workdir: "/tmp" }),
+      runtime: createRuntime({ type: "local", srcBaseDir: "/tmp" }),
       tempDir: "/tmp",
     });
 
@@ -97,7 +97,7 @@ describe("file_edit_replace_lines tool", () => {
     await setupFile(testFilePath, "line1\nline2\nline3\nline4");
     const tool = createFileEditReplaceLinesTool({
       cwd: testDir,
-      runtime: createRuntime({ type: "local", workdir: "/tmp" }),
+      runtime: createRuntime({ type: "local", srcBaseDir: "/tmp" }),
       tempDir: "/tmp",
     });
 

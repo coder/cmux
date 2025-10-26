@@ -29,7 +29,7 @@ import { resolveCompactionModel } from "@/utils/messages/compactionModelPreferen
  */
 export function parseRuntimeString(
   runtime: string | undefined,
-  workspaceName: string
+  _workspaceName: string
 ): RuntimeConfig | undefined {
   if (!runtime) {
     return undefined; // Default to local (backend decides)
@@ -54,7 +54,7 @@ export function parseRuntimeString(
     return {
       type: "ssh",
       host: hostPart,
-      workdir: `~/cmux/${workspaceName}`, // Default remote workdir
+      srcBaseDir: "~/cmux", // Default remote base directory (NOT including workspace name)
     };
   }
 

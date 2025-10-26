@@ -182,7 +182,7 @@ export class AgentSession {
       const metadata = existing.data;
       // Directory name uses workspace name (not stable ID)
       const runtime = createRuntime(
-        metadata.runtimeConfig ?? { type: "local", workdir: this.config.srcDir }
+        metadata.runtimeConfig ?? { type: "local", srcBaseDir: this.config.srcDir }
       );
       const expectedPath = runtime.getWorkspacePath(metadata.projectPath, metadata.name);
       assert(

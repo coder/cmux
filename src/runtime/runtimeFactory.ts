@@ -9,12 +9,12 @@ import type { RuntimeConfig } from "@/types/runtime";
 export function createRuntime(config: RuntimeConfig): Runtime {
   switch (config.type) {
     case "local":
-      return new LocalRuntime(config.workdir);
+      return new LocalRuntime(config.srcBaseDir);
 
     case "ssh":
       return new SSHRuntime({
         host: config.host,
-        workdir: config.workdir,
+        srcBaseDir: config.srcBaseDir,
         identityFile: config.identityFile,
         port: config.port,
       });

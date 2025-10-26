@@ -421,7 +421,7 @@ export class AIService extends EventEmitter {
       const [providerName] = modelString.split(":");
 
       // Get tool names early for mode transition sentinel (stub config, no workspace context needed)
-      const earlyRuntime = createRuntime({ type: "local", workdir: process.cwd() });
+      const earlyRuntime = createRuntime({ type: "local", srcBaseDir: process.cwd() });
       const earlyAllTools = await getToolsForModel(modelString, {
         cwd: process.cwd(),
         runtime: earlyRuntime,
@@ -501,7 +501,7 @@ export class AIService extends EventEmitter {
 
       // Get workspace path (directory name uses workspace name)
       const runtime = createRuntime(
-        metadata.runtimeConfig ?? { type: "local", workdir: this.config.srcDir }
+        metadata.runtimeConfig ?? { type: "local", srcBaseDir: this.config.srcDir }
       );
       const workspacePath = runtime.getWorkspacePath(metadata.projectPath, metadata.name);
 
@@ -527,10 +527,10 @@ export class AIService extends EventEmitter {
       // Get model-specific tools with runtime's workdir (correct for local or remote)
       const runtimeConfig = metadata.runtimeConfig ?? {
         type: "local",
-        workdir: this.config.srcDir,
+        srcBaseDir: this.config.srcDir,
       };
       const allTools = await getToolsForModel(modelString, {
-        cwd: runtimeConfig.workdir,
+        cwd: runtimeConfig.srcBaseDir,
         runtime,
         secrets: secretsToRecord(projectSecrets),
         tempDir,

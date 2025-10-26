@@ -465,7 +465,7 @@ describeIntegration("IpcMain rename workspace integration tests", () => {
         const projectsConfig = env.config.loadConfigOrDefault();
         const projectConfig = projectsConfig.projects.get(tempGitRepo);
         if (projectConfig) {
-          const runtime = createRuntime({ type: "local", workdir: env.config.srcDir });
+          const runtime = createRuntime({ type: "local", srcBaseDir: env.config.srcDir });
           const workspacePath = runtime.getWorkspacePath(tempGitRepo, branchName);
           projectConfig.workspaces.push({
             path: workspacePath,

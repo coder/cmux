@@ -32,7 +32,7 @@ export function createTestRuntime(
       }
       return new SSHRuntime({
         host: `testuser@localhost`,
-        workdir: sshConfig.workdir,
+        srcBaseDir: sshConfig.workdir,
         identityFile: sshConfig.privateKeyPath,
         port: sshConfig.port,
       });

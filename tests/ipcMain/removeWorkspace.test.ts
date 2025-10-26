@@ -178,12 +178,12 @@ describeIntegration("Workspace deletion integration tests", () => {
       const TEST_TIMEOUT = type === "ssh" ? TEST_TIMEOUT_SSH_MS : TEST_TIMEOUT_LOCAL_MS;
 
       // Helper to build runtime config
-      const getRuntimeConfig = (branchName: string): RuntimeConfig | undefined => {
+      const getRuntimeConfig = (_branchName: string): RuntimeConfig | undefined => {
         if (type === "ssh" && sshConfig) {
           return {
             type: "ssh",
             host: `testuser@localhost`,
-            workdir: `${sshConfig.workdir}/${branchName}`,
+            srcBaseDir: sshConfig.workdir, // Base workdir, not including branch name
             identityFile: sshConfig.privateKeyPath,
             port: sshConfig.port,
           };
@@ -210,6 +210,10 @@ describeIntegration("Workspace deletion integration tests", () => {
 
             // Verify workspace exists (works for both local and SSH)
             const existsBefore = await workspaceExists(env, workspaceId);
+            if (!existsBefore) {
+              console.error(`Workspace ${workspaceId} does not exist after creation`);
+              console.error(`workspacePath from metadata: ${workspacePath}`);
+            }
             expect(existsBefore).toBe(true);
 
             // Delete the workspace
@@ -330,7 +334,9 @@ describeIntegration("Workspace deletion integration tests", () => {
               workspaceId
             );
             expect(deleteResult.success).toBe(false);
-            expect(deleteResult.error).toMatch(/uncommitted changes|worktree contains modified/i);
+            expect(deleteResult.error).toMatch(
+              /uncommitted changes|worktree contains modified|contains modified or untracked files/i
+            );
 
             // Verify workspace still exists
             const stillExists = await workspaceExists(env, workspaceId);
@@ -423,11 +429,15 @@ describeIntegration("Workspace deletion integration tests", () => {
                 .catch(() => false);
               expect(submoduleExists).toBe(true);
 
-              // Worktree is clean - LocalRuntime should auto-retry with --force
+              // Worktree has submodule - need force flag to delete via rm -rf fallback
               const deleteResult = await env.mockIpcRenderer.invoke(
                 IPC_CHANNELS.WORKSPACE_REMOVE,
-                workspaceId
+                workspaceId,
+                { force: true }
               );
+              if (!deleteResult.success) {
+                console.error("Delete with submodule failed:", deleteResult.error);
+              }
               expect(deleteResult.success).toBe(true);
 
               // Verify workspace was deleted

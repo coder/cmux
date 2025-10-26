@@ -281,7 +281,7 @@ export class IpcMain {
         // Create runtime for workspace creation (defaults to local with srcDir as base)
         const finalRuntimeConfig: RuntimeConfig = runtimeConfig ?? {
           type: "local",
-          workdir: this.config.srcDir,
+          srcBaseDir: this.config.srcDir,
         };
         const runtime = createRuntime(finalRuntimeConfig);
 
@@ -449,7 +449,7 @@ export class IpcMain {
           // Create runtime instance for this workspace
           // For local runtimes, workdir should be srcDir, not the individual workspace path
           const runtime = createRuntime(
-            oldMetadata.runtimeConfig ?? { type: "local", workdir: this.config.srcDir }
+            oldMetadata.runtimeConfig ?? { type: "local", srcBaseDir: this.config.srcDir }
           );
 
           // Delegate rename to runtime (handles both local and SSH)
@@ -471,10 +471,9 @@ export class IpcMain {
                 workspaceEntry.name = newName;
                 workspaceEntry.path = newPath; // Update path to reflect new directory name
 
-                // Update runtime workdir to match new path
-                if (workspaceEntry.runtimeConfig) {
-                  workspaceEntry.runtimeConfig.workdir = newPath;
-                }
+                // Note: We don't need to update runtimeConfig.srcBaseDir on rename
+                // because srcBaseDir is the base directory, not the individual workspace path
+                // The workspace path is computed dynamically via runtime.getWorkspacePath()
               }
             }
             return config;
@@ -535,7 +534,7 @@ export class IpcMain {
 
           // Compute source workspace path from metadata (use name for directory lookup) using Runtime
           const sourceRuntime = createRuntime(
-            sourceMetadata.runtimeConfig ?? { type: "local", workdir: this.config.srcDir }
+            sourceMetadata.runtimeConfig ?? { type: "local", srcBaseDir: this.config.srcDir }
           );
           const sourceWorkspacePath = sourceRuntime.getWorkspacePath(
             foundProjectPath,
@@ -889,7 +888,7 @@ export class IpcMain {
           // Runtime owns the path computation logic
           const runtimeConfig = metadata.runtimeConfig ?? {
             type: "local" as const,
-            workdir: this.config.srcDir,
+            srcBaseDir: this.config.srcDir,
           };
           const runtime = createRuntime(runtimeConfig);
           const workspacePath = runtime.getWorkspacePath(metadata.projectPath, metadata.name);
@@ -1050,7 +1049,7 @@ export class IpcMain {
       // Create runtime instance for this workspace
       // For local runtimes, workdir should be srcDir, not the individual workspace path
       const runtime = createRuntime(
-        metadata.runtimeConfig ?? { type: "local", workdir: this.config.srcDir }
+        metadata.runtimeConfig ?? { type: "local", srcBaseDir: this.config.srcDir }
       );
 
       // Delegate deletion to runtime - it handles all path computation and existence checks
