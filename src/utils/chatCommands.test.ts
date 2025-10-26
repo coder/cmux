@@ -18,7 +18,7 @@ describe("parseRuntimeString", () => {
     expect(result).toEqual({
       type: "ssh",
       host: "user@host",
-      workdir: "~/cmux/test-workspace",
+      srcBaseDir: "~/cmux",
     });
   });
 
@@ -27,7 +27,7 @@ describe("parseRuntimeString", () => {
     expect(result).toEqual({
       type: "ssh",
       host: "User@Host.Example.Com",
-      workdir: "~/cmux/test-workspace",
+      srcBaseDir: "~/cmux",
     });
   });
 
@@ -36,7 +36,7 @@ describe("parseRuntimeString", () => {
     expect(result).toEqual({
       type: "ssh",
       host: "user@host",
-      workdir: "~/cmux/test-workspace",
+      srcBaseDir: "~/cmux",
     });
   });
 
@@ -50,7 +50,7 @@ describe("parseRuntimeString", () => {
     expect(result).toEqual({
       type: "ssh",
       host: "hostname",
-      workdir: "~/cmux/test-workspace",
+      srcBaseDir: "~/cmux",
     });
   });
 
@@ -59,7 +59,7 @@ describe("parseRuntimeString", () => {
     expect(result).toEqual({
       type: "ssh",
       host: "dev.example.com",
-      workdir: "~/cmux/test-workspace",
+      srcBaseDir: "~/cmux",
     });
   });
 
