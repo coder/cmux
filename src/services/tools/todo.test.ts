@@ -10,12 +10,12 @@ describe("Todo Storage", () => {
 
   beforeEach(async () => {
     // Create a temporary directory for each test
-    tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "todo-test-"));
+    runtimeTempDir = await fs.mkdtemp(path.join(os.tmpdir(), "todo-test-"));
   });
 
   afterEach(async () => {
     // Clean up temporary directory after each test
-    await fs.rm(tempDir, { recursive: true, force: true });
+    await fs.rm(runtimeTempDir, { recursive: true, force: true });
   });
 
   describe("setTodosForTempDir", () => {
@@ -35,9 +35,9 @@ describe("Todo Storage", () => {
         },
       ];
 
-      await setTodosForTempDir(tempDir, todos);
+      await setTodosForTempDir(runtimeTempDir, todos);
 
-      const storedTodos = await getTodosForTempDir(tempDir);
+      const storedTodos = await getTodosForTempDir(runtimeTempDir);
       expect(storedTodos).toEqual(todos);
     });
 
@@ -54,7 +54,7 @@ describe("Todo Storage", () => {
         },
       ];
 
-      await setTodosForTempDir(tempDir, initialTodos);
+      await setTodosForTempDir(runtimeTempDir, initialTodos);
 
       // Replace with updated list
       const updatedTodos: TodoItem[] = [
@@ -72,16 +72,16 @@ describe("Todo Storage", () => {
         },
       ];
 
-      await setTodosForTempDir(tempDir, updatedTodos);
+      await setTodosForTempDir(runtimeTempDir, updatedTodos);
 
       // Verify list was replaced, not merged
-      const storedTodos = await getTodosForTempDir(tempDir);
+      const storedTodos = await getTodosForTempDir(runtimeTempDir);
       expect(storedTodos).toEqual(updatedTodos);
     });
 
     it("should handle empty todo list", async () => {
       // Create initial list
-      await setTodosForTempDir(tempDir, [
+      await setTodosForTempDir(runtimeTempDir, [
         {
           content: "Task 1",
           status: "pending",
@@ -89,9 +89,9 @@ describe("Todo Storage", () => {
       ]);
 
       // Clear list
-      await setTodosForTempDir(tempDir, []);
+      await setTodosForTempDir(runtimeTempDir, []);
 
-      const storedTodos = await getTodosForTempDir(tempDir);
+      const storedTodos = await getTodosForTempDir(runtimeTempDir);
       expect(storedTodos).toEqual([]);
     });
 
@@ -108,10 +108,10 @@ describe("Todo Storage", () => {
         { content: "Task 8", status: "pending" },
       ];
 
-      await expect(setTodosForTempDir(tempDir, tooManyTodos)).rejects.toThrow(
+      await expect(setTodosForTempDir(runtimeTempDir, tooManyTodos)).rejects.toThrow(
         /Too many TODOs \(8\/7\)/i
       );
-      await expect(setTodosForTempDir(tempDir, tooManyTodos)).rejects.toThrow(
+      await expect(setTodosForTempDir(runtimeTempDir, tooManyTodos)).rejects.toThrow(
         /Keep high precision at the center/i
       );
     });
@@ -127,8 +127,8 @@ describe("Todo Storage", () => {
         { content: "Future work (5 items)", status: "pending" },
       ];
 
-      await setTodosForTempDir(tempDir, maxTodos);
-      expect(await getTodosForTempDir(tempDir)).toEqual(maxTodos);
+      await setTodosForTempDir(runtimeTempDir, maxTodos);
+      expect(await getTodosForTempDir(runtimeTempDir)).toEqual(maxTodos);
     });
 
     it("should reject multiple in_progress tasks", async () => {
@@ -139,7 +139,7 @@ describe("Todo Storage", () => {
         },
       ];
 
-      await setTodosForTempDir(tempDir, validTodos);
+      await setTodosForTempDir(runtimeTempDir, validTodos);
 
       const invalidTodos: TodoItem[] = [
         {
@@ -152,12 +152,12 @@ describe("Todo Storage", () => {
         },
       ];
 
-      await expect(setTodosForTempDir(tempDir, invalidTodos)).rejects.toThrow(
+      await expect(setTodosForTempDir(runtimeTempDir, invalidTodos)).rejects.toThrow(
         /only one task can be marked as in_progress/i
       );
 
       // Original todos should remain unchanged on failure
-      expect(await getTodosForTempDir(tempDir)).toEqual(validTodos);
+      expect(await getTodosForTempDir(runtimeTempDir)).toEqual(validTodos);
     });
 
     it("should reject when in_progress tasks appear after pending", async () => {
@@ -172,7 +172,7 @@ describe("Todo Storage", () => {
         },
       ];
 
-      await expect(setTodosForTempDir(tempDir, invalidTodos)).rejects.toThrow(
+      await expect(setTodosForTempDir(runtimeTempDir, invalidTodos)).rejects.toThrow(
         /in-progress tasks must appear before pending tasks/i
       );
     });
@@ -189,7 +189,7 @@ describe("Todo Storage", () => {
         },
       ];
 
-      await expect(setTodosForTempDir(tempDir, invalidTodos)).rejects.toThrow(
+      await expect(setTodosForTempDir(runtimeTempDir, invalidTodos)).rejects.toThrow(
         /completed tasks must appear before in-progress or pending tasks/i
       );
     });
@@ -206,14 +206,14 @@ describe("Todo Storage", () => {
         },
       ];
 
-      await setTodosForTempDir(tempDir, todos);
-      expect(await getTodosForTempDir(tempDir)).toEqual(todos);
+      await setTodosForTempDir(runtimeTempDir, todos);
+      expect(await getTodosForTempDir(runtimeTempDir)).toEqual(todos);
     });
   });
 
   describe("getTodosForTempDir", () => {
     it("should return empty array when no todos exist", async () => {
-      const todos = await getTodosForTempDir(tempDir);
+      const todos = await getTodosForTempDir(runtimeTempDir);
       expect(todos).toEqual([]);
     });
 
@@ -229,9 +229,9 @@ describe("Todo Storage", () => {
         },
       ];
 
-      await setTodosForTempDir(tempDir, todos);
+      await setTodosForTempDir(runtimeTempDir, todos);
 
-      const retrievedTodos = await getTodosForTempDir(tempDir);
+      const retrievedTodos = await getTodosForTempDir(runtimeTempDir);
       expect(retrievedTodos).toEqual(todos);
     });
   });
@@ -283,11 +283,11 @@ describe("Todo Storage", () => {
         },
       ];
 
-      await setTodosForTempDir(tempDir, todos);
-      expect(await getTodosForTempDir(tempDir)).toEqual(todos);
+      await setTodosForTempDir(runtimeTempDir, todos);
+      expect(await getTodosForTempDir(runtimeTempDir)).toEqual(todos);
 
-      await clearTodosForTempDir(tempDir);
-      expect(await getTodosForTempDir(tempDir)).toEqual([]);
+      await clearTodosForTempDir(runtimeTempDir);
+      expect(await getTodosForTempDir(runtimeTempDir)).toEqual([]);
     });
   });
 });
