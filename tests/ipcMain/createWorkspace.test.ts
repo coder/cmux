@@ -758,11 +758,10 @@ echo "Init hook executed with tilde path"
 
           const runtimeConfig: RuntimeConfig = {
             type: "ssh",
-            host: "localhost",
-            port: sshConfig.port,
-            username: sshConfig.username,
-            privateKeyPath: sshConfig.privateKeyPath,
+            host: "testuser@localhost",
             srcBaseDir: "~/workspace",
+            identityFile: sshConfig.privateKeyPath,
+            port: sshConfig.port,
           };
 
           const { result, cleanup } = await createWorkspaceWithCleanup(
