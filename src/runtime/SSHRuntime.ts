@@ -721,6 +721,20 @@ export class SSHRuntime implements Runtime {
     const deletedPath = this.getWorkspacePath(projectPath, workspaceName);
 
     try {
+      // Check if workspace exists first
+      const checkExistStream = await this.exec(`test -d ${shescape.quote(deletedPath)}`, {
+        cwd: this.config.srcBaseDir,
+        timeout: 10,
+      });
+
+      await checkExistStream.stdin.close();
+      const existsExitCode = await checkExistStream.exitCode;
+
+      // If directory doesn't exist, deletion is a no-op (success)
+      if (existsExitCode !== 0) {
+        return { success: true, deletedPath };
+      }
+
       // Check if workspace has uncommitted changes (unless force is true)
       if (!force) {
         // Check for uncommitted changes using git diff
