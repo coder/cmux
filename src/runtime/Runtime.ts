@@ -198,16 +198,16 @@ export interface Runtime {
   /**
    * Normalize a path for comparison purposes within this runtime's context.
    * Handles runtime-specific path semantics (local vs remote).
-   * 
+   *
    * @param targetPath Path to normalize (may be relative or absolute)
    * @param basePath Base path to resolve relative paths against
    * @returns Normalized path suitable for string comparison
-   * 
+   *
    * @example
    * // LocalRuntime
    * runtime.normalizePath(".", "/home/user") // => "/home/user"
    * runtime.normalizePath("../other", "/home/user/project") // => "/home/user/other"
-   * 
+   *
    * // SSHRuntime
    * runtime.normalizePath(".", "/home/user") // => "/home/user"
    * runtime.normalizePath("~/project", "~") // => "~/project"

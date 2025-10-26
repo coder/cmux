@@ -82,7 +82,7 @@ export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
       const match = cdPattern.exec(script);
       if (match) {
         const targetPath = match[1].trim();
-        
+
         // Use runtime's normalizePath method to handle path comparison correctly
         const normalizedTarget = config.runtime.normalizePath(targetPath, config.cwd);
         const normalizedCwd = config.runtime.normalizePath(".", config.cwd);
