@@ -273,6 +273,138 @@ describeIntegration("WORKSPACE_CREATE with both runtimes", () => {
           },
           TEST_TIMEOUT_MS
         );
+
+        test.concurrent(
+          "creates new branch from specified trunk branch, not from default branch",
+          async () => {
+            const env = await createTestEnvironment();
+            const tempGitRepo = await createTempGitRepo();
+
+            try {
+              // Create a custom trunk branch with a unique commit
+              const customTrunkBranch = "custom-trunk";
+              await execAsync(
+                `git checkout -b ${customTrunkBranch} && echo "custom-trunk-content" > trunk-file.txt && git add . && git commit -m "Custom trunk commit"`,
+                { cwd: tempGitRepo }
+              );
+
+              // Create a different branch (which will become the default if we checkout to it)
+              const otherBranch = "other-branch";
+              await execAsync(
+                `git checkout -b ${otherBranch} && echo "other-content" > other-file.txt && git add . && git commit -m "Other branch commit"`,
+                { cwd: tempGitRepo }
+              );
+
+              // Switch back to the original default branch
+              const defaultBranch = await detectDefaultTrunkBranch(tempGitRepo);
+              await execAsync(`git checkout ${defaultBranch}`, { cwd: tempGitRepo });
+
+              // Now create a workspace specifying custom-trunk as the trunk branch
+              const newBranchName = generateBranchName("from-custom-trunk");
+              const runtimeConfig = getRuntimeConfig(newBranchName);
+
+              const { result, cleanup } = await createWorkspaceWithCleanup(
+                env,
+                tempGitRepo,
+                newBranchName,
+                customTrunkBranch, // Specify custom trunk branch
+                runtimeConfig
+              );
+
+              expect(result.success).toBe(true);
+              if (!result.success) {
+                throw new Error(
+                  `Failed to create workspace from custom trunk '${customTrunkBranch}': ${result.error}`
+                );
+              }
+
+              // Wait for workspace initialization to complete
+              await new Promise((resolve) => setTimeout(resolve, getInitWaitTime()));
+
+              // Verify the new branch was created from custom-trunk, not from default branch
+              const workspacePath = result.metadata.namedWorkspacePath;
+
+              // For LocalRuntime, check the worktree directly
+              // For SSHRuntime, we need to check the remote workspace
+              if (type === "local") {
+                // Check that trunk-file.txt exists (from custom-trunk)
+                const trunkFileExists = await fs
+                  .access(path.join(workspacePath, "trunk-file.txt"))
+                  .then(() => true)
+                  .catch(() => false);
+                expect(trunkFileExists).toBe(true);
+
+                // Check that other-file.txt does NOT exist (from other-branch)
+                const otherFileExists = await fs
+                  .access(path.join(workspacePath, "other-file.txt"))
+                  .then(() => true)
+                  .catch(() => false);
+                expect(otherFileExists).toBe(false);
+
+                // Verify git log shows the custom trunk commit
+                const { stdout: logOutput } = await execAsync(
+                  `git log --oneline --all`,
+                  { cwd: workspacePath }
+                );
+                expect(logOutput).toContain("Custom trunk commit");
+              } else if (type === "ssh" && sshConfig) {
+                // For SSH runtime, check files on the remote host
+                const checkFileCmd = `test -f ${workspacePath}/trunk-file.txt && echo "exists" || echo "missing"`;
+                const checkFileStream = await env.mockIpcRenderer.invoke(
+                  IPC_CHANNELS.RUNTIME_EXEC,
+                  result.metadata.id,
+                  checkFileCmd,
+                  { cwd: workspacePath, timeout: 10 }
+                );
+                
+                // Read stdout to check if file exists
+                let checkOutput = "";
+                const reader = checkFileStream.stdout.getReader();
+                const decoder = new TextDecoder();
+                try {
+                  while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    checkOutput += decoder.decode(value, { stream: true });
+                  }
+                } finally {
+                  reader.releaseLock();
+                }
+                
+                expect(checkOutput.trim()).toBe("exists");
+
+                // Check that other-file.txt does NOT exist
+                const checkOtherFileCmd = `test -f ${workspacePath}/other-file.txt && echo "exists" || echo "missing"`;
+                const checkOtherStream = await env.mockIpcRenderer.invoke(
+                  IPC_CHANNELS.RUNTIME_EXEC,
+                  result.metadata.id,
+                  checkOtherFileCmd,
+                  { cwd: workspacePath, timeout: 10 }
+                );
+                
+                let checkOtherOutput = "";
+                const otherReader = checkOtherStream.stdout.getReader();
+                try {
+                  while (true) {
+                    const { done, value } = await otherReader.read();
+                    if (done) break;
+                    checkOtherOutput += decoder.decode(value, { stream: true });
+                  }
+                } finally {
+                  otherReader.releaseLock();
+                }
+                
+                expect(checkOtherOutput.trim()).toBe("missing");
+              }
+
+              await cleanup();
+            } finally {
+              await cleanupTestEnvironment(env);
+              await cleanupTempGitRepo(tempGitRepo);
+            }
+          },
+          TEST_TIMEOUT_MS
+        );
       });
 
       describe("Init hook execution", () => {
