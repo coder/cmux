@@ -10,6 +10,8 @@ on:
         description: 'Optional test filter (e.g., "workspace", "tests/file.test.ts", or "-t pattern")'
         required: false
         type: string
+        # This filter is passed to unit tests, integration tests, e2e tests, and storybook tests
+        # to enable faster iteration when debugging specific test failures in CI
 
 jobs:
   static-check:
@@ -85,7 +87,7 @@ jobs:
 
   integration-test:
     name: Integration Tests
-    runs-on: ${{ github.repository_owner == 'coder' && 'depot-ubuntu-22.04-16' || 'ubuntu-latest' }}
+    runs-on: ${{ github.repository_owner == 'coder' && 'depot-ubuntu-24.04-32' || 'ubuntu-latest' }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -95,7 +97,7 @@ jobs:
       - uses: ./.github/actions/setup-cmux
 
       - name: Run integration tests with coverage
-        run: TEST_INTEGRATION=1 bun x jest --coverage ${{ github.event.inputs.test_filter || 'tests' }}
+        run: TEST_INTEGRATION=1 bun x jest --coverage --maxWorkers=200% --silent ${{ github.event.inputs.test_filter || 'tests' }}
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -111,6 +113,7 @@ jobs:
   storybook-test:
     name: Storybook Interaction Tests
     runs-on: ${{ github.repository_owner == 'coder' && 'depot-ubuntu-22.04-16' || 'ubuntu-latest' }}
+    if: github.event.inputs.test_filter == ''
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -136,6 +139,7 @@ jobs:
   e2e-test:
     name: End-to-End Tests
     runs-on: ${{ github.repository_owner == 'coder' && 'depot-ubuntu-22.04-16' || 'ubuntu-latest' }}
+    if: github.event.inputs.test_filter == ''
     steps:
       - name: Checkout code
         uses: actions/checkout@v4

@@ -4,6 +4,7 @@ import type { BashToolArgs, BashToolResult } from "@/types/tools";
 import { BASH_MAX_TOTAL_BYTES } from "@/constants/toolLimits";
 import * as fs from "fs";
 import { TestTempDir } from "./testHelpers";
+import { createRuntime } from "@/runtime/runtimeFactory";
 
 import type { ToolCallOptions } from "ai";
 
@@ -20,6 +21,7 @@ function createTestBashTool(options?: { niceness?: number }) {
   const tempDir = new TestTempDir("test-bash");
   const tool = createBashTool({
     cwd: process.cwd(),
+    runtime: createRuntime({ type: "local", srcBaseDir: "/tmp" }),
     tempDir: tempDir.path,
     ...options,
   });
@@ -161,6 +163,7 @@ describe("bash tool", () => {
     const tempDir = new TestTempDir("test-bash-truncate");
     const tool = createBashTool({
       cwd: process.cwd(),
+      runtime: createRuntime({ type: "local", srcBaseDir: "/tmp" }),
       tempDir: tempDir.path,
       overflow_policy: "truncate",
     });
@@ -199,6 +202,7 @@ describe("bash tool", () => {
     const tempDir = new TestTempDir("test-bash-overlong-line");
     const tool = createBashTool({
       cwd: process.cwd(),
+      runtime: createRuntime({ type: "local", srcBaseDir: "/tmp" }),
       tempDir: tempDir.path,
       overflow_policy: "truncate",
     });
@@ -230,6 +234,7 @@ describe("bash tool", () => {
     const tempDir = new TestTempDir("test-bash-boundary");
     const tool = createBashTool({
       cwd: process.cwd(),
+      runtime: createRuntime({ type: "local", srcBaseDir: "/tmp" }),
       tempDir: tempDir.path,
       overflow_policy: "truncate",
     });
@@ -265,6 +270,7 @@ describe("bash tool", () => {
     const tempDir = new TestTempDir("test-bash-default");
     const tool = createBashTool({
       cwd: process.cwd(),
+      runtime: createRuntime({ type: "local", srcBaseDir: "/tmp" }),
       tempDir: tempDir.path,
       // overflow_policy not specified - should default to tmpfile
     });
@@ -296,6 +302,7 @@ describe("bash tool", () => {
     const tempDir = new TestTempDir("test-bash-100kb");
     const tool = createBashTool({
       cwd: process.cwd(),
+      runtime: createRuntime({ type: "local", srcBaseDir: "/tmp" }),
       tempDir: tempDir.path,
     });
 
@@ -347,6 +354,7 @@ describe("bash tool", () => {
     const tempDir = new TestTempDir("test-bash-100kb-limit");
     const tool = createBashTool({
       cwd: process.cwd(),
+      runtime: createRuntime({ type: "local", srcBaseDir: "/tmp" }),
       tempDir: tempDir.path,
     });
 
@@ -389,6 +397,7 @@ describe("bash tool", () => {
     const tempDir = new TestTempDir("test-bash-no-kill-display");
     const tool = createBashTool({
       cwd: process.cwd(),
+      runtime: createRuntime({ type: "local", srcBaseDir: "/tmp" }),
       tempDir: tempDir.path,
     });
 
@@ -430,6 +439,7 @@ describe("bash tool", () => {
     const tempDir = new TestTempDir("test-bash-per-line-kill");
     const tool = createBashTool({
       cwd: process.cwd(),
+      runtime: createRuntime({ type: "local", srcBaseDir: "/tmp" }),
       tempDir: tempDir.path,
     });
 
@@ -469,6 +479,7 @@ describe("bash tool", () => {
     const tempDir = new TestTempDir("test-bash-under-limit");
     const tool = createBashTool({
       cwd: process.cwd(),
+      runtime: createRuntime({ type: "local", srcBaseDir: "/tmp" }),
       tempDir: tempDir.path,
     });
 
@@ -498,6 +509,7 @@ describe("bash tool", () => {
     const tempDir = new TestTempDir("test-bash-exact-limit");
     const tool = createBashTool({
       cwd: process.cwd(),
+      runtime: createRuntime({ type: "local", srcBaseDir: "/tmp" }),
       tempDir: tempDir.path,
     });
 
@@ -568,7 +580,7 @@ describe("bash tool", () => {
 
     expect(result.success).toBe(false);
     if (!result.success) {
-      expect(result.error).toContain("timed out");
+      expect(result.error).toContain("timeout");
       expect(result.exitCode).toBe(-1);
     }
   });
@@ -851,7 +863,7 @@ describe("bash tool", () => {
 
     expect(result.success).toBe(false);
     if (!result.success) {
-      expect(result.error).toContain("timed out");
+      expect(result.error).toContain("timeout");
       expect(duration).toBeLessThan(2000);
     }
   });

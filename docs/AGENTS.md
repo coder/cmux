@@ -110,7 +110,7 @@ Verify with React DevTools Profiler - MarkdownCore should only re-render when co
 
 ## Documentation Guidelines
 
-**Free-floating markdown docs are not permitted.** Documentation must be organized:
+**Free-floating markdown docs are not permitted.** Documentation must be organized. Do not create standalone markdown files in the project root or random locations, even for implementation summaries or planning documents - use the propose_plan tool or inline comments instead.
 
 - **User-facing docs** → `./docs/` directory
   - **IMPORTANT**: Read `docs/README.md` first before writing user-facing documentation
@@ -119,6 +119,7 @@ Verify with React DevTools Profiler - MarkdownCore should only re-render when co
   - Use standard markdown + mermaid diagrams
 - **Developer docs** → inline with the code its documenting as comments. Consider them notes as notes to future Assistants to understand the logic more quickly.
   **DO NOT** create standalone documentation files in the project root or random locations.
+- **Test documentation** → inline comments in test files explaining complex test setup or edge cases, NOT separate README files.
 
 **NEVER create markdown documentation files (README, guides, summaries, etc.) in the project root during feature development unless the user explicitly requests documentation.** Code + tests + inline comments are complete documentation.
 
@@ -204,6 +205,7 @@ This project uses **Make** as the primary build orchestrator. See `Makefile` for
 - **Integration tests:**
   - Run specific integration test: `TEST_INTEGRATION=1 bun x jest tests/ipcMain/sendMessage.test.ts -t "test name pattern"`
   - Run all integration tests: `TEST_INTEGRATION=1 bun x jest tests` (~35 seconds, runs 40 tests)
+  - **⚠️ Running `tests/ipcMain` locally takes a very long time.** Prefer running specific test files or use `-t` to filter to specific tests.
   - **Performance**: Tests use `test.concurrent()` to run in parallel within each file
   - **NEVER bypass IPC in integration tests** - Integration tests must use the real IPC communication paths (e.g., `mockIpcRenderer.invoke()`) even when it's harder. Directly accessing services (HistoryService, PartialService, etc.) or manipulating config/state directly bypasses the integration layer and defeats the purpose of the test.
 

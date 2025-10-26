@@ -1,9 +1,7 @@
 import { tool } from "ai";
-import { spawn } from "child_process";
-import type { ChildProcess } from "child_process";
 import { createInterface } from "readline";
 import * as path from "path";
-import * as fs from "fs";
+import { Readable } from "stream";
 import {
   BASH_DEFAULT_TIMEOUT_SECS,
   BASH_HARD_MAX_LINES,
@@ -13,47 +11,11 @@ import {
   BASH_TRUNCATE_MAX_TOTAL_BYTES,
   BASH_TRUNCATE_MAX_FILE_BYTES,
 } from "@/constants/toolLimits";
+import { EXIT_CODE_ABORTED, EXIT_CODE_TIMEOUT } from "@/constants/exitCodes";
 
 import type { BashToolResult } from "@/types/tools";
 import type { ToolConfiguration, ToolFactory } from "@/utils/tools/tools";
 import { TOOL_DEFINITIONS } from "@/utils/tools/toolDefinitions";
-
-/**
- * Wraps a ChildProcess to make it disposable for use with `using` statements.
- * Always kills the entire process group with SIGKILL to prevent zombie processes.
- * SIGKILL cannot be caught or ignored, guaranteeing immediate cleanup.
- */
-class DisposableProcess implements Disposable {
-  private disposed = false;
-
-  constructor(private readonly process: ChildProcess) {}
-
-  [Symbol.dispose](): void {
-    // Prevent double-signalling if dispose is called multiple times
-    // (e.g., manually via abort/timeout, then automatically via `using`)
-    if (this.disposed || this.process.pid === undefined) {
-      return;
-    }
-
-    this.disposed = true;
-
-    try {
-      // Kill entire process group with SIGKILL - cannot be caught/ignored
-      process.kill(-this.process.pid, "SIGKILL");
-    } catch {
-      // Fallback: try killing just the main process
-      try {
-        this.process.kill("SIGKILL");
-      } catch {
-        // Process already dead - ignore
-      }
-    }
-  }
-
-  get child(): ChildProcess {
-    return this.process;
-  }
-}
 
 /**
  * Bash execution tool factory for AI assistant
@@ -77,7 +39,7 @@ export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
     inputSchema: TOOL_DEFINITIONS.bash.schema,
     execute: async ({ script, timeout_secs }, { abortSignal }): Promise<BashToolResult> => {
       // Validate script is not empty - likely indicates a malformed tool call
-      // eslint-disable-next-line @typescript-eslint/prefer-optional-chain
+
       if (!script || script.trim().length === 0) {
         return {
           success: false,
@@ -115,12 +77,15 @@ export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
       let fileTruncated = false; // Hit 100KB file limit
 
       // Detect redundant cd to working directory
-      // Match patterns like: "cd /path &&", "cd /path;", "cd '/path' &&", "cd \"/path\" &&"
-      const cdPattern = /^\s*cd\s+['"]?([^'";&|]+)['"]?\s*[;&|]/;
+      // Note: config.cwd is the actual execution path (local for LocalRuntime, remote for SSHRuntime)
+      // Match patterns like: "cd /path &&", "cd /path;", "cd '/path' &&", "cd "/path" &&"
+      const cdPattern = /^\s*cd\s+['"]?([^'";\\&|]+)['"]?\s*[;&|]/;
       const match = cdPattern.exec(script);
       if (match) {
         const targetPath = match[1].trim();
-        // Normalize paths for comparison (resolve to absolute)
+        // For SSH runtime, config.cwd might use $HOME - need to handle this
+        // Normalize paths for comparison (resolve to absolute where possible)
+        // Note: This check is best-effort - it won't catch all cases on SSH (e.g., ~/path vs $HOME/path)
         const normalizedTarget = path.resolve(config.cwd, targetPath);
         const normalizedCwd = path.resolve(config.cwd);
 
@@ -134,44 +99,17 @@ export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
         }
       }
 
-      // Create the process with `using` for automatic cleanup
-      // If niceness is specified, spawn nice directly to avoid escaping issues
-      const spawnCommand = config.niceness !== undefined ? "nice" : "bash";
-      const spawnArgs =
-        config.niceness !== undefined
-          ? ["-n", config.niceness.toString(), "bash", "-c", script]
-          : ["-c", script];
-
-      using childProcess = new DisposableProcess(
-        spawn(spawnCommand, spawnArgs, {
-          cwd: config.cwd,
-          env: {
-            ...process.env,
-            // Inject secrets as environment variables
-            ...(config.secrets ?? {}),
-            // Prevent interactive editors from blocking bash execution
-            // This is critical for git operations like rebase/commit that try to open editors
-            GIT_EDITOR: "true", // Git-specific editor (highest priority)
-            GIT_SEQUENCE_EDITOR: "true", // For interactive rebase sequences
-            EDITOR: "true", // General fallback for non-git commands
-            VISUAL: "true", // Another common editor environment variable
-            // Prevent git from prompting for credentials
-            // This is critical for operations like fetch/pull that might try to authenticate
-            // Without this, git can hang waiting for user input if credentials aren't configured
-            GIT_TERMINAL_PROMPT: "0", // Disables git credential prompts
-          },
-          stdio: ["ignore", "pipe", "pipe"],
-          // CRITICAL: Spawn as detached process group leader to prevent zombie processes.
-          // When a bash script spawns background processes (e.g., `sleep 100 &`), those
-          // children would normally be reparented to init when bash exits, becoming orphans.
-          // With detached:true, bash becomes a process group leader, allowing us to kill
-          // the entire group (including all backgrounded children) via process.kill(-pid).
-          detached: true,
-        })
-      );
+      // Execute using runtime interface (works for both local and SSH)
+      const execStream = await config.runtime.exec(script, {
+        cwd: config.cwd,
+        env: config.secrets,
+        timeout: effectiveTimeout,
+        niceness: config.niceness,
+        abortSignal,
+      });
 
       // Use a promise to wait for completion
-      return await new Promise<BashToolResult>((resolve) => {
+      return await new Promise<BashToolResult>((resolve, _reject) => {
         const lines: string[] = [];
         let truncated = false;
         let exitCode: number | null = null;
@@ -181,7 +119,6 @@ export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
         const resolveOnce = (result: BashToolResult) => {
           if (!resolved) {
             resolved = true;
-            clearTimeout(timeoutHandle);
             // Clean up abort listener if present
             if (abortSignal && abortListener) {
               abortSignal.removeEventListener("abort", abortListener);
@@ -190,29 +127,107 @@ export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
           }
         };
 
-        // Set up abort signal listener - kill process when stream is cancelled
+        // Set up abort signal listener - cancellation is handled by runtime
         let abortListener: (() => void) | null = null;
         if (abortSignal) {
           abortListener = () => {
             if (!resolved) {
-              childProcess[Symbol.dispose]();
-              // The close event will fire and handle finalization with abort error
+              // Runtime handles the actual cancellation
+              // We just need to clean up our side
             }
           };
           abortSignal.addEventListener("abort", abortListener);
         }
 
-        // Set up timeout - kill process and let close event handle cleanup
-        const timeoutHandle = setTimeout(() => {
-          if (!resolved) {
-            childProcess[Symbol.dispose]();
-            // The close event will fire and handle finalization with timeout error
-          }
-        }, effectiveTimeout * 1000);
+        // Close stdin immediately - we don't need to send any input
+        // This is critical: not closing stdin can cause the runtime to wait forever
+        execStream.stdin.close().catch(() => {
+          // Ignore errors - stream might already be closed
+        });
 
-        // Set up readline for both stdout and stderr to handle line buffering
-        const stdoutReader = createInterface({ input: childProcess.child.stdout! });
-        const stderrReader = createInterface({ input: childProcess.child.stderr! });
+        // Convert Web Streams to Node.js streams for readline
+        // Type mismatch between Node.js ReadableStream and Web ReadableStream - safe to cast
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-explicit-any
+        const stdoutNodeStream = Readable.fromWeb(execStream.stdout as any);
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-explicit-any
+        const stderrNodeStream = Readable.fromWeb(execStream.stderr as any);
+
+        // Set up readline for both stdout and stderr to handle buffering
+        const stdoutReader = createInterface({ input: stdoutNodeStream });
+        const stderrReader = createInterface({ input: stderrNodeStream });
+
+        // Track when streams end
+        let stdoutEnded = false;
+        let stderrEnded = false;
+
+        // Forward-declare functions that will be defined below
+        // eslint-disable-next-line prefer-const
+        let tryFinalize: () => void;
+        // eslint-disable-next-line prefer-const
+        let finalize: () => void;
+
+        // Helper to tear down streams and readline interfaces
+        const teardown = () => {
+          stdoutReader.close();
+          stderrReader.close();
+          stdoutNodeStream.destroy();
+          stderrNodeStream.destroy();
+        };
+
+        // IMPORTANT: Attach exit handler IMMEDIATELY to prevent unhandled rejection
+        // Handle both normal exits and special error codes (EXIT_CODE_ABORTED, EXIT_CODE_TIMEOUT)
+        execStream.exitCode
+          .then((code) => {
+            exitCode = code;
+
+            // Check for special error codes from runtime
+            if (code === EXIT_CODE_ABORTED) {
+              // Aborted via AbortSignal
+              teardown();
+              resolveOnce({
+                success: false,
+                error: "Command execution was aborted",
+                exitCode: -1,
+                wall_duration_ms: Math.round(performance.now() - startTime),
+              });
+              return;
+            }
+
+            if (code === EXIT_CODE_TIMEOUT) {
+              // Exceeded timeout
+              teardown();
+              resolveOnce({
+                success: false,
+                error: `Command exceeded timeout of ${effectiveTimeout} seconds`,
+                exitCode: -1,
+                wall_duration_ms: Math.round(performance.now() - startTime),
+              });
+              return;
+            }
+
+            // Normal exit - try to finalize if streams have already closed
+            tryFinalize();
+            // Set a grace period - if streams don't close within 50ms, force finalize
+            setTimeout(() => {
+              if (!resolved && exitCode !== null) {
+                stdoutNodeStream.destroy();
+                stderrNodeStream.destroy();
+                stdoutEnded = true;
+                stderrEnded = true;
+                tryFinalize();
+              }
+            }, 50);
+          })
+          .catch((err: Error) => {
+            // Only actual errors (like spawn failure) should reach here now
+            teardown();
+            resolveOnce({
+              success: false,
+              error: `Failed to execute command: ${err.message}`,
+              exitCode: -1,
+              wall_duration_ms: Math.round(performance.now() - startTime),
+            });
+          });
 
         // Helper to trigger display truncation (stop showing to agent, keep collecting)
         const triggerDisplayTruncation = (reason: string) => {
@@ -222,7 +237,7 @@ export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
           // Don't kill process yet - keep collecting up to file limit
         };
 
-        // Helper to trigger file truncation (stop collecting, kill process)
+        // Helper to trigger file truncation (stop collecting, close streams)
         const triggerFileTruncation = (reason: string) => {
           fileTruncated = true;
           displayTruncated = true;
@@ -230,7 +245,11 @@ export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
           overflowReason = reason;
           stdoutReader.close();
           stderrReader.close();
-          childProcess[Symbol.dispose]();
+          // Cancel the streams to stop the process
+          // eslint-disable-next-line @typescript-eslint/no-empty-function
+          execStream.stdout.cancel().catch(() => {});
+          // eslint-disable-next-line @typescript-eslint/no-empty-function
+          execStream.stderr.cancel().catch(() => {});
         };
 
         stdoutReader.on("line", (line) => {
@@ -319,7 +338,15 @@ export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
           }
         });
 
-        // Track when streams end
+        // Define tryFinalize (already declared above)
+        tryFinalize = () => {
+          if (resolved) return;
+          // Only finalize when both streams have closed and we have an exit code
+          if (stdoutEnded && stderrEnded && exitCode !== null) {
+            finalize();
+          }
+        };
+
         stdoutReader.on("close", () => {
           stdoutEnded = true;
           tryFinalize();
@@ -330,46 +357,8 @@ export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
           tryFinalize();
         });
 
-        // Use 'exit' event instead of 'close' to handle background processes correctly.
-        // The 'close' event waits for ALL child processes (including background ones) to exit,
-        // which causes hangs when users spawn background processes like servers.
-        // The 'exit' event fires when the main bash process exits, which is what we want.
-        let stdoutEnded = false;
-        let stderrEnded = false;
-        let processExited = false;
-
-        const handleExit = (code: number | null) => {
-          processExited = true;
-          exitCode = code;
-          // Try to finalize immediately if streams have ended
-          tryFinalize();
-          // Set a grace period timer - if streams don't end within 50ms, finalize anyway
-          // This handles background processes that keep stdio open
-          setTimeout(() => {
-            if (!resolved && processExited) {
-              // Forcibly destroy streams to ensure they close
-              childProcess.child.stdout?.destroy();
-              childProcess.child.stderr?.destroy();
-              stdoutEnded = true;
-              stderrEnded = true;
-              finalize();
-            }
-          }, 50);
-        };
-
-        const tryFinalize = () => {
-          if (resolved) return;
-          // Finalize if process exited AND (both streams ended OR 100ms grace period passed)
-          if (!processExited) return;
-
-          // If we've already collected output, finalize immediately
-          // Otherwise wait a bit for streams to flush
-          if (stdoutEnded && stderrEnded) {
-            finalize();
-          }
-        };
-
-        const finalize = () => {
+        // Define finalize (already declared above)
+        finalize = () => {
           if (resolved) return;
 
           // Round to integer to preserve tokens.
@@ -381,21 +370,12 @@ export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
 
           // Check if this was aborted (stream cancelled)
           const wasAborted = abortSignal?.aborted ?? false;
-          // Check if this was a timeout (process killed and no natural exit code)
-          const timedOut = !wasAborted && wall_duration_ms >= effectiveTimeout * 1000 - 10; // 10ms tolerance
 
           if (wasAborted) {
             resolveOnce({
               success: false,
               error: "Command aborted due to stream cancellation",
               exitCode: -2,
-              wall_duration_ms,
-            });
-          } else if (timedOut) {
-            resolveOnce({
-              success: false,
-              error: `Command timed out after ${effectiveTimeout} seconds`,
-              exitCode: -1,
               wall_duration_ms,
             });
           } else if (truncated) {
@@ -437,14 +417,21 @@ export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
               // tmpfile policy: Save overflow output to temp file instead of returning an error
               // We don't show ANY of the actual output to avoid overwhelming context.
               // Instead, save it to a temp file and encourage the agent to use filtering tools.
-              try {
-                // Use 8 hex characters for short, memorable temp file IDs
-                const fileId = Math.random().toString(16).substring(2, 10);
-                const overflowPath = path.join(config.tempDir, `bash-${fileId}.txt`);
-                const fullOutput = lines.join("\n");
-                fs.writeFileSync(overflowPath, fullOutput, "utf-8");
+              (async () => {
+                try {
+                  // Use 8 hex characters for short, memorable temp file IDs
+                  const fileId = Math.random().toString(16).substring(2, 10);
+                  const overflowPath = path.join(config.tempDir, `bash-${fileId}.txt`);
+                  const fullOutput = lines.join("\n");
 
-                const output = `[OUTPUT OVERFLOW - ${overflowReason ?? "unknown reason"}]
+                  // Use runtime.writeFile() for SSH support
+                  const writer = config.runtime.writeFile(overflowPath);
+                  const encoder = new TextEncoder();
+                  const writerInstance = writer.getWriter();
+                  await writerInstance.write(encoder.encode(fullOutput));
+                  await writerInstance.close();
+
+                  const output = `[OUTPUT OVERFLOW - ${overflowReason ?? "unknown reason"}]
 
 Full output (${lines.length} lines) saved to ${overflowPath}
 
@@ -452,22 +439,39 @@ Use selective filtering tools (e.g. grep) to extract relevant information and co
 
 File will be automatically cleaned up when stream ends.`;
 
-                resolveOnce({
-                  success: false,
-                  error: output,
-                  exitCode: -1,
-                  wall_duration_ms,
-                });
-              } catch (err) {
-                // If temp file creation fails, fall back to original error
-                resolveOnce({
-                  success: false,
-                  error: `Command output overflow: ${overflowReason ?? "unknown reason"}. Failed to save overflow to temp file: ${String(err)}`,
-                  exitCode: -1,
-                  wall_duration_ms,
-                });
-              }
+                  resolveOnce({
+                    success: false,
+                    error: output,
+                    exitCode: -1,
+                    wall_duration_ms,
+                  });
+                } catch (err) {
+                  // If temp file creation fails, fall back to original error
+                  resolveOnce({
+                    success: false,
+                    error: `Command output overflow: ${overflowReason ?? "unknown reason"}. Failed to save overflow to temp file: ${String(err)}`,
+                    exitCode: -1,
+                    wall_duration_ms,
+                  });
+                }
+              })();
             }
+          } else if (exitCode === EXIT_CODE_TIMEOUT) {
+            // Timeout - special exit code from runtime
+            resolveOnce({
+              success: false,
+              error: `Command exceeded timeout of ${effectiveTimeout} seconds`,
+              exitCode: -1,
+              wall_duration_ms,
+            });
+          } else if (exitCode === EXIT_CODE_ABORTED) {
+            // Aborted - special exit code from runtime
+            resolveOnce({
+              success: false,
+              error: "Command execution was aborted",
+              exitCode: -1,
+              wall_duration_ms,
+            });
           } else if (exitCode === 0 || exitCode === null) {
             resolveOnce({
               success: true,
@@ -485,20 +489,6 @@ File will be automatically cleaned up when stream ends.`;
             });
           }
         };
-
-        // Listen to exit event (fires when bash exits, before streams close)
-        childProcess.child.on("exit", handleExit);
-
-        childProcess.child.on("error", (err: Error) => {
-          if (resolved) return;
-          const wall_duration_ms = performance.now() - startTime;
-          resolveOnce({
-            success: false,
-            error: `Failed to execute command: ${err.message}`,
-            exitCode: -1,
-            wall_duration_ms,
-          });
-        });
       });
     },
   });

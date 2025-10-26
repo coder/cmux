@@ -129,24 +129,6 @@ export class Config {
    * Get the workspace worktree path for a given directory name.
    * The directory name is the workspace name (branch name).
    */
-  getWorkspacePath(projectPath: string, directoryName: string): string {
-    const projectName = this.getProjectName(projectPath);
-    return path.join(this.srcDir, projectName, directoryName);
-  }
-
-  /**
-   * Compute workspace path from metadata.
-   * Directory uses workspace name (e.g., ~/.cmux/src/project/workspace-name).
-   */
-  getWorkspacePaths(metadata: WorkspaceMetadata): {
-    /** Worktree path (uses workspace name as directory) */
-    namedWorkspacePath: string;
-  } {
-    const path = this.getWorkspacePath(metadata.projectPath, metadata.name);
-    return {
-      namedWorkspacePath: path,
-    };
-  }
 
   /**
    * Add paths to WorkspaceMetadata to create FrontendWorkspaceMetadata.
@@ -274,6 +256,8 @@ export class Config {
               projectPath,
               // GUARANTEE: All workspaces must have createdAt (assign now if missing)
               createdAt: workspace.createdAt ?? new Date().toISOString(),
+              // Include runtime config if present (for SSH workspaces)
+              runtimeConfig: workspace.runtimeConfig,
             };
 
             // Migrate missing createdAt to config for next load
@@ -383,7 +367,10 @@ export class Config {
       // Check if workspace already exists (by ID)
       const existingIndex = project.workspaces.findIndex((w) => w.id === metadata.id);
 
-      const workspacePath = this.getWorkspacePath(projectPath, metadata.name);
+      // Compute workspace path - this is only for legacy config migration
+      // New code should use Runtime.getWorkspacePath() directly
+      const projectName = this.getProjectName(projectPath);
+      const workspacePath = path.join(this.srcDir, projectName, metadata.name);
       const workspaceEntry: Workspace = {
         path: workspacePath,
         id: metadata.id,

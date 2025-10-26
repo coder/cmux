@@ -104,3 +104,4 @@ tmpfork
 .cmux-agent-cli
 storybook-static/
 *.tgz
+src/test-workspaces/

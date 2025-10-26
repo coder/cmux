@@ -3,6 +3,8 @@
  * Kept lightweight for preload script usage.
  */
 
+import type { RuntimeConfig } from "./runtime";
+
 /**
  * Workspace configuration in config.json.
  *
@@ -11,7 +13,8 @@
  *   "path": "~/.cmux/src/project/workspace-id",  // Kept for backward compat
  *   "id": "a1b2c3d4e5",                          // Stable workspace ID
  *   "name": "feature-branch",                    // User-facing name
- *   "createdAt": "2024-01-01T00:00:00Z"         // Creation timestamp
+ *   "createdAt": "2024-01-01T00:00:00Z",        // Creation timestamp
+ *   "runtimeConfig": { ... }                     // Runtime config (local vs SSH)
  * }
  *
  * LEGACY FORMAT (old workspaces, still supported):
@@ -33,6 +36,9 @@ export interface Workspace {
 
   /** ISO 8601 creation timestamp - optional for legacy */
   createdAt?: string;
+
+  /** Runtime configuration (local vs SSH) - optional, defaults to local */
+  runtimeConfig?: RuntimeConfig;
 }
 
 export interface ProjectConfig {

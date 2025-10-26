@@ -15,6 +15,7 @@ import type { Result } from "@/types/result";
 import { Ok, Err } from "@/types/result";
 import { enforceThinkingPolicy } from "@/utils/thinking/policy";
 import { loadTokenizerForModel } from "@/utils/main/tokenizer";
+import { createRuntime } from "@/runtime/runtimeFactory";
 
 interface ImagePart {
   url: string;
@@ -180,7 +181,10 @@ export class AgentSession {
       // Metadata already exists, verify workspace path matches
       const metadata = existing.data;
       // Directory name uses workspace name (not stable ID)
-      const expectedPath = this.config.getWorkspacePath(metadata.projectPath, metadata.name);
+      const runtime = createRuntime(
+        metadata.runtimeConfig ?? { type: "local", srcBaseDir: this.config.srcDir }
+      );
+      const expectedPath = runtime.getWorkspacePath(metadata.projectPath, metadata.name);
       assert(
         expectedPath === normalizedWorkspacePath,
         `Existing metadata workspace path mismatch for ${this.workspaceId}: expected ${expectedPath}, got ${normalizedWorkspacePath}`

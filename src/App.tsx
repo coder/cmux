@@ -22,11 +22,13 @@ import { CommandPalette } from "./components/CommandPalette";
 import { buildCoreSources, type BuildSourcesParams } from "./utils/commands/sources";
 
 import type { ThinkingLevel } from "./types/thinking";
+import type { RuntimeConfig } from "./types/runtime";
 import { CUSTOM_EVENTS } from "./constants/events";
 import { isWorkspaceForkSwitchEvent } from "./utils/workspaceFork";
 import { getThinkingLevelKey } from "./constants/storage";
 import type { BranchListResult } from "./types/ipc";
 import { useTelemetry } from "./hooks/useTelemetry";
+import { parseRuntimeString } from "./utils/chatCommands";
 
 const THINKING_LEVELS: ThinkingLevel[] = ["off", "low", "medium", "high"];
 
@@ -233,7 +235,11 @@ function AppInner() {
     [handleRemoveProject]
   );
 
-  const handleCreateWorkspace = async (branchName: string, trunkBranch: string) => {
+  const handleCreateWorkspace = async (
+    branchName: string,
+    trunkBranch: string,
+    runtime?: string
+  ) => {
     if (!workspaceModalProject) return;
 
     console.assert(
@@ -241,7 +247,23 @@ function AppInner() {
       "Expected trunk branch to be provided by the workspace modal"
     );
 
-    const newWorkspace = await createWorkspace(workspaceModalProject, branchName, trunkBranch);
+    // Parse runtime config if provided
+    let runtimeConfig: RuntimeConfig | undefined;
+    if (runtime) {
+      try {
+        runtimeConfig = parseRuntimeString(runtime, branchName);
+      } catch (err) {
+        console.error("Failed to parse runtime config:", err);
+        throw err; // Let modal handle the error
+      }
+    }
+
+    const newWorkspace = await createWorkspace(
+      workspaceModalProject,
+      branchName,
+      trunkBranch,
+      runtimeConfig
+    );
     if (newWorkspace) {
       // Track workspace creation
       telemetry.workspaceCreated(newWorkspace.workspaceId);
@@ -406,21 +428,6 @@ function AppInner() {
     [handleAddWorkspace]
   );
 
-  const createWorkspaceFromPalette = useCallback(
-    async (projectPath: string, branchName: string, trunkBranch: string) => {
-      console.assert(
-        typeof trunkBranch === "string" && trunkBranch.trim().length > 0,
-        "Expected trunk branch to be provided by the command palette"
-      );
-      const newWs = await createWorkspace(projectPath, branchName, trunkBranch);
-      if (newWs) {
-        telemetry.workspaceCreated(newWs.workspaceId);
-        setSelectedWorkspace(newWs);
-      }
-    },
-    [createWorkspace, setSelectedWorkspace, telemetry]
-  );
-
   const getBranchesForProject = useCallback(
     async (projectPath: string): Promise<BranchListResult> => {
       const branchResult = await window.api.projects.listBranches(projectPath);
@@ -488,7 +495,6 @@ function AppInner() {
     getThinkingLevel: getThinkingLevelForWorkspace,
     onSetThinkingLevel: setThinkingLevelFromPalette,
     onOpenNewWorkspaceModal: openNewWorkspaceFromPalette,
-    onCreateWorkspace: createWorkspaceFromPalette,
     getBranchesForProject,
     onSelectWorkspace: selectWorkspaceFromPalette,
     onRemoveWorkspace: removeWorkspaceFromPalette,

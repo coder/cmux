@@ -13,6 +13,7 @@ import type { Config } from "@/config";
 import { StreamManager } from "./streamManager";
 import type { SendMessageError } from "@/types/errors";
 import { getToolsForModel } from "@/utils/tools/tools";
+import { createRuntime } from "@/runtime/runtimeFactory";
 import { secretsToRecord } from "@/types/secrets";
 import type { CmuxProviderOptions } from "@/types/providerOptions";
 import { log } from "./log";
@@ -97,6 +98,7 @@ if (typeof globalFetchWithExtras.certificate === "function") {
  * In tests, we preload them once during setup to ensure reliable concurrent execution.
  */
 export async function preloadAISDKProviders(): Promise<void> {
+  // Preload providers to ensure they're in the module cache before concurrent tests run
   await Promise.all([import("@ai-sdk/anthropic"), import("@ai-sdk/openai")]);
 }
 
@@ -419,8 +421,10 @@ export class AIService extends EventEmitter {
       const [providerName] = modelString.split(":");
 
       // Get tool names early for mode transition sentinel (stub config, no workspace context needed)
+      const earlyRuntime = createRuntime({ type: "local", srcBaseDir: process.cwd() });
       const earlyAllTools = await getToolsForModel(modelString, {
         cwd: process.cwd(),
+        runtime: earlyRuntime,
         tempDir: os.tmpdir(),
         secrets: {},
       });
@@ -496,7 +500,10 @@ export class AIService extends EventEmitter {
       }
 
       // Get workspace path (directory name uses workspace name)
-      const workspacePath = this.config.getWorkspacePath(metadata.projectPath, metadata.name);
+      const runtime = createRuntime(
+        metadata.runtimeConfig ?? { type: "local", srcBaseDir: this.config.srcDir }
+      );
+      const workspacePath = runtime.getWorkspacePath(metadata.projectPath, metadata.name);
 
       // Build system message from workspace metadata
       const systemMessage = await buildSystemMessage(
@@ -517,9 +524,10 @@ export class AIService extends EventEmitter {
       const streamToken = this.streamManager.generateStreamToken();
       const tempDir = this.streamManager.createTempDirForStream(streamToken);
 
-      // Get model-specific tools with workspace path configuration and secrets
+      // Get model-specific tools with workspace path (correct for local or remote)
       const allTools = await getToolsForModel(modelString, {
         cwd: workspacePath,
+        runtime,
         secrets: secretsToRecord(projectSecrets),
         tempDir,
       });

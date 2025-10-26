@@ -1,10 +1,11 @@
 import { tool } from "ai";
-import * as fs from "fs/promises";
 import * as path from "path";
 import type { FileReadToolResult } from "@/types/tools";
 import type { ToolConfiguration, ToolFactory } from "@/utils/tools/tools";
 import { TOOL_DEFINITIONS } from "@/utils/tools/toolDefinitions";
 import { validatePathInCwd, validateFileSize } from "./fileCommon";
+import { RuntimeError } from "@/runtime/Runtime";
+import { readFileString } from "@/utils/runtime/helpers";
 
 /**
  * File read tool factory for AI assistant
@@ -22,7 +23,7 @@ export const createFileReadTool: ToolFactory = (config: ToolConfiguration) => {
       // Note: abortSignal available but not used - file reads are fast and complete quickly
       try {
         // Validate that the path is within the working directory
-        const pathValidation = validatePathInCwd(filePath, config.cwd);
+        const pathValidation = validatePathInCwd(filePath, config.cwd, config.runtime);
         if (pathValidation) {
           return {
             success: false,
@@ -35,17 +36,29 @@ export const createFileReadTool: ToolFactory = (config: ToolConfiguration) => {
           ? filePath
           : path.resolve(config.cwd, filePath);
 
-        // Check if file exists
-        const stats = await fs.stat(resolvedPath);
-        if (!stats.isFile()) {
+        // Check if file exists using runtime
+        let fileStat;
+        try {
+          fileStat = await config.runtime.stat(resolvedPath);
+        } catch (err) {
+          if (err instanceof RuntimeError) {
+            return {
+              success: false,
+              error: err.message,
+            };
+          }
+          throw err;
+        }
+
+        if (fileStat.isDirectory) {
           return {
             success: false,
-            error: `Path exists but is not a file: ${resolvedPath}`,
+            error: `Path is a directory, not a file: ${resolvedPath}`,
           };
         }
 
         // Validate file size
-        const sizeValidation = validateFileSize(stats);
+        const sizeValidation = validateFileSize(fileStat);
         if (sizeValidation) {
           return {
             success: false,
@@ -53,8 +66,19 @@ export const createFileReadTool: ToolFactory = (config: ToolConfiguration) => {
           };
         }
 
-        // Read full file content
-        const fullContent = await fs.readFile(resolvedPath, { encoding: "utf-8" });
+        // Read full file content using runtime helper
+        let fullContent: string;
+        try {
+          fullContent = await readFileString(config.runtime, resolvedPath);
+        } catch (err) {
+          if (err instanceof RuntimeError) {
+            return {
+              success: false,
+              error: err.message,
+            };
+          }
+          throw err;
+        }
 
         const startLineNumber = offset ?? 1;
 
@@ -133,8 +157,8 @@ export const createFileReadTool: ToolFactory = (config: ToolConfiguration) => {
         // Return file info and content
         return {
           success: true,
-          file_size: stats.size,
-          modifiedTime: stats.mtime.toISOString(),
+          file_size: fileStat.size,
+          modifiedTime: fileStat.modifiedTime.toISOString(),
           lines_read: numberedLines.length,
           content,
         };

@@ -34,6 +34,8 @@ export const WorkspaceMetadataSchema = z.object({
  * - Directory name uses workspace.name (the branch name)
  * - This avoids storing redundant derived data
  */
+import type { RuntimeConfig } from "./runtime";
+
 export interface WorkspaceMetadata {
   /** Stable unique identifier (10 hex chars for new workspaces, legacy format for old) */
   id: string;
@@ -49,6 +51,9 @@ export interface WorkspaceMetadata {
 
   /** ISO 8601 timestamp of when workspace was created (optional for backward compatibility) */
   createdAt?: string;
+
+  /** Runtime configuration for this workspace (optional, defaults to local) */
+  runtimeConfig?: RuntimeConfig;
 }
 
 /**
