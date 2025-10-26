@@ -1,4 +1,3 @@
-import * as path from "path";
 import type { FileEditDiffSuccessBase, FileEditErrorResult } from "@/types/tools";
 import { WRITE_DENIED_PREFIX } from "@/types/tools";
 import type { ToolConfiguration } from "@/utils/tools/tools";
@@ -45,7 +44,9 @@ export async function executeFileEditOperation<TMetadata>({
       };
     }
 
-    const resolvedPath = path.isAbsolute(filePath) ? filePath : path.resolve(config.cwd, filePath);
+    // Use runtime's normalizePath method to resolve paths correctly for both local and SSH runtimes
+    // This ensures path resolution uses runtime-specific semantics instead of Node.js path module
+    const resolvedPath = config.runtime.normalizePath(filePath, config.cwd);
 
     // Check if file exists and get stats using runtime
     let fileStat;

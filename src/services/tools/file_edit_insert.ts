@@ -1,5 +1,4 @@
 import { tool } from "ai";
-import * as path from "path";
 import type { FileEditInsertToolResult } from "@/types/tools";
 import type { ToolConfiguration, ToolFactory } from "@/utils/tools/tools";
 import { TOOL_DEFINITIONS } from "@/utils/tools/toolDefinitions";
@@ -41,9 +40,8 @@ export const createFileEditInsertTool: ToolFactory = (config: ToolConfiguration)
           };
         }
 
-        const resolvedPath = path.isAbsolute(file_path)
-          ? file_path
-          : path.resolve(config.cwd, file_path);
+        // Use runtime's normalizePath method to resolve paths correctly for both local and SSH runtimes
+        const resolvedPath = config.runtime.normalizePath(file_path, config.cwd);
 
         // Check if file exists using runtime
         const exists = await fileExists(config.runtime, resolvedPath);
