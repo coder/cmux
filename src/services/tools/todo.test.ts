@@ -6,7 +6,7 @@ import { clearTodosForTempDir, getTodosForTempDir, setTodosForTempDir } from "./
 import type { TodoItem } from "@/types/tools";
 
 describe("Todo Storage", () => {
-  let tempDir: string;
+  let runtimeTempDir: string;
 
   beforeEach(async () => {
     // Create a temporary directory for each test

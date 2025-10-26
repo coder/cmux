@@ -4,6 +4,7 @@ import type { HistoryService } from "./historyService";
 import type { PartialService } from "./partialService";
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { shouldRunIntegrationTests, validateApiKeys } from "../../tests/testUtils";
+import { createRuntime } from "@/runtime/runtimeFactory";
 
 // Skip integration tests if TEST_INTEGRATION is not set
 const describeIntegration = shouldRunIntegrationTests() ? describe : describe.skip;
@@ -85,6 +86,7 @@ describe("StreamManager - Concurrent Stream Prevention", () => {
         "anthropic:claude-sonnet-4-5",
         1,
         "You are a helpful assistant",
+        runtime,
         undefined,
         {}
       );
@@ -102,6 +104,7 @@ describe("StreamManager - Concurrent Stream Prevention", () => {
         "anthropic:claude-sonnet-4-5",
         2,
         "You are a helpful assistant",
+        runtime,
         undefined,
         {}
       );
