@@ -182,7 +182,7 @@ const WorkspaceListItemInner: React.FC<WorkspaceListItemProps> = ({
           workspaceId={workspaceId}
           tooltipPosition="right"
         />
-        <div className="flex min-w-0 items-center gap-1.5">
+        <div className="flex min-w-0 items-center justify-end gap-1.5">
           <RuntimeBadge runtimeConfig={metadata.runtimeConfig} />
           {isEditing ? (
             <input
