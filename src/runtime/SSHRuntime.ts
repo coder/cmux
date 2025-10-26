@@ -586,8 +586,13 @@ export class SSHRuntime implements Runtime {
   }
 
   async initWorkspace(params: WorkspaceInitParams): Promise<WorkspaceInitResult> {
-    const { projectPath, branchName, trunkBranch: _trunkBranch, workspacePath, initLogger } =
-      params;
+    const {
+      projectPath,
+      branchName,
+      trunkBranch: _trunkBranch,
+      workspacePath,
+      initLogger,
+    } = params;
 
     try {
       // 1. Sync project to remote (opportunistic rsync with scp fallback)
