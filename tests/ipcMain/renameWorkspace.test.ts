@@ -20,12 +20,16 @@ if (shouldRunIntegrationTests()) {
 }
 
 describeIntegration("IpcMain rename workspace integration tests", () => {
-  // Load tokenizer modules once before all tests (takes ~14s)
-  // This ensures accurate token counts for API calls without timing out individual tests
+  // Load tokenizer modules and AI SDK providers once before all tests
+  // This ensures accurate token counts for API calls and prevents race conditions
+  // when tests import providers concurrently
   beforeAll(async () => {
-    const { loadTokenizerModules } = await import("../../src/utils/main/tokenizer");
-    await loadTokenizerModules();
-  }, 30000); // 30s timeout for tokenizer loading
+    const [{ loadTokenizerModules }, { preloadAISDKProviders }] = await Promise.all([
+      import("../../src/utils/main/tokenizer"),
+      import("../../src/services/aiService"),
+    ]);
+    await Promise.all([loadTokenizerModules(), preloadAISDKProviders()]);
+  }, 30000); // 30s timeout for tokenizer and provider loading
 
   test.concurrent(
     "should successfully rename workspace and update all paths",
@@ -300,6 +304,9 @@ describeIntegration("IpcMain rename workspace integration tests", () => {
         // Send a message to create some history
         env.sentEvents.length = 0;
         const result = await sendMessageWithModel(env.mockIpcRenderer, workspaceId, "What is 2+2?");
+        if (!result.success) {
+          console.error("Send message failed:", result.error);
+        }
         expect(result.success).toBe(true);
 
         // Wait for response
@@ -370,6 +377,9 @@ describeIntegration("IpcMain rename workspace integration tests", () => {
           "anthropic",
           "claude-sonnet-4-5"
         );
+        if (!result.success) {
+          console.error("Send message failed:", result.error);
+        }
         expect(result.success).toBe(true);
 
         // Wait for response

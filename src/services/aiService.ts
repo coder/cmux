@@ -97,12 +97,9 @@ if (typeof globalFetchWithExtras.certificate === "function") {
  * In production, providers are lazy-loaded on first use to optimize startup time.
  * In tests, we preload them once during setup to ensure reliable concurrent execution.
  */
-// eslint-disable-next-line @typescript-eslint/require-await
 export async function preloadAISDKProviders(): Promise<void> {
-  // No-op: Providers are lazy-loaded in createModel().
-  // Preloading was previously used to avoid race conditions in concurrent tests,
-  // but Jest concurrency has been stabilized elsewhere and this is no longer necessary.
-  return;
+  // Preload providers to ensure they're in the module cache before concurrent tests run
+  await Promise.all([import("@ai-sdk/anthropic"), import("@ai-sdk/openai")]);
 }
 
 export class AIService extends EventEmitter {
