@@ -1,5 +1,10 @@
 name: "Setup Cmux"
 description: "Setup Bun and install dependencies with caching"
+inputs:
+  install-imagemagick:
+    description: "Install ImageMagick (needed for electron-builder icon generation)"
+    required: false
+    default: "false"
 runs:
   using: "composite"
   steps:
@@ -29,57 +34,31 @@ runs:
         restore-keys: |
           ${{ runner.os }}-bun-cache-
 
-    - name: Cache Homebrew downloads (macOS)
-      if: runner.os == 'macOS'
-      uses: actions/cache@v4
-      with:
-        path: |
-          ~/Library/Caches/Homebrew/downloads
-          ~/Library/Caches/Homebrew/Cask
-        key: ${{ runner.os }}-${{ runner.arch }}-brew-downloads-imagemagick-v1
-        restore-keys: |
-          ${{ runner.os }}-${{ runner.arch }}-brew-downloads-
-
-    - name: Cache apt packages (Linux)
-      if: runner.os == 'Linux'
-      id: cache-apt
-      uses: actions/cache@v4
-      with:
-        path: /var/cache/apt/archives
-        key: ${{ runner.os }}-apt-imagemagick-v1
-
     - name: Install dependencies
       shell: bash
       run: bun install --frozen-lockfile
 
     - name: Install ImageMagick (macOS)
-      if: runner.os == 'macOS'
+      if: inputs.install-imagemagick == 'true' && runner.os == 'macOS'
       shell: bash
       run: |
-        if command -v magick &>/dev/null && magick --version &>/dev/null 2>&1; then
-          echo "✅ ImageMagick available (cached)"
-          magick --version | head -1
+        if command -v magick &>/dev/null; then
+          echo "✅ ImageMagick already available"
         else
           echo "📦 Installing ImageMagick..."
           HOMEBREW_NO_AUTO_UPDATE=1 brew install imagemagick
-          magick --version | head -1
         fi
+        magick --version | head -1
 
     - name: Install ImageMagick (Linux)
-      if: runner.os == 'Linux'
+      if: inputs.install-imagemagick == 'true' && runner.os == 'Linux'
       shell: bash
       run: |
         if command -v convert &>/dev/null; then
-          echo "✅ ImageMagick already installed"
-          convert --version | head -1
+          echo "✅ ImageMagick already available"
         else
           echo "📦 Installing ImageMagick..."
-          # Restore apt cache permissions if cache was restored
-          if [ "${{ steps.cache-apt.outputs.cache-hit }}" == "true" ]; then
-            sudo chmod -R 755 /var/cache/apt/archives 2>/dev/null || true
-          fi
-          # Update only if needed and install with minimal dependencies
           sudo apt-get update -qq
           sudo apt-get install -y --no-install-recommends imagemagick
-          convert --version | head -1
         fi
+        convert --version | head -1
