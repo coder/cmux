@@ -1,5 +1,10 @@
 name: "Setup Cmux"
 description: "Setup Bun and install dependencies with caching"
+inputs:
+  install-imagemagick:
+    description: "Install ImageMagick (needed for electron-builder icon generation)"
+    required: false
+    default: "false"
 runs:
   using: "composite"
   steps:
@@ -29,42 +34,31 @@ runs:
         restore-keys: |
           ${{ runner.os }}-bun-cache-
 
-    - name: Cache Homebrew (macOS)
-      if: runner.os == 'macOS'
-      uses: actions/cache@v4
-      with:
-        path: ~/Library/Caches/Homebrew
-        key: ${{ runner.os }}-brew-cache-${{ hashFiles('**/bun.lock') }}
-        restore-keys: |
-          ${{ runner.os }}-brew-cache-
-
     - name: Install dependencies
       shell: bash
       run: bun install --frozen-lockfile
 
     - name: Install ImageMagick (macOS)
-      if: runner.os == 'macOS'
+      if: inputs.install-imagemagick == 'true' && runner.os == 'macOS'
       shell: bash
       run: |
-        if ! brew list imagemagick &>/dev/null; then
-          echo "📦 Installing ImageMagick..."
-          time brew install imagemagick
+        if command -v magick &>/dev/null; then
+          echo "✅ ImageMagick already available"
         else
-          echo "✅ ImageMagick already installed"
-          brew list imagemagick --versions
+          echo "📦 Installing ImageMagick..."
+          HOMEBREW_NO_AUTO_UPDATE=1 brew install imagemagick
         fi
-        # Verify it's in PATH
-        which magick
         magick --version | head -1
 
     - name: Install ImageMagick (Linux)
-      if: runner.os == 'Linux'
+      if: inputs.install-imagemagick == 'true' && runner.os == 'Linux'
       shell: bash
       run: |
-        if ! command -v convert &> /dev/null; then
-          echo "Installing ImageMagick..."
-          sudo apt-get update -qq
-          sudo apt-get install -y imagemagick
+        if command -v convert &>/dev/null; then
+          echo "✅ ImageMagick already available"
         else
-          echo "ImageMagick already installed"
+          echo "📦 Installing ImageMagick..."
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends imagemagick
         fi
+        convert --version | head -1
