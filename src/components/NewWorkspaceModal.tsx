@@ -3,6 +3,7 @@ import { Modal, ModalInfo, ModalActions, CancelButton, PrimaryButton } from "./M
 import { TooltipWrapper, Tooltip } from "./Tooltip";
 import { formatNewCommand } from "@/utils/chatCommands";
 import { useNewWorkspaceOptions } from "@/hooks/useNewWorkspaceOptions";
+import { RUNTIME_MODE } from "@/types/runtime";
 
 interface NewWorkspaceModalProps {
   isOpen: boolean;
@@ -64,7 +65,7 @@ const NewWorkspaceModal: React.FC<NewWorkspaceModalProps> = ({
   const handleCancel = () => {
     setBranchName("");
     setTrunkBranch(defaultTrunkBranch ?? branches[0] ?? "");
-    setRuntimeOptions("local", "");
+    setRuntimeOptions(RUNTIME_MODE.LOCAL, "");
     setError(loadErrorMessage ?? null);
     onClose();
   };
@@ -87,7 +88,7 @@ const NewWorkspaceModal: React.FC<NewWorkspaceModalProps> = ({
     console.assert(trimmedBranchName.length > 0, "Expected branch name to be validated");
 
     // Validate SSH host if SSH runtime selected
-    if (runtimeMode === "ssh") {
+    if (runtimeMode === RUNTIME_MODE.SSH) {
       const trimmedHost = sshHost.trim();
       if (trimmedHost.length === 0) {
         setError("SSH host is required (e.g., hostname or user@host)");
@@ -107,7 +108,7 @@ const NewWorkspaceModal: React.FC<NewWorkspaceModalProps> = ({
       await onAdd(trimmedBranchName, normalizedTrunkBranch, runtime);
       setBranchName("");
       setTrunkBranch(defaultTrunkBranch ?? branches[0] ?? "");
-      setRuntimeOptions("local", "");
+      setRuntimeOptions(RUNTIME_MODE.LOCAL, "");
       onClose();
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to create workspace";
@@ -206,18 +207,18 @@ const NewWorkspaceModal: React.FC<NewWorkspaceModalProps> = ({
             id="runtimeMode"
             value={runtimeMode}
             onChange={(event) => {
-              const newMode = event.target.value as "local" | "ssh";
-              setRuntimeOptions(newMode, newMode === "local" ? "" : sshHost);
+              const newMode = event.target.value as typeof RUNTIME_MODE.LOCAL | typeof RUNTIME_MODE.SSH;
+              setRuntimeOptions(newMode, newMode === RUNTIME_MODE.LOCAL ? "" : sshHost);
               setError(null);
             }}
             disabled={isLoading}
           >
-            <option value="local">Local</option>
-            <option value="ssh">SSH Remote</option>
+            <option value={RUNTIME_MODE.LOCAL}>Local</option>
+            <option value={RUNTIME_MODE.SSH}>SSH Remote</option>
           </select>
         </div>
 
-        {runtimeMode === "ssh" && (
+        {runtimeMode === RUNTIME_MODE.SSH && (
           <div className={formFieldClasses}>
             <label htmlFor="sshHost">SSH Host:</label>
             <input
@@ -225,7 +226,7 @@ const NewWorkspaceModal: React.FC<NewWorkspaceModalProps> = ({
               type="text"
               value={sshHost}
               onChange={(event) => {
-                setRuntimeOptions("ssh", event.target.value);
+                setRuntimeOptions(RUNTIME_MODE.SSH, event.target.value);
                 setError(null);
               }}
               placeholder="hostname or user@hostname"
@@ -242,7 +243,7 @@ const NewWorkspaceModal: React.FC<NewWorkspaceModalProps> = ({
         <ModalInfo id={infoId}>
           <p>This will create a git worktree at:</p>
           <code className="block break-all">
-            {runtimeMode === "ssh"
+            {runtimeMode === RUNTIME_MODE.SSH
               ? `${sshHost || "<host>"}:~/cmux/${branchName || "<branch-name>"}`
               : `~/.cmux/src/${projectName}/${branchName || "<branch-name>"}`}
           </code>
@@ -255,7 +256,7 @@ const NewWorkspaceModal: React.FC<NewWorkspaceModalProps> = ({
               {formatNewCommand(
                 branchName.trim(),
                 trunkBranch.trim() || undefined,
-                runtimeMode === "ssh" && sshHost.trim() ? `ssh ${sshHost.trim()}` : undefined
+                getRuntimeString()
               )}
             </div>
           </div>

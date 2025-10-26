@@ -1,8 +1,14 @@
 import { useState, useEffect } from "react";
 import { getRuntimeKey } from "@/constants/storage";
+import {
+  type RuntimeMode,
+  RUNTIME_MODE,
+  parseRuntimeModeAndHost,
+  buildRuntimeString,
+} from "@/types/runtime";
 
 export interface WorkspaceRuntimeOptions {
-  runtimeMode: "local" | "ssh";
+  runtimeMode: RuntimeMode;
   sshHost: string;
   /**
    * Returns the runtime string for IPC calls (format: "ssh <host>" or undefined for local)
@@ -21,52 +27,36 @@ export interface WorkspaceRuntimeOptions {
 export function useNewWorkspaceOptions(
   projectPath: string | null | undefined,
   enabled = true
-): [WorkspaceRuntimeOptions, (mode: "local" | "ssh", host?: string) => void] {
-  const [runtimeMode, setRuntimeMode] = useState<"local" | "ssh">("local");
+): [WorkspaceRuntimeOptions, (mode: RuntimeMode, host?: string) => void] {
+  const [runtimeMode, setRuntimeMode] = useState<RuntimeMode>(RUNTIME_MODE.LOCAL);
   const [sshHost, setSshHost] = useState("");
 
   // Load saved runtime preference when projectPath changes
   useEffect(() => {
     if (!enabled || !projectPath) {
       // Reset to defaults when disabled or no project
-      setRuntimeMode("local");
+      setRuntimeMode(RUNTIME_MODE.LOCAL);
       setSshHost("");
       return;
     }
 
     const runtimeKey = getRuntimeKey(projectPath);
     const savedRuntime = localStorage.getItem(runtimeKey);
+    const parsed = parseRuntimeModeAndHost(savedRuntime);
     
-    if (savedRuntime) {
-      // Parse the saved runtime string (format: "ssh <host>" or undefined for local)
-      if (savedRuntime.startsWith("ssh ")) {
-        const host = savedRuntime.substring(4).trim();
-        setRuntimeMode("ssh");
-        setSshHost(host);
-      } else {
-        setRuntimeMode("local");
-        setSshHost("");
-      }
-    } else {
-      // No saved preference, use defaults
-      setRuntimeMode("local");
-      setSshHost("");
-    }
+    setRuntimeMode(parsed.mode);
+    setSshHost(parsed.host);
   }, [projectPath, enabled]);
 
   // Setter for updating both mode and host
-  const setRuntimeOptions = (mode: "local" | "ssh", host?: string) => {
+  const setRuntimeOptions = (mode: RuntimeMode, host?: string) => {
     setRuntimeMode(mode);
     setSshHost(host ?? "");
   };
 
   // Helper to get runtime string for IPC calls
   const getRuntimeString = (): string | undefined => {
-    if (runtimeMode === "ssh") {
-      const trimmedHost = sshHost.trim();
-      return trimmedHost ? `ssh ${trimmedHost}` : undefined;
-    }
-    return undefined;
+    return buildRuntimeString(runtimeMode, sshHost);
   };
 
   return [

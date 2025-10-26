@@ -10,6 +10,7 @@ import type { SendMessageOptions } from "@/types/ipc";
 import type { CmuxFrontendMetadata, CompactionRequestData } from "@/types/message";
 import type { FrontendWorkspaceMetadata } from "@/types/workspace";
 import type { RuntimeConfig } from "@/types/runtime";
+import { RUNTIME_MODE, SSH_RUNTIME_PREFIX } from "@/types/runtime";
 import { CUSTOM_EVENTS } from "@/constants/events";
 import type { Toast } from "@/components/ChatInputToast";
 import type { ParsedCommand } from "@/utils/slashCommands/types";
@@ -22,7 +23,7 @@ import { getRuntimeKey } from "@/constants/storage";
 // ============================================================================
 
 /**
- * Parse runtime string from -r flag into RuntimeConfig
+ * Parse runtime string from -r flag into RuntimeConfig for backend
  * Supports formats:
  * - "ssh <host>" or "ssh <user@host>" -> SSH runtime
  * - "local" -> Local runtime (explicit)
@@ -39,13 +40,13 @@ export function parseRuntimeString(
   const trimmed = runtime.trim();
   const lowerTrimmed = trimmed.toLowerCase();
 
-  if (lowerTrimmed === "local") {
+  if (lowerTrimmed === RUNTIME_MODE.LOCAL) {
     return undefined; // Explicit local - let backend use default
   }
 
   // Parse "ssh <host>" or "ssh <user@host>" format
-  if (lowerTrimmed === "ssh" || lowerTrimmed.startsWith("ssh ")) {
-    const hostPart = trimmed.slice(3).trim(); // Preserve original case for host, skip "ssh"
+  if (lowerTrimmed === RUNTIME_MODE.SSH || lowerTrimmed.startsWith(SSH_RUNTIME_PREFIX)) {
+    const hostPart = trimmed.slice(SSH_RUNTIME_PREFIX.length - 1).trim(); // Preserve original case for host
     if (!hostPart) {
       throw new Error("SSH runtime requires host (e.g., 'ssh hostname' or 'ssh user@host')");
     }
@@ -53,7 +54,7 @@ export function parseRuntimeString(
     // Accept both "hostname" and "user@hostname" formats
     // SSH will use current user or ~/.ssh/config if user not specified
     return {
-      type: "ssh",
+      type: RUNTIME_MODE.SSH,
       host: hostPart,
       srcBaseDir: "~/cmux", // Default remote base directory (NOT including workspace name)
     };
