@@ -29,15 +29,16 @@ runs:
         restore-keys: |
           ${{ runner.os }}-bun-cache-
 
-    - name: Cache ImageMagick (macOS)
+    - name: Cache Homebrew downloads (macOS)
       if: runner.os == 'macOS'
-      id: cache-imagemagick-mac
       uses: actions/cache@v4
       with:
         path: |
-          /opt/homebrew/Cellar/imagemagick
-          /usr/local/Cellar/imagemagick
-        key: ${{ runner.os }}-${{ runner.arch }}-imagemagick-7.1.1
+          ~/Library/Caches/Homebrew/downloads
+          ~/Library/Caches/Homebrew/Cask
+        key: ${{ runner.os }}-${{ runner.arch }}-brew-downloads-imagemagick-v1
+        restore-keys: |
+          ${{ runner.os }}-${{ runner.arch }}-brew-downloads-
 
     - name: Cache apt packages (Linux)
       if: runner.os == 'Linux'
@@ -55,17 +56,9 @@ runs:
       if: runner.os == 'macOS'
       shell: bash
       run: |
-        if [ "${{ steps.cache-imagemagick-mac.outputs.cache-hit }}" == "true" ]; then
-          echo "✅ ImageMagick restored from cache"
-          # Link the cached installation
-          brew link --overwrite --force imagemagick 2>/dev/null || true
-          if command -v magick &>/dev/null; then
-            magick --version | head -1
-          else
-            echo "⚠️  Cache restored but linking failed, reinstalling..."
-            HOMEBREW_NO_AUTO_UPDATE=1 brew install imagemagick
-            magick --version | head -1
-          fi
+        if command -v magick &>/dev/null && magick --version &>/dev/null 2>&1; then
+          echo "✅ ImageMagick available (cached)"
+          magick --version | head -1
         else
           echo "📦 Installing ImageMagick..."
           HOMEBREW_NO_AUTO_UPDATE=1 brew install imagemagick
