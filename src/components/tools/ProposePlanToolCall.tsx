@@ -12,6 +12,7 @@ import { useToolExpansion, getStatusDisplay, type ToolStatus } from "./shared/to
 import { MarkdownRenderer } from "../Messages/MarkdownRenderer";
 import { formatKeybind, KEYBINDS } from "@/utils/ui/keybinds";
 import { useStartHere } from "@/hooks/useStartHere";
+import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
 import { TooltipWrapper, Tooltip } from "../Tooltip";
 import { cn } from "@/lib/utils";
 
@@ -30,7 +31,6 @@ export const ProposePlanToolCall: React.FC<ProposePlanToolCallProps> = ({
 }) => {
   const { expanded, toggleExpanded } = useToolExpansion(true); // Expand by default
   const [showRaw, setShowRaw] = useState(false);
-  const [copied, setCopied] = useState(false);
 
   // Format: Title as H1 + plan content for "Start Here" functionality
   const startHereContent = `# ${args.title}\n\n${args.plan}`;
@@ -46,19 +46,12 @@ export const ProposePlanToolCall: React.FC<ProposePlanToolCallProps> = ({
     false // Plans are never already compacted
   );
 
+  // Copy to clipboard with feedback
+  const { copied, copyToClipboard } = useCopyToClipboard();
+
   const [isHovered, setIsHovered] = useState(false);
 
   const statusDisplay = getStatusDisplay(status);
-
-  const handleCopy = async () => {
-    try {
-      await navigator.clipboard.writeText(args.plan);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch (err) {
-      console.error("Failed to copy:", err);
-    }
-  };
 
   return (
     <ToolContainer expanded={expanded}>
@@ -134,7 +127,7 @@ export const ProposePlanToolCall: React.FC<ProposePlanToolCallProps> = ({
                   </TooltipWrapper>
                 )}
                 <button
-                  onClick={() => void handleCopy()}
+                  onClick={() => void copyToClipboard(args.plan)}
                   className="text-muted hover:text-plan-mode cursor-pointer rounded-sm bg-transparent px-2 py-1 font-mono text-[10px] transition-all duration-150 active:translate-y-px"
                   style={{
                     border: "1px solid rgba(136, 136, 136, 0.3)",
