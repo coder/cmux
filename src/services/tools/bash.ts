@@ -419,7 +419,9 @@ export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
                 try {
                   // Use 8 hex characters for short, memorable temp file IDs
                   const fileId = Math.random().toString(16).substring(2, 10);
-                  const overflowPath = path.join(config.tempDir, `bash-${fileId}.txt`);
+                  // Write to .cmux/tmp directory relative to cwd for runtime-agnostic path
+                  // This works for both LocalRuntime (local path) and SSHRuntime (remote path)
+                  const overflowPath = path.join(config.cwd, ".cmux", "tmp", `bash-${fileId}.txt`);
                   const fullOutput = lines.join("\n");
 
                   // Use runtime.writeFile() for SSH support

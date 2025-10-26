@@ -3,6 +3,7 @@ import { createBashTool } from "./bash";
 import type { BashToolArgs, BashToolResult } from "@/types/tools";
 import { BASH_MAX_TOTAL_BYTES } from "@/constants/toolLimits";
 import * as fs from "fs";
+import * as path from "path";
 import { TestTempDir } from "./testHelpers";
 import { createRuntime } from "@/runtime/runtimeFactory";
 
@@ -269,7 +270,7 @@ describe("bash tool", () => {
   it("should use tmpfile policy by default when overflow_policy not specified", async () => {
     const tempDir = new TestTempDir("test-bash-default");
     const tool = createBashTool({
-      cwd: process.cwd(),
+      cwd: tempDir.path, // Use tempDir as cwd so we can verify file creation
       runtime: createRuntime({ type: "local", srcBaseDir: "/tmp" }),
       tempDir: tempDir.path,
       // overflow_policy not specified - should default to tmpfile
@@ -289,8 +290,10 @@ describe("bash tool", () => {
       expect(result.error).toContain("saved to");
       expect(result.error).not.toContain("[OUTPUT TRUNCATED");
 
-      // Verify temp file was created
-      const files = fs.readdirSync(tempDir.path);
+      // Verify temp file was created in .cmux/tmp subdirectory
+      const cmuxTmpDir = path.join(tempDir.path, ".cmux", "tmp");
+      expect(fs.existsSync(cmuxTmpDir)).toBe(true);
+      const files = fs.readdirSync(cmuxTmpDir);
       const bashFiles = files.filter((f) => f.startsWith("bash-"));
       expect(bashFiles.length).toBe(1);
     }
