@@ -166,6 +166,11 @@ export const SingleProject: Story = {
         projectPath: "/home/user/projects/my-app",
         projectName: "my-app",
         namedWorkspacePath: "/home/user/.cmux/src/my-app/feature-auth",
+        runtimeConfig: {
+          type: "ssh",
+          host: "dev-server.example.com",
+          srcBaseDir: "/home/user/.cmux/src",
+        },
       },
       {
         id: "my-app-bugfix",
@@ -249,6 +254,11 @@ export const MultipleProjects: Story = {
         projectPath: "/home/user/projects/backend",
         projectName: "backend",
         namedWorkspacePath: "/home/user/.cmux/src/backend/api-v2",
+        runtimeConfig: {
+          type: "ssh",
+          host: "prod-server.example.com",
+          srcBaseDir: "/home/user/.cmux/src",
+        },
       },
       {
         id: "5e6f7a8b9c",
@@ -256,6 +266,11 @@ export const MultipleProjects: Story = {
         projectPath: "/home/user/projects/backend",
         projectName: "backend",
         namedWorkspacePath: "/home/user/.cmux/src/backend/db-migration",
+        runtimeConfig: {
+          type: "ssh",
+          host: "staging.example.com",
+          srcBaseDir: "/home/user/.cmux/src",
+        },
       },
       {
         id: "6f7a8b9c0d",
