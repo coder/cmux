@@ -164,6 +164,22 @@ export interface Runtime {
   stat(path: string): Promise<FileStat>;
 
   /**
+   * Compute absolute workspace path from project and workspace name.
+   * This is the SINGLE source of truth for workspace path computation.
+   *
+   * - LocalRuntime: {workdir}/{project-name}/{workspace-name}
+   * - SSHRuntime: {workdir}/{project-name}/{workspace-name}
+   *
+   * All Runtime methods (create, delete, rename) MUST use this method internally
+   * to ensure consistent path computation.
+   *
+   * @param projectPath Project root path (local path, used to extract project name)
+   * @param workspaceName Workspace name (typically branch name)
+   * @returns Absolute path to workspace directory
+   */
+  getWorkspacePath(projectPath: string, workspaceName: string): string;
+
+  /**
    * Create a workspace for this runtime (fast, returns immediately)
    * - LocalRuntime: Creates git worktree
    * - SSHRuntime: Creates remote directory only
@@ -187,37 +203,38 @@ export interface Runtime {
    * Rename workspace directory
    * - LocalRuntime: Uses git worktree move (worktrees managed by git)
    * - SSHRuntime: Uses mv (plain directories on remote, not worktrees)
-   * Runtime computes workspace paths internally from projectPath + workspace names.
+   * Runtime computes workspace paths internally from workdir + projectPath + workspace names.
    * @param projectPath Project root path (local path, used for git commands in LocalRuntime and to extract project name)
    * @param oldName Current workspace name
    * @param newName New workspace name
-   * @param srcDir Source directory root (e.g., ~/.cmux/src) - used by LocalRuntime to compute paths, ignored by SSHRuntime
    * @returns Promise resolving to Result with old/new paths on success, or error message
    */
   renameWorkspace(
     projectPath: string,
     oldName: string,
-    newName: string,
-    srcDir: string
+    newName: string
   ): Promise<
     { success: true; oldPath: string; newPath: string } | { success: false; error: string }
   >;
 
   /**
    * Delete workspace directory
-   * - LocalRuntime: Uses git worktree remove with --force (handles uncommitted changes)
-   * - SSHRuntime: Uses rm -rf (plain directories on remote, not worktrees)
-   * Runtime computes workspace path internally from projectPath + workspaceName.
+   * - LocalRuntime: Uses git worktree remove (with --force only if force param is true)
+   * - SSHRuntime: Checks for uncommitted changes unless force is true, then uses rm -rf
+   * Runtime computes workspace path internally from workdir + projectPath + workspaceName.
+   *
+   * **CRITICAL: Implementations must NEVER auto-apply --force or skip dirty checks without explicit force=true.**
+   * If workspace has uncommitted changes and force=false, implementations MUST return error.
+   * The force flag is the user's explicit intent - implementations must not override it.
+   *
    * @param projectPath Project root path (local path, used for git commands in LocalRuntime and to extract project name)
    * @param workspaceName Workspace name to delete
-   * @param srcDir Source directory root (e.g., ~/.cmux/src) - used by LocalRuntime to compute paths, ignored by SSHRuntime
-   * @param force If true, force deletion even with uncommitted changes (LocalRuntime only)
+   * @param force If true, force deletion even with uncommitted changes or special conditions (submodules, etc.)
    * @returns Promise resolving to Result with deleted path on success, or error message
    */
   deleteWorkspace(
     projectPath: string,
     workspaceName: string,
-    srcDir: string,
     force: boolean
   ): Promise<{ success: true; deletedPath: string } | { success: false; error: string }>;
 }

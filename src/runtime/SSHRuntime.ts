@@ -22,6 +22,8 @@ import { checkInitHookExists, createLineBufferedLoggers } from "./initHook";
 import { streamProcessToLogger } from "./streamProcess";
 import { expandTildeForSSH, cdCommandForSSH } from "./tildeExpansion";
 import { findBashPath } from "./executablePaths";
+import { getProjectName } from "../utils/runtime/helpers";
+import { getErrorMessage } from "../utils/errors";
 
 /**
  * Shescape instance for bash shell escaping.
@@ -518,9 +520,16 @@ export class SSHRuntime implements Runtime {
     initLogger.logComplete(exitCode);
   }
 
+  getWorkspacePath(projectPath: string, workspaceName: string): string {
+    const projectName = getProjectName(projectPath);
+    return path.posix.join(this.config.workdir, projectName, workspaceName);
+  }
+
   async createWorkspace(params: WorkspaceCreationParams): Promise<WorkspaceCreationResult> {
     try {
-      const { initLogger } = params;
+      const { projectPath, branchName, initLogger } = params;
+      // Compute workspace path using canonical method
+      const workspacePath = this.getWorkspacePath(projectPath, branchName);
 
       // Prepare parent directory for git clone (fast - returns immediately)
       // Note: git clone will create the workspace directory itself during initWorkspace,
@@ -568,7 +577,7 @@ export class SSHRuntime implements Runtime {
       } catch (error) {
         return {
           success: false,
-          error: `Failed to prepare remote workspace: ${error instanceof Error ? error.message : String(error)}`,
+          error: `Failed to prepare remote workspace: ${getErrorMessage(error)}`,
         };
       }
 
@@ -576,12 +585,12 @@ export class SSHRuntime implements Runtime {
 
       return {
         success: true,
-        workspacePath: this.config.workdir,
+        workspacePath,
       };
     } catch (error) {
       return {
         success: false,
-        error: error instanceof Error ? error.message : String(error),
+        error: getErrorMessage(error),
       };
     }
   }
@@ -595,7 +604,7 @@ export class SSHRuntime implements Runtime {
       try {
         await this.syncProjectToRemote(projectPath, initLogger);
       } catch (error) {
-        const errorMsg = error instanceof Error ? error.message : String(error);
+        const errorMsg = getErrorMessage(error);
         initLogger.logStderr(`Failed to sync project: ${errorMsg}`);
         initLogger.logComplete(-1);
         return {
@@ -646,7 +655,7 @@ export class SSHRuntime implements Runtime {
 
       return { success: true };
     } catch (error) {
-      const errorMsg = error instanceof Error ? error.message : String(error);
+      const errorMsg = getErrorMessage(error);
       initLogger.logStderr(`Initialization failed: ${errorMsg}`);
       initLogger.logComplete(-1);
       return {
@@ -659,15 +668,13 @@ export class SSHRuntime implements Runtime {
   async renameWorkspace(
     projectPath: string,
     oldName: string,
-    newName: string,
-    _srcDir: string
+    newName: string
   ): Promise<
     { success: true; oldPath: string; newPath: string } | { success: false; error: string }
   > {
-    // Compute workspace paths on remote: {workdir}/{project-name}/{workspace-name}
-    const projectName = projectPath.split("/").pop() ?? projectPath;
-    const oldPath = path.posix.join(this.config.workdir, projectName, oldName);
-    const newPath = path.posix.join(this.config.workdir, projectName, newName);
+    // Compute workspace paths using canonical method
+    const oldPath = this.getWorkspacePath(projectPath, oldName);
+    const newPath = this.getWorkspacePath(projectPath, newName);
 
     try {
       // SSH runtimes use plain directories, not git worktrees
@@ -705,24 +712,44 @@ export class SSHRuntime implements Runtime {
 
       return { success: true, oldPath, newPath };
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      return { success: false, error: `Failed to rename directory: ${message}` };
+      return { success: false, error: `Failed to rename directory: ${getErrorMessage(error)}` };
     }
   }
 
   async deleteWorkspace(
     projectPath: string,
     workspaceName: string,
-    _srcDir: string,
-    _force: boolean
+    force: boolean
   ): Promise<{ success: true; deletedPath: string } | { success: false; error: string }> {
-    // Compute workspace path on remote: {workdir}/{project-name}/{workspace-name}
-    const projectName = projectPath.split("/").pop() ?? projectPath;
-    const deletedPath = path.posix.join(this.config.workdir, projectName, workspaceName);
+    // Compute workspace path using canonical method
+    const deletedPath = this.getWorkspacePath(projectPath, workspaceName);
 
     try {
+      // Check if workspace has uncommitted changes (unless force is true)
+      if (!force) {
+        // Check for uncommitted changes using git diff
+        const checkStream = await this.exec(
+          `cd ${shescape.quote(deletedPath)} && git diff --quiet --exit-code && git diff --quiet --cached --exit-code`,
+          {
+            cwd: this.config.workdir,
+            timeout: 10,
+          }
+        );
+
+        await checkStream.stdin.close();
+        const checkExitCode = await checkStream.exitCode;
+
+        if (checkExitCode !== 0) {
+          // Workspace has uncommitted changes
+          return {
+            success: false,
+            error: `Workspace contains uncommitted changes. Use force flag to delete anyway.`,
+          };
+        }
+      }
+
       // SSH runtimes use plain directories, not git worktrees
-      // Just use rm -rf to remove the directory on the remote host
+      // Use rm -rf to remove the directory on the remote host
       const removeCommand = `rm -rf ${shescape.quote(deletedPath)}`;
 
       // Execute via the runtime's exec method (handles SSH connection multiplexing, etc.)
@@ -756,8 +783,7 @@ export class SSHRuntime implements Runtime {
 
       return { success: true, deletedPath };
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      return { success: false, error: `Failed to delete directory: ${message}` };
+      return { success: false, error: `Failed to delete directory: ${getErrorMessage(error)}` };
     }
   }
 
@@ -778,8 +804,7 @@ export class SSHRuntime implements Runtime {
       exitProc.unref();
     } catch (error) {
       // Ignore errors - control socket will timeout naturally
-      const errorMsg = error instanceof Error ? error.message : String(error);
-      log.debug(`SSH control socket cleanup failed (non-fatal): ${errorMsg}`);
+      log.debug(`SSH control socket cleanup failed (non-fatal): ${getErrorMessage(error)}`);
     }
   }
 }

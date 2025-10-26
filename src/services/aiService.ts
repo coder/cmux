@@ -500,7 +500,10 @@ export class AIService extends EventEmitter {
       }
 
       // Get workspace path (directory name uses workspace name)
-      const workspacePath = this.config.getWorkspacePath(metadata.projectPath, metadata.name);
+      const runtime = createRuntime(
+        metadata.runtimeConfig ?? { type: "local", workdir: this.config.srcDir }
+      );
+      const workspacePath = runtime.getWorkspacePath(metadata.projectPath, metadata.name);
 
       // Build system message from workspace metadata
       const systemMessage = await buildSystemMessage(
@@ -521,11 +524,11 @@ export class AIService extends EventEmitter {
       const streamToken = this.streamManager.generateStreamToken();
       const tempDir = this.streamManager.createTempDirForStream(streamToken);
 
-      // Create runtime from workspace metadata config (defaults to local)
-      const runtimeConfig = metadata.runtimeConfig ?? { type: "local", workdir: workspacePath };
-      const runtime = createRuntime(runtimeConfig);
-
       // Get model-specific tools with runtime's workdir (correct for local or remote)
+      const runtimeConfig = metadata.runtimeConfig ?? {
+        type: "local",
+        workdir: this.config.srcDir,
+      };
       const allTools = await getToolsForModel(modelString, {
         cwd: runtimeConfig.workdir,
         runtime,

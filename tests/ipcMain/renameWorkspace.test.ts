@@ -1,4 +1,9 @@
-import { setupWorkspace, shouldRunIntegrationTests, validateApiKeys } from "./setup";
+import {
+  setupWorkspace,
+  shouldRunIntegrationTests,
+  validateApiKeys,
+  preloadTestModules,
+} from "./setup";
 import {
   sendMessageWithModel,
   createEventCollector,
@@ -10,6 +15,7 @@ import { IPC_CHANNELS } from "../../src/constants/ipc-constants";
 import type { CmuxMessage } from "../../src/types/message";
 import * as fs from "fs/promises";
 import * as fsSync from "fs";
+import { createRuntime } from "../../src/runtime/runtimeFactory";
 
 // Skip all tests if TEST_INTEGRATION is not set
 const describeIntegration = shouldRunIntegrationTests() ? describe : describe.skip;
@@ -24,11 +30,7 @@ describeIntegration("IpcMain rename workspace integration tests", () => {
   // This ensures accurate token counts for API calls and prevents race conditions
   // when tests import providers concurrently
   beforeAll(async () => {
-    const [{ loadTokenizerModules }, { preloadAISDKProviders }] = await Promise.all([
-      import("../../src/utils/main/tokenizer"),
-      import("../../src/services/aiService"),
-    ]);
-    await Promise.all([loadTokenizerModules(), preloadAISDKProviders()]);
+    await preloadTestModules();
   }, 30000); // 30s timeout for tokenizer and provider loading
 
   test.concurrent(
@@ -463,7 +465,8 @@ describeIntegration("IpcMain rename workspace integration tests", () => {
         const projectsConfig = env.config.loadConfigOrDefault();
         const projectConfig = projectsConfig.projects.get(tempGitRepo);
         if (projectConfig) {
-          const workspacePath = env.config.getWorkspacePath(tempGitRepo, branchName);
+          const runtime = createRuntime({ type: "local", workdir: env.config.srcDir });
+          const workspacePath = runtime.getWorkspacePath(tempGitRepo, branchName);
           projectConfig.workspaces.push({
             path: workspacePath,
             id: workspaceId,

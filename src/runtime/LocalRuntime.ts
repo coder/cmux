@@ -21,6 +21,8 @@ import { listLocalBranches } from "../git";
 import { checkInitHookExists, getInitHookPath, createLineBufferedLoggers } from "./initHook";
 import { execAsync } from "../utils/disposableExec";
 import { findBashPath, findNicePath } from "./executablePaths";
+import { getProjectName } from "../utils/runtime/helpers";
+import { getErrorMessage } from "../utils/errors";
 
 /**
  * Local runtime implementation that executes commands and file operations
@@ -301,12 +303,17 @@ export class LocalRuntime implements Runtime {
     }
   }
 
+  getWorkspacePath(projectPath: string, workspaceName: string): string {
+    const projectName = getProjectName(projectPath);
+    return path.join(this.workdir, projectName, workspaceName);
+  }
+
   async createWorkspace(params: WorkspaceCreationParams): Promise<WorkspaceCreationResult> {
     const { projectPath, branchName, trunkBranch, initLogger } = params;
 
     try {
-      // Create workspace at workdir
-      const workspacePath = this.workdir;
+      // Compute workspace path using the canonical method
+      const workspacePath = this.getWorkspacePath(projectPath, branchName);
       initLogger.logStep("Creating git worktree...");
 
       // Create parent directory if needed
@@ -351,7 +358,7 @@ export class LocalRuntime implements Runtime {
     } catch (error) {
       return {
         success: false,
-        error: error instanceof Error ? error.message : String(error),
+        error: getErrorMessage(error),
       };
     }
   }
@@ -371,7 +378,7 @@ export class LocalRuntime implements Runtime {
       }
       return { success: true };
     } catch (error) {
-      const errorMsg = error instanceof Error ? error.message : String(error);
+      const errorMsg = getErrorMessage(error);
       initLogger.logStderr(`Initialization failed: ${errorMsg}`);
       initLogger.logComplete(-1);
       return {
@@ -436,15 +443,13 @@ export class LocalRuntime implements Runtime {
   async renameWorkspace(
     projectPath: string,
     oldName: string,
-    newName: string,
-    srcDir: string
+    newName: string
   ): Promise<
     { success: true; oldPath: string; newPath: string } | { success: false; error: string }
   > {
-    // Compute workspace paths: {srcDir}/{project-name}/{workspace-name}
-    const projectName = path.basename(projectPath);
-    const oldPath = path.join(srcDir, projectName, oldName);
-    const newPath = path.join(srcDir, projectName, newName);
+    // Compute workspace paths using canonical method
+    const oldPath = this.getWorkspacePath(projectPath, oldName);
+    const newPath = this.getWorkspacePath(projectPath, newName);
 
     try {
       // Use git worktree move to rename the worktree directory
@@ -454,24 +459,22 @@ export class LocalRuntime implements Runtime {
 
       return { success: true, oldPath, newPath };
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      return { success: false, error: `Failed to move worktree: ${message}` };
+      return { success: false, error: `Failed to move worktree: ${getErrorMessage(error)}` };
     }
   }
 
   async deleteWorkspace(
     projectPath: string,
     workspaceName: string,
-    srcDir: string,
     force: boolean
   ): Promise<{ success: true; deletedPath: string } | { success: false; error: string }> {
-    // Compute workspace path: {srcDir}/{project-name}/{workspace-name}
-    const projectName = path.basename(projectPath);
-    const deletedPath = path.join(srcDir, projectName, workspaceName);
+    // Compute workspace path using the canonical method
+    const deletedPath = this.getWorkspacePath(projectPath, workspaceName);
 
     try {
       // Use git worktree remove to delete the worktree
       // This updates git's internal worktree metadata correctly
+      // Only use --force if explicitly requested by the caller
       const forceFlag = force ? " --force" : "";
       using proc = execAsync(
         `git -C "${projectPath}" worktree remove${forceFlag} "${deletedPath}"`
@@ -480,36 +483,7 @@ export class LocalRuntime implements Runtime {
 
       return { success: true, deletedPath };
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-
-      // If removal failed without --force and error mentions submodules, check if worktree is clean
-      // Git refuses to remove worktrees with submodules unless --force is used, even if clean
-      if (!force && message.includes("submodules")) {
-        // Check if worktree is clean (no uncommitted changes)
-        try {
-          using statusProc = execAsync(
-            `git -C "${deletedPath}" diff --quiet && git -C "${deletedPath}" diff --quiet --cached`
-          );
-          await statusProc.result;
-
-          // Worktree is clean - safe to use --force for submodule case
-          try {
-            using retryProc = execAsync(
-              `git -C "${projectPath}" worktree remove --force "${deletedPath}"`
-            );
-            await retryProc.result;
-            return { success: true, deletedPath };
-          } catch (retryError) {
-            const retryMessage =
-              retryError instanceof Error ? retryError.message : String(retryError);
-            return { success: false, error: `Failed to remove worktree: ${retryMessage}` };
-          }
-        } catch {
-          // Worktree is dirty - don't auto-retry with --force, let user decide
-          return { success: false, error: `Failed to remove worktree: ${message}` };
-        }
-      }
-
+      const message = getErrorMessage(error);
       return { success: false, error: `Failed to remove worktree: ${message}` };
     }
   }

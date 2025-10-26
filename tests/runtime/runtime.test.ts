@@ -705,8 +705,7 @@ describeIntegration("Runtime integration tests", () => {
           const result = await runtime.renameWorkspace(
             workspace.path,
             "worktree-1",
-            "worktree-renamed",
-            srcDir
+            "worktree-renamed"
           );
 
           if (!result.success) {
@@ -815,12 +814,7 @@ describeIntegration("Runtime integration tests", () => {
           const srcDir = type === "ssh" ? "/home/testuser/workspace" : path.dirname(workspace.path);
 
           // Try to rename a worktree that doesn't exist
-          const result = await runtime.renameWorkspace(
-            workspace.path,
-            "non-existent",
-            "new-name",
-            srcDir
-          );
+          const result = await runtime.renameWorkspace(workspace.path, "non-existent", "new-name");
 
           expect(result.success).toBe(false);
           if (!result.success) {
@@ -911,7 +905,6 @@ describeIntegration("Runtime integration tests", () => {
           const result = await runtime.deleteWorkspace(
             workspace.path,
             "worktree-delete-test",
-            srcDir,
             false // force=false
           );
 
@@ -995,7 +988,6 @@ describeIntegration("Runtime integration tests", () => {
             const result = await runtime.deleteWorkspace(
               workspace.path,
               "worktree-dirty",
-              srcDir,
               true // force=true
             );
 
@@ -1049,12 +1041,7 @@ describeIntegration("Runtime integration tests", () => {
           const srcDir = type === "ssh" ? "/home/testuser/workspace" : path.dirname(workspace.path);
 
           // Try to delete a workspace that doesn't exist
-          const result = await runtime.deleteWorkspace(
-            workspace.path,
-            "non-existent",
-            srcDir,
-            false
-          );
+          const result = await runtime.deleteWorkspace(workspace.path, "non-existent", false);
 
           // For SSH with rm -rf, deleting non-existent directory succeeds (rm -rf is idempotent)
           // For local git worktree, it should fail

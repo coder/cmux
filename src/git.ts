@@ -1,7 +1,9 @@
 import * as fs from "fs";
 import * as path from "path";
 import type { Config } from "./config";
+import type { RuntimeConfig } from "./types/runtime";
 import { execAsync } from "./utils/disposableExec";
+import { createRuntime } from "./runtime/runtimeFactory";
 
 export interface WorktreeResult {
   success: boolean;
@@ -13,6 +15,8 @@ export interface CreateWorktreeOptions {
   trunkBranch: string;
   /** Directory name to use for the worktree (if not provided, uses branchName) */
   directoryName?: string;
+  /** Runtime configuration (needed to compute workspace path) */
+  runtimeConfig?: RuntimeConfig;
 }
 
 export async function listLocalBranches(projectPath: string): Promise<string[]> {
@@ -78,7 +82,11 @@ export async function createWorktree(
   try {
     // Use directoryName if provided, otherwise fall back to branchName (legacy)
     const dirName = options.directoryName ?? branchName;
-    const workspacePath = config.getWorkspacePath(projectPath, dirName);
+    // Compute workspace path using Runtime (single source of truth)
+    const runtime = createRuntime(
+      options.runtimeConfig ?? { type: "local", workdir: config.srcDir }
+    );
+    const workspacePath = runtime.getWorkspacePath(projectPath, dirName);
     const { trunkBranch } = options;
     const normalizedTrunkBranch = typeof trunkBranch === "string" ? trunkBranch.trim() : "";
 

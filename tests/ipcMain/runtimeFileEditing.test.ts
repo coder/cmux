@@ -16,6 +16,7 @@ import {
   validateApiKeys,
   getApiKey,
   setupProviders,
+  preloadTestModules,
   type TestEnvironment,
 } from "./setup";
 import { IPC_CHANNELS, getChatChannel } from "../../src/constants/ipc-constants";
@@ -199,9 +200,8 @@ async function sendMessageAndWait(
 
 describeIntegration("Runtime File Editing Tools", () => {
   beforeAll(async () => {
-    // Preload AI SDK providers to avoid race conditions in concurrent tests
-    const { preloadAISDKProviders } = await import("../../src/services/aiService");
-    await preloadAISDKProviders();
+    // Preload AI SDK providers and tokenizers to avoid race conditions in concurrent tests
+    await preloadTestModules();
 
     // Check if Docker is available (required for SSH tests)
     if (!(await isDockerAvailable())) {

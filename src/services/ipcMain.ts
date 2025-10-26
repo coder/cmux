@@ -278,11 +278,10 @@ export class IpcMain {
         // Generate stable workspace ID (stored in config, not used for directory name)
         const workspaceId = this.config.generateStableId();
 
-        // Create runtime for workspace creation (defaults to local)
-        const workspacePath = this.config.getWorkspacePath(projectPath, branchName);
+        // Create runtime for workspace creation (defaults to local with srcDir as base)
         const finalRuntimeConfig: RuntimeConfig = runtimeConfig ?? {
           type: "local",
-          workdir: workspacePath,
+          workdir: this.config.srcDir,
         };
         const runtime = createRuntime(finalRuntimeConfig);
 
@@ -448,18 +447,14 @@ export class IpcMain {
           const { projectPath } = workspace;
 
           // Create runtime instance for this workspace
+          // For local runtimes, workdir should be srcDir, not the individual workspace path
           const runtime = createRuntime(
-            oldMetadata.runtimeConfig ?? { type: "local", workdir: workspace.workspacePath }
+            oldMetadata.runtimeConfig ?? { type: "local", workdir: this.config.srcDir }
           );
 
           // Delegate rename to runtime (handles both local and SSH)
-          // Runtime computes workspace paths internally from projectPath + workspace names + srcDir
-          const renameResult = await runtime.renameWorkspace(
-            projectPath,
-            oldName,
-            newName,
-            this.config.srcDir
-          );
+          // Runtime computes workspace paths internally from workdir + projectPath + workspace names
+          const renameResult = await runtime.renameWorkspace(projectPath, oldName, newName);
 
           if (!renameResult.success) {
             return Err(renameResult.error);
@@ -538,8 +533,11 @@ export class IpcMain {
           const sourceMetadata = sourceMetadataResult.data;
           const foundProjectPath = sourceMetadata.projectPath;
 
-          // Compute source workspace path from metadata (use name for directory lookup)
-          const sourceWorkspacePath = this.config.getWorkspacePath(
+          // Compute source workspace path from metadata (use name for directory lookup) using Runtime
+          const sourceRuntime = createRuntime(
+            sourceMetadata.runtimeConfig ?? { type: "local", workdir: this.config.srcDir }
+          );
+          const sourceWorkspacePath = sourceRuntime.getWorkspacePath(
             foundProjectPath,
             sourceMetadata.name
           );
@@ -881,25 +879,26 @@ export class IpcMain {
             return Err(`Workspace ${workspaceId} not found in config`);
           }
 
-          // Get workspace path (directory name uses workspace name)
-          const namedPath = this.config.getWorkspacePath(metadata.projectPath, metadata.name);
-
           // Load project secrets
           const projectSecrets = this.config.getProjectSecrets(metadata.projectPath);
 
           // Create scoped temp directory for this IPC call
           using tempDir = new DisposableTempDir("cmux-ipc-bash");
 
-          // Create bash tool with workspace's cwd and secrets
-          // All IPC bash calls are from UI (background operations) - use truncate to avoid temp file spam
-          // Use workspace's runtime config if available, otherwise default to local
+          // Create runtime and compute workspace path
+          // Runtime owns the path computation logic
           const runtimeConfig = metadata.runtimeConfig ?? {
             type: "local" as const,
-            workdir: namedPath,
+            workdir: this.config.srcDir,
           };
+          const runtime = createRuntime(runtimeConfig);
+          const workspacePath = runtime.getWorkspacePath(metadata.projectPath, metadata.name);
+
+          // Create bash tool with workspace's cwd and secrets
+          // All IPC bash calls are from UI (background operations) - use truncate to avoid temp file spam
           const bashTool = createBashTool({
-            cwd: runtimeConfig.workdir,
-            runtime: createRuntime(runtimeConfig),
+            cwd: workspacePath, // Bash executes in the workspace directory
+            runtime,
             secrets: secretsToRecord(projectSecrets),
             niceness: options?.niceness,
             tempDir: tempDir.path,
@@ -1040,7 +1039,7 @@ export class IpcMain {
       }
       const metadata = metadataResult.data;
 
-      // Get actual workspace path from config (handles both legacy and new format)
+      // Get workspace from config to get projectPath
       const workspace = this.config.findWorkspace(workspaceId);
       if (!workspace) {
         log.info(`Workspace ${workspaceId} metadata exists but not found in config`);
@@ -1049,60 +1048,38 @@ export class IpcMain {
       const { projectPath, workspacePath } = workspace;
 
       // Create runtime instance for this workspace
+      // For local runtimes, workdir should be srcDir, not the individual workspace path
       const runtime = createRuntime(
-        metadata.runtimeConfig ?? { type: "local", workdir: workspacePath }
+        metadata.runtimeConfig ?? { type: "local", workdir: this.config.srcDir }
       );
 
-      // Check if workspace directory exists
-      const workspaceExists = await fsPromises
-        .access(workspacePath)
-        .then(() => true)
-        .catch(() => false);
+      // Delegate deletion to runtime - it handles all path computation and existence checks
+      const deleteResult = await runtime.deleteWorkspace(projectPath, metadata.name, options.force);
 
-      if (workspaceExists) {
-        // Delegate deletion to runtime (handles both local and SSH)
-        const deleteResult = await runtime.deleteWorkspace(
-          projectPath,
-          metadata.name,
-          this.config.srcDir,
-          options.force
-        );
+      if (!deleteResult.success) {
+        const errorMessage = deleteResult.error;
+        const normalizedError = errorMessage.toLowerCase();
+        const looksLikeMissingWorktree =
+          normalizedError.includes("not a working tree") ||
+          normalizedError.includes("does not exist") ||
+          normalizedError.includes("no such file");
 
-        if (!deleteResult.success) {
-          const errorMessage = deleteResult.error;
-          const normalizedError = errorMessage.toLowerCase();
-          const looksLikeMissingWorktree =
-            normalizedError.includes("not a working tree") ||
-            normalizedError.includes("does not exist") ||
-            normalizedError.includes("no such file");
-
-          if (looksLikeMissingWorktree) {
-            // Worktree is already gone or stale - prune git records if this is a local worktree
-            if (metadata.runtimeConfig?.type !== "ssh") {
-              const pruneResult = await pruneWorktrees(projectPath);
-              if (!pruneResult.success) {
-                log.info(
-                  `Failed to prune stale worktrees for ${projectPath} after deleteWorkspace error: ${
-                    pruneResult.error ?? "unknown error"
-                  }`
-                );
-              }
+        if (looksLikeMissingWorktree) {
+          // Worktree is already gone or stale - prune git records if this is a local worktree
+          if (metadata.runtimeConfig?.type !== "ssh") {
+            const pruneResult = await pruneWorktrees(projectPath);
+            if (!pruneResult.success) {
+              log.info(
+                `Failed to prune stale worktrees for ${projectPath} after deleteWorkspace error: ${
+                  pruneResult.error ?? "unknown error"
+                }`
+              );
             }
-          } else {
-            return { success: false, error: deleteResult.error };
           }
-        }
-      } else {
-        // Workspace directory doesn't exist - prune git records if this is a local worktree
-        if (metadata.runtimeConfig?.type !== "ssh") {
-          const pruneResult = await pruneWorktrees(projectPath);
-          if (!pruneResult.success) {
-            log.info(
-              `Failed to prune stale worktrees for ${projectPath} after detecting missing workspace at ${workspacePath}: ${
-                pruneResult.error ?? "unknown error"
-              }`
-            );
-          }
+          // Treat missing workspace as success (idempotent operation)
+        } else {
+          // Real error (e.g., dirty workspace without force) - return it
+          return { success: false, error: deleteResult.error };
         }
       }
 

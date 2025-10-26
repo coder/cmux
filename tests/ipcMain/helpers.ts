@@ -302,6 +302,40 @@ export async function waitForFileExists(filePath: string, timeoutMs = 5000): Pro
 }
 
 /**
+ * Wait for init hook to complete by watching for init-end event
+ * More reliable than static sleeps
+ * Based on workspaceInitHook.test.ts pattern
+ */
+export async function waitForInitComplete(
+  env: import("./setup").TestEnvironment,
+  workspaceId: string,
+  timeoutMs = 5000
+): Promise<void> {
+  const startTime = Date.now();
+
+  while (Date.now() - startTime < timeoutMs) {
+    // Check for init-end event in sentEvents
+    const initEndEvent = env.sentEvents.find(
+      (e) =>
+        e.channel === getChatChannel(workspaceId) &&
+        typeof e.data === "object" &&
+        e.data !== null &&
+        "type" in e.data &&
+        e.data.type === "init-end"
+    );
+
+    if (initEndEvent) {
+      return;
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  }
+
+  // Timeout - init may have completed before we started watching or doesn't have a hook
+  console.log(`Note: init-end event not detected within ${timeoutMs}ms (may have completed early)`);
+}
+
+/**
  * Wait for stream to complete successfully
  * Common pattern: create collector, wait for end, assert success
  */

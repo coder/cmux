@@ -133,6 +133,18 @@ export async function setupProviders(
 export { shouldRunIntegrationTests, validateApiKeys, getApiKey };
 
 /**
+ * Preload modules that may be imported dynamically during concurrent tests.
+ * Call this in beforeAll hooks to prevent Jest sandbox race conditions.
+ */
+export async function preloadTestModules(): Promise<void> {
+  const [{ loadTokenizerModules }, { preloadAISDKProviders }] = await Promise.all([
+    import("../../src/utils/main/tokenizer"),
+    import("../../src/services/aiService"),
+  ]);
+  await Promise.all([loadTokenizerModules(), preloadAISDKProviders()]);
+}
+
+/**
  * Setup a complete workspace with provider
  * Encapsulates: env creation, provider setup, workspace creation, event clearing
  */

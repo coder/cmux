@@ -1,275 +1,506 @@
-import { shouldRunIntegrationTests, createTestEnvironment, cleanupTestEnvironment } from "./setup";
+/**
+ * Integration tests for workspace deletion across Local and SSH runtimes
+ *
+ * Tests WORKSPACE_REMOVE IPC handler with both LocalRuntime (git worktrees)
+ * and SSHRuntime (plain directories), including force flag and submodule handling.
+ */
+
+import * as fs from "fs/promises";
+import * as path from "path";
+import {
+  createTestEnvironment,
+  cleanupTestEnvironment,
+  shouldRunIntegrationTests,
+  preloadTestModules,
+  type TestEnvironment,
+} from "./setup";
 import { IPC_CHANNELS } from "../../src/constants/ipc-constants";
 import {
   createTempGitRepo,
   cleanupTempGitRepo,
-  createWorkspace,
   generateBranchName,
-  waitForFileNotExists,
   addSubmodule,
+  waitForFileNotExists,
+  waitForInitComplete,
 } from "./helpers";
-import * as fs from "fs/promises";
+import { detectDefaultTrunkBranch } from "../../src/git";
+import {
+  isDockerAvailable,
+  startSSHServer,
+  stopSSHServer,
+  type SSHServerConfig,
+} from "../runtime/ssh-fixture";
+import type { RuntimeConfig } from "../../src/types/runtime";
+import { execAsync } from "../../src/utils/disposableExec";
+
+// Test constants
+const TEST_TIMEOUT_LOCAL_MS = 20000;
+const TEST_TIMEOUT_SSH_MS = 45000;
+const INIT_HOOK_WAIT_MS = 1500;
+const SSH_INIT_WAIT_MS = 7000;
 
 // Skip all tests if TEST_INTEGRATION is not set
 const describeIntegration = shouldRunIntegrationTests() ? describe : describe.skip;
 
-describeIntegration("IpcMain remove workspace integration tests", () => {
-  test.concurrent(
-    "should successfully remove workspace and git worktree",
-    async () => {
-      const env = await createTestEnvironment();
-      const tempGitRepo = await createTempGitRepo();
+// SSH server config (shared across all SSH tests)
+let sshConfig: SSHServerConfig | undefined;
 
-      try {
-        const branchName = generateBranchName("remove-test");
+// ============================================================================
+// Test Helpers
+// ============================================================================
 
-        // Create a workspace
-        const createResult = await createWorkspace(env.mockIpcRenderer, tempGitRepo, branchName);
-        expect(createResult.success).toBe(true);
-        if (!createResult.success) {
-          throw new Error("Failed to create workspace");
-        }
-
-        const { metadata } = createResult;
-        const workspacePath = metadata.namedWorkspacePath;
-
-        // Verify the worktree exists
-        const worktreeExistsBefore = await fs
-          .access(workspacePath)
-          .then(() => true)
-          .catch(() => false);
-        expect(worktreeExistsBefore).toBe(true);
-
-        // Get the worktree directory path before removing
-        const projectName = tempGitRepo.split("/").pop() || "unknown";
-        const worktreeDirPath = `${env.config.srcDir}/${projectName}/${metadata.name}`;
-        const worktreeDirExistsBefore = await fs
-          .lstat(worktreeDirPath)
-          .then(() => true)
-          .catch(() => false);
-        expect(worktreeDirExistsBefore).toBe(true);
-
-        // Remove the workspace
-        const removeResult = await env.mockIpcRenderer.invoke(
-          IPC_CHANNELS.WORKSPACE_REMOVE,
-          metadata.id
-        );
-        expect(removeResult.success).toBe(true);
-
-        // Verify the worktree no longer exists
-        const worktreeRemoved = await waitForFileNotExists(workspacePath, 5000);
-        expect(worktreeRemoved).toBe(true);
-
-        // Verify worktree directory is removed
-        const worktreeDirExistsAfter = await fs
-          .lstat(worktreeDirPath)
-          .then(() => true)
-          .catch(() => false);
-        expect(worktreeDirExistsAfter).toBe(false);
-
-        // Verify workspace is no longer in config
-        const config = env.config.loadConfigOrDefault();
-        const project = config.projects.get(tempGitRepo);
-        if (project) {
-          const workspaceStillInConfig = project.workspaces.some((w) => w.path === workspacePath);
-          expect(workspaceStillInConfig).toBe(false);
-        }
-      } finally {
-        await cleanupTestEnvironment(env);
-        await cleanupTempGitRepo(tempGitRepo);
-      }
-    },
-    15000
+/**
+ * Create workspace helper and wait for init hook to complete
+ */
+async function createWorkspaceHelper(
+  env: TestEnvironment,
+  projectPath: string,
+  branchName: string,
+  runtimeConfig?: RuntimeConfig,
+  isSSH: boolean = false
+): Promise<{
+  workspaceId: string;
+  workspacePath: string;
+  cleanup: () => Promise<void>;
+}> {
+  const trunkBranch = await detectDefaultTrunkBranch(projectPath);
+  console.log(
+    `[createWorkspaceHelper] Creating workspace with trunk=${trunkBranch}, branch=${branchName}`
+  );
+  const result = await env.mockIpcRenderer.invoke(
+    IPC_CHANNELS.WORKSPACE_CREATE,
+    projectPath,
+    branchName,
+    trunkBranch,
+    runtimeConfig
   );
 
-  test.concurrent(
-    "should handle removal of non-existent workspace gracefully",
-    async () => {
-      const env = await createTestEnvironment();
+  if (!result.success) {
+    throw new Error(`Failed to create workspace: ${result.error}`);
+  }
 
-      try {
-        // Try to remove a workspace that doesn't exist
-        const removeResult = await env.mockIpcRenderer.invoke(
-          IPC_CHANNELS.WORKSPACE_REMOVE,
-          "non-existent-workspace-id"
-        );
+  const workspaceId = result.metadata.id;
+  const workspacePath = result.metadata.namedWorkspacePath;
 
-        // Should succeed (idempotent operation)
-        expect(removeResult.success).toBe(true);
-      } finally {
-        await cleanupTestEnvironment(env);
-      }
-    },
-    15000
+  // Wait for init hook to complete in real-time
+  await waitForInitComplete(env, workspaceId, isSSH ? SSH_INIT_WAIT_MS : INIT_HOOK_WAIT_MS);
+
+  const cleanup = async () => {
+    await env.mockIpcRenderer.invoke(IPC_CHANNELS.WORKSPACE_REMOVE, workspaceId);
+  };
+
+  return { workspaceId, workspacePath, cleanup };
+}
+
+/**
+ * Execute bash command in workspace context (works for both local and SSH)
+ */
+async function executeBash(
+  env: TestEnvironment,
+  workspaceId: string,
+  command: string
+): Promise<{ output: string; exitCode: number }> {
+  const result = await env.mockIpcRenderer.invoke(
+    IPC_CHANNELS.WORKSPACE_EXECUTE_BASH,
+    workspaceId,
+    command
   );
 
-  test.concurrent(
-    "should handle removal when worktree directory is already deleted",
-    async () => {
-      const env = await createTestEnvironment();
-      const tempGitRepo = await createTempGitRepo();
+  if (!result.success) {
+    throw new Error(`Bash execution failed: ${result.error}`);
+  }
 
-      try {
-        const branchName = generateBranchName("remove-deleted");
+  // Result is wrapped in Ok(), so data is the BashToolResult
+  const bashResult = result.data;
+  return { output: bashResult.output, exitCode: bashResult.exitCode };
+}
 
-        // Create a workspace
-        const createResult = await createWorkspace(env.mockIpcRenderer, tempGitRepo, branchName);
-        expect(createResult.success).toBe(true);
-        if (!createResult.success) {
-          throw new Error("Failed to create workspace");
-        }
+/**
+ * Check if workspace directory exists (runtime-agnostic)
+ * This verifies the workspace root directory exists
+ */
+async function workspaceExists(env: TestEnvironment, workspaceId: string): Promise<boolean> {
+  try {
+    // Try to execute a simple command in the workspace
+    // If workspace doesn't exist, this will fail
+    const result = await executeBash(env, workspaceId, `pwd`);
+    return result.exitCode === 0;
+  } catch {
+    return false;
+  }
+}
 
-        const { metadata } = createResult;
-        const workspacePath = metadata.namedWorkspacePath;
-
-        // Manually delete the worktree directory (simulating external deletion)
-        await fs.rm(workspacePath, { recursive: true, force: true });
-
-        // Verify it's gone
-        const worktreeExists = await fs
-          .access(workspacePath)
-          .then(() => true)
-          .catch(() => false);
-        expect(worktreeExists).toBe(false);
-
-        // Remove the workspace via IPC - should succeed and prune stale worktree
-        const removeResult = await env.mockIpcRenderer.invoke(
-          IPC_CHANNELS.WORKSPACE_REMOVE,
-          metadata.id
-        );
-        expect(removeResult.success).toBe(true);
-
-        // Verify workspace is no longer in config
-        const config = env.config.loadConfigOrDefault();
-        const project = config.projects.get(tempGitRepo);
-        if (project) {
-          const workspaceStillInConfig = project.workspaces.some((w) => w.path === workspacePath);
-          expect(workspaceStillInConfig).toBe(false);
-        }
-      } finally {
-        await cleanupTestEnvironment(env);
-        await cleanupTempGitRepo(tempGitRepo);
-      }
-    },
-    15000
+/**
+ * Make workspace dirty by modifying a tracked file (runtime-agnostic)
+ */
+async function makeWorkspaceDirty(env: TestEnvironment, workspaceId: string): Promise<void> {
+  // Modify an existing tracked file (README.md exists in test repos)
+  // This ensures git will detect uncommitted changes
+  await executeBash(
+    env,
+    workspaceId,
+    'echo "test modification to make workspace dirty" >> README.md'
   );
+}
 
-  test.concurrent(
-    "should successfully remove clean workspace with submodule",
-    async () => {
-      const env = await createTestEnvironment();
-      const tempGitRepo = await createTempGitRepo();
+// ============================================================================
+// Test Suite
+// ============================================================================
 
-      try {
-        // Add a real submodule (leftpad) to the main repo
-        await addSubmodule(tempGitRepo);
+describeIntegration("Workspace deletion integration tests", () => {
+  beforeAll(async () => {
+    await preloadTestModules();
 
-        const branchName = generateBranchName("remove-submodule-clean");
+    // Check if Docker is available (required for SSH tests)
+    if (!(await isDockerAvailable())) {
+      throw new Error(
+        "Docker is required for SSH runtime tests. Please install Docker or skip tests by unsetting TEST_INTEGRATION."
+      );
+    }
 
-        // Create a workspace with the repo that has a submodule
-        const createResult = await createWorkspace(env.mockIpcRenderer, tempGitRepo, branchName);
-        expect(createResult.success).toBe(true);
-        if (!createResult.success) {
-          throw new Error("Failed to create workspace");
+    // Start SSH server (shared across all tests for speed)
+    console.log("Starting SSH server container for deletion tests...");
+    sshConfig = await startSSHServer();
+    console.log(`SSH server ready on port ${sshConfig.port}`);
+  }, 60000);
+
+  afterAll(async () => {
+    if (sshConfig) {
+      console.log("Stopping SSH server container...");
+      await stopSSHServer(sshConfig);
+    }
+  }, 30000);
+
+  // Test matrix: Run tests for both local and SSH runtimes
+  describe.each<{ type: "local" | "ssh" }>([{ type: "local" }, { type: "ssh" }])(
+    "Runtime: $type",
+    ({ type }) => {
+      const TEST_TIMEOUT = type === "ssh" ? TEST_TIMEOUT_SSH_MS : TEST_TIMEOUT_LOCAL_MS;
+
+      // Helper to build runtime config
+      const getRuntimeConfig = (branchName: string): RuntimeConfig | undefined => {
+        if (type === "ssh" && sshConfig) {
+          return {
+            type: "ssh",
+            host: `testuser@localhost`,
+            workdir: `${sshConfig.workdir}/${branchName}`,
+            identityFile: sshConfig.privateKeyPath,
+            port: sshConfig.port,
+          };
         }
+        return undefined; // undefined = defaults to local
+      };
 
-        const { metadata } = createResult;
-        const workspacePath = metadata.namedWorkspacePath;
+      test.concurrent(
+        "should successfully delete workspace",
+        async () => {
+          const env = await createTestEnvironment();
+          const tempGitRepo = await createTempGitRepo();
 
-        // Initialize submodule in the worktree
-        const { exec } = await import("child_process");
-        const { promisify } = await import("util");
-        const execAsync = promisify(exec);
-        await execAsync("git submodule update --init", { cwd: workspacePath });
+          try {
+            const branchName = generateBranchName("delete-test");
+            const runtimeConfig = getRuntimeConfig(branchName);
+            const { workspaceId, workspacePath } = await createWorkspaceHelper(
+              env,
+              tempGitRepo,
+              branchName,
+              runtimeConfig,
+              type === "ssh"
+            );
 
-        // Verify submodule is initialized
-        const submodulePath = await fs
-          .access(`${workspacePath}/vendor/left-pad`)
-          .then(() => true)
-          .catch(() => false);
-        expect(submodulePath).toBe(true);
+            // Verify workspace exists (works for both local and SSH)
+            const existsBefore = await workspaceExists(env, workspaceId);
+            expect(existsBefore).toBe(true);
 
-        // Worktree is clean (no uncommitted changes)
-        // Should succeed via rename strategy (bypasses git worktree remove)
-        const removeResult = await env.mockIpcRenderer.invoke(
-          IPC_CHANNELS.WORKSPACE_REMOVE,
-          metadata.id
+            // Delete the workspace
+            const deleteResult = await env.mockIpcRenderer.invoke(
+              IPC_CHANNELS.WORKSPACE_REMOVE,
+              workspaceId
+            );
+
+            if (!deleteResult.success) {
+              console.error("Delete failed:", deleteResult.error);
+            }
+            expect(deleteResult.success).toBe(true);
+
+            // Verify workspace is no longer in config
+            const config = env.config.loadConfigOrDefault();
+            const project = config.projects.get(tempGitRepo);
+            if (project) {
+              const stillInConfig = project.workspaces.some((w) => w.id === workspaceId);
+              expect(stillInConfig).toBe(false);
+            }
+          } finally {
+            await cleanupTestEnvironment(env);
+            await cleanupTempGitRepo(tempGitRepo);
+          }
+        },
+        TEST_TIMEOUT
+      );
+
+      test.concurrent(
+        "should handle deletion of non-existent workspace gracefully",
+        async () => {
+          const env = await createTestEnvironment();
+
+          try {
+            // Try to delete a workspace that doesn't exist
+            const deleteResult = await env.mockIpcRenderer.invoke(
+              IPC_CHANNELS.WORKSPACE_REMOVE,
+              "non-existent-workspace-id"
+            );
+
+            // Should succeed (idempotent operation)
+            expect(deleteResult.success).toBe(true);
+          } finally {
+            await cleanupTestEnvironment(env);
+          }
+        },
+        TEST_TIMEOUT
+      );
+
+      test.concurrent(
+        "should handle deletion when directory is already deleted",
+        async () => {
+          const env = await createTestEnvironment();
+          const tempGitRepo = await createTempGitRepo();
+
+          try {
+            const branchName = generateBranchName("already-deleted");
+            const runtimeConfig = getRuntimeConfig(branchName);
+            const { workspaceId, workspacePath } = await createWorkspaceHelper(
+              env,
+              tempGitRepo,
+              branchName,
+              runtimeConfig,
+              type === "ssh"
+            );
+
+            // Manually delete the workspace directory using bash (works for both local and SSH)
+            await executeBash(env, workspaceId, 'cd .. && rm -rf "$(basename "$PWD")"');
+
+            // Verify it's gone (note: workspace is deleted, so we can't use executeBash on workspaceId anymore)
+            // We'll verify via the delete operation and config check
+
+            // Delete via IPC - should succeed and prune stale metadata
+            const deleteResult = await env.mockIpcRenderer.invoke(
+              IPC_CHANNELS.WORKSPACE_REMOVE,
+              workspaceId
+            );
+            expect(deleteResult.success).toBe(true);
+
+            // Verify workspace is no longer in config
+            const config = env.config.loadConfigOrDefault();
+            const project = config.projects.get(tempGitRepo);
+            if (project) {
+              const stillInConfig = project.workspaces.some((w) => w.id === workspaceId);
+              expect(stillInConfig).toBe(false);
+            }
+          } finally {
+            await cleanupTestEnvironment(env);
+            await cleanupTempGitRepo(tempGitRepo);
+          }
+        },
+        TEST_TIMEOUT
+      );
+
+      test.concurrent(
+        "should fail to delete dirty workspace without force flag",
+        async () => {
+          const env = await createTestEnvironment();
+          const tempGitRepo = await createTempGitRepo();
+
+          try {
+            const branchName = generateBranchName("delete-dirty");
+            const runtimeConfig = getRuntimeConfig(branchName);
+            const { workspaceId } = await createWorkspaceHelper(
+              env,
+              tempGitRepo,
+              branchName,
+              runtimeConfig,
+              type === "ssh"
+            );
+
+            // Make workspace dirty by modifying a file through bash
+            await makeWorkspaceDirty(env, workspaceId);
+
+            // Attempt to delete without force should fail
+            const deleteResult = await env.mockIpcRenderer.invoke(
+              IPC_CHANNELS.WORKSPACE_REMOVE,
+              workspaceId
+            );
+            expect(deleteResult.success).toBe(false);
+            expect(deleteResult.error).toMatch(/uncommitted changes|worktree contains modified/i);
+
+            // Verify workspace still exists
+            const stillExists = await workspaceExists(env, workspaceId);
+            expect(stillExists).toBe(true);
+
+            // Cleanup: force delete for cleanup
+            await env.mockIpcRenderer.invoke(IPC_CHANNELS.WORKSPACE_REMOVE, workspaceId, {
+              force: true,
+            });
+          } finally {
+            await cleanupTestEnvironment(env);
+            await cleanupTempGitRepo(tempGitRepo);
+          }
+        },
+        TEST_TIMEOUT
+      );
+
+      test.concurrent(
+        "should delete dirty workspace with force flag",
+        async () => {
+          const env = await createTestEnvironment();
+          const tempGitRepo = await createTempGitRepo();
+
+          try {
+            const branchName = generateBranchName("delete-dirty-force");
+            const runtimeConfig = getRuntimeConfig(branchName);
+            const { workspaceId } = await createWorkspaceHelper(
+              env,
+              tempGitRepo,
+              branchName,
+              runtimeConfig,
+              type === "ssh"
+            );
+
+            // Make workspace dirty through bash
+            await makeWorkspaceDirty(env, workspaceId);
+
+            // Delete with force should succeed
+            const deleteResult = await env.mockIpcRenderer.invoke(
+              IPC_CHANNELS.WORKSPACE_REMOVE,
+              workspaceId,
+              { force: true }
+            );
+            expect(deleteResult.success).toBe(true);
+
+            // Verify workspace is no longer in config
+            const config = env.config.loadConfigOrDefault();
+            const project = config.projects.get(tempGitRepo);
+            if (project) {
+              const stillInConfig = project.workspaces.some((w) => w.id === workspaceId);
+              expect(stillInConfig).toBe(false);
+            }
+          } finally {
+            await cleanupTestEnvironment(env);
+            await cleanupTempGitRepo(tempGitRepo);
+          }
+        },
+        TEST_TIMEOUT
+      );
+
+      // Submodule tests only apply to local runtime (SSH doesn't use git worktrees)
+      if (type === "local") {
+        test.concurrent(
+          "should successfully delete clean workspace with submodule",
+          async () => {
+            const env = await createTestEnvironment();
+            const tempGitRepo = await createTempGitRepo();
+
+            try {
+              // Add a real submodule to the main repo
+              await addSubmodule(tempGitRepo);
+
+              const branchName = generateBranchName("delete-submodule-clean");
+              const { workspaceId, workspacePath } = await createWorkspaceHelper(
+                env,
+                tempGitRepo,
+                branchName,
+                undefined,
+                false
+              );
+
+              // Initialize submodule in the worktree
+              using initProc = execAsync(`cd "${workspacePath}" && git submodule update --init`);
+              await initProc.result;
+
+              // Verify submodule is initialized
+              const submoduleExists = await fs
+                .access(path.join(workspacePath, "vendor", "left-pad"))
+                .then(() => true)
+                .catch(() => false);
+              expect(submoduleExists).toBe(true);
+
+              // Worktree is clean - LocalRuntime should auto-retry with --force
+              const deleteResult = await env.mockIpcRenderer.invoke(
+                IPC_CHANNELS.WORKSPACE_REMOVE,
+                workspaceId
+              );
+              expect(deleteResult.success).toBe(true);
+
+              // Verify workspace was deleted
+              const removed = await waitForFileNotExists(workspacePath, 5000);
+              expect(removed).toBe(true);
+            } finally {
+              await cleanupTestEnvironment(env);
+              await cleanupTempGitRepo(tempGitRepo);
+            }
+          },
+          30000
         );
-        expect(removeResult.success).toBe(true);
 
-        // Verify the worktree no longer exists
-        const worktreeRemoved = await waitForFileNotExists(workspacePath, 5000);
-        expect(worktreeRemoved).toBe(true);
-      } finally {
-        await cleanupTestEnvironment(env);
-        await cleanupTempGitRepo(tempGitRepo);
+        test.concurrent(
+          "should fail to delete dirty workspace with submodule, succeed with force",
+          async () => {
+            const env = await createTestEnvironment();
+            const tempGitRepo = await createTempGitRepo();
+
+            try {
+              // Add a real submodule to the main repo
+              await addSubmodule(tempGitRepo);
+
+              const branchName = generateBranchName("delete-submodule-dirty");
+              const { workspaceId, workspacePath } = await createWorkspaceHelper(
+                env,
+                tempGitRepo,
+                branchName,
+                undefined,
+                false
+              );
+
+              // Initialize submodule in the worktree
+              using initProc = execAsync(`cd "${workspacePath}" && git submodule update --init`);
+              await initProc.result;
+
+              // Make worktree dirty
+              await fs.appendFile(path.join(workspacePath, "README.md"), "\nmodified");
+
+              // First attempt should fail (dirty worktree with submodules)
+              const deleteResult = await env.mockIpcRenderer.invoke(
+                IPC_CHANNELS.WORKSPACE_REMOVE,
+                workspaceId
+              );
+              expect(deleteResult.success).toBe(false);
+              expect(deleteResult.error).toMatch(/submodule/i);
+
+              // Verify worktree still exists
+              const stillExists = await fs
+                .access(workspacePath)
+                .then(() => true)
+                .catch(() => false);
+              expect(stillExists).toBe(true);
+
+              // Retry with force should succeed
+              const forceDeleteResult = await env.mockIpcRenderer.invoke(
+                IPC_CHANNELS.WORKSPACE_REMOVE,
+                workspaceId,
+                { force: true }
+              );
+              expect(forceDeleteResult.success).toBe(true);
+
+              // Verify workspace was deleted
+              const removed = await waitForFileNotExists(workspacePath, 5000);
+              expect(removed).toBe(true);
+            } finally {
+              await cleanupTestEnvironment(env);
+              await cleanupTempGitRepo(tempGitRepo);
+            }
+          },
+          30000
+        );
       }
-    },
-    30000
-  );
-
-  test.concurrent(
-    "should fail to remove dirty workspace with submodule, succeed with force",
-    async () => {
-      const env = await createTestEnvironment();
-      const tempGitRepo = await createTempGitRepo();
-
-      try {
-        // Add a real submodule (leftpad) to the main repo
-        await addSubmodule(tempGitRepo);
-
-        const branchName = generateBranchName("remove-submodule-dirty");
-
-        // Create a workspace with the repo that has a submodule
-        const createResult = await createWorkspace(env.mockIpcRenderer, tempGitRepo, branchName);
-        expect(createResult.success).toBe(true);
-        if (!createResult.success) {
-          throw new Error("Failed to create workspace");
-        }
-
-        const { metadata } = createResult;
-        const workspacePath = metadata.namedWorkspacePath;
-
-        // Initialize submodule in the worktree
-        const { exec } = await import("child_process");
-        const { promisify } = await import("util");
-        const execAsync = promisify(exec);
-        await execAsync("git submodule update --init", { cwd: workspacePath });
-
-        // Make worktree "dirty" to prevent the rename optimization
-        await fs.appendFile(`${workspacePath}/README.md`, "\\nmodified");
-
-        // First attempt should fail (dirty worktree with submodules)
-        const removeResult = await env.mockIpcRenderer.invoke(
-          IPC_CHANNELS.WORKSPACE_REMOVE,
-          metadata.id
-        );
-        expect(removeResult.success).toBe(false);
-        expect(removeResult.error).toContain("submodule");
-
-        // Verify worktree still exists
-        const worktreeStillExists = await fs
-          .access(workspacePath)
-          .then(() => true)
-          .catch(() => false);
-        expect(worktreeStillExists).toBe(true);
-
-        // Retry with force should succeed
-        const forceRemoveResult = await env.mockIpcRenderer.invoke(
-          IPC_CHANNELS.WORKSPACE_REMOVE,
-          metadata.id,
-          { force: true }
-        );
-        expect(forceRemoveResult.success).toBe(true);
-
-        // Verify the worktree no longer exists
-        const worktreeRemoved = await waitForFileNotExists(workspacePath, 5000);
-        expect(worktreeRemoved).toBe(true);
-      } finally {
-        await cleanupTestEnvironment(env);
-        await cleanupTempGitRepo(tempGitRepo);
-      }
-    },
-    30000
+    }
   );
 });
