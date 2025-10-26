@@ -420,8 +420,9 @@ export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
                   // Use 8 hex characters for short, memorable temp file IDs
                   const fileId = Math.random().toString(16).substring(2, 10);
                   // Write to runtime temp directory (managed by StreamManager)
-                  // This works for both LocalRuntime (local path) and SSHRuntime (remote path)
-                  const overflowPath = path.join(config.runtimeTempDir, `bash-${fileId}.txt`);
+                  // Use path.posix.join to preserve forward slashes for SSH runtime
+                  // (config.runtimeTempDir is always a POSIX path like /home/user/.cmux-tmp/token)
+                  const overflowPath = path.posix.join(config.runtimeTempDir, `bash-${fileId}.txt`);
                   const fullOutput = lines.join("\n");
 
                   // Use runtime.writeFile() for SSH support
