@@ -134,21 +134,56 @@ export const Mermaid: React.FC<{ chart: string }> = ({ chart }) => {
   };
 
   useEffect(() => {
+    let id: string | undefined;
+
     const renderDiagram = async () => {
+      id = `mermaid-${Math.random().toString(36).substr(2, 9)}`;
       try {
         setError(null);
-        const id = `mermaid-${Math.random().toString(36).substr(2, 9)}`;
+
+        // Parse first to validate syntax without rendering
+        await mermaid.parse(chart);
+
+        // If parse succeeds, render the diagram
         const { svg: renderedSvg } = await mermaid.render(id, chart);
         setSvg(renderedSvg);
         if (containerRef.current) {
           containerRef.current.innerHTML = renderedSvg;
         }
       } catch (err) {
+        // Clean up any DOM elements mermaid might have created
+        const errorElement = document.getElementById(id);
+        if (errorElement) {
+          errorElement.remove();
+        }
+
+        // Also clean up any error-related elements mermaid might have added to the body
+        const errorMessages = document.querySelectorAll('[id^="d"][id*="mermaid"]');
+        errorMessages.forEach((el) => {
+          if (el.textContent?.includes("Syntax error")) {
+            el.remove();
+          }
+        });
+
         setError(err instanceof Error ? err.message : "Failed to render diagram");
+        setSvg(""); // Clear any previous SVG
+        if (containerRef.current) {
+          containerRef.current.innerHTML = ""; // Clear the container
+        }
       }
     };
 
     void renderDiagram();
+
+    // Cleanup on unmount or when chart changes
+    return () => {
+      if (id) {
+        const element = document.getElementById(id);
+        if (element) {
+          element.remove();
+        }
+      }
+    };
   }, [chart]);
 
   // Update modal container when opened
