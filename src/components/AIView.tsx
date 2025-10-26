@@ -24,10 +24,12 @@ import { useWorkspaceState, useWorkspaceAggregator } from "@/stores/WorkspaceSto
 import { StatusIndicator } from "./StatusIndicator";
 import { getModelName } from "@/utils/ai/models";
 import { GitStatusIndicator } from "./GitStatusIndicator";
+import { RuntimeBadge } from "./RuntimeBadge";
 
 import { useGitStatus } from "@/stores/GitStatusStore";
 import { TooltipWrapper, Tooltip } from "./Tooltip";
 import type { DisplayedMessage } from "@/types/message";
+import type { RuntimeConfig } from "@/types/runtime";
 import { useAIViewKeybinds } from "@/hooks/useAIViewKeybinds";
 
 interface AIViewProps {
@@ -35,6 +37,7 @@ interface AIViewProps {
   projectName: string;
   branch: string;
   namedWorkspacePath: string; // User-friendly path for display and terminal
+  runtimeConfig?: RuntimeConfig;
   className?: string;
 }
 
@@ -43,6 +46,7 @@ const AIViewInner: React.FC<AIViewProps> = ({
   projectName,
   branch,
   namedWorkspacePath,
+  runtimeConfig,
   className,
 }) => {
   const chatAreaRef = useRef<HTMLDivElement>(null);
@@ -348,6 +352,7 @@ const AIViewInner: React.FC<AIViewProps> = ({
               workspaceId={workspaceId}
               tooltipPosition="bottom"
             />
+            <RuntimeBadge runtimeConfig={runtimeConfig} />
             <span className="min-w-0 truncate font-mono text-xs">
               {projectName} / {branch}
             </span>

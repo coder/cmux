@@ -647,6 +647,9 @@ function AppInner() {
                     selectedWorkspace.workspaceId
                   }
                   namedWorkspacePath={selectedWorkspace.namedWorkspacePath ?? ""}
+                  runtimeConfig={
+                    workspaceMetadata.get(selectedWorkspace.workspaceId)?.runtimeConfig
+                  }
                 />
               </ErrorBoundary>
             ) : (
