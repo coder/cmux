@@ -77,3 +77,12 @@ This test is part of the runtime matrix and runs for both:
 
 This ensures parity between runtime implementations.
 
+## Implementation Details
+
+The test uses a unified approach for both runtimes:
+- Uses `RUNTIME_EXEC` IPC channel to execute shell commands (works for both local and SSH)
+- Avoids runtime-specific branching logic
+- Uses helper function `readStream()` to read command output from ReadableStream
+
+This approach simplifies the test and ensures the same verification logic runs for both runtimes.
+

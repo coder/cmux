@@ -120,6 +120,25 @@ async function commitChanges(repoPath: string, message: string): Promise<void> {
 }
 
 /**
+ * Read a ReadableStream to a string
+ */
+async function readStream(stream: ReadableStream<Uint8Array>): Promise<string> {
+  const reader = stream.getReader();
+  const decoder = new TextDecoder();
+  let result = "";
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      result += decoder.decode(value, { stream: true });
+    }
+  } finally {
+    reader.releaseLock();
+  }
+  return result;
+}
+
+/**
  * Create workspace and handle cleanup on test failure
  * Returns result and cleanup function
  */
@@ -322,80 +341,37 @@ describeIntegration("WORKSPACE_CREATE with both runtimes", () => {
               await new Promise((resolve) => setTimeout(resolve, getInitWaitTime()));
 
               // Verify the new branch was created from custom-trunk, not from default branch
-              const workspacePath = result.metadata.namedWorkspacePath;
+              // Use RUNTIME_EXEC to check files (works for both local and SSH runtimes)
+              
+              // Check that trunk-file.txt exists (from custom-trunk)
+              const checkTrunkFileStream = await env.mockIpcRenderer.invoke(
+                IPC_CHANNELS.RUNTIME_EXEC,
+                result.metadata.id,
+                `test -f trunk-file.txt && echo "exists" || echo "missing"`,
+                { timeout: 10 }
+              );
+              const trunkFileOutput = await readStream(checkTrunkFileStream.stdout);
+              expect(trunkFileOutput.trim()).toBe("exists");
 
-              // For LocalRuntime, check the worktree directly
-              // For SSHRuntime, we need to check the remote workspace
-              if (type === "local") {
-                // Check that trunk-file.txt exists (from custom-trunk)
-                const trunkFileExists = await fs
-                  .access(path.join(workspacePath, "trunk-file.txt"))
-                  .then(() => true)
-                  .catch(() => false);
-                expect(trunkFileExists).toBe(true);
+              // Check that other-file.txt does NOT exist (from other-branch)
+              const checkOtherFileStream = await env.mockIpcRenderer.invoke(
+                IPC_CHANNELS.RUNTIME_EXEC,
+                result.metadata.id,
+                `test -f other-file.txt && echo "exists" || echo "missing"`,
+                { timeout: 10 }
+              );
+              const otherFileOutput = await readStream(checkOtherFileStream.stdout);
+              expect(otherFileOutput.trim()).toBe("missing");
 
-                // Check that other-file.txt does NOT exist (from other-branch)
-                const otherFileExists = await fs
-                  .access(path.join(workspacePath, "other-file.txt"))
-                  .then(() => true)
-                  .catch(() => false);
-                expect(otherFileExists).toBe(false);
-
-                // Verify git log shows the custom trunk commit
-                const { stdout: logOutput } = await execAsync(
-                  `git log --oneline --all`,
-                  { cwd: workspacePath }
-                );
-                expect(logOutput).toContain("Custom trunk commit");
-              } else if (type === "ssh" && sshConfig) {
-                // For SSH runtime, check files on the remote host
-                const checkFileCmd = `test -f ${workspacePath}/trunk-file.txt && echo "exists" || echo "missing"`;
-                const checkFileStream = await env.mockIpcRenderer.invoke(
-                  IPC_CHANNELS.RUNTIME_EXEC,
-                  result.metadata.id,
-                  checkFileCmd,
-                  { cwd: workspacePath, timeout: 10 }
-                );
-                
-                // Read stdout to check if file exists
-                let checkOutput = "";
-                const reader = checkFileStream.stdout.getReader();
-                const decoder = new TextDecoder();
-                try {
-                  while (true) {
-                    const { done, value } = await reader.read();
-                    if (done) break;
-                    checkOutput += decoder.decode(value, { stream: true });
-                  }
-                } finally {
-                  reader.releaseLock();
-                }
-                
-                expect(checkOutput.trim()).toBe("exists");
-
-                // Check that other-file.txt does NOT exist
-                const checkOtherFileCmd = `test -f ${workspacePath}/other-file.txt && echo "exists" || echo "missing"`;
-                const checkOtherStream = await env.mockIpcRenderer.invoke(
-                  IPC_CHANNELS.RUNTIME_EXEC,
-                  result.metadata.id,
-                  checkOtherFileCmd,
-                  { cwd: workspacePath, timeout: 10 }
-                );
-                
-                let checkOtherOutput = "";
-                const otherReader = checkOtherStream.stdout.getReader();
-                try {
-                  while (true) {
-                    const { done, value } = await otherReader.read();
-                    if (done) break;
-                    checkOtherOutput += decoder.decode(value, { stream: true });
-                  }
-                } finally {
-                  otherReader.releaseLock();
-                }
-                
-                expect(checkOtherOutput.trim()).toBe("missing");
-              }
+              // Verify git log shows the custom trunk commit
+              const gitLogStream = await env.mockIpcRenderer.invoke(
+                IPC_CHANNELS.RUNTIME_EXEC,
+                result.metadata.id,
+                `git log --oneline --all`,
+                { timeout: 10 }
+              );
+              const logOutput = await readStream(gitLogStream.stdout);
+              expect(logOutput).toContain("Custom trunk commit");
 
               await cleanup();
             } finally {
