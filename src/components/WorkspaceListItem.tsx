@@ -133,7 +133,7 @@ const WorkspaceListItemInner: React.FC<WorkspaceListItemProps> = ({
     <React.Fragment>
       <div
         className={cn(
-          "py-1.5 px-3 pl-7 cursor-pointer grid grid-cols-[auto_auto_auto_1fr_auto] gap-2 items-center border-l-[3px] border-transparent transition-all duration-150 text-[13px] relative hover:bg-hover [&:hover_button]:opacity-100",
+          "py-1.5 px-3 pl-7 cursor-pointer grid grid-cols-[auto_auto_1fr_auto] gap-2 items-center border-l-[3px] border-transparent transition-all duration-150 text-[13px] relative hover:bg-hover [&:hover_button]:opacity-100",
           isSelected && "bg-hover border-l-[#569cd6]"
         )}
         onClick={() =>
@@ -182,31 +182,33 @@ const WorkspaceListItemInner: React.FC<WorkspaceListItemProps> = ({
           workspaceId={workspaceId}
           tooltipPosition="right"
         />
-        <RuntimeBadge runtimeConfig={metadata.runtimeConfig} />
-        {isEditing ? (
-          <input
-            className="bg-input-bg text-input-text border-input-border font-inherit focus:border-input-border-focus min-w-0 rounded-sm border px-1 py-0.5 text-right text-[13px] outline-none"
-            value={editingName}
-            onChange={(e) => setEditingName(e.target.value)}
-            onKeyDown={handleRenameKeyDown}
-            onBlur={() => void handleConfirmRename()}
-            autoFocus
-            onClick={(e) => e.stopPropagation()}
-            aria-label={`Rename workspace ${displayName}`}
-            data-workspace-id={workspaceId}
-          />
-        ) : (
-          <span
-            className="text-foreground min-w-0 cursor-pointer truncate rounded-sm px-1 py-0.5 text-right text-[14px] transition-colors duration-200 hover:bg-white/5"
-            onDoubleClick={(e) => {
-              e.stopPropagation();
-              startRenaming();
-            }}
-            title="Double-click to rename"
-          >
-            {displayName}
-          </span>
-        )}
+        <div className="flex min-w-0 items-center gap-1.5">
+          <RuntimeBadge runtimeConfig={metadata.runtimeConfig} />
+          {isEditing ? (
+            <input
+              className="bg-input-bg text-input-text border-input-border font-inherit focus:border-input-border-focus min-w-0 rounded-sm border px-1 py-0.5 text-right text-[13px] outline-none"
+              value={editingName}
+              onChange={(e) => setEditingName(e.target.value)}
+              onKeyDown={handleRenameKeyDown}
+              onBlur={() => void handleConfirmRename()}
+              autoFocus
+              onClick={(e) => e.stopPropagation()}
+              aria-label={`Rename workspace ${displayName}`}
+              data-workspace-id={workspaceId}
+            />
+          ) : (
+            <span
+              className="text-foreground min-w-0 cursor-pointer truncate rounded-sm px-1 py-0.5 text-right text-[14px] transition-colors duration-200 hover:bg-white/5"
+              onDoubleClick={(e) => {
+                e.stopPropagation();
+                startRenaming();
+              }}
+              title="Double-click to rename"
+            >
+              {displayName}
+            </span>
+          )}
+        </div>
         <StatusIndicator
           className="ml-2"
           streaming={isStreaming}
