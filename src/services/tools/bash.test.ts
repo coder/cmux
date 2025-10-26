@@ -1246,7 +1246,7 @@ describe("SSH runtime redundant cd detection", () => {
       host: "test-host",
       srcBaseDir: "/remote/base",
     });
-    
+
     const tool = createBashTool({
       cwd,
       runtime: sshRuntime,
@@ -1370,4 +1370,3 @@ describe("SSH runtime redundant cd detection", () => {
     }
   });
 });
-
