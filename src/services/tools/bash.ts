@@ -77,17 +77,15 @@ export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
       let fileTruncated = false; // Hit 100KB file limit
 
       // Detect redundant cd to working directory
-      // Note: config.cwd is the actual execution path (local for LocalRuntime, remote for SSHRuntime)
-      // Match patterns like: "cd /path &&", "cd /path;", "cd '/path' &&", "cd "/path" &&"
+      // Delegate path normalization to the runtime for proper handling of local vs remote paths
       const cdPattern = /^\s*cd\s+['"]?([^'";\\&|]+)['"]?\s*[;&|]/;
       const match = cdPattern.exec(script);
       if (match) {
         const targetPath = match[1].trim();
-        // For SSH runtime, config.cwd might use $HOME - need to handle this
-        // Normalize paths for comparison (resolve to absolute where possible)
-        // Note: This check is best-effort - it won't catch all cases on SSH (e.g., ~/path vs $HOME/path)
-        const normalizedTarget = path.resolve(config.cwd, targetPath);
-        const normalizedCwd = path.resolve(config.cwd);
+        
+        // Use runtime's normalizePath method to handle path comparison correctly
+        const normalizedTarget = config.runtime.normalizePath(targetPath, config.cwd);
+        const normalizedCwd = config.runtime.normalizePath(".", config.cwd);
 
         if (normalizedTarget === normalizedCwd) {
           return {
