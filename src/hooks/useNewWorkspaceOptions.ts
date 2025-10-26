@@ -21,20 +21,18 @@ export interface WorkspaceRuntimeOptions {
  * Loads saved runtime preference for a project and provides consistent state management.
  * 
  * @param projectPath - Path to the project (used as key for localStorage)
- * @param enabled - Whether to load saved preferences (default: true)
  * @returns Runtime options state and setter
  */
 export function useNewWorkspaceOptions(
-  projectPath: string | null | undefined,
-  enabled = true
+  projectPath: string | null | undefined
 ): [WorkspaceRuntimeOptions, (mode: RuntimeMode, host?: string) => void] {
   const [runtimeMode, setRuntimeMode] = useState<RuntimeMode>(RUNTIME_MODE.LOCAL);
   const [sshHost, setSshHost] = useState("");
 
   // Load saved runtime preference when projectPath changes
   useEffect(() => {
-    if (!enabled || !projectPath) {
-      // Reset to defaults when disabled or no project
+    if (!projectPath) {
+      // Reset to defaults when no project
       setRuntimeMode(RUNTIME_MODE.LOCAL);
       setSshHost("");
       return;
@@ -46,7 +44,7 @@ export function useNewWorkspaceOptions(
     
     setRuntimeMode(parsed.mode);
     setSshHost(parsed.host);
-  }, [projectPath, enabled]);
+  }, [projectPath]);
 
   // Setter for updating both mode and host
   const setRuntimeOptions = (mode: RuntimeMode, host?: string) => {

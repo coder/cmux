@@ -38,7 +38,7 @@ const NewWorkspaceModal: React.FC<NewWorkspaceModalProps> = ({
   const hasBranches = branches.length > 0;
 
   // Load runtime preferences from localStorage for this project
-  const [runtimeOptions, setRuntimeOptions] = useNewWorkspaceOptions(projectPath, isOpen);
+  const [runtimeOptions, setRuntimeOptions] = useNewWorkspaceOptions(projectPath);
   const { runtimeMode, sshHost, getRuntimeString } = runtimeOptions;
 
   useEffect(() => {
