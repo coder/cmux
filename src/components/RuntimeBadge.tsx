@@ -11,7 +11,7 @@ interface RuntimeBadgeProps {
 
 /**
  * Badge to display SSH runtime information.
- * Shows compute icon + hostname for SSH runtimes, nothing for local.
+ * Shows icon-only badge for SSH runtimes with hostname in tooltip.
  */
 export function RuntimeBadge({ runtimeConfig, className }: RuntimeBadgeProps) {
   const hostname = extractSshHostname(runtimeConfig);
@@ -24,7 +24,7 @@ export function RuntimeBadge({ runtimeConfig, className }: RuntimeBadgeProps) {
     <TooltipWrapper inline>
       <span
         className={cn(
-          "inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs font-medium",
+          "inline-flex items-center rounded px-1 py-0.5",
           "bg-accent/10 text-accent border border-accent/30",
           className
         )}
@@ -46,10 +46,9 @@ export function RuntimeBadge({ runtimeConfig, className }: RuntimeBadgeProps) {
           <line x1="5" y1="4" x2="5" y2="4" />
           <line x1="5" y1="12" x2="5" y2="12" />
         </svg>
-        <span className="truncate">{hostname}</span>
       </span>
       <Tooltip align="right">
-        Running on SSH host: {runtimeConfig?.type === "ssh" ? runtimeConfig.host : hostname}
+        SSH: {runtimeConfig?.type === "ssh" ? runtimeConfig.host : hostname}
       </Tooltip>
     </TooltipWrapper>
   );
