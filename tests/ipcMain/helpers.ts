@@ -168,11 +168,12 @@ export class EventCollector {
 
     // Log all events with details
     this.events.forEach((event, idx) => {
-      const timestamp = "timestamp" in event ? new Date(event.timestamp as number).toISOString() : "no-ts";
+      const timestamp =
+        "timestamp" in event ? new Date(event.timestamp as number).toISOString() : "no-ts";
       const type = "type" in event ? (event as { type: string }).type : "no-type";
-      
+
       console.error(`  [${idx}] ${timestamp} - ${type}`);
-      
+
       // Log tool call details
       if (type === "tool-call-start" && "toolName" in event) {
         console.error(`      Tool: ${event.toolName}`);
@@ -180,19 +181,20 @@ export class EventCollector {
           console.error(`      Args: ${JSON.stringify(event.args)}`);
         }
       }
-      
+
       if (type === "tool-call-end" && "toolName" in event) {
         console.error(`      Tool: ${event.toolName}`);
         if ("result" in event) {
-          const result = typeof event.result === "string" 
-            ? event.result.length > 100 
-              ? `${event.result.substring(0, 100)}... (${event.result.length} chars)`
-              : event.result
-            : JSON.stringify(event.result);
+          const result =
+            typeof event.result === "string"
+              ? event.result.length > 100
+                ? `${event.result.substring(0, 100)}... (${event.result.length} chars)`
+                : event.result
+              : JSON.stringify(event.result);
           console.error(`      Result: ${result}`);
         }
       }
-      
+
       // Log error details
       if (type === "stream-error") {
         if ("error" in event) {
@@ -202,34 +204,39 @@ export class EventCollector {
           console.error(`      Error Type: ${event.errorType}`);
         }
       }
-      
+
       // Log delta content (first 100 chars)
       if (type === "stream-delta" && "delta" in event) {
-        const delta = typeof event.delta === "string"
-          ? event.delta.length > 100
-            ? `${event.delta.substring(0, 100)}...`
-            : event.delta
-          : JSON.stringify(event.delta);
+        const delta =
+          typeof event.delta === "string"
+            ? event.delta.length > 100
+              ? `${event.delta.substring(0, 100)}...`
+              : event.delta
+            : JSON.stringify(event.delta);
         console.error(`      Delta: ${delta}`);
       }
-      
+
       // Log final content (first 200 chars)
       if (type === "stream-end" && "content" in event) {
-        const content = typeof event.content === "string"
-          ? event.content.length > 200
-            ? `${event.content.substring(0, 200)}... (${event.content.length} chars)`
-            : event.content
-          : JSON.stringify(event.content);
+        const content =
+          typeof event.content === "string"
+            ? event.content.length > 200
+              ? `${event.content.substring(0, 200)}... (${event.content.length} chars)`
+              : event.content
+            : JSON.stringify(event.content);
         console.error(`      Content: ${content}`);
       }
     });
 
     // Summary
-    const eventTypeCounts = this.events.reduce((acc, e) => {
-      const type = "type" in e ? (e as { type: string }).type : "unknown";
-      acc[type] = (acc[type] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>);
+    const eventTypeCounts = this.events.reduce(
+      (acc, e) => {
+        const type = "type" in e ? (e as { type: string }).type : "unknown";
+        acc[type] = (acc[type] || 0) + 1;
+        return acc;
+      },
+      {} as Record<string, number>
+    );
 
     console.error(`\nEvent type counts:`);
     Object.entries(eventTypeCounts).forEach(([type, count]) => {
@@ -289,7 +296,9 @@ export function assertStreamSuccess(collector: EventCollector): void {
   if (!collector.hasStreamEnd()) {
     const errorEvent = allEvents.find((e) => "type" in e && e.type === "stream-error");
     if (errorEvent && "error" in errorEvent) {
-      collector.logEventDiagnostics(`Stream did not complete successfully. Got stream-error: ${errorEvent.error}`);
+      collector.logEventDiagnostics(
+        `Stream did not complete successfully. Got stream-error: ${errorEvent.error}`
+      );
       throw new Error(
         `Stream did not complete successfully. Got stream-error: ${errorEvent.error}\n` +
           `See detailed event diagnostics above.`

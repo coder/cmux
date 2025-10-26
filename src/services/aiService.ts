@@ -525,10 +525,6 @@ export class AIService extends EventEmitter {
       const tempDir = this.streamManager.createTempDirForStream(streamToken);
 
       // Get model-specific tools with workspace path (correct for local or remote)
-      const runtimeConfig = metadata.runtimeConfig ?? {
-        type: "local",
-        srcBaseDir: this.config.srcDir,
-      };
       const allTools = await getToolsForModel(modelString, {
         cwd: workspacePath,
         runtime,
