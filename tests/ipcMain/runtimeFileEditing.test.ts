@@ -34,7 +34,9 @@ import type { ToolPolicy } from "../../src/utils/tools/toolPolicy";
 
 // Test constants
 const TEST_TIMEOUT_LOCAL_MS = 25000; // Includes init wait time
-const TEST_TIMEOUT_SSH_MS = 45000; // SSH has more overhead (network, rsync, etc.)
+const TEST_TIMEOUT_SSH_MS = 60000; // SSH has more overhead (network, rsync, etc.)
+const STREAM_TIMEOUT_LOCAL_MS = 15000; // Stream timeout for local runtime
+const STREAM_TIMEOUT_SSH_MS = 25000; // SSH needs longer due to network latency
 const HAIKU_MODEL = "anthropic:claude-haiku-4-5";
 const INIT_HOOK_WAIT_MS = 1500; // Wait for async init hook completion (local runtime)
 const SSH_INIT_WAIT_MS = 7000; // SSH init includes sync + checkout + hook, takes longer
@@ -166,7 +168,8 @@ async function createWorkspaceHelper(
 async function sendMessageAndWait(
   env: TestEnvironment,
   workspaceId: string,
-  message: string
+  message: string,
+  streamTimeout?: number
 ): Promise<WorkspaceChatMessage[]> {
   // Clear previous events
   env.sentEvents.length = 0;
@@ -187,7 +190,7 @@ async function sendMessageAndWait(
   }
 
   // Wait for stream completion
-  return await waitForStreamCompletion(env.sentEvents, workspaceId);
+  return await waitForStreamCompletion(env.sentEvents, workspaceId, streamTimeout);
 }
 
 // ============================================================================
@@ -196,6 +199,10 @@ async function sendMessageAndWait(
 
 describeIntegration("Runtime File Editing Tools", () => {
   beforeAll(async () => {
+    // Preload AI SDK providers to avoid race conditions in concurrent tests
+    const { preloadAISDKProviders } = await import("../../src/services/aiService");
+    await preloadAISDKProviders();
+
     // Check if Docker is available (required for SSH tests)
     if (!(await isDockerAvailable())) {
       throw new Error(
@@ -262,10 +269,13 @@ describeIntegration("Runtime File Editing Tools", () => {
             try {
               // Ask AI to create a test file
               const testFileName = "test_read.txt";
+              const streamTimeout =
+                type === "ssh" ? STREAM_TIMEOUT_SSH_MS : STREAM_TIMEOUT_LOCAL_MS;
               const createEvents = await sendMessageAndWait(
                 env,
                 workspaceId,
-                `Create a file called ${testFileName} with the content: "Hello from cmux file tools!"`
+                `Create a file called ${testFileName} with the content: "Hello from cmux file tools!"`,
+                streamTimeout
               );
 
               // Verify file was created successfully
@@ -279,7 +289,8 @@ describeIntegration("Runtime File Editing Tools", () => {
               const readEvents = await sendMessageAndWait(
                 env,
                 workspaceId,
-                `Read the file ${testFileName} and tell me what it contains.`
+                `Read the file ${testFileName} and tell me what it contains.`,
+                streamTimeout
               );
 
               // Verify stream completed successfully
@@ -336,10 +347,13 @@ describeIntegration("Runtime File Editing Tools", () => {
             try {
               // Ask AI to create a test file
               const testFileName = "test_replace.txt";
+              const streamTimeout =
+                type === "ssh" ? STREAM_TIMEOUT_SSH_MS : STREAM_TIMEOUT_LOCAL_MS;
               const createEvents = await sendMessageAndWait(
                 env,
                 workspaceId,
-                `Create a file called ${testFileName} with the content: "The quick brown fox jumps over the lazy dog."`
+                `Create a file called ${testFileName} with the content: "The quick brown fox jumps over the lazy dog."`,
+                streamTimeout
               );
 
               // Verify file was created successfully
@@ -353,7 +367,8 @@ describeIntegration("Runtime File Editing Tools", () => {
               const replaceEvents = await sendMessageAndWait(
                 env,
                 workspaceId,
-                `In ${testFileName}, replace "brown fox" with "red panda".`
+                `In ${testFileName}, replace "brown fox" with "red panda".`,
+                streamTimeout
               );
 
               // Verify stream completed successfully
@@ -416,10 +431,13 @@ describeIntegration("Runtime File Editing Tools", () => {
             try {
               // Ask AI to create a test file
               const testFileName = "test_insert.txt";
+              const streamTimeout =
+                type === "ssh" ? STREAM_TIMEOUT_SSH_MS : STREAM_TIMEOUT_LOCAL_MS;
               const createEvents = await sendMessageAndWait(
                 env,
                 workspaceId,
-                `Create a file called ${testFileName} with two lines: "Line 1" and "Line 3".`
+                `Create a file called ${testFileName} with two lines: "Line 1" and "Line 3".`,
+                streamTimeout
               );
 
               // Verify file was created successfully
@@ -433,7 +451,8 @@ describeIntegration("Runtime File Editing Tools", () => {
               const insertEvents = await sendMessageAndWait(
                 env,
                 workspaceId,
-                `In ${testFileName}, insert "Line 2" between Line 1 and Line 3.`
+                `In ${testFileName}, insert "Line 2" between Line 1 and Line 3.`,
+                streamTimeout
               );
 
               // Verify stream completed successfully
