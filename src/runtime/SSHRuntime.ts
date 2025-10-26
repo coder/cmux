@@ -377,7 +377,7 @@ export class SSHRuntime implements Runtime {
       let originUrl: string | null = null;
       try {
         using proc = execAsync(
-          `cd ${JSON.stringify(projectPath)} && git remote get-url origin 2>/dev/null || true`
+          `cd ${shescape.quote(projectPath)} && git remote get-url origin 2>/dev/null || true`
         );
         const { stdout } = await proc.result;
         const url = stdout.trim();
@@ -394,7 +394,7 @@ export class SSHRuntime implements Runtime {
       initLogger.logStep(`Creating git bundle...`);
       await new Promise<void>((resolve, reject) => {
         const sshArgs = this.buildSSHArgs(true);
-        const command = `cd ${JSON.stringify(projectPath)} && git bundle create - --all | ssh ${sshArgs.join(" ")} "cat > ${bundleTempPath}"`;
+        const command = `cd ${shescape.quote(projectPath)} && git bundle create - --all | ssh ${sshArgs.join(" ")} "cat > ${bundleTempPath}"`;
 
         log.debug(`Creating bundle: ${command}`);
         const bashPath = findBashPath();
@@ -449,7 +449,7 @@ export class SSHRuntime implements Runtime {
       if (originUrl) {
         initLogger.logStep(`Setting origin remote to ${originUrl}...`);
         const setOriginStream = await this.exec(
-          `git -C ${cloneDestPath} remote set-url origin ${JSON.stringify(originUrl)}`,
+          `git -C ${cloneDestPath} remote set-url origin ${shescape.quote(originUrl)}`,
           {
             cwd: "~",
             timeout: 10,
@@ -663,7 +663,7 @@ export class SSHRuntime implements Runtime {
       // We create new branches from HEAD instead of the trunkBranch name to avoid issues
       // where the local repo's trunk name doesn't match the cloned repo's default branch
       initLogger.logStep(`Checking out branch: ${branchName}`);
-      const checkoutCmd = `(git checkout ${JSON.stringify(branchName)} 2>/dev/null || git checkout -b ${JSON.stringify(branchName)} HEAD)`;
+      const checkoutCmd = `(git checkout ${shescape.quote(branchName)} 2>/dev/null || git checkout -b ${shescape.quote(branchName)} HEAD)`;
 
       const checkoutStream = await this.exec(checkoutCmd, {
         cwd: workspacePath, // Use the full workspace path for git operations
