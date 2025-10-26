@@ -32,6 +32,7 @@ import { AsyncMutex } from "@/utils/concurrency/asyncMutex";
 import type { ToolPolicy } from "@/utils/tools/toolPolicy";
 import { StreamingTokenTracker } from "@/utils/main/StreamingTokenTracker";
 import type { Runtime } from "@/runtime/Runtime";
+import { execBuffered } from "@/utils/runtime/helpers";
 
 // Type definitions for stream parts with extended properties
 interface ReasoningDeltaPart {
@@ -252,18 +253,22 @@ export class StreamManager extends EventEmitter {
     streamToken: StreamToken,
     runtime: Runtime
   ): Promise<string> {
-    const tempDir = path.join("~", ".cmux-tmp", streamToken);
-    // Use runtime.exec() to create directory (works for both local and remote)
-    const result = await runtime.exec(`mkdir -p "${tempDir}"`, {
-      cwd: "~",
+    // Create directory and get absolute path (works for both local and remote)
+    // Use 'cd' + 'pwd' to resolve ~ to absolute path
+    const command = `mkdir -p ~/.cmux-tmp/${streamToken} && cd ~/.cmux-tmp/${streamToken} && pwd`;
+    const result = await execBuffered(runtime, command, {
+      cwd: "/",
       timeout: 10,
     });
-    // Wait for command to complete
-    const exitCode = await result.exitCode;
-    if (exitCode !== 0) {
-      throw new Error(`Failed to create temp directory ${tempDir}: exit code ${exitCode}`);
+    
+    if (result.exitCode !== 0) {
+      throw new Error(
+        `Failed to create temp directory ~/.cmux-tmp/${streamToken}: exit code ${result.exitCode}`
+      );
     }
-    return tempDir;
+    
+    // Return absolute path (e.g., "/home/user/.cmux-tmp/abc123")
+    return result.stdout.trim();
   }
 
   /**
