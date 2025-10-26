@@ -29,10 +29,10 @@ describe("executeFileEditOperation", () => {
   });
 
   test("should use runtime.normalizePath for path resolution, not Node's path.resolve", async () => {
-    // This test exposes a bug where file_edit_operation.ts uses path.resolve()
-    // instead of runtime.normalizePath() for resolving file paths.
+    // This test verifies that executeFileEditOperation uses runtime.normalizePath()
+    // instead of path.resolve() for resolving file paths.
     // 
-    // The bug: path.resolve() uses LOCAL filesystem semantics (Node.js path module),
+    // Why this matters: path.resolve() uses LOCAL filesystem semantics (Node.js path module),
     // which normalizes paths differently than the remote filesystem expects.
     // For example, path.resolve() on Windows uses backslashes, and path normalization
     // can behave differently across platforms.
@@ -40,7 +40,13 @@ describe("executeFileEditOperation", () => {
     const normalizePathCalls: Array<{ targetPath: string; basePath: string }> = [];
     
     const mockRuntime = {
-      stat: jest.fn<() => Promise<never>>().mockRejectedValue(new Error("File not found")),
+      stat: jest.fn<() => Promise<{ size: number; modifiedTime: Date; isDirectory: boolean }>>().mockResolvedValue({
+        size: 100,
+        modifiedTime: new Date(),
+        isDirectory: false,
+      }),
+      readFile: jest.fn<() => Promise<Uint8Array>>().mockResolvedValue(new Uint8Array()),
+      writeFile: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
       normalizePath: jest.fn<(targetPath: string, basePath: string) => string>((targetPath: string, basePath: string) => {
         normalizePathCalls.push({ targetPath, basePath });
         // Mock SSH-style path normalization
@@ -62,16 +68,11 @@ describe("executeFileEditOperation", () => {
       operation: () => ({ success: true, newContent: "test", metadata: {} }),
     });
 
-    // BUG: The code uses path.resolve() directly instead of runtime.normalizePath()
-    // This means path resolution uses LOCAL filesystem semantics instead of runtime-specific logic
-    
-    // Check if normalizePath was called for path resolution
+    // Verify that runtime.normalizePath() was called for path resolution
     const normalizeCallForFilePath = normalizePathCalls.find(
       (call) => call.targetPath === testFilePath
     );
     
-    // This will FAIL because file_edit_operation.ts doesn't use runtime.normalizePath()
-    // for resolving the file path - it uses path.resolve() directly
     expect(normalizeCallForFilePath).toBeDefined();
     
     if (normalizeCallForFilePath) {
