@@ -5,7 +5,7 @@
 cmux layers instructions from two sources:
 
 1. **Global**: `~/.cmux/AGENTS.md` (+ optional `AGENTS.local.md`) — always included
-2. **Context**: Either workspace OR project AGENTS.md (not both):
+2. **Project**: Either workspace OR project AGENTS.md (not both):
    - **Workspace**: `<workspace>/AGENTS.md` (+ optional `AGENTS.local.md`) — if exists
    - **Project**: `<project>/AGENTS.md` (+ optional `AGENTS.local.md`) — fallback if workspace doesn't exist
 
@@ -23,7 +23,7 @@ cmux reads mode context from sections inside your instruction files. Add a headi
 
 Rules:
 
-- Context instructions (workspace or project fallback) are checked first, then global instructions
+- Project instructions (workspace or project fallback) are checked first, then global instructions
 - The first matching section wins (at most one section is used)
 - The section's content is everything until the next heading of the same or higher level
 - Missing sections are ignored (no error)
