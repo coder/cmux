@@ -488,6 +488,18 @@ export class LocalRuntime implements Runtime {
     // Compute workspace path using the canonical method
     const deletedPath = this.getWorkspacePath(projectPath, workspaceName);
 
+    // Check if directory exists - if not, operation is idempotent
+    if (!fs.existsSync(deletedPath)) {
+      // Directory already gone - prune stale git records (best effort)
+      try {
+        using pruneProc = execAsync(`git -C "${projectPath}" worktree prune`);
+        await pruneProc.result;
+      } catch {
+        // Ignore prune errors - directory is already deleted, which is the goal
+      }
+      return { success: true, deletedPath };
+    }
+
     try {
       // Use git worktree remove to delete the worktree
       // This updates git's internal worktree metadata correctly
@@ -501,6 +513,25 @@ export class LocalRuntime implements Runtime {
       return { success: true, deletedPath };
     } catch (error) {
       const message = getErrorMessage(error);
+
+      // Check if the error is due to missing/stale worktree
+      const normalizedError = message.toLowerCase();
+      const looksLikeMissingWorktree =
+        normalizedError.includes("not a working tree") ||
+        normalizedError.includes("does not exist") ||
+        normalizedError.includes("no such file");
+
+      if (looksLikeMissingWorktree) {
+        // Worktree records are stale - prune them
+        try {
+          using pruneProc = execAsync(`git -C "${projectPath}" worktree prune`);
+          await pruneProc.result;
+        } catch {
+          // Ignore prune errors
+        }
+        // Treat as success - workspace is gone (idempotent)
+        return { success: true, deletedPath };
+      }
 
       // If force is enabled and git worktree remove failed, fall back to rm -rf
       // This handles edge cases like submodules where git refuses to delete

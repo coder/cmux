@@ -10,8 +10,6 @@ import {
   listLocalBranches,
   detectDefaultTrunkBranch,
   getCurrentBranch,
-  removeWorktree,
-  pruneWorktrees,
 } from "@/git";
 import { AIService } from "@/services/aiService";
 import { HistoryService } from "@/services/historyService";
@@ -628,13 +626,14 @@ export class IpcMain {
             }
           } catch (copyError) {
             // If copy fails, clean up everything we created
-            // 1. Remove the workspace
-            await removeWorktree(foundProjectPath, newWorkspacePath);
+            // 1. Remove the workspace using Runtime abstraction
+            const cleanupRuntime = createRuntime({ type: "local", srcBaseDir: this.config.srcDir });
+            await cleanupRuntime.deleteWorkspace(foundProjectPath, newName, true);
             // 2. Remove the session directory (may contain partial copies)
             try {
               await fsPromises.rm(newSessionDir, { recursive: true, force: true });
             } catch (cleanupError) {
-              // Log but don't fail - worktree cleanup is more important
+              // Log but don't fail - workspace cleanup is more important
               log.error(`Failed to clean up session dir ${newSessionDir}:`, cleanupError);
             }
             const message = copyError instanceof Error ? copyError.message : String(copyError);
@@ -1077,34 +1076,12 @@ export class IpcMain {
         metadata.runtimeConfig ?? { type: "local", srcBaseDir: this.config.srcDir }
       );
 
-      // Delegate deletion to runtime - it handles all path computation and existence checks
+      // Delegate deletion to runtime - it handles all path computation, existence checks, and pruning
       const deleteResult = await runtime.deleteWorkspace(projectPath, metadata.name, options.force);
 
       if (!deleteResult.success) {
-        const errorMessage = deleteResult.error;
-        const normalizedError = errorMessage.toLowerCase();
-        const looksLikeMissingWorktree =
-          normalizedError.includes("not a working tree") ||
-          normalizedError.includes("does not exist") ||
-          normalizedError.includes("no such file");
-
-        if (looksLikeMissingWorktree) {
-          // Worktree is already gone or stale - prune git records if this is a local worktree
-          if (metadata.runtimeConfig?.type !== "ssh") {
-            const pruneResult = await pruneWorktrees(projectPath);
-            if (!pruneResult.success) {
-              log.info(
-                `Failed to prune stale worktrees for ${projectPath} after deleteWorkspace error: ${
-                  pruneResult.error ?? "unknown error"
-                }`
-              );
-            }
-          }
-          // Treat missing workspace as success (idempotent operation)
-        } else {
-          // Real error (e.g., dirty workspace without force) - return it
-          return { success: false, error: deleteResult.error };
-        }
+        // Real error (e.g., dirty workspace without force) - return it
+        return { success: false, error: deleteResult.error };
       }
 
       // Remove the workspace from AI service
