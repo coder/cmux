@@ -528,6 +528,9 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       // Regular message - send directly via API
       setIsSending(true);
 
+      // Save current state for restoration on error
+      const previousImageAttachments = [...imageAttachments];
+
       try {
         // Prepare image parts if any
         const imageParts = imageAttachments.map((img, index) => {
@@ -583,6 +586,15 @@ export const ChatInput: React.FC<ChatInputProps> = ({
           }
         }
 
+        // Clear input and images immediately for responsive UI
+        // These will be restored if the send operation fails
+        setInput("");
+        setImageAttachments([]);
+        // Reset textarea height
+        if (inputRef.current) {
+          inputRef.current.style.height = "36px";
+        }
+
         const result = await window.api.workspace.sendMessage(workspaceId, actualMessageText, {
           ...sendMessageOptions,
           ...compactionOptions,
@@ -596,19 +608,13 @@ export const ChatInput: React.FC<ChatInputProps> = ({
           console.error("Failed to send message:", result.error);
           // Show error using enhanced toast
           setToast(createErrorToast(result.error));
-          // Restore input on error so user can try again
+          // Restore input and images on error so user can try again
           setInput(messageText);
+          setImageAttachments(previousImageAttachments);
         } else {
           // Track telemetry for successful message send
           telemetry.messageSent(sendMessageOptions.model, mode, actualMessageText.length);
 
-          // Success - clear input and images
-          setInput("");
-          setImageAttachments([]);
-          // Reset textarea height
-          if (inputRef.current) {
-            inputRef.current.style.height = "36px";
-          }
           // Exit editing mode if we were editing
           if (editingMessage && onCancelEdit) {
             onCancelEdit();
@@ -625,6 +631,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
           })
         );
         setInput(messageText);
+        setImageAttachments(previousImageAttachments);
       } finally {
         setIsSending(false);
       }
