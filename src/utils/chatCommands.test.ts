@@ -18,7 +18,7 @@ describe("parseRuntimeString", () => {
     expect(result).toEqual({
       type: "ssh",
       host: "user@host",
-      srcBaseDir: "/home/cmux",
+      srcBaseDir: "/home/user/cmux",
     });
   });
 
@@ -27,7 +27,7 @@ describe("parseRuntimeString", () => {
     expect(result).toEqual({
       type: "ssh",
       host: "User@Host.Example.Com",
-      srcBaseDir: "/home/cmux",
+      srcBaseDir: "/home/User/cmux",
     });
   });
 
@@ -36,7 +36,7 @@ describe("parseRuntimeString", () => {
     expect(result).toEqual({
       type: "ssh",
       host: "user@host",
-      srcBaseDir: "/home/cmux",
+      srcBaseDir: "/home/user/cmux",
     });
   });
 
@@ -47,19 +47,23 @@ describe("parseRuntimeString", () => {
 
   test("accepts SSH with hostname only (user will be inferred)", () => {
     const result = parseRuntimeString("ssh hostname", workspaceName);
+    // When no user is specified, uses current user (process.env.USER)
+    const expectedUser = process.env.USER || "user";
     expect(result).toEqual({
       type: "ssh",
       host: "hostname",
-      srcBaseDir: "/home/cmux",
+      srcBaseDir: `/home/${expectedUser}/cmux`,
     });
   });
 
   test("accepts SSH with hostname.domain only", () => {
     const result = parseRuntimeString("ssh dev.example.com", workspaceName);
+    // When no user is specified, uses current user (process.env.USER)
+    const expectedUser = process.env.USER || "user";
     expect(result).toEqual({
       type: "ssh",
       host: "dev.example.com",
-      srcBaseDir: "/home/cmux",
+      srcBaseDir: `/home/${expectedUser}/cmux`,
     });
   });
 

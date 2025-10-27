@@ -51,12 +51,16 @@ export function parseRuntimeString(
       throw new Error("SSH runtime requires host (e.g., 'ssh hostname' or 'ssh user@host')");
     }
 
+    // Extract username from user@host format, or default to current user
+    const atIndex = hostPart.indexOf("@");
+    const user = atIndex > 0 ? hostPart.substring(0, atIndex) : process.env.USER || "user";
+
     // Accept both "hostname" and "user@hostname" formats
     // SSH will use current user or ~/.ssh/config if user not specified
     return {
       type: RUNTIME_MODE.SSH,
       host: hostPart,
-      srcBaseDir: "/home/cmux", // Default remote base directory (NOT including workspace name)
+      srcBaseDir: `/home/${user}/cmux`, // Default remote base directory (NOT including workspace name)
     };
   }
 
