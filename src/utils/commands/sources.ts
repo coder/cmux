@@ -23,11 +23,6 @@ export interface BuildSourcesParams {
   onSetThinkingLevel: (workspaceId: string, level: ThinkingLevel) => void;
 
   onOpenNewWorkspaceModal: (projectPath: string) => void;
-  onCreateWorkspace: (
-    projectPath: string,
-    branchName: string,
-    trunkBranch: string
-  ) => Promise<void>;
   getBranchesForProject: (projectPath: string) => Promise<BranchListResult>;
   onSelectWorkspace: (sel: {
     projectPath: string;
@@ -437,15 +432,6 @@ export function buildCoreSources(p: BuildSourcesParams): Array<() => CommandActi
 
   // Projects
   actions.push(() => {
-    const branchCache = new Map<string, BranchListResult>();
-    const getBranchInfoForProject = async (projectPath: string) => {
-      const cached = branchCache.get(projectPath);
-      if (cached) return cached;
-      const info = await p.getBranchesForProject(projectPath);
-      branchCache.set(projectPath, info);
-      return info;
-    };
-
     const list: CommandAction[] = [
       {
         id: "project:add",
@@ -473,46 +459,11 @@ export function buildCoreSources(p: BuildSourcesParams): Array<() => CommandActi
                   keywords: [projectPath],
                 })),
             },
-            {
-              type: "text",
-              name: "branchName",
-              label: "Workspace branch name",
-              placeholder: "Enter branch name",
-              validate: (v) => (!v.trim() ? "Branch name is required" : null),
-            },
-            {
-              type: "select",
-              name: "trunkBranch",
-              label: "Trunk branch",
-              placeholder: "Search branches…",
-              getOptions: async (values) => {
-                if (!values.projectPath) return [];
-                const info = await getBranchInfoForProject(values.projectPath);
-                return info.branches.map((branch) => ({
-                  id: branch,
-                  label: branch,
-                  keywords: [branch],
-                }));
-              },
-            },
           ],
-          onSubmit: async (vals) => {
+          onSubmit: (vals) => {
             const projectPath = vals.projectPath;
-            const trimmedBranchName = vals.branchName.trim();
-            const info = await getBranchInfoForProject(projectPath);
-            const providedTrunk = vals.trunkBranch?.trim();
-            const resolvedTrunk =
-              providedTrunk && info.branches.includes(providedTrunk)
-                ? providedTrunk
-                : info.branches.includes(info.recommendedTrunk)
-                  ? info.recommendedTrunk
-                  : info.branches[0];
-
-            if (!resolvedTrunk) {
-              throw new Error("Unable to determine trunk branch for workspace creation");
-            }
-
-            await p.onCreateWorkspace(projectPath, trimmedBranchName, resolvedTrunk);
+            // Open the New Workspace Modal for the selected project
+            p.onOpenNewWorkspaceModal(projectPath);
           },
         },
       },

@@ -25,6 +25,7 @@ async function createTestRepo(basePath: string): Promise<string> {
 
 // Mock config for createWorktree
 const mockConfig = {
+  srcDir: path.join(__dirname, "..", "test-workspaces"),
   getWorkspacePath: (projectPath: string, branchName: string) => {
     return path.join(path.dirname(projectPath), "workspaces", branchName);
   },
@@ -54,6 +55,9 @@ describe("removeWorktreeSafe", () => {
     const result = await createWorktree(mockConfig, repoPath, "test-branch", {
       trunkBranch: defaultBranch,
     });
+    if (!result.success) {
+      console.error("createWorktree failed:", result.error);
+    }
     expect(result.success).toBe(true);
     const worktreePath = result.path!;
 

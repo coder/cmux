@@ -11,7 +11,7 @@ describe("partitionWorkspacesByAge", () => {
     name: `workspace-${id}`,
     projectName: "test-project",
     projectPath: "/test/project",
-    namedWorkspacePath: `/test/project/.worktrees/${id}`,
+    namedWorkspacePath: `/test/project/workspace-${id}`, // Path is arbitrary for this test
   });
 
   it("should partition workspaces into recent and old based on 24-hour threshold", () => {

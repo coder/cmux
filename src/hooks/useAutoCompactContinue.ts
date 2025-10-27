@@ -41,10 +41,12 @@ export function useAutoCompactContinue() {
     // Check all workspaces for completed compaction
     for (const [workspaceId, state] of newStates) {
       // Detect if workspace is in "single compacted message" state
+      // Skip workspace-init messages since they're UI-only metadata
+      const cmuxMessages = state.messages.filter((m) => m.type !== "workspace-init");
       const isSingleCompacted =
-        state.messages.length === 1 &&
-        state.messages[0].type === "assistant" &&
-        state.messages[0].isCompacted === true;
+        cmuxMessages.length === 1 &&
+        cmuxMessages[0]?.type === "assistant" &&
+        cmuxMessages[0].isCompacted === true;
 
       if (!isSingleCompacted) {
         // Workspace no longer in compacted state - no action needed
@@ -73,11 +75,6 @@ export function useAutoCompactContinue() {
 
       // Mark THIS RESULT as processed before sending to prevent duplicates
       processedMessageIds.current.add(idForGuard);
-
-      console.log(
-        `[useAutoCompactContinue] Sending continue message for ${workspaceId}:`,
-        continueMessage
-      );
 
       // Build options and send message directly
       const options = buildSendMessageOptions(workspaceId);

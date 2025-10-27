@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import "./styles/globals.css";
-import type { ProjectConfig } from "./config";
+import { useApp } from "./contexts/AppContext";
 import type { WorkspaceSelection } from "./components/ProjectSidebar";
 import type { FrontendWorkspaceMetadata } from "./types/workspace";
 import { LeftSidebar } from "./components/LeftSidebar";
@@ -10,13 +10,10 @@ import { AIView } from "./components/AIView";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { usePersistedState, updatePersistedState } from "./hooks/usePersistedState";
 import { matchesKeybind, KEYBINDS } from "./utils/ui/keybinds";
-import { useProjectManagement } from "./hooks/useProjectManagement";
-import { useWorkspaceManagement } from "./hooks/useWorkspaceManagement";
 import { useResumeManager } from "./hooks/useResumeManager";
 import { useUnreadTracking } from "./hooks/useUnreadTracking";
 import { useAutoCompactContinue } from "./hooks/useAutoCompactContinue";
 import { useWorkspaceStoreRaw, useWorkspaceRecency } from "./stores/WorkspaceStore";
-import { useGitStatusStoreRaw } from "./stores/GitStatusStore";
 
 import { useStableReference, compareMaps } from "./hooks/useStableReference";
 import { CommandRegistryProvider, useCommandRegistry } from "./contexts/CommandRegistryContext";
@@ -25,19 +22,30 @@ import { CommandPalette } from "./components/CommandPalette";
 import { buildCoreSources, type BuildSourcesParams } from "./utils/commands/sources";
 
 import type { ThinkingLevel } from "./types/thinking";
+import type { RuntimeConfig } from "./types/runtime";
 import { CUSTOM_EVENTS } from "./constants/events";
 import { isWorkspaceForkSwitchEvent } from "./utils/workspaceFork";
-import { getThinkingLevelKey } from "./constants/storage";
+import { getThinkingLevelKey, getRuntimeKey } from "./constants/storage";
 import type { BranchListResult } from "./types/ipc";
 import { useTelemetry } from "./hooks/useTelemetry";
+import { parseRuntimeString } from "./utils/chatCommands";
 
 const THINKING_LEVELS: ThinkingLevel[] = ["off", "low", "medium", "high"];
 
 function AppInner() {
-  const [selectedWorkspace, setSelectedWorkspace] = usePersistedState<WorkspaceSelection | null>(
-    "selectedWorkspace",
-    null
-  );
+  // Get app-level state from context
+  const {
+    projects,
+    addProject,
+    removeProject,
+    workspaceMetadata,
+    setWorkspaceMetadata,
+    createWorkspace,
+    removeWorkspace,
+    renameWorkspace,
+    selectedWorkspace,
+    setSelectedWorkspace,
+  } = useApp();
   const [workspaceModalOpen, setWorkspaceModalOpen] = useState(false);
   const [workspaceModalProject, setWorkspaceModalProject] = useState<string | null>(null);
   const [workspaceModalProjectName, setWorkspaceModalProjectName] = useState<string>("");
@@ -59,69 +67,33 @@ function AppInner() {
   // Telemetry tracking
   const telemetry = useTelemetry();
 
+  // Get workspace store for command palette
+  const workspaceStore = useWorkspaceStoreRaw();
+
   // Wrapper for setSelectedWorkspace that tracks telemetry
   const handleWorkspaceSwitch = useCallback(
     (newWorkspace: WorkspaceSelection | null) => {
-      console.debug("[App] handleWorkspaceSwitch called", {
-        from: selectedWorkspace?.workspaceId,
-        to: newWorkspace?.workspaceId,
-      });
-
       // Track workspace switch when both old and new are non-null (actual switch, not init/clear)
       if (
         selectedWorkspace &&
         newWorkspace &&
         selectedWorkspace.workspaceId !== newWorkspace.workspaceId
       ) {
-        console.debug("[App] Calling telemetry.workspaceSwitched");
         telemetry.workspaceSwitched(selectedWorkspace.workspaceId, newWorkspace.workspaceId);
       }
+
       setSelectedWorkspace(newWorkspace);
     },
     [selectedWorkspace, setSelectedWorkspace, telemetry]
   );
 
-  // Use custom hooks for project and workspace management
-  const { projects, setProjects, addProject, removeProject } = useProjectManagement();
-
-  // Workspace management needs to update projects state when workspace operations complete
-  const handleProjectsUpdate = useCallback(
-    (newProjects: Map<string, ProjectConfig>) => {
-      setProjects(newProjects);
-    },
-    [setProjects]
-  );
-
-  const {
-    workspaceMetadata,
-    setWorkspaceMetadata,
-    loading: metadataLoading,
-    createWorkspace,
-    removeWorkspace,
-    renameWorkspace,
-  } = useWorkspaceManagement({
-    selectedWorkspace,
-    onProjectsUpdate: handleProjectsUpdate,
-    onSelectedWorkspaceUpdate: setSelectedWorkspace,
-  });
-
-  // NEW: Sync workspace metadata with the stores
-  const workspaceStore = useWorkspaceStoreRaw();
-  const gitStatusStore = useGitStatusStoreRaw();
-
+  // Validate selectedWorkspace when metadata changes
+  // Clear selection if workspace was deleted
   useEffect(() => {
-    // Only sync when metadata has actually loaded (not empty initial state)
-    if (workspaceMetadata.size > 0) {
-      workspaceStore.syncWorkspaces(workspaceMetadata);
+    if (selectedWorkspace && !workspaceMetadata.has(selectedWorkspace.workspaceId)) {
+      setSelectedWorkspace(null);
     }
-  }, [workspaceMetadata, workspaceStore]);
-
-  useEffect(() => {
-    // Only sync when metadata has actually loaded (not empty initial state)
-    if (workspaceMetadata.size > 0) {
-      gitStatusStore.syncWorkspaces(workspaceMetadata);
-    }
-  }, [workspaceMetadata, gitStatusStore]);
+  }, [selectedWorkspace, workspaceMetadata, setSelectedWorkspace]);
 
   // Track last-read timestamps for unread indicators
   const { lastReadTimestamps, onToggleUnread } = useUnreadTracking(selectedWorkspace);
@@ -155,43 +127,8 @@ function AppInner() {
     }
   }, [selectedWorkspace, workspaceMetadata]);
 
-  // Restore workspace from URL on mount (if valid)
-  // This effect runs once on mount to restore from hash, which takes priority over localStorage
-  const [hasRestoredFromHash, setHasRestoredFromHash] = useState(false);
-
-  useEffect(() => {
-    // Only run once
-    if (hasRestoredFromHash) return;
-
-    // Wait for metadata to finish loading
-    if (metadataLoading) return;
-
-    const hash = window.location.hash;
-    if (hash.startsWith("#workspace=")) {
-      const workspaceId = decodeURIComponent(hash.substring("#workspace=".length));
-
-      // Find workspace in metadata
-      const metadata = workspaceMetadata.get(workspaceId);
-
-      if (metadata) {
-        // Restore from hash (overrides localStorage)
-        setSelectedWorkspace({
-          workspaceId: metadata.id,
-          projectPath: metadata.projectPath,
-          projectName: metadata.projectName,
-          namedWorkspacePath: metadata.namedWorkspacePath,
-        });
-      }
-    }
-
-    setHasRestoredFromHash(true);
-  }, [metadataLoading, workspaceMetadata, hasRestoredFromHash, setSelectedWorkspace]);
-
   // Validate selected workspace exists and has all required fields
   useEffect(() => {
-    // Don't validate until metadata is loaded
-    if (metadataLoading) return;
-
     if (selectedWorkspace) {
       const metadata = workspaceMetadata.get(selectedWorkspace.workspaceId);
 
@@ -215,11 +152,11 @@ function AppInner() {
         });
       }
     }
-  }, [metadataLoading, selectedWorkspace, workspaceMetadata, setSelectedWorkspace]);
+  }, [selectedWorkspace, workspaceMetadata, setSelectedWorkspace]);
 
   const openWorkspaceInTerminal = useCallback(
     (workspaceId: string) => {
-      // Look up workspace metadata to get the named path (user-friendly symlink)
+      // Look up workspace metadata to get the workspace path (directory uses workspace name)
       const metadata = workspaceMetadata.get(workspaceId);
       if (metadata) {
         void window.api.workspace.openTerminal(metadata.namedWorkspacePath);
@@ -298,7 +235,11 @@ function AppInner() {
     [handleRemoveProject]
   );
 
-  const handleCreateWorkspace = async (branchName: string, trunkBranch: string) => {
+  const handleCreateWorkspace = async (
+    branchName: string,
+    trunkBranch: string,
+    runtime?: string
+  ) => {
     if (!workspaceModalProject) return;
 
     console.assert(
@@ -306,11 +247,33 @@ function AppInner() {
       "Expected trunk branch to be provided by the workspace modal"
     );
 
-    const newWorkspace = await createWorkspace(workspaceModalProject, branchName, trunkBranch);
+    // Parse runtime config if provided
+    let runtimeConfig: RuntimeConfig | undefined;
+    if (runtime) {
+      try {
+        runtimeConfig = parseRuntimeString(runtime, branchName);
+      } catch (err) {
+        console.error("Failed to parse runtime config:", err);
+        throw err; // Let modal handle the error
+      }
+    }
+
+    const newWorkspace = await createWorkspace(
+      workspaceModalProject,
+      branchName,
+      trunkBranch,
+      runtimeConfig
+    );
     if (newWorkspace) {
       // Track workspace creation
       telemetry.workspaceCreated(newWorkspace.workspaceId);
       setSelectedWorkspace(newWorkspace);
+
+      // Save runtime preference for this project if provided
+      if (runtime) {
+        const runtimeKey = getRuntimeKey(workspaceModalProject);
+        localStorage.setItem(runtimeKey, runtime);
+      }
     }
   };
 
@@ -471,21 +434,6 @@ function AppInner() {
     [handleAddWorkspace]
   );
 
-  const createWorkspaceFromPalette = useCallback(
-    async (projectPath: string, branchName: string, trunkBranch: string) => {
-      console.assert(
-        typeof trunkBranch === "string" && trunkBranch.trim().length > 0,
-        "Expected trunk branch to be provided by the command palette"
-      );
-      const newWs = await createWorkspace(projectPath, branchName, trunkBranch);
-      if (newWs) {
-        telemetry.workspaceCreated(newWs.workspaceId);
-        setSelectedWorkspace(newWs);
-      }
-    },
-    [createWorkspace, setSelectedWorkspace, telemetry]
-  );
-
   const getBranchesForProject = useCallback(
     async (projectPath: string): Promise<BranchListResult> => {
       const branchResult = await window.api.projects.listBranches(projectPath);
@@ -553,7 +501,6 @@ function AppInner() {
     getThinkingLevel: getThinkingLevelForWorkspace,
     onSetThinkingLevel: setThinkingLevelFromPalette,
     onOpenNewWorkspaceModal: openNewWorkspaceFromPalette,
-    onCreateWorkspace: createWorkspaceFromPalette,
     getBranchesForProject,
     onSelectWorkspace: selectWorkspaceFromPalette,
     onRemoveWorkspace: removeWorkspaceFromPalette,
@@ -635,6 +582,14 @@ function AppInner() {
         return;
       }
 
+      // DEFENSIVE: Ensure createdAt exists
+      if (!workspaceInfo.createdAt) {
+        console.warn(
+          `[Frontend] Workspace ${workspaceInfo.id} missing createdAt in fork switch - using default (2025-01-01)`
+        );
+        workspaceInfo.createdAt = "2025-01-01T00:00:00.000Z";
+      }
+
       // Update metadata Map immediately (don't wait for async metadata event)
       // This ensures the title bar effect has the workspace name available
       setWorkspaceMetadata((prev) => {
@@ -664,15 +619,10 @@ function AppInner() {
     <>
       <div className="flex h-screen overflow-hidden bg-neutral-900 [@media(max-width:768px)]:flex-col">
         <LeftSidebar
-          projects={projects}
-          workspaceMetadata={workspaceMetadata}
-          selectedWorkspace={selectedWorkspace}
           onSelectWorkspace={handleWorkspaceSwitch}
           onAddProject={handleAddProjectCallback}
           onAddWorkspace={handleAddWorkspaceCallback}
           onRemoveProject={handleRemoveProjectCallback}
-          onRemoveWorkspace={removeWorkspace}
-          onRenameWorkspace={renameWorkspace}
           lastReadTimestamps={lastReadTimestamps}
           onToggleUnread={onToggleUnread}
           collapsed={sidebarCollapsed}
@@ -697,6 +647,9 @@ function AppInner() {
                     selectedWorkspace.workspaceId
                   }
                   namedWorkspacePath={selectedWorkspace.namedWorkspacePath ?? ""}
+                  runtimeConfig={
+                    workspaceMetadata.get(selectedWorkspace.workspaceId)?.runtimeConfig
+                  }
                 />
               </ErrorBoundary>
             ) : (
@@ -725,6 +678,7 @@ function AppInner() {
           <NewWorkspaceModal
             isOpen={workspaceModalOpen}
             projectName={workspaceModalProjectName}
+            projectPath={workspaceModalProject}
             branches={workspaceModalBranches}
             defaultTrunkBranch={workspaceModalDefaultTrunk}
             loadErrorMessage={workspaceModalLoadError}

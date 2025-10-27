@@ -48,6 +48,13 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
   if (process.env.CI && typeof jest !== "undefined" && jest.retryTimes) {
     jest.retryTimes(3, { logErrorsBeforeRetry: true });
   }
+
+  // Load tokenizer modules once before all tests (takes ~14s)
+  // This ensures accurate token counts for API calls without timing out individual tests
+  beforeAll(async () => {
+    const { loadTokenizerModules } = await import("../../src/utils/main/tokenizer");
+    await loadTokenizerModules();
+  }, 30000); // 30s timeout for tokenizer loading
   // Run tests for each provider concurrently
   describe.each(PROVIDER_CONFIGS)("%s:%s provider tests", (provider, model) => {
     test.concurrent(
@@ -693,10 +700,11 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
       "should include mode-specific instructions in system message",
       async () => {
         // Setup test environment
-        const { env, workspaceId, workspacePath, cleanup } = await setupWorkspace(provider);
+        const { env, workspaceId, tempGitRepo, cleanup } = await setupWorkspace(provider);
         try {
           // Write AGENTS.md with mode-specific sections containing distinctive markers
-          const agentsMdPath = path.join(workspacePath, "AGENTS.md");
+          // Note: AGENTS.md is read from project root, not workspace directory
+          const agentsMdPath = path.join(tempGitRepo, "AGENTS.md");
           const agentsMdContent = `# Instructions
 
 ## General Instructions

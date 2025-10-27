@@ -9,8 +9,6 @@ import { IpcMain } from "../../src/services/ipcMain";
 import { IPC_CHANNELS } from "../../src/constants/ipc-constants";
 import { generateBranchName, createWorkspace } from "./helpers";
 import { shouldRunIntegrationTests, validateApiKeys, getApiKey } from "../testUtils";
-import { loadTokenizerModules } from "../../src/utils/main/tokenizer";
-import { preloadAISDKProviders } from "../../src/services/aiService";
 
 export interface TestEnvironment {
   config: Config;
@@ -19,7 +17,7 @@ export interface TestEnvironment {
   mockIpcRenderer: Electron.IpcRenderer;
   mockWindow: BrowserWindow;
   tempDir: string;
-  sentEvents: Array<{ channel: string; data: unknown }>;
+  sentEvents: Array<{ channel: string; data: unknown; timestamp: number }>;
 }
 
 /**
@@ -27,14 +25,14 @@ export interface TestEnvironment {
  */
 function createMockBrowserWindow(): {
   window: BrowserWindow;
-  sentEvents: Array<{ channel: string; data: unknown }>;
+  sentEvents: Array<{ channel: string; data: unknown; timestamp: number }>;
 } {
-  const sentEvents: Array<{ channel: string; data: unknown }> = [];
+  const sentEvents: Array<{ channel: string; data: unknown; timestamp: number }> = [];
 
   const mockWindow = {
     webContents: {
       send: (channel: string, data: unknown) => {
-        sentEvents.push({ channel, data });
+        sentEvents.push({ channel, data, timestamp: Date.now() });
       },
       openDevTools: jest.fn(),
     } as unknown as WebContents,
@@ -135,6 +133,18 @@ export async function setupProviders(
 export { shouldRunIntegrationTests, validateApiKeys, getApiKey };
 
 /**
+ * Preload modules that may be imported dynamically during concurrent tests.
+ * Call this in beforeAll hooks to prevent Jest sandbox race conditions.
+ */
+export async function preloadTestModules(): Promise<void> {
+  const [{ loadTokenizerModules }, { preloadAISDKProviders }] = await Promise.all([
+    import("../../src/utils/main/tokenizer"),
+    import("../../src/services/aiService"),
+  ]);
+  await Promise.all([loadTokenizerModules(), preloadAISDKProviders()]);
+}
+
+/**
  * Setup a complete workspace with provider
  * Encapsulates: env creation, provider setup, workspace creation, event clearing
  */
@@ -150,14 +160,6 @@ export async function setupWorkspace(
   cleanup: () => Promise<void>;
 }> {
   const { createTempGitRepo, cleanupTempGitRepo } = await import("./helpers");
-
-  // Preload tokenizer modules to ensure accurate token counts for API calls
-  // Without this, tests would use /4 approximation which can cause API errors
-  await loadTokenizerModules();
-
-  // Preload AI SDK providers to avoid race conditions with dynamic imports
-  // in concurrent test environments
-  await preloadAISDKProviders();
 
   // Create dedicated temp git repo for this test
   const tempGitRepo = await createTempGitRepo();

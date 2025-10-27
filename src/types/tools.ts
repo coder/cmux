@@ -117,6 +117,12 @@ export interface FileEditInsertToolArgs {
 
 export type FileEditInsertToolResult = FileEditDiffSuccessBase | FileEditErrorResult;
 
+/**
+ * Prefix for file write denial error messages.
+ * This consistent prefix helps both the UI and models detect when writes fail.
+ */
+export const WRITE_DENIED_PREFIX = "WRITE DENIED, FILE UNMODIFIED:";
+
 export type FileEditToolArgs =
   | FileEditReplaceStringToolArgs
   | FileEditReplaceLinesToolArgs

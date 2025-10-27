@@ -33,8 +33,11 @@ Use GitHub-style \`<details>/<summary>\` tags to create collapsible sections for
 </prelude>
 `;
 
-function buildEnvironmentContext(workspacePath: string): string {
-  return `
+function buildEnvironmentContext(runtime: Runtime, workspacePath: string): string {
+  const isWorktree = runtime instanceof LocalRuntime;
+
+  if (isWorktree) {
+    return `
 <environment>
 You are in a git worktree at ${workspacePath}
 
@@ -44,5 +47,16 @@ You are in a git worktree at ${workspacePath}
 - You are meant to do your work isolated from the user and other agents
 </environment>
 `;
+  } else {
+    return `
+<environment>
+You are in a git repository at ${workspacePath}
+
+- This IS a git repository - run git commands directly (no cd needed)
+- Tools run here automatically
+- You are meant to do your work isolated from the user and other agents
+</environment>
+`;
+  }
 }
 ```
