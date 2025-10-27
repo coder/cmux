@@ -64,7 +64,7 @@ describe("file_edit_replace_string tool", () => {
     });
 
     const payload: FileEditReplaceStringToolArgs = {
-      file_path: testFilePath,
+      file_path: "test.txt", // Use relative path
       old_string: "Hello world",
       new_string: "Hello universe",
     };
@@ -102,7 +102,7 @@ describe("file_edit_replace_lines tool", () => {
     });
 
     const payload: FileEditReplaceLinesToolArgs = {
-      file_path: testFilePath,
+      file_path: "test.txt", // Use relative path
       start_line: 2,
       end_line: 3,
       new_lines: ["LINE2", "LINE3"],

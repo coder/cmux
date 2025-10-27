@@ -203,8 +203,10 @@ This project uses **Make** as the primary build orchestrator. See `Makefile` for
   - utils should be either pure functions or easily isolated (e.g. if they operate on the FS they accept
     a path). Testing them should not require complex mocks or setup.
 - **Integration tests:**
+  - **⚠️ IMPORTANT: Use `bun x jest` to run tests in the `tests/` folder** - Integration tests use Jest (not bun test), so you must run them with `bun x jest` or `TEST_INTEGRATION=1 bun x jest`
   - Run specific integration test: `TEST_INTEGRATION=1 bun x jest tests/ipcMain/sendMessage.test.ts -t "test name pattern"`
   - Run all integration tests: `TEST_INTEGRATION=1 bun x jest tests` (~35 seconds, runs 40 tests)
+  - Unit tests in `src/` use bun test: `bun test src/path/to/file.test.ts`
   - **⚠️ Running `tests/ipcMain` locally takes a very long time.** Prefer running specific test files or use `-t` to filter to specific tests.
   - **Performance**: Tests use `test.concurrent()` to run in parallel within each file
   - **NEVER bypass IPC in integration tests** - Integration tests must use the real IPC communication paths (e.g., `mockIpcRenderer.invoke()`) even when it's harder. Directly accessing services (HistoryService, PartialService, etc.) or manipulating config/state directly bypasses the integration layer and defeats the purpose of the test.

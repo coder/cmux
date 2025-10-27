@@ -22,6 +22,7 @@ import { checkInitHookExists, getInitHookPath, createLineBufferedLoggers } from 
 import { execAsync } from "../utils/disposableExec";
 import { getProjectName } from "../utils/runtime/helpers";
 import { getErrorMessage } from "../utils/errors";
+import { expandTilde } from "./tildeExpansion";
 
 /**
  * Local runtime implementation that executes commands and file operations
@@ -31,7 +32,8 @@ export class LocalRuntime implements Runtime {
   private readonly srcBaseDir: string;
 
   constructor(srcBaseDir: string) {
-    this.srcBaseDir = srcBaseDir;
+    // Expand tilde to actual home directory path for local file system operations
+    this.srcBaseDir = expandTilde(srcBaseDir);
   }
 
   async exec(command: string, options: ExecOptions): Promise<ExecStream> {
@@ -297,6 +299,14 @@ export class LocalRuntime implements Runtime {
         err instanceof Error ? err : undefined
       );
     }
+  }
+
+  resolvePath(filePath: string): Promise<string> {
+    // Expand tilde to actual home directory path
+    const expanded = expandTilde(filePath);
+
+    // Resolve to absolute path (handles relative paths like "./foo")
+    return Promise.resolve(path.resolve(expanded));
   }
 
   normalizePath(targetPath: string, basePath: string): string {

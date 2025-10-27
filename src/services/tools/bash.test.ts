@@ -1173,39 +1173,45 @@ describe("SSH runtime redundant cd detection", () => {
     };
   }
 
-  it("should add educational note when command starts with cd", async () => {
-    const remoteCwd = "~/workspace/project/branch";
+  it("should reject redundant cd when command cds to working directory", async () => {
+    const remoteCwd = "/remote/workspace/project/branch";
     using testEnv = createTestBashToolWithSSH(remoteCwd);
     const tool = testEnv.tool;
 
     const args: BashToolArgs = {
-      script: "cd ~/workspace/project/branch && echo test",
+      script: "cd /remote/workspace/project/branch && echo test",
       timeout_secs: 5,
     };
 
     const result = (await tool.execute!(args, mockToolCallOptions)) as BashToolResult;
 
-    // Command should execute (not blocked)
-    // But should include a note about cd behavior
-    if (result.success && "note" in result) {
-      expect(result.note).toContain("bash command starts in");
-      expect(result.note).toContain("do not persist");
+    // Should reject the redundant cd
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error).toContain("Redundant cd to working directory");
+      expect(result.error).toContain("no cd needed");
+      expect(result.exitCode).toBe(-1);
     }
   });
 
-  it("should not add note when command does not start with cd", async () => {
-    const remoteCwd = "~/workspace/project/branch";
+  it("should allow cd to different directory", async () => {
+    const remoteCwd = "/remote/workspace/project/branch";
     using testEnv = createTestBashToolWithSSH(remoteCwd);
     const tool = testEnv.tool;
 
     const args: BashToolArgs = {
-      script: "echo test",
+      script: "cd /tmp && echo test",
       timeout_secs: 5,
     };
 
     const result = (await tool.execute!(args, mockToolCallOptions)) as BashToolResult;
 
-    // Should not have a note field
-    expect(result).not.toHaveProperty("note");
+    // Should not be blocked (cd to a different directory is allowed)
+    // Note: Test runs locally so actual cd might fail, but we check it's not rejected
+    expect(result.exitCode).not.toBe(-1); // Not a rejection (-1)
+    if (!result.success) {
+      // If it failed, it should not be due to redundant cd detection
+      expect(result.error).not.toContain("Redundant cd");
+    }
   });
 });

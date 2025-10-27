@@ -55,9 +55,6 @@ describe("removeWorktreeSafe", () => {
     const result = await createWorktree(mockConfig, repoPath, "test-branch", {
       trunkBranch: defaultBranch,
     });
-    if (!result.success) {
-      console.error("createWorktree failed:", result.error);
-    }
     expect(result.success).toBe(true);
     const worktreePath = result.path!;
 

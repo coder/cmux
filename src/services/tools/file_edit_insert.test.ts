@@ -55,7 +55,7 @@ describe("file_edit_insert tool", () => {
     using testEnv = createTestFileEditInsertTool({ cwd: testDir });
     const tool = testEnv.tool;
     const args: FileEditInsertToolArgs = {
-      file_path: testFilePath,
+      file_path: "test.txt", // Use relative path
       line_offset: 0,
       content: "INSERTED",
     };
@@ -78,7 +78,7 @@ describe("file_edit_insert tool", () => {
     using testEnv = createTestFileEditInsertTool({ cwd: testDir });
     const tool = testEnv.tool;
     const args: FileEditInsertToolArgs = {
-      file_path: testFilePath,
+      file_path: "test.txt", // Use relative path
       line_offset: 1,
       content: "INSERTED",
     };
@@ -101,7 +101,7 @@ describe("file_edit_insert tool", () => {
     using testEnv = createTestFileEditInsertTool({ cwd: testDir });
     const tool = testEnv.tool;
     const args: FileEditInsertToolArgs = {
-      file_path: testFilePath,
+      file_path: "test.txt", // Use relative path
       line_offset: 2,
       content: "INSERTED",
     };
@@ -124,7 +124,7 @@ describe("file_edit_insert tool", () => {
     using testEnv = createTestFileEditInsertTool({ cwd: testDir });
     const tool = testEnv.tool;
     const args: FileEditInsertToolArgs = {
-      file_path: testFilePath,
+      file_path: "test.txt", // Use relative path
       line_offset: 3,
       content: "INSERTED",
     };
@@ -147,7 +147,7 @@ describe("file_edit_insert tool", () => {
     using testEnv = createTestFileEditInsertTool({ cwd: testDir });
     const tool = testEnv.tool;
     const args: FileEditInsertToolArgs = {
-      file_path: testFilePath,
+      file_path: "test.txt", // Use relative path
       line_offset: 1,
       content: "INSERTED1\nINSERTED2",
     };
@@ -169,7 +169,7 @@ describe("file_edit_insert tool", () => {
     using testEnv = createTestFileEditInsertTool({ cwd: testDir });
     const tool = testEnv.tool;
     const args: FileEditInsertToolArgs = {
-      file_path: testFilePath,
+      file_path: "test.txt", // Use relative path
       line_offset: 0,
       content: "INSERTED",
     };
@@ -186,12 +186,10 @@ describe("file_edit_insert tool", () => {
 
   it("should fail when file does not exist and create is not set", async () => {
     // Setup
-    const nonExistentPath = path.join(testDir, "nonexistent.txt");
-
     using testEnv = createTestFileEditInsertTool({ cwd: testDir });
     const tool = testEnv.tool;
     const args: FileEditInsertToolArgs = {
-      file_path: nonExistentPath,
+      file_path: "nonexistent.txt", // Use relative path
       line_offset: 0,
       content: "INSERTED",
     };
@@ -209,15 +207,13 @@ describe("file_edit_insert tool", () => {
 
   it("should create file when create is true and file does not exist", async () => {
     // Setup
-    const nonExistentPath = path.join(testDir, "newfile.txt");
-
     const tool = createFileEditInsertTool({
       cwd: testDir,
       runtime: createRuntime({ type: "local", srcBaseDir: "/tmp" }),
       runtimeTempDir: "/tmp",
     });
     const args: FileEditInsertToolArgs = {
-      file_path: nonExistentPath,
+      file_path: "newfile.txt", // Use relative path
       line_offset: 0,
       content: "INSERTED",
       create: true,
@@ -229,21 +225,19 @@ describe("file_edit_insert tool", () => {
     // Assert
     expect(result.success).toBe(true);
 
-    const fileContent = await fs.readFile(nonExistentPath, "utf-8");
+    const fileContent = await fs.readFile(path.join(testDir, "newfile.txt"), "utf-8");
     expect(fileContent).toBe("INSERTED\n");
   });
 
   it("should create parent directories when create is true", async () => {
     // Setup
-    const nestedPath = path.join(testDir, "nested", "dir", "newfile.txt");
-
     const tool = createFileEditInsertTool({
       cwd: testDir,
       runtime: createRuntime({ type: "local", srcBaseDir: "/tmp" }),
       runtimeTempDir: "/tmp",
     });
     const args: FileEditInsertToolArgs = {
-      file_path: nestedPath,
+      file_path: "nested/dir/newfile.txt", // Use relative path
       line_offset: 0,
       content: "INSERTED",
       create: true,
@@ -255,7 +249,7 @@ describe("file_edit_insert tool", () => {
     // Assert
     expect(result.success).toBe(true);
 
-    const fileContent = await fs.readFile(nestedPath, "utf-8");
+    const fileContent = await fs.readFile(path.join(testDir, "nested/dir/newfile.txt"), "utf-8");
     expect(fileContent).toBe("INSERTED\n");
   });
 
@@ -270,7 +264,7 @@ describe("file_edit_insert tool", () => {
       runtimeTempDir: "/tmp",
     });
     const args: FileEditInsertToolArgs = {
-      file_path: testFilePath,
+      file_path: "test.txt", // Use relative path
       line_offset: 1,
       content: "INSERTED",
       create: true,
@@ -294,7 +288,7 @@ describe("file_edit_insert tool", () => {
     using testEnv = createTestFileEditInsertTool({ cwd: testDir });
     const tool = testEnv.tool;
     const args: FileEditInsertToolArgs = {
-      file_path: testFilePath,
+      file_path: "test.txt", // Use relative path
       line_offset: -1,
       content: "INSERTED",
     };
@@ -317,7 +311,7 @@ describe("file_edit_insert tool", () => {
     using testEnv = createTestFileEditInsertTool({ cwd: testDir });
     const tool = testEnv.tool;
     const args: FileEditInsertToolArgs = {
-      file_path: testFilePath,
+      file_path: "test.txt", // Use relative path
       line_offset: 10, // File only has 2 lines
       content: "INSERTED",
     };

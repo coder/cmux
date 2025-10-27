@@ -53,12 +53,18 @@ export interface SSHRuntimeConfig {
  * - Supports SSH config aliases, ProxyJump, ControlMaster, etc.
  * - No password prompts (assumes key-based auth or ssh-agent)
  * - Atomic file writes via temp + rename
+ *
+ * IMPORTANT: All SSH operations MUST include a timeout to prevent hangs from network issues.
+ * Timeouts should be either set literally for internal operations or forwarded from upstream
+ * for user-initiated operations.
  */
 export class SSHRuntime implements Runtime {
   private readonly config: SSHRuntimeConfig;
   private readonly controlPath: string;
 
   constructor(config: SSHRuntimeConfig) {
+    // Note: srcBaseDir may contain tildes - they will be resolved via resolvePath() before use
+    // The WORKSPACE_CREATE IPC handler resolves paths before storing in config
     this.config = config;
     // Get deterministic controlPath from connection pool
     // Multiple SSHRuntime instances with same config share the same controlPath,
@@ -315,6 +321,76 @@ export class SSHRuntime implements Runtime {
       isDirectory: fileType === "directory",
     };
   }
+  async resolvePath(filePath: string): Promise<string> {
+    // Use shell to expand tildes on remote system
+    // Bash will expand ~ automatically when we echo the unquoted variable
+    // This works with BusyBox (doesn't require GNU coreutils)
+    const command = `bash -c 'p=${shescape.quote(filePath)}; echo $p'`;
+    // Use 5 second timeout for path resolution (should be near-instant)
+    return this.execSSHCommand(command, 5000);
+  }
+
+  /**
+   * Execute a simple SSH command and return stdout
+   * @param command - The command to execute on the remote host
+   * @param timeoutMs - Timeout in milliseconds (required to prevent network hangs)
+   * @private
+   */
+  private async execSSHCommand(command: string, timeoutMs: number): Promise<string> {
+    const sshArgs = this.buildSSHArgs();
+    sshArgs.push(this.config.host, command);
+
+    return new Promise((resolve, reject) => {
+      const proc = spawn("ssh", sshArgs);
+      let stdout = "";
+      let stderr = "";
+      let timedOut = false;
+
+      // Set timeout to prevent hanging on network issues
+      const timer = setTimeout(() => {
+        timedOut = true;
+        proc.kill();
+        reject(
+          new RuntimeErrorClass(`SSH command timed out after ${timeoutMs}ms: ${command}`, "network")
+        );
+      }, timeoutMs);
+
+      proc.stdout?.on("data", (data: Buffer) => {
+        stdout += data.toString();
+      });
+
+      proc.stderr?.on("data", (data: Buffer) => {
+        stderr += data.toString();
+      });
+
+      proc.on("close", (code) => {
+        clearTimeout(timer);
+        if (timedOut) return; // Already rejected
+
+        if (code !== 0) {
+          reject(new RuntimeErrorClass(`SSH command failed: ${stderr.trim()}`, "network"));
+          return;
+        }
+
+        const output = stdout.trim();
+        resolve(output);
+      });
+
+      proc.on("error", (err) => {
+        clearTimeout(timer);
+        if (timedOut) return; // Already rejected
+
+        reject(
+          new RuntimeErrorClass(
+            `Cannot execute SSH command: ${getErrorMessage(err)}`,
+            "network",
+            err instanceof Error ? err : undefined
+          )
+        );
+      });
+    });
+  }
+
   normalizePath(targetPath: string, basePath: string): string {
     // For SSH, handle paths in a POSIX-like manner without accessing the remote filesystem
     const target = targetPath.trim();

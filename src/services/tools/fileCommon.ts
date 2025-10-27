@@ -49,6 +49,54 @@ export function validateFileSize(stats: FileStat): { error: string } | null {
 }
 
 /**
+ * Validates that a file path doesn't contain redundant workspace prefix.
+ * Returns an error object if the path contains the cwd prefix, null if valid.
+ * This helps save tokens by encouraging relative paths.
+ *
+ * Works for both local and SSH runtimes by using runtime.normalizePath()
+ * for consistent path handling across different runtime types.
+ *
+ * @param filePath - The file path to validate
+ * @param cwd - The working directory
+ * @param runtime - The runtime to use for path normalization
+ * @returns Error object if redundant prefix found, null if valid
+ */
+export function validateNoRedundantPrefix(
+  filePath: string,
+  cwd: string,
+  runtime: Runtime
+): { error: string } | null {
+  // Only check absolute paths (start with /) - relative paths are fine
+  // This works for both local and SSH since both use Unix-style paths
+  if (!filePath.startsWith("/")) {
+    return null;
+  }
+
+  // Use runtime's normalizePath to ensure consistent handling across local and SSH
+  // Normalize the cwd to get canonical form (removes trailing slashes, etc.)
+  const normalizedCwd = runtime.normalizePath(".", cwd);
+
+  // For absolute paths, we can't use normalizePath directly (it resolves relative paths)
+  // so just clean up trailing slashes manually
+  const normalizedPath = filePath.replace(/\/+$/, "");
+  const cleanCwd = normalizedCwd.replace(/\/+$/, "");
+
+  // Check if the absolute path starts with the cwd
+  // Use startsWith + check for path separator to avoid partial matches
+  // e.g., /workspace/project should match /workspace/project/src but not /workspace/project2
+  if (normalizedPath === cleanCwd || normalizedPath.startsWith(cleanCwd + "/")) {
+    // Calculate what the relative path would be
+    const relativePath =
+      normalizedPath === cleanCwd ? "." : normalizedPath.substring(cleanCwd.length + 1);
+    return {
+      error: `Redundant path prefix detected. The path '${filePath}' contains the workspace directory. Please use relative paths to save tokens: '${relativePath}'`,
+    };
+  }
+
+  return null;
+}
+
+/**
  * Validates that a file path is within the allowed working directory.
  * Returns an error object if the path is outside cwd, null if valid.
  *

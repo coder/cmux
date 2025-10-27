@@ -55,7 +55,7 @@ describe("file_read tool", () => {
     using testEnv = createTestFileReadTool({ cwd: testDir });
     const tool = testEnv.tool;
     const args: FileReadToolArgs = {
-      filePath: testFilePath,
+      filePath: "test.txt", // Use relative path
     };
 
     // Execute
@@ -78,7 +78,7 @@ describe("file_read tool", () => {
     using testEnv = createTestFileReadTool({ cwd: testDir });
     const tool = testEnv.tool;
     const args: FileReadToolArgs = {
-      filePath: testFilePath,
+      filePath: "test.txt", // Use relative path
       offset: 3, // Start from line 3
     };
 
@@ -101,7 +101,7 @@ describe("file_read tool", () => {
     using testEnv = createTestFileReadTool({ cwd: testDir });
     const tool = testEnv.tool;
     const args: FileReadToolArgs = {
-      filePath: testFilePath,
+      filePath: "test.txt", // Use relative path
       limit: 2, // Read only first 2 lines
     };
 
@@ -124,7 +124,7 @@ describe("file_read tool", () => {
     using testEnv = createTestFileReadTool({ cwd: testDir });
     const tool = testEnv.tool;
     const args: FileReadToolArgs = {
-      filePath: testFilePath,
+      filePath: "test.txt", // Use relative path
       offset: 2, // Start from line 2
       limit: 2, // Read 2 lines
     };
@@ -148,7 +148,7 @@ describe("file_read tool", () => {
     using testEnv = createTestFileReadTool({ cwd: testDir });
     const tool = testEnv.tool;
     const args: FileReadToolArgs = {
-      filePath: testFilePath,
+      filePath: "test.txt", // Use relative path
     };
 
     // Execute
@@ -169,7 +169,7 @@ describe("file_read tool", () => {
     using testEnv = createTestFileReadTool({ cwd: testDir });
     const tool = testEnv.tool;
     const args: FileReadToolArgs = {
-      filePath: testFilePath,
+      filePath: "test.txt", // Use relative path
     };
 
     // Execute
@@ -185,12 +185,10 @@ describe("file_read tool", () => {
 
   it("should fail when file does not exist", async () => {
     // Setup
-    const nonExistentPath = path.join(testDir, "nonexistent.txt");
-
     using testEnv = createTestFileReadTool({ cwd: testDir });
     const tool = testEnv.tool;
     const args: FileReadToolArgs = {
-      filePath: nonExistentPath,
+      filePath: "nonexistent.txt", // Use relative path
     };
 
     // Execute
@@ -211,7 +209,7 @@ describe("file_read tool", () => {
     using testEnv = createTestFileReadTool({ cwd: testDir });
     const tool = testEnv.tool;
     const args: FileReadToolArgs = {
-      filePath: testFilePath,
+      filePath: "test.txt", // Use relative path
       offset: 10, // Beyond file length
     };
 
@@ -234,7 +232,7 @@ describe("file_read tool", () => {
     using testEnv = createTestFileReadTool({ cwd: testDir });
     const tool = testEnv.tool;
     const args: FileReadToolArgs = {
-      filePath: testFilePath,
+      filePath: "test.txt", // Use relative path
     };
 
     // Execute
@@ -261,7 +259,7 @@ describe("file_read tool", () => {
     using testEnv = createTestFileReadTool({ cwd: testDir });
     const tool = testEnv.tool;
     const args: FileReadToolArgs = {
-      filePath: testFilePath,
+      filePath: "test.txt", // Use relative path
     };
 
     // Execute
@@ -285,7 +283,7 @@ describe("file_read tool", () => {
     using testEnv = createTestFileReadTool({ cwd: testDir });
     const tool = testEnv.tool;
     const args: FileReadToolArgs = {
-      filePath: testFilePath,
+      filePath: "test.txt", // Use relative path
     };
 
     // Execute
@@ -308,7 +306,7 @@ describe("file_read tool", () => {
     using testEnv = createTestFileReadTool({ cwd: testDir });
     const tool = testEnv.tool;
     const args: FileReadToolArgs = {
-      filePath: testFilePath,
+      filePath: "test.txt", // Use relative path
       limit: 500, // Read only 500 lines
     };
 
@@ -319,6 +317,29 @@ describe("file_read tool", () => {
     expect(result.success).toBe(true);
     if (result.success) {
       expect(result.lines_read).toBe(500);
+    }
+  });
+
+  it("should reject absolute paths containing the workspace directory", async () => {
+    // Setup
+    const content = "test content";
+    await fs.writeFile(testFilePath, content);
+
+    using testEnv = createTestFileReadTool({ cwd: testDir });
+    const tool = testEnv.tool;
+    const args: FileReadToolArgs = {
+      filePath: testFilePath, // Absolute path containing cwd prefix
+    };
+
+    // Execute
+    const result = (await tool.execute!(args, mockToolCallOptions)) as FileReadToolResult;
+
+    // Assert
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error).toContain("Redundant path prefix detected");
+      expect(result.error).toContain("Please use relative paths to save tokens");
+      expect(result.error).toContain("test.txt"); // Should suggest the relative path
     }
   });
 
