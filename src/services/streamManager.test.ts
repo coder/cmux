@@ -1,4 +1,4 @@
-import { describe, test, expect, beforeEach, mock } from "@jest/globals";
+import { describe, test, expect, beforeEach, jest } from "@jest/globals";
 import { StreamManager } from "./streamManager";
 import type { HistoryService } from "./historyService";
 import type { PartialService } from "./partialService";
@@ -17,21 +17,21 @@ if (shouldRunIntegrationTests()) {
 // Mock HistoryService
 const createMockHistoryService = (): HistoryService => {
   return {
-    appendToHistory: mock(() => Promise.resolve({ success: true })),
-    getHistory: mock(() => Promise.resolve({ success: true, data: [] })),
-    updateHistory: mock(() => Promise.resolve({ success: true })),
-    truncateAfterMessage: mock(() => Promise.resolve({ success: true })),
-    clearHistory: mock(() => Promise.resolve({ success: true })),
+    appendToHistory: jest.fn(() => Promise.resolve({ success: true })),
+    getHistory: jest.fn(() => Promise.resolve({ success: true, data: [] })),
+    updateHistory: jest.fn(() => Promise.resolve({ success: true })),
+    truncateAfterMessage: jest.fn(() => Promise.resolve({ success: true })),
+    clearHistory: jest.fn(() => Promise.resolve({ success: true })),
   } as unknown as HistoryService;
 };
 
 // Mock PartialService
 const createMockPartialService = (): PartialService => {
   return {
-    writePartial: mock(() => Promise.resolve({ success: true })),
-    readPartial: mock(() => Promise.resolve(null)),
-    deletePartial: mock(() => Promise.resolve({ success: true })),
-    commitToHistory: mock(() => Promise.resolve({ success: true })),
+    writePartial: jest.fn(() => Promise.resolve({ success: true })),
+    readPartial: jest.fn(() => Promise.resolve(null)),
+    deletePartial: jest.fn(() => Promise.resolve({ success: true })),
+    commitToHistory: jest.fn(() => Promise.resolve({ success: true })),
   } as unknown as PartialService;
 };
 

@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/unbound-method */
-import { describe, test, expect, beforeEach, mock } from "@jest/globals";
+import { describe, test, expect, beforeEach, jest } from "@jest/globals";
 import { PartialService } from "./partialService";
 import type { HistoryService } from "./historyService";
 import type { Config } from "@/config";
@@ -9,18 +9,18 @@ import { Ok } from "@/types/result";
 // Mock Config
 const createMockConfig = (): Config => {
   return {
-    getSessionDir: mock((workspaceId: string) => `/tmp/test-sessions/${workspaceId}`),
+    getSessionDir: jest.fn((workspaceId: string) => `/tmp/test-sessions/${workspaceId}`),
   } as unknown as Config;
 };
 
 // Mock HistoryService
 const createMockHistoryService = (): HistoryService => {
   return {
-    appendToHistory: mock(() => Promise.resolve(Ok(undefined))),
-    getHistory: mock(() => Promise.resolve(Ok([]))),
-    updateHistory: mock(() => Promise.resolve(Ok(undefined))),
-    truncateAfterMessage: mock(() => Promise.resolve(Ok(undefined))),
-    clearHistory: mock(() => Promise.resolve(Ok(undefined))),
+    appendToHistory: jest.fn(() => Promise.resolve(Ok(undefined))),
+    getHistory: jest.fn(() => Promise.resolve(Ok([]))),
+    updateHistory: jest.fn(() => Promise.resolve(Ok(undefined))),
+    truncateAfterMessage: jest.fn(() => Promise.resolve(Ok(undefined))),
+    clearHistory: jest.fn(() => Promise.resolve(Ok(undefined))),
   } as unknown as HistoryService;
 };
 
@@ -55,13 +55,13 @@ describe("PartialService - Error Recovery", () => {
     };
 
     // Mock readPartial to return errored partial
-    partialService.readPartial = mock(() => Promise.resolve(erroredPartial));
+    partialService.readPartial = jest.fn(() => Promise.resolve(erroredPartial));
 
     // Mock deletePartial
-    partialService.deletePartial = mock(() => Promise.resolve(Ok(undefined)));
+    partialService.deletePartial = jest.fn(() => Promise.resolve(Ok(undefined)));
 
     // Mock getHistory to return no existing messages
-    mockHistoryService.getHistory = mock(() => Promise.resolve(Ok([])));
+    mockHistoryService.getHistory = jest.fn(() => Promise.resolve(Ok([])));
 
     // Call commitToHistory
     const result = await partialService.commitToHistory(workspaceId);
@@ -70,7 +70,7 @@ describe("PartialService - Error Recovery", () => {
     expect(result.success).toBe(true);
 
     // Should have called appendToHistory with cleaned metadata (no error/errorType)
-    const appendToHistory = mockHistoryService.appendToHistory as ReturnType<typeof mock>;
+    const appendToHistory = mockHistoryService.appendToHistory as ReturnType<typeof jest.fn>;
     expect(appendToHistory).toHaveBeenCalledTimes(1);
     const appendedMessage = appendToHistory.mock.calls[0][1] as CmuxMessage;
 
@@ -81,7 +81,7 @@ describe("PartialService - Error Recovery", () => {
     expect(appendedMessage.metadata?.historySequence).toBe(1);
 
     // Should have deleted the partial after committing
-    const deletePartial = partialService.deletePartial as ReturnType<typeof mock>;
+    const deletePartial = partialService.deletePartial as ReturnType<typeof jest.fn>;
     expect(deletePartial).toHaveBeenCalledWith(workspaceId);
   });
 
@@ -123,13 +123,13 @@ describe("PartialService - Error Recovery", () => {
     };
 
     // Mock readPartial to return errored partial
-    partialService.readPartial = mock(() => Promise.resolve(erroredPartial));
+    partialService.readPartial = jest.fn(() => Promise.resolve(erroredPartial));
 
     // Mock deletePartial
-    partialService.deletePartial = mock(() => Promise.resolve(Ok(undefined)));
+    partialService.deletePartial = jest.fn(() => Promise.resolve(Ok(undefined)));
 
     // Mock getHistory to return existing placeholder
-    mockHistoryService.getHistory = mock(() => Promise.resolve(Ok([existingPlaceholder])));
+    mockHistoryService.getHistory = jest.fn(() => Promise.resolve(Ok([existingPlaceholder])));
 
     // Call commitToHistory
     const result = await partialService.commitToHistory(workspaceId);
@@ -138,8 +138,8 @@ describe("PartialService - Error Recovery", () => {
     expect(result.success).toBe(true);
 
     // Should have called updateHistory (not append) with cleaned metadata
-    const updateHistory = mockHistoryService.updateHistory as ReturnType<typeof mock>;
-    const appendToHistory = mockHistoryService.appendToHistory as ReturnType<typeof mock>;
+    const updateHistory = mockHistoryService.updateHistory as ReturnType<typeof jest.fn>;
+    const appendToHistory = mockHistoryService.appendToHistory as ReturnType<typeof jest.fn>;
     expect(updateHistory).toHaveBeenCalledTimes(1);
     expect(appendToHistory).not.toHaveBeenCalled();
 
@@ -150,7 +150,7 @@ describe("PartialService - Error Recovery", () => {
     expect(updatedMessage.metadata?.errorType).toBeUndefined();
 
     // Should have deleted the partial after updating
-    const deletePartial = partialService.deletePartial as ReturnType<typeof mock>;
+    const deletePartial = partialService.deletePartial as ReturnType<typeof jest.fn>;
     expect(deletePartial).toHaveBeenCalledWith(workspaceId);
   });
 
@@ -171,13 +171,13 @@ describe("PartialService - Error Recovery", () => {
     };
 
     // Mock readPartial to return empty errored partial
-    partialService.readPartial = mock(() => Promise.resolve(emptyErrorPartial));
+    partialService.readPartial = jest.fn(() => Promise.resolve(emptyErrorPartial));
 
     // Mock deletePartial
-    partialService.deletePartial = mock(() => Promise.resolve(Ok(undefined)));
+    partialService.deletePartial = jest.fn(() => Promise.resolve(Ok(undefined)));
 
     // Mock getHistory to return no existing messages
-    mockHistoryService.getHistory = mock(() => Promise.resolve(Ok([])));
+    mockHistoryService.getHistory = jest.fn(() => Promise.resolve(Ok([])));
 
     // Call commitToHistory
     const result = await partialService.commitToHistory(workspaceId);
@@ -186,11 +186,11 @@ describe("PartialService - Error Recovery", () => {
     expect(result.success).toBe(true);
 
     // Should NOT call appendToHistory for empty message (no value to preserve)
-    const appendToHistory = mockHistoryService.appendToHistory as ReturnType<typeof mock>;
+    const appendToHistory = mockHistoryService.appendToHistory as ReturnType<typeof jest.fn>;
     expect(appendToHistory).not.toHaveBeenCalled();
 
     // Should still delete the partial (cleanup)
-    const deletePartial = partialService.deletePartial as ReturnType<typeof mock>;
+    const deletePartial = partialService.deletePartial as ReturnType<typeof jest.fn>;
     expect(deletePartial).toHaveBeenCalledWith(workspaceId);
   });
 });
