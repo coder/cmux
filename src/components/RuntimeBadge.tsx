@@ -2,7 +2,7 @@ import React from "react";
 import { cn } from "@/lib/utils";
 import type { RuntimeConfig } from "@/types/runtime";
 import { extractSshHostname } from "@/utils/ui/runtimeBadge";
-import { TooltipWrapper, Tooltip } from "./Tooltip";
+import { Tooltip, TooltipTrigger, TooltipContent } from "./ui/tooltip";
 
 interface RuntimeBadgeProps {
   runtimeConfig?: RuntimeConfig;
@@ -21,35 +21,37 @@ export function RuntimeBadge({ runtimeConfig, className }: RuntimeBadgeProps) {
   }
 
   return (
-    <TooltipWrapper inline>
-      <span
-        className={cn(
-          "inline-flex items-center rounded px-1 py-0.5",
-          "bg-accent/10 text-accent border border-accent/30",
-          className
-        )}
-      >
-        <svg
-          width="12"
-          height="12"
-          viewBox="0 0 16 16"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          aria-label="SSH Runtime"
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <span
+          className={cn(
+            "inline-flex items-center rounded px-1 py-0.5",
+            "bg-accent/10 text-accent border border-accent/30",
+            className
+          )}
         >
-          {/* Server rack icon */}
-          <rect x="2" y="2" width="12" height="4" rx="1" />
-          <rect x="2" y="10" width="12" height="4" rx="1" />
-          <line x1="5" y1="4" x2="5" y2="4" />
-          <line x1="5" y1="12" x2="5" y2="12" />
-        </svg>
-      </span>
-      <Tooltip align="right">
+          <svg
+            width="12"
+            height="12"
+            viewBox="0 0 16 16"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-label="SSH Runtime"
+          >
+            {/* Server rack icon */}
+            <rect x="2" y="2" width="12" height="4" rx="1" />
+            <rect x="2" y="10" width="12" height="4" rx="1" />
+            <line x1="5" y1="4" x2="5" y2="4" />
+            <line x1="5" y1="12" x2="5" y2="12" />
+          </svg>
+        </span>
+      </TooltipTrigger>
+      <TooltipContent side="right">
         SSH: {runtimeConfig?.type === "ssh" ? runtimeConfig.host : hostname}
-      </Tooltip>
-    </TooltipWrapper>
+      </TooltipContent>
+    </Tooltip>
   );
 }
