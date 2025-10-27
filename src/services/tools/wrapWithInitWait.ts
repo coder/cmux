@@ -20,6 +20,7 @@ export function wrapWithInitWait<TParameters, TResult>(
   workspaceId: string,
   initStateManager: InitStateManager
 ): Tool<TParameters, TResult> {
+  // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
   return {
     ...tool,
     execute: async (args: TParameters, options) => {
