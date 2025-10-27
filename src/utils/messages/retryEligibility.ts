@@ -15,15 +15,27 @@ import type { DisplayedMessage } from "@/types/message";
  * 3. Last message is a user message (indicating we sent it but never got a response)
  *    - This handles app restarts during slow model responses (models can take 30-60s to first token)
  *    - User messages are only at the end when response hasn't started/completed
+ *    - EXCEPT: Not if recently sent (<3s ago) - prevents flash during normal send flow
  */
-export function hasInterruptedStream(messages: DisplayedMessage[]): boolean {
+export function hasInterruptedStream(
+  messages: DisplayedMessage[],
+  pendingStreamStartTime: number | null = null
+): boolean {
   if (messages.length === 0) return false;
+
+  // Don't show retry barrier if user message was sent very recently (< 3s)
+  // This prevents flash during normal send flow while stream-start event arrives
+  // After 3s, we assume something is wrong and show the barrier
+  if (pendingStreamStartTime !== null) {
+    const elapsed = Date.now() - pendingStreamStartTime;
+    if (elapsed < 3000) return false;
+  }
 
   const lastMessage = messages[messages.length - 1];
 
   return (
     lastMessage.type === "stream-error" || // Stream errored out
-    lastMessage.type === "user" || // No response received yet (e.g., app restarted during slow model)
+    lastMessage.type === "user" || // No response received yet (app restart during slow model)
     (lastMessage.type === "assistant" && lastMessage.isPartial === true) ||
     (lastMessage.type === "tool" && lastMessage.isPartial === true) ||
     (lastMessage.type === "reasoning" && lastMessage.isPartial === true)

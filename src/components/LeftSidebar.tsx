@@ -1,28 +1,17 @@
 import React from "react";
 import { cn } from "@/lib/utils";
-import type { ProjectConfig } from "@/config";
 import type { FrontendWorkspaceMetadata } from "@/types/workspace";
-import type { WorkspaceSelection } from "./ProjectSidebar";
 import type { Secret } from "@/types/secrets";
 import ProjectSidebar from "./ProjectSidebar";
 import { TitleBar } from "./TitleBar";
+import { useApp } from "@/contexts/AppContext";
+import type { WorkspaceSelection } from "./ProjectSidebar";
 
 interface LeftSidebarProps {
-  projects: Map<string, ProjectConfig>;
-  workspaceMetadata: Map<string, FrontendWorkspaceMetadata>;
-  selectedWorkspace: WorkspaceSelection | null;
   onSelectWorkspace: (selection: WorkspaceSelection) => void;
   onAddProject: () => void;
   onAddWorkspace: (projectPath: string) => void;
   onRemoveProject: (path: string) => void;
-  onRemoveWorkspace: (
-    workspaceId: string,
-    options?: { force?: boolean }
-  ) => Promise<{ success: boolean; error?: string }>;
-  onRenameWorkspace: (
-    workspaceId: string,
-    newName: string
-  ) => Promise<{ success: boolean; error?: string }>;
   lastReadTimestamps: Record<string, number>;
   onToggleUnread: (workspaceId: string) => void;
   collapsed: boolean;
@@ -35,6 +24,10 @@ interface LeftSidebarProps {
 
 export function LeftSidebar(props: LeftSidebarProps) {
   const { collapsed, onToggleCollapsed, ...projectSidebarProps } = props;
+
+  // Get app-level state from context
+  const { projects, workspaceMetadata, selectedWorkspace, removeWorkspace, renameWorkspace } =
+    useApp();
 
   return (
     <>
@@ -82,6 +75,11 @@ export function LeftSidebar(props: LeftSidebarProps) {
         {!collapsed && <TitleBar />}
         <ProjectSidebar
           {...projectSidebarProps}
+          projects={projects}
+          workspaceMetadata={workspaceMetadata}
+          selectedWorkspace={selectedWorkspace}
+          onRemoveWorkspace={removeWorkspace}
+          onRenameWorkspace={renameWorkspace}
           collapsed={collapsed}
           onToggleCollapsed={onToggleCollapsed}
         />

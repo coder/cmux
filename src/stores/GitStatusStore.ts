@@ -145,11 +145,8 @@ export class GitStatusStore {
       return;
     }
 
-    // Group workspaces by project for fetch management
-    const projectGroups = this.groupWorkspacesByProject(this.workspaceMetadata);
-
-    // Try to fetch one project per cycle (background, non-blocking)
-    this.tryFetchNextProject(projectGroups);
+    // Try to fetch workspaces that need it (background, non-blocking)
+    this.tryFetchWorkspaces(this.workspaceMetadata);
 
     // Query git status for each workspace
     // Rate limit: Process in batches to prevent bash process explosion
@@ -256,59 +253,52 @@ export class GitStatusStore {
   }
 
   /**
-   * Group workspaces by project name.
+   * Get a unique fetch key for a workspace.
+   * For local workspaces: project name (shared git repo)
+   * For SSH workspaces: workspace ID (each has its own git repo)
    */
-  private groupWorkspacesByProject(
-    metadata: Map<string, FrontendWorkspaceMetadata>
-  ): Map<string, FrontendWorkspaceMetadata[]> {
-    const groups = new Map<string, FrontendWorkspaceMetadata[]>();
-
-    for (const m of metadata.values()) {
-      const projectName = m.projectName;
-
-      if (!groups.has(projectName)) {
-        groups.set(projectName, []);
-      }
-      groups.get(projectName)!.push(m);
-    }
-
-    return groups;
+  private getFetchKey(metadata: FrontendWorkspaceMetadata): string {
+    const isSSH = metadata.runtimeConfig?.type === "ssh";
+    return isSSH ? metadata.id : metadata.projectName;
   }
 
   /**
-   * Try to fetch the project that needs it most urgently.
+   * Try to fetch workspaces that need it most urgently.
+   * For SSH workspaces: each workspace has its own repo, so fetch each one.
+   * For local workspaces: workspaces share a repo, so fetch once per project.
    */
-  private tryFetchNextProject(projectGroups: Map<string, FrontendWorkspaceMetadata[]>): void {
-    let targetProject: string | null = null;
+  private tryFetchWorkspaces(workspaces: Map<string, FrontendWorkspaceMetadata>): void {
+    // Find the workspace that needs fetching most urgently
+    let targetFetchKey: string | null = null;
     let targetWorkspaceId: string | null = null;
     let oldestTime = Date.now();
 
-    for (const [projectName, workspaces] of projectGroups) {
-      if (workspaces.length === 0) continue;
+    for (const metadata of workspaces.values()) {
+      const fetchKey = this.getFetchKey(metadata);
 
-      if (this.shouldFetch(projectName)) {
-        const cache = this.fetchCache.get(projectName);
+      if (this.shouldFetch(fetchKey)) {
+        const cache = this.fetchCache.get(fetchKey);
         const lastFetch = cache?.lastFetch ?? 0;
 
         if (lastFetch < oldestTime) {
           oldestTime = lastFetch;
-          targetProject = projectName;
-          targetWorkspaceId = workspaces[0].id;
+          targetFetchKey = fetchKey;
+          targetWorkspaceId = metadata.id;
         }
       }
     }
 
-    if (targetProject && targetWorkspaceId) {
+    if (targetFetchKey && targetWorkspaceId) {
       // Fetch in background (don't await - don't block status checks)
-      void this.fetchProject(targetProject, targetWorkspaceId);
+      void this.fetchWorkspace(targetFetchKey, targetWorkspaceId);
     }
   }
 
   /**
-   * Check if project should be fetched.
+   * Check if a workspace/project should be fetched.
    */
-  private shouldFetch(projectName: string): boolean {
-    const cached = this.fetchCache.get(projectName);
+  private shouldFetch(fetchKey: string): boolean {
+    const cached = this.fetchCache.get(fetchKey);
     if (!cached) return true;
     if (cached.inProgress) return false;
 
@@ -321,15 +311,17 @@ export class GitStatusStore {
   }
 
   /**
-   * Fetch updates for a project (one workspace is sufficient).
+   * Fetch updates for a workspace.
+   * For local workspaces: fetches the shared project repo.
+   * For SSH workspaces: fetches the workspace's individual repo.
    */
-  private async fetchProject(projectName: string, workspaceId: string): Promise<void> {
+  private async fetchWorkspace(fetchKey: string, workspaceId: string): Promise<void> {
     // Defensive: Return early if window.api is unavailable (e.g., test environment)
     if (typeof window === "undefined" || !window.api) {
       return;
     }
 
-    const cache = this.fetchCache.get(projectName) ?? {
+    const cache = this.fetchCache.get(fetchKey) ?? {
       lastFetch: 0,
       inProgress: false,
       consecutiveFailures: 0,
@@ -338,7 +330,7 @@ export class GitStatusStore {
     if (cache.inProgress) return;
 
     // Mark as in progress
-    this.fetchCache.set(projectName, { ...cache, inProgress: true });
+    this.fetchCache.set(fetchKey, { ...cache, inProgress: true });
 
     try {
       const result = await window.api.workspace.executeBash(workspaceId, GIT_FETCH_SCRIPT, {
@@ -355,15 +347,15 @@ export class GitStatusStore {
       }
 
       // Success - reset failure counter
-      console.debug(`[fetch] Success for ${projectName}`);
-      this.fetchCache.set(projectName, {
+      console.debug(`[fetch] Success for ${fetchKey}`);
+      this.fetchCache.set(fetchKey, {
         lastFetch: Date.now(),
         inProgress: false,
         consecutiveFailures: 0,
       });
     } catch (error) {
       // All errors logged to console, never shown to user
-      console.debug(`[fetch] Failed for ${projectName}:`, error);
+      console.debug(`[fetch] Failed for ${fetchKey}:`, error);
 
       const newFailures = cache.consecutiveFailures + 1;
       const nextDelay = Math.min(
@@ -372,11 +364,11 @@ export class GitStatusStore {
       );
 
       console.debug(
-        `[fetch] Will retry ${projectName} after ${Math.round(nextDelay / 1000)}s ` +
+        `[fetch] Will retry ${fetchKey} after ${Math.round(nextDelay / 1000)}s ` +
           `(failure #${newFailures})`
       );
 
-      this.fetchCache.set(projectName, {
+      this.fetchCache.set(fetchKey, {
         lastFetch: Date.now(),
         inProgress: false,
         consecutiveFailures: newFailures,

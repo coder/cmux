@@ -16,7 +16,7 @@ export const Context1MCheckbox: React.FC<Context1MCheckboxProps> = ({ modelStrin
   }
 
   return (
-    <div className="ml-2 flex items-center gap-1.5">
+    <div className="flex items-center gap-1.5">
       <label className="text-foreground flex cursor-pointer items-center gap-1 truncate text-[10px] select-none hover:text-white">
         <input type="checkbox" checked={use1M} onChange={(e) => setUse1M(e.target.checked)} />
         1M Context

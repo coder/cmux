@@ -8,6 +8,7 @@ import { Config } from "@/config";
 import { HistoryService } from "@/services/historyService";
 import { PartialService } from "@/services/partialService";
 import { AIService } from "@/services/aiService";
+import { InitStateManager } from "@/services/initStateManager";
 import { AgentSession, type AgentSessionChatEvent } from "@/services/agentSession";
 import {
   isCaughtUpMessage,
@@ -159,19 +160,12 @@ async function main(): Promise<void> {
   const config = new Config(configRoot);
 
   const workspaceIdRaw = values["workspace-id"];
+  if (typeof workspaceIdRaw !== "string" || workspaceIdRaw.trim().length === 0) {
+    throw new Error("--workspace-id is required");
+  }
+  const workspaceId = workspaceIdRaw.trim();
+
   const projectPathRaw = values["project-path"];
-
-  const workspaceId =
-    workspaceIdRaw && workspaceIdRaw.trim().length > 0
-      ? workspaceIdRaw.trim()
-      : (() => {
-          if (typeof projectPathRaw !== "string" || projectPathRaw.trim().length === 0) {
-            throw new Error("Provide --workspace-id or --project-path to derive workspace ID");
-          }
-          const projectPath = path.resolve(projectPathRaw.trim());
-          return config.generateWorkspaceId(projectPath, workspacePath);
-        })();
-
   const projectName =
     typeof projectPathRaw === "string" && projectPathRaw.trim().length > 0
       ? path.basename(path.resolve(projectPathRaw.trim()))
@@ -216,6 +210,7 @@ async function main(): Promise<void> {
   const historyService = new HistoryService(config);
   const partialService = new PartialService(config, historyService);
   const aiService = new AIService(config, historyService, partialService);
+  const initStateManager = new InitStateManager(config);
   ensureProvidersConfig(config);
 
   const session = new AgentSession({
@@ -224,6 +219,7 @@ async function main(): Promise<void> {
     historyService,
     partialService,
     aiService,
+    initStateManager,
   });
 
   session.ensureMetadata({

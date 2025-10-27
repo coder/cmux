@@ -15,8 +15,14 @@ export function listWorkspacesCommand() {
     console.log(`  Workspaces: ${project.workspaces.length}`);
 
     for (const workspace of project.workspaces) {
-      const workspaceId = defaultConfig.generateWorkspaceId(projectPath, workspace.path);
-      console.log(`    - ID: ${workspaceId} (generated)`);
+      const dirName = path.basename(workspace.path);
+      console.log(`    - Directory: ${dirName}`);
+      if (workspace.id) {
+        console.log(`      ID: ${workspace.id}`);
+      }
+      if (workspace.name) {
+        console.log(`      Name: ${workspace.name}`);
+      }
       console.log(`      Path: ${workspace.path}`);
       console.log(`      Exists: ${fs.existsSync(workspace.path)}`);
     }

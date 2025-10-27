@@ -64,6 +64,15 @@ export function getModeKey(workspaceId: string): string {
 }
 
 /**
+ * Get the localStorage key for the default runtime for a project
+ * Stores the last successfully used runtime config when creating a workspace
+ * Format: "runtime:{projectPath}"
+ */
+export function getRuntimeKey(projectPath: string): string {
+  return `runtime:${projectPath}`;
+}
+
+/**
  * Get the localStorage key for the 1M context preference (global)
  * Format: "use1MContext"
  */

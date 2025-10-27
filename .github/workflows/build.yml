@@ -17,6 +17,8 @@ jobs:
           fetch-depth: 0 # Required for git describe to find tags
 
       - uses: ./.github/actions/setup-cmux
+        with:
+          install-imagemagick: true
 
       - name: Build application
         run: bun run build
@@ -71,6 +73,8 @@ jobs:
           fetch-depth: 0 # Required for git describe to find tags
 
       - uses: ./.github/actions/setup-cmux
+        with:
+          install-imagemagick: true
 
       - name: Build application
         run: bun run build

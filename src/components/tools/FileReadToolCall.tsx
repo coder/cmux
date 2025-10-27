@@ -75,7 +75,7 @@ export const FileReadToolCall: React.FC<FileReadToolCallProps> = ({
   const parsedContent = result?.success && result.content ? parseFileContent(result.content) : null;
 
   return (
-    <ToolContainer expanded={expanded}>
+    <ToolContainer expanded={expanded} className="@container">
       <ToolHeader onClick={toggleExpanded}>
         <ExpandIcon expanded={expanded}>▶</ExpandIcon>
         <Tooltip>
@@ -86,8 +86,10 @@ export const FileReadToolCall: React.FC<FileReadToolCallProps> = ({
         </Tooltip>
         <span className="text-text font-monospace max-w-96 truncate">{filePath}</span>
         {result && result.success && parsedContent && (
-          <span className="text-secondary ml-2 text-[10px]">
-            read {formatBytes(parsedContent.actualBytes)} of {formatBytes(result.file_size)}
+          <span className="text-secondary ml-2 text-[10px] whitespace-nowrap">
+            <span className="hidden @sm:inline">read </span>
+            {formatBytes(parsedContent.actualBytes)}
+            <span className="hidden @lg:inline"> of {formatBytes(result.file_size)}</span>
           </span>
         )}
         <StatusIndicator status={status}>{getStatusDisplay(status)}</StatusIndicator>

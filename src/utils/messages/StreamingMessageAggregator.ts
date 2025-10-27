@@ -14,6 +14,7 @@ import type {
 import type { TodoItem } from "@/types/tools";
 
 import type { WorkspaceChatMessage, StreamErrorMessage, DeleteMessage } from "@/types/ipc";
+import { isInitStart, isInitOutput, isInitEnd, isCmuxMessage } from "@/types/ipc";
 import type {
   DynamicToolPart,
   DynamicToolPartPending,
@@ -50,17 +51,28 @@ export class StreamingMessageAggregator {
   // Current TODO list (updated when todo_write succeeds)
   private currentTodos: TodoItem[] = [];
 
+  // Workspace init hook state (ephemeral, not persisted to history)
+  private initState: {
+    status: "running" | "success" | "error";
+    hookPath: string;
+    lines: string[];
+    exitCode: number | null;
+    timestamp: number;
+  } | null = null;
+
+  // Track when we're waiting for stream-start after user message
+  // Prevents retry barrier flash during normal send flow
+  // Stores timestamp of when user message was sent (null = no pending stream)
+  private pendingStreamStartTime: number | null = null;
+
   // Workspace creation timestamp (used for recency calculation)
-  private readonly createdAt?: string;
+  // REQUIRED: Backend guarantees every workspace has createdAt via config.ts
+  private readonly createdAt: string;
 
-  constructor(createdAt?: string) {
+  constructor(createdAt: string) {
     this.createdAt = createdAt;
-    // Initialize recency immediately (ensures workspace appears at correct position before messages load)
-    if (createdAt) {
-      this.updateRecency();
-    }
+    this.updateRecency();
   }
-
   private invalidateCache(): void {
     this.cachedAllMessages = null;
     this.cachedDisplayedMessages = null;
@@ -174,6 +186,14 @@ export class StreamingMessageAggregator {
     return this.messages.size > 0;
   }
 
+  getPendingStreamStartTime(): number | null {
+    return this.pendingStreamStartTime;
+  }
+
+  private setPendingStreamStartTime(time: number | null): void {
+    this.pendingStreamStartTime = time;
+  }
+
   getActiveStreams(): StreamingContext[] {
     return Array.from(this.activeStreams.values());
   }
@@ -244,6 +264,9 @@ export class StreamingMessageAggregator {
 
   // Unified event handlers that encapsulate all complex logic
   handleStreamStart(data: StreamStartEvent): void {
+    // Clear pending stream start timestamp - stream has started
+    this.setPendingStreamStartTime(null);
+
     // Detect if this stream is compacting by checking if last user message is a compaction-request
     const messages = this.getAllMessages();
     const lastUserMsg = [...messages].reverse().find((m) => m.role === "user");
@@ -407,10 +430,6 @@ export class StreamingMessageAggregator {
       return;
     }
 
-    console.log(
-      `[Aggregator] tool-call-start: toolName=${data.toolName}, args=${JSON.stringify(data.args).substring(0, 50)}..., tokens=${data.tokens}`
-    );
-
     // Add tool part to maintain temporal order
     const toolPart: DynamicToolPartPending = {
       type: "dynamic-tool",
@@ -429,10 +448,6 @@ export class StreamingMessageAggregator {
   }
 
   handleToolCallDelta(data: ToolCallDeltaEvent): void {
-    const deltaStr = String(data.delta);
-    console.log(
-      `[Aggregator] tool-call-delta: toolName=${data.toolName}, delta=${deltaStr.substring(0, 20)}..., tokens=${data.tokens}`
-    );
     // Track delta for token counting and TPS calculation
     this.trackDelta(data.messageId, data.tokens, data.timestamp, "tool-args");
     // Tool deltas are for display - args are in dynamic-tool part
@@ -495,9 +510,53 @@ export class StreamingMessageAggregator {
   }
 
   handleMessage(data: WorkspaceChatMessage): void {
+    // Handle init hook events (ephemeral, not persisted to history)
+    if (isInitStart(data)) {
+      this.initState = {
+        status: "running",
+        hookPath: data.hookPath,
+        lines: [],
+        exitCode: null,
+        timestamp: data.timestamp,
+      };
+      this.invalidateCache();
+      return;
+    }
+
+    if (isInitOutput(data)) {
+      if (!this.initState) {
+        console.error("Received init-output without init-start", { data });
+        return;
+      }
+      if (!data.line) {
+        console.error("Received init-output with missing line field", { data });
+        return;
+      }
+      const line = data.isError ? `ERROR: ${data.line}` : data.line;
+      // Extra defensive check (should never hit due to check above, but prevents crash if data changes)
+      if (typeof line !== "string") {
+        console.error("Init-output line is not a string", { line, data });
+        return;
+      }
+      this.initState.lines.push(line.trimEnd());
+      this.invalidateCache();
+      return;
+    }
+
+    if (isInitEnd(data)) {
+      if (!this.initState) {
+        console.error("Received init-end without init-start", { data });
+        return;
+      }
+      this.initState.exitCode = data.exitCode;
+      this.initState.status = data.exitCode === 0 ? "success" : "error";
+      this.invalidateCache();
+      return;
+    }
+
     // Handle regular messages (user messages, historical messages)
     // Check if it's a CmuxMessage (has role property but no type)
-    if ("role" in data && !("type" in data)) {
+    if (isCmuxMessage(data)) {
       const incomingMessage = data;
 
       // Smart replacement logic for edits:
@@ -528,6 +587,11 @@ export class StreamingMessageAggregator {
 
       // Now add the new message
       this.addMessage(incomingMessage);
+
+      // If this is a user message, record timestamp for pending stream detection
+      if (incomingMessage.role === "user") {
+        this.setPendingStreamStartTime(Date.now());
+      }
     }
   }
 
@@ -715,6 +779,21 @@ export class StreamingMessageAggregator {
             });
           }
         }
+      }
+
+      // Add init state if present (ephemeral, appears at top)
+      if (this.initState) {
+        const initMessage: DisplayedMessage = {
+          type: "workspace-init",
+          id: "workspace-init",
+          historySequence: -1, // Appears before all history
+          status: this.initState.status,
+          hookPath: this.initState.hookPath,
+          lines: [...this.initState.lines], // Shallow copy for React.memo change detection
+          exitCode: this.initState.exitCode,
+          timestamp: this.initState.timestamp,
+        };
+        displayedMessages.unshift(initMessage);
       }
 
       // Limit to last N messages for DOM performance

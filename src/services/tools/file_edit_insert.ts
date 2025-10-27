@@ -1,11 +1,13 @@
 import { tool } from "ai";
-import * as fs from "fs/promises";
-import * as path from "path";
 import type { FileEditInsertToolResult } from "@/types/tools";
 import type { ToolConfiguration, ToolFactory } from "@/utils/tools/tools";
 import { TOOL_DEFINITIONS } from "@/utils/tools/toolDefinitions";
-import { validatePathInCwd, WRITE_DENIED_PREFIX } from "./fileCommon";
+import { validatePathInCwd } from "./fileCommon";
+import { WRITE_DENIED_PREFIX } from "@/types/tools";
 import { executeFileEditOperation } from "./file_edit_operation";
+import { RuntimeError } from "@/runtime/Runtime";
+import { fileExists } from "@/utils/runtime/fileExists";
+import { writeFileString } from "@/utils/runtime/helpers";
 
 /**
  * File edit insert tool factory for AI assistant
@@ -23,7 +25,7 @@ export const createFileEditInsertTool: ToolFactory = (config: ToolConfiguration)
       create,
     }): Promise<FileEditInsertToolResult> => {
       try {
-        const pathValidation = validatePathInCwd(file_path, config.cwd);
+        const pathValidation = validatePathInCwd(file_path, config.cwd, config.runtime);
         if (pathValidation) {
           return {
             success: false,
@@ -38,16 +40,13 @@ export const createFileEditInsertTool: ToolFactory = (config: ToolConfiguration)
           };
         }
 
-        const resolvedPath = path.isAbsolute(file_path)
-          ? file_path
-          : path.resolve(config.cwd, file_path);
+        // Use runtime's normalizePath method to resolve paths correctly for both local and SSH runtimes
+        const resolvedPath = config.runtime.normalizePath(file_path, config.cwd);
 
-        let fileExists = await fs
-          .stat(resolvedPath)
-          .then((stats) => stats.isFile())
-          .catch(() => false);
+        // Check if file exists using runtime
+        const exists = await fileExists(config.runtime, resolvedPath);
 
-        if (!fileExists) {
+        if (!exists) {
           if (!create) {
             return {
               success: false,
@@ -55,10 +54,18 @@ export const createFileEditInsertTool: ToolFactory = (config: ToolConfiguration)
             };
           }
 
-          const parentDir = path.dirname(resolvedPath);
-          await fs.mkdir(parentDir, { recursive: true });
-          await fs.writeFile(resolvedPath, "");
-          fileExists = true;
+          // Create empty file using runtime helper
+          try {
+            await writeFileString(config.runtime, resolvedPath, "");
+          } catch (err) {
+            if (err instanceof RuntimeError) {
+              return {
+                success: false,
+                error: `${WRITE_DENIED_PREFIX} ${err.message}`,
+              };
+            }
+            throw err;
+          }
         }
 
         return executeFileEditOperation({

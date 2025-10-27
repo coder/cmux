@@ -47,7 +47,7 @@ export const ForceDeleteModal: React.FC<ForceDeleteModalProps> = ({
     <Modal
       isOpen={isOpen}
       title="Force Delete Workspace?"
-      subtitle="The worktree could not be removed normally"
+      subtitle="The workspace could not be removed normally"
       onClose={onClose}
       maxWidth="600px"
       isLoading={isDeleting}
@@ -60,7 +60,7 @@ export const ForceDeleteModal: React.FC<ForceDeleteModalProps> = ({
       <WarningBox>
         <WarningTitle>This action cannot be undone</WarningTitle>
         <WarningText>
-          Force deleting will permanently remove the worktree and may discard uncommitted work or
+          Force deleting will permanently remove the workspace and may discard uncommitted work or
           lose data.
         </WarningText>
       </WarningBox>

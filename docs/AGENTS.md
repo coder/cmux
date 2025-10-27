@@ -105,12 +105,12 @@ Verify with React DevTools Profiler - MarkdownCore should only re-render when co
 - `src/App.tsx` - Main React component
 - `src/config.ts` - Configuration management
 - `~/.cmux/config.json` - User configuration file
-- `~/.cmux/src/<project_name>/<branch>` - Workspace directories for git worktrees
+- `~/.cmux/src/<project_name>/<branch>` - Local workspace directories (git worktrees)
 - `~/.cmux/sessions/<workspace_id>/chat.jsonl` - Session chat histories
 
 ## Documentation Guidelines
 
-**Free-floating markdown docs are not permitted.** Documentation must be organized:
+**Free-floating markdown docs are not permitted.** Documentation must be organized. Do not create standalone markdown files in the project root or random locations, even for implementation summaries or planning documents - use the propose_plan tool or inline comments instead.
 
 - **User-facing docs** → `./docs/` directory
   - **IMPORTANT**: Read `docs/README.md` first before writing user-facing documentation
@@ -119,6 +119,7 @@ Verify with React DevTools Profiler - MarkdownCore should only re-render when co
   - Use standard markdown + mermaid diagrams
 - **Developer docs** → inline with the code its documenting as comments. Consider them notes as notes to future Assistants to understand the logic more quickly.
   **DO NOT** create standalone documentation files in the project root or random locations.
+- **Test documentation** → inline comments in test files explaining complex test setup or edge cases, NOT separate README files.
 
 **NEVER create markdown documentation files (README, guides, summaries, etc.) in the project root during feature development unless the user explicitly requests documentation.** Code + tests + inline comments are complete documentation.
 
@@ -136,7 +137,7 @@ in `/tmp/ai-sdk-docs/**.mdx`.
 ## Key Features
 
 - Projects sidebar (left panel)
-- Workspaces using git worktrees
+- Workspaces (local uses git worktrees, SSH uses remote git clones)
 - Configuration persisted to `~/.cmux/config.json`
 
 ## Performance Patterns
@@ -178,6 +179,8 @@ This project uses **Make** as the primary build orchestrator. See `Makefile` for
 
 - When refactoring, use `git mv` to preserve file history instead of rewriting files from scratch
 
+**⚠️ NEVER kill the running cmux process** - The main cmux instance is used for active development. Use `make test` or `make typecheck` to verify changes instead of starting the app in test workspaces.
+
 ## Testing
 
 ### Test-Driven Development (TDD)
@@ -202,6 +205,7 @@ This project uses **Make** as the primary build orchestrator. See `Makefile` for
 - **Integration tests:**
   - Run specific integration test: `TEST_INTEGRATION=1 bun x jest tests/ipcMain/sendMessage.test.ts -t "test name pattern"`
   - Run all integration tests: `TEST_INTEGRATION=1 bun x jest tests` (~35 seconds, runs 40 tests)
+  - **⚠️ Running `tests/ipcMain` locally takes a very long time.** Prefer running specific test files or use `-t` to filter to specific tests.
   - **Performance**: Tests use `test.concurrent()` to run in parallel within each file
   - **NEVER bypass IPC in integration tests** - Integration tests must use the real IPC communication paths (e.g., `mockIpcRenderer.invoke()`) even when it's harder. Directly accessing services (HistoryService, PartialService, etc.) or manipulating config/state directly bypasses the integration layer and defeats the purpose of the test.
 
@@ -502,6 +506,8 @@ The IPC layer is the boundary between backend and frontend. Follow these rules t
 Notice when you've made the same change many times, refactor to create a shared function
 or component, update all the duplicated code, and then continue on with the original work.
 When repeating string literals (especially in error messages, UI text, or system instructions), extract them to named constants in a relevant constants/utils file - never define the same string literal multiple times across files.
+Before defining a constant, search the codebase to see if it already exists and import it instead.
+If a constant exists in a layer-specific location (`services/`, `utils/main/`) but is needed across layers, move it to a shared location (`src/constants/`, `src/types/`) rather than duplicating it.
 
 **Avoid unnecessary callback indirection**: If a hook detects a condition and has access to all data needed to handle it, let it handle the action directly rather than passing callbacks up to parent components. Keep hooks self-contained when possible.
 

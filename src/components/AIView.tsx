@@ -24,10 +24,12 @@ import { useWorkspaceState, useWorkspaceAggregator } from "@/stores/WorkspaceSto
 import { StatusIndicator } from "./StatusIndicator";
 import { getModelName } from "@/utils/ai/models";
 import { GitStatusIndicator } from "./GitStatusIndicator";
+import { RuntimeBadge } from "./RuntimeBadge";
 
 import { useGitStatus } from "@/stores/GitStatusStore";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import type { DisplayedMessage } from "@/types/message";
+import type { RuntimeConfig } from "@/types/runtime";
 import { useAIViewKeybinds } from "@/hooks/useAIViewKeybinds";
 
 interface AIViewProps {
@@ -35,6 +37,7 @@ interface AIViewProps {
   projectName: string;
   branch: string;
   namedWorkspacePath: string; // User-friendly path for display and terminal
+  runtimeConfig?: RuntimeConfig;
   className?: string;
 }
 
@@ -43,6 +46,7 @@ const AIViewInner: React.FC<AIViewProps> = ({
   projectName,
   branch,
   namedWorkspacePath,
+  runtimeConfig,
   className,
 }) => {
   const chatAreaRef = useRef<HTMLDivElement>(null);
@@ -205,14 +209,20 @@ const AIViewInner: React.FC<AIViewProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [workspaceId, workspaceState?.loading]);
 
+  // Compute showRetryBarrier once for both keybinds and UI
+  // Track if last message was interrupted or errored (for RetryBarrier)
+  // Uses same logic as useResumeManager for DRY
+  const showRetryBarrier = workspaceState
+    ? !workspaceState.canInterrupt &&
+      hasInterruptedStream(workspaceState.messages, workspaceState.pendingStreamStartTime)
+    : false;
+
   // Handle keyboard shortcuts (using optional refs that are safe even if not initialized)
   useAIViewKeybinds({
     workspaceId,
     currentModel: workspaceState?.currentModel ?? null,
     canInterrupt: workspaceState?.canInterrupt ?? false,
-    showRetryBarrier: workspaceState
-      ? !workspaceState.canInterrupt && hasInterruptedStream(workspaceState.messages)
-      : false,
+    showRetryBarrier,
     currentWorkspaceThinking,
     setThinkingLevel,
     setAutoRetry,
@@ -230,8 +240,10 @@ const AIViewInner: React.FC<AIViewProps> = ({
 
     const mergedMessages = mergeConsecutiveStreamErrors(workspaceState.messages);
     const editCutoffHistoryId = mergedMessages.find(
-      (msg): msg is Exclude<DisplayedMessage, { type: "history-hidden" }> =>
-        msg.type !== "history-hidden" && msg.historyId === editingMessage.id
+      (msg): msg is Exclude<DisplayedMessage, { type: "history-hidden" | "workspace-init" }> =>
+        msg.type !== "history-hidden" &&
+        msg.type !== "workspace-init" &&
+        msg.historyId === editingMessage.id
     )?.historyId;
 
     if (!editCutoffHistoryId) {
@@ -263,10 +275,6 @@ const AIViewInner: React.FC<AIViewProps> = ({
   // Get active stream message ID for token counting
   const activeStreamMessageId = aggregator.getActiveStreamMessageId();
 
-  // Track if last message was interrupted or errored (for RetryBarrier)
-  // Uses same logic as useResumeManager for DRY
-  const showRetryBarrier = !canInterrupt && hasInterruptedStream(messages);
-
   // Note: We intentionally do NOT reset autoRetry when streams start.
   // If user pressed Ctrl+C, autoRetry stays false until they manually retry.
   // This makes state transitions explicit and predictable.
@@ -277,8 +285,10 @@ const AIViewInner: React.FC<AIViewProps> = ({
   // When editing, find the cutoff point
   const editCutoffHistoryId = editingMessage
     ? mergedMessages.find(
-        (msg): msg is Exclude<DisplayedMessage, { type: "history-hidden" }> =>
-          msg.type !== "history-hidden" && msg.historyId === editingMessage.id
+        (msg): msg is Exclude<DisplayedMessage, { type: "history-hidden" | "workspace-init" }> =>
+          msg.type !== "history-hidden" &&
+          msg.type !== "workspace-init" &&
+          msg.historyId === editingMessage.id
       )?.historyId
     : undefined;
 
@@ -342,6 +352,7 @@ const AIViewInner: React.FC<AIViewProps> = ({
               workspaceId={workspaceId}
               tooltipPosition="bottom"
             />
+            <RuntimeBadge runtimeConfig={runtimeConfig} />
             <span className="min-w-0 truncate font-mono text-xs">
               {projectName} / {branch}
             </span>
@@ -383,6 +394,15 @@ const AIViewInner: React.FC<AIViewProps> = ({
               <div className="text-placeholder flex h-full flex-1 flex-col items-center justify-center text-center [&_h3]:m-0 [&_h3]:mb-2.5 [&_h3]:text-base [&_h3]:font-medium [&_p]:m-0 [&_p]:text-[13px]">
                 <h3>No Messages Yet</h3>
                 <p>Send a message below to begin</p>
+                <p className="mt-5 text-xs text-[#888]">
+                  💡 Tip: Add a{" "}
+                  <code className="rounded-[3px] bg-[#2d2d30] px-1.5 py-0.5 font-mono text-[11px] text-[#d7ba7d]">
+                    .cmux/init
+                  </code>{" "}
+                  hook to your project to run setup commands
+                  <br />
+                  (e.g., install dependencies, build) when creating new workspaces
+                </p>
               </div>
             ) : (
               <>
@@ -390,12 +410,17 @@ const AIViewInner: React.FC<AIViewProps> = ({
                   const isAtCutoff =
                     editCutoffHistoryId !== undefined &&
                     msg.type !== "history-hidden" &&
+                    msg.type !== "workspace-init" &&
                     msg.historyId === editCutoffHistoryId;
 
                   return (
                     <React.Fragment key={msg.id}>
                       <div
-                        data-message-id={msg.type !== "history-hidden" ? msg.historyId : undefined}
+                        data-message-id={
+                          msg.type !== "history-hidden" && msg.type !== "workspace-init"
+                            ? msg.historyId
+                            : undefined
+                        }
                       >
                         <MessageRenderer
                           message={msg}

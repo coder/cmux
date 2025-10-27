@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { useRef } from "react";
-import App from "./App";
+import { AppLoader } from "./components/AppLoader";
 import type { ProjectConfig } from "./config";
 import type { FrontendWorkspaceMetadata } from "./types/workspace";
 import type { IPCApi } from "./types/ipc";
@@ -31,7 +31,8 @@ function setupMockAPI(options: {
         Promise.resolve({
           success: true,
           metadata: {
-            id: `${projectPath.split("/").pop() ?? "project"}-${branchName}`,
+            // Mock stable ID (production uses crypto.randomBytes(5).toString('hex'))
+            id: Math.random().toString(36).substring(2, 12),
             name: branchName,
             projectPath,
             projectName: projectPath.split("/").pop() ?? "project",
@@ -93,7 +94,7 @@ function setupMockAPI(options: {
 
 const meta = {
   title: "App/Full Application",
-  component: App,
+  component: AppLoader,
   parameters: {
     layout: "fullscreen",
     backgrounds: {
@@ -102,7 +103,7 @@ const meta = {
     },
   },
   tags: ["autodocs"],
-} satisfies Meta<typeof App>;
+} satisfies Meta<typeof AppLoader>;
 
 export default meta;
 type Story = StoryObj<typeof meta>;
@@ -121,7 +122,7 @@ const AppWithMocks: React.FC<{
     initialized.current = true;
   }
 
-  return <App />;
+  return <AppLoader />;
 };
 
 export const WelcomeScreen: Story = {
@@ -135,15 +136,15 @@ export const SingleProject: Story = {
         "/home/user/projects/my-app",
         {
           workspaces: [
-            { path: "/home/user/.cmux/src/my-app/main", id: "my-app-main", name: "main" },
+            { path: "/home/user/.cmux/src/my-app/main", id: "a1b2c3d4e5", name: "main" },
             {
               path: "/home/user/.cmux/src/my-app/feature-auth",
-              id: "my-app-feature-auth",
+              id: "f6g7h8i9j0",
               name: "feature/auth",
             },
             {
               path: "/home/user/.cmux/src/my-app/bugfix",
-              id: "my-app-bugfix",
+              id: "k1l2m3n4o5",
               name: "bugfix/memory-leak",
             },
           ],
@@ -153,18 +154,23 @@ export const SingleProject: Story = {
 
     const workspaces: FrontendWorkspaceMetadata[] = [
       {
-        id: "my-app-main",
+        id: "a1b2c3d4e5",
         name: "main",
         projectPath: "/home/user/projects/my-app",
         projectName: "my-app",
         namedWorkspacePath: "/home/user/.cmux/src/my-app/main",
       },
       {
-        id: "my-app-feature-auth",
+        id: "f6g7h8i9j0",
         name: "feature/auth",
         projectPath: "/home/user/projects/my-app",
         projectName: "my-app",
         namedWorkspacePath: "/home/user/.cmux/src/my-app/feature-auth",
+        runtimeConfig: {
+          type: "ssh",
+          host: "dev-server.example.com",
+          srcBaseDir: "/home/user/.cmux/src",
+        },
       },
       {
         id: "my-app-bugfix",
@@ -181,15 +187,16 @@ export const SingleProject: Story = {
 
 export const MultipleProjects: Story = {
   render: () => {
+    // Note: Workspace IDs are fixtures using hex-like format (production uses random 10-hex chars)
     const projects = new Map<string, ProjectConfig>([
       [
         "/home/user/projects/frontend",
         {
           workspaces: [
-            { path: "/home/user/.cmux/src/frontend/main", id: "frontend-main", name: "main" },
+            { path: "/home/user/.cmux/src/frontend/main", id: "1a2b3c4d5e", name: "main" },
             {
               path: "/home/user/.cmux/src/frontend/redesign",
-              id: "frontend-redesign",
+              id: "2b3c4d5e6f",
               name: "redesign",
             },
           ],
@@ -199,11 +206,11 @@ export const MultipleProjects: Story = {
         "/home/user/projects/backend",
         {
           workspaces: [
-            { path: "/home/user/.cmux/src/backend/main", id: "backend-main", name: "main" },
-            { path: "/home/user/.cmux/src/backend/api-v2", id: "backend-api-v2", name: "api-v2" },
+            { path: "/home/user/.cmux/src/backend/main", id: "3c4d5e6f7a", name: "main" },
+            { path: "/home/user/.cmux/src/backend/api-v2", id: "4d5e6f7a8b", name: "api-v2" },
             {
               path: "/home/user/.cmux/src/backend/db-migration",
-              id: "backend-db-migration",
+              id: "5e6f7a8b9c",
               name: "db-migration",
             },
           ],
@@ -213,7 +220,7 @@ export const MultipleProjects: Story = {
         "/home/user/projects/mobile",
         {
           workspaces: [
-            { path: "/home/user/.cmux/src/mobile/main", id: "mobile-main", name: "main" },
+            { path: "/home/user/.cmux/src/mobile/main", id: "6f7a8b9c0d", name: "main" },
           ],
         },
       ],
@@ -221,42 +228,52 @@ export const MultipleProjects: Story = {
 
     const workspaces: FrontendWorkspaceMetadata[] = [
       {
-        id: "frontend-main",
+        id: "1a2b3c4d5e",
         name: "main",
         projectPath: "/home/user/projects/frontend",
         projectName: "frontend",
         namedWorkspacePath: "/home/user/.cmux/src/frontend/main",
       },
       {
-        id: "frontend-redesign",
+        id: "2b3c4d5e6f",
         name: "redesign",
         projectPath: "/home/user/projects/frontend",
         projectName: "frontend",
         namedWorkspacePath: "/home/user/.cmux/src/frontend/redesign",
       },
       {
-        id: "backend-main",
+        id: "3c4d5e6f7a",
         name: "main",
         projectPath: "/home/user/projects/backend",
         projectName: "backend",
         namedWorkspacePath: "/home/user/.cmux/src/backend/main",
       },
       {
-        id: "backend-api-v2",
+        id: "4d5e6f7a8b",
         name: "api-v2",
         projectPath: "/home/user/projects/backend",
         projectName: "backend",
         namedWorkspacePath: "/home/user/.cmux/src/backend/api-v2",
+        runtimeConfig: {
+          type: "ssh",
+          host: "prod-server.example.com",
+          srcBaseDir: "/home/user/.cmux/src",
+        },
       },
       {
-        id: "backend-db-migration",
+        id: "5e6f7a8b9c",
         name: "db-migration",
         projectPath: "/home/user/projects/backend",
         projectName: "backend",
         namedWorkspacePath: "/home/user/.cmux/src/backend/db-migration",
+        runtimeConfig: {
+          type: "ssh",
+          host: "staging.example.com",
+          srcBaseDir: "/home/user/.cmux/src",
+        },
       },
       {
-        id: "mobile-main",
+        id: "6f7a8b9c0d",
         name: "main",
         projectPath: "/home/user/projects/mobile",
         projectName: "mobile",
@@ -351,7 +368,8 @@ export const ActiveWorkspaceWithChat: Story = {
                 Promise.resolve({
                   success: true,
                   metadata: {
-                    id: `${projectPath.split("/").pop() ?? "project"}-${branchName}`,
+                    // Mock stable ID (production uses crypto.randomBytes(5).toString('hex'))
+                    id: Math.random().toString(36).substring(2, 12),
                     name: branchName,
                     projectPath,
                     projectName: projectPath.split("/").pop() ?? "project",
@@ -615,7 +633,7 @@ export const ActiveWorkspaceWithChat: Story = {
         initialized.current = true;
       }
 
-      return <App />;
+      return <AppLoader />;
     };
 
     return <AppWithChatMocks />;

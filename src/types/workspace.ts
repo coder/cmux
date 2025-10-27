@@ -30,10 +30,12 @@ export const WorkspaceMetadataSchema = z.object({
  * - name is the branch/workspace name (e.g., "feature-branch")
  *
  * Path handling:
- * - Worktree paths are computed on-demand via config.getWorkspacePath(projectPath, id)
+ * - Worktree paths are computed on-demand via config.getWorkspacePath(projectPath, name)
+ * - Directory name uses workspace.name (the branch name)
  * - This avoids storing redundant derived data
- * - Frontend can show symlink paths, backend uses real paths
  */
+import type { RuntimeConfig } from "./runtime";
+
 export interface WorkspaceMetadata {
   /** Stable unique identifier (10 hex chars for new workspaces, legacy format for old) */
   id: string;
@@ -44,11 +46,14 @@ export interface WorkspaceMetadata {
   /** Project name extracted from project path (for display) */
   projectName: string;
 
-  /** Absolute path to the project (needed to compute worktree path) */
+  /** Absolute path to the project (needed to compute workspace path) */
   projectPath: string;
 
   /** ISO 8601 timestamp of when workspace was created (optional for backward compatibility) */
   createdAt?: string;
+
+  /** Runtime configuration for this workspace (optional, defaults to local) */
+  runtimeConfig?: RuntimeConfig;
 }
 
 /**

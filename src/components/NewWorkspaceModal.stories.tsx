@@ -22,6 +22,10 @@ const meta = {
       control: "text",
       description: "Name of the project",
     },
+    projectPath: {
+      control: "text",
+      description: "Path to the project",
+    },
     branches: {
       control: "object",
       description: "List of available branches",
@@ -55,6 +59,7 @@ export const Default: Story = {
   args: {
     isOpen: true,
     projectName: "my-project",
+    projectPath: "/path/to/my-project",
     branches: ["main", "develop", "feature/new-feature"],
     defaultTrunkBranch: "main",
   },
@@ -64,6 +69,7 @@ export const LongProjectName: Story = {
   args: {
     isOpen: true,
     projectName: "very-long-project-name-that-demonstrates-wrapping",
+    projectPath: "/path/to/very-long-project-name-that-demonstrates-wrapping",
     branches: ["main", "develop"],
     defaultTrunkBranch: "main",
   },
@@ -73,6 +79,7 @@ export const NoBranches: Story = {
   args: {
     isOpen: true,
     projectName: "empty-project",
+    projectPath: "/path/to/empty-project",
     branches: [],
   },
 };
@@ -81,6 +88,7 @@ export const ManyBranches: Story = {
   args: {
     isOpen: true,
     projectName: "active-project",
+    projectPath: "/path/to/active-project",
     branches: [
       "main",
       "develop",
@@ -98,6 +106,7 @@ export const Closed: Story = {
   args: {
     isOpen: false,
     projectName: "my-project",
+    projectPath: "/path/to/my-project",
     branches: ["main", "develop"],
     defaultTrunkBranch: "main",
   },
