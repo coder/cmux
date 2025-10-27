@@ -382,11 +382,12 @@ describeIntegration("Runtime File Editing Tools", () => {
             // Create workspace
             const branchName = generateBranchName("relative-path-test");
             const runtimeConfig = getRuntimeConfig(branchName);
-            const { workspaceId, cleanup } = await createWorkspaceHelper(
+            const { workspaceId, cleanup } = await createWorkspaceWithInit(
               env,
               tempGitRepo,
               branchName,
               runtimeConfig,
+              true,
               type === "ssh"
             );
 
@@ -400,6 +401,8 @@ describeIntegration("Runtime File Editing Tools", () => {
                 env,
                 workspaceId,
                 `Create a file at path "${relativeTestFile}" with content: "Original content"`,
+                HAIKU_MODEL,
+                FILE_TOOLS_ONLY,
                 streamTimeout
               );
 
@@ -415,6 +418,8 @@ describeIntegration("Runtime File Editing Tools", () => {
                 env,
                 workspaceId,
                 `Replace the text in ${relativeTestFile}: change "Original" to "Modified"`,
+                HAIKU_MODEL,
+                FILE_TOOLS_ONLY,
                 streamTimeout
               );
 
@@ -437,6 +442,8 @@ describeIntegration("Runtime File Editing Tools", () => {
                 env,
                 workspaceId,
                 `Read the file ${relativeTestFile} and tell me its content`,
+                HAIKU_MODEL,
+                FILE_TOOLS_ONLY,
                 streamTimeout
               );
 
