@@ -162,6 +162,7 @@ export class IpcMain {
       partialService: this.partialService,
       aiService: this.aiService,
       initStateManager: this.initStateManager,
+      notificationService: this.notificationService,
     });
 
     const chatUnsubscribe = session.onChatEvent((event) => {

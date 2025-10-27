@@ -9,6 +9,7 @@ import { HistoryService } from "@/services/historyService";
 import { PartialService } from "@/services/partialService";
 import { AIService } from "@/services/aiService";
 import { InitStateManager } from "@/services/initStateManager";
+import { NotificationService } from "@/services/NotificationService";
 import { AgentSession, type AgentSessionChatEvent } from "@/services/agentSession";
 import {
   isCaughtUpMessage,
@@ -211,6 +212,7 @@ async function main(): Promise<void> {
   const partialService = new PartialService(config, historyService);
   const aiService = new AIService(config, historyService, partialService);
   const initStateManager = new InitStateManager(config);
+  const notificationService = new NotificationService(config.rootDir, true);
   ensureProvidersConfig(config);
 
   const session = new AgentSession({
@@ -220,6 +222,7 @@ async function main(): Promise<void> {
     partialService,
     aiService,
     initStateManager,
+    notificationService,
   });
 
   session.ensureMetadata({

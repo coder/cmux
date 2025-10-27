@@ -7,6 +7,7 @@ import type { AIService } from "@/services/aiService";
 import type { HistoryService } from "@/services/historyService";
 import type { PartialService } from "@/services/partialService";
 import type { InitStateManager } from "@/services/initStateManager";
+import type { NotificationService } from "@/services/NotificationService";
 import type { WorkspaceMetadata } from "@/types/workspace";
 import type { WorkspaceChatMessage, StreamErrorMessage, SendMessageOptions } from "@/types/ipc";
 import type { SendMessageError } from "@/types/errors";
@@ -39,6 +40,7 @@ interface AgentSessionOptions {
   partialService: PartialService;
   aiService: AIService;
   initStateManager: InitStateManager;
+  notificationService: NotificationService;
 }
 
 export class AgentSession {
@@ -48,6 +50,7 @@ export class AgentSession {
   private readonly partialService: PartialService;
   private readonly aiService: AIService;
   private readonly initStateManager: InitStateManager;
+  private readonly notificationService: NotificationService;
   private readonly emitter = new EventEmitter();
   private readonly aiListeners: Array<{ event: string; handler: (...args: unknown[]) => void }> =
     [];
@@ -57,8 +60,15 @@ export class AgentSession {
 
   constructor(options: AgentSessionOptions) {
     assert(options, "AgentSession requires options");
-    const { workspaceId, config, historyService, partialService, aiService, initStateManager } =
-      options;
+    const {
+      workspaceId,
+      config,
+      historyService,
+      partialService,
+      aiService,
+      initStateManager,
+      notificationService,
+    } = options;
 
     assert(typeof workspaceId === "string", "workspaceId must be a string");
     const trimmedWorkspaceId = workspaceId.trim();
@@ -70,6 +80,7 @@ export class AgentSession {
     this.partialService = partialService;
     this.aiService = aiService;
     this.initStateManager = initStateManager;
+    this.notificationService = notificationService;
 
     this.attachAiListeners();
     this.attachInitListeners();
@@ -393,7 +404,11 @@ export class AgentSession {
 
     forward("stream-start", (payload) => this.emitChatEvent(payload));
     forward("stream-delta", (payload) => this.emitChatEvent(payload));
-    forward("stream-end", (payload) => this.emitChatEvent(payload));
+    forward("stream-end", (payload) => {
+      this.emitChatEvent(payload);
+      // Trigger completion notification (server-side so it works when app is closed)
+      void this.notificationService.sendCompletionNotification(this.workspaceId, this.workspaceId);
+    });
     forward("tool-call-start", (payload) => this.emitChatEvent(payload));
     forward("tool-call-delta", (payload) => this.emitChatEvent(payload));
     forward("tool-call-end", (payload) => this.emitChatEvent(payload));

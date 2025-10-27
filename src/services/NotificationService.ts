@@ -141,15 +141,11 @@ export class NotificationService {
 
     const results = await Promise.allSettled(sendPromises);
 
-    // Remove failed subscriptions
-    const validSubscriptions = results
-      .filter((result) => {
-        if (result.status === "fulfilled" && result.value.success) {
-          return true;
-        }
-        return false;
-      })
-      .map((_result, index) => subscriptions[index]);
+    // Remove failed subscriptions - filter by original index to preserve correct mapping
+    const validSubscriptions = subscriptions.filter((_, index) => {
+      const result = results[index];
+      return result.status === "fulfilled" && result.value.success;
+    });
 
     this.subscriptions.set(workspaceId, validSubscriptions);
   }
