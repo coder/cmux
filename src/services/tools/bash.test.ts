@@ -1174,12 +1174,12 @@ describe("SSH runtime redundant cd detection", () => {
   }
 
   it("should add educational note when command starts with cd", async () => {
-    const remoteCwd = "~/workspace/project/branch";
+    const remoteCwd = "/remote/workspace/project/branch";
     using testEnv = createTestBashToolWithSSH(remoteCwd);
     const tool = testEnv.tool;
 
     const args: BashToolArgs = {
-      script: "cd ~/workspace/project/branch && echo test",
+      script: "cd /remote/workspace/project/branch && echo test",
       timeout_secs: 5,
     };
 
@@ -1194,7 +1194,7 @@ describe("SSH runtime redundant cd detection", () => {
   });
 
   it("should not add note when command does not start with cd", async () => {
-    const remoteCwd = "~/workspace/project/branch";
+    const remoteCwd = "/remote/workspace/project/branch";
     using testEnv = createTestBashToolWithSSH(remoteCwd);
     const tool = testEnv.tool;
 
