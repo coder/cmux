@@ -4,7 +4,7 @@ import { WRITE_DENIED_PREFIX } from "@/types/tools";
 import { createRuntime } from "@/runtime/runtimeFactory";
 import type { Runtime } from "@/runtime/Runtime";
 
-import { createTestToolConfig } from "./testHelpers";
+import { createTestToolConfig, getTestDeps } from "./testHelpers";
 
 const TEST_CWD = "/tmp";
 
@@ -69,6 +69,7 @@ describe("executeFileEditOperation", () => {
         cwd: testCwd,
         runtime: mockRuntime,
         runtimeTempDir: "/tmp",
+        ...getTestDeps(),
       },
       filePath: testFilePath,
       operation: () => ({ success: true, newContent: "test", metadata: {} }),

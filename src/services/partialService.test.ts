@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/unbound-method */
-import { describe, test, expect, beforeEach, mock } from "bun:test";
+import { describe, test, expect, beforeEach, mock } from "@jest/globals";
 import { PartialService } from "./partialService";
 import type { HistoryService } from "./historyService";
 import type { Config } from "@/config";

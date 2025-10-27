@@ -2,7 +2,7 @@
 // These tests would need to be rewritten to work with Bun's test runner
 // For now, the commandProcessor tests demonstrate our testing approach
 
-import { describe, it, expect, beforeEach } from "bun:test";
+import { describe, it, expect, beforeEach } from "@jest/globals";
 import { AIService } from "./aiService";
 import { HistoryService } from "./historyService";
 import { PartialService } from "./partialService";

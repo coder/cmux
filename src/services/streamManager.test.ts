@@ -1,4 +1,4 @@
-import { describe, test, expect, beforeEach, mock } from "bun:test";
+import { describe, test, expect, beforeEach, mock } from "@jest/globals";
 import { StreamManager } from "./streamManager";
 import type { HistoryService } from "./historyService";
 import type { PartialService } from "./partialService";

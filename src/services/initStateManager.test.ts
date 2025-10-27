@@ -1,7 +1,7 @@
 import * as fs from "fs/promises";
 import * as path from "path";
 import * as os from "os";
-import { describe, it, expect, beforeEach, afterEach } from "bun:test";
+import { describe, it, expect, beforeEach, afterEach } from "@jest/globals";
 import { Config } from "@/config";
 import { InitStateManager } from "./initStateManager";
 import type { WorkspaceInitEvent } from "@/types/ipc";
@@ -53,8 +53,8 @@ describe("InitStateManager", () => {
       manager.appendOutput(workspaceId, "Installing deps...", false);
       manager.appendOutput(workspaceId, "Done!", false);
       expect(manager.getInitState(workspaceId)?.lines).toEqual([
-        { line: "Installing deps...", isError: false, timestamp: expect.any(Number) as number },
-        { line: "Done!", isError: false, timestamp: expect.any(Number) as number },
+        { line: "Installing deps...", isError: false, timestamp: expect.any(Number) },
+        { line: "Done!", isError: false, timestamp: expect.any(Number) },
       ]);
 
       // End init (await to ensure event fires)
@@ -79,8 +79,8 @@ describe("InitStateManager", () => {
 
       const state = manager.getInitState(workspaceId);
       expect(state?.lines).toEqual([
-        { line: "stdout line", isError: false, timestamp: expect.any(Number) as number },
-        { line: "stderr line", isError: true, timestamp: expect.any(Number) as number },
+        { line: "stdout line", isError: false, timestamp: expect.any(Number) },
+        { line: "stderr line", isError: true, timestamp: expect.any(Number) },
       ]);
     });
 
@@ -109,8 +109,8 @@ describe("InitStateManager", () => {
       expect(diskState?.status).toBe("success");
       expect(diskState?.exitCode).toBe(0);
       expect(diskState?.lines).toEqual([
-        { line: "Line 1", isError: false, timestamp: expect.any(Number) as number },
-        { line: "Line 2", isError: true, timestamp: expect.any(Number) as number },
+        { line: "Line 1", isError: false, timestamp: expect.any(Number) },
+        { line: "Line 2", isError: true, timestamp: expect.any(Number) },
       ]);
     });
 
@@ -221,15 +221,23 @@ describe("InitStateManager", () => {
       expect(stateAfterDelete).toBeNull();
     });
 
-    it("should clear in-memory state", () => {
+    it("should clear in-memory state", async () => {
       const workspaceId = "test-workspace";
       manager.startInit(workspaceId, "/path/to/hook");
 
       expect(manager.getInitState(workspaceId)).toBeTruthy();
 
+      // Get the init promise before clearing
+      const initPromise = manager.waitForInit(workspaceId);
+
+      // Clear in-memory state (should reject pending promises)
       manager.clearInMemoryState(workspaceId);
 
+      // Verify state is cleared
       expect(manager.getInitState(workspaceId)).toBeUndefined();
+
+      // Verify the promise was rejected
+      await expect(initPromise).rejects.toThrow("Workspace test-workspace was deleted");
     });
   });
 

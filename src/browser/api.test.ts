@@ -3,7 +3,7 @@
  * Tests the invokeIPC function to ensure it behaves consistently with Electron's ipcRenderer.invoke()
  */
 
-import { describe, test, expect } from "bun:test";
+import { describe, test, expect } from "@jest/globals";
 
 // Helper to create a mock fetch that returns a specific response
 function createMockFetch(responseData: unknown) {
