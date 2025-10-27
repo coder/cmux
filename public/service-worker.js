@@ -51,3 +51,48 @@ self.addEventListener('fetch', (event) => {
   );
 });
 
+// Push event - show notification
+self.addEventListener('push', (event) => {
+  if (!event.data) {
+    return;
+  }
+
+  try {
+    const data = event.data.json();
+    
+    event.waitUntil(
+      self.registration.showNotification(data.title, {
+        body: data.body,
+        icon: '/icon-192.png',
+        badge: '/icon-192.png',
+        tag: data.workspaceId,
+        data: { workspaceId: data.workspaceId },
+      })
+    );
+  } catch (error) {
+    console.error('Error handling push event:', error);
+  }
+});
+
+// Notification click - focus app and navigate to workspace
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true })
+      .then((clientList) => {
+        // If a window is already open, focus it
+        for (const client of clientList) {
+          if (client.url.includes(self.location.origin) && 'focus' in client) {
+            return client.focus();
+          }
+        }
+        // Otherwise open a new window
+        if (clients.openWindow) {
+          return clients.openWindow(`/?workspace=${event.notification.data.workspaceId}`);
+        }
+      })
+  );
+});
+
+

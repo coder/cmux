@@ -109,7 +109,7 @@ app.use(express.json({ limit: "50mb" }));
 
 // Initialize config and IPC service
 const config = new Config();
-const ipcMainService = new IpcMain(config);
+const ipcMainService = new IpcMain(config, false); // false = not desktop (web/mobile)
 
 // Track WebSocket clients and their subscriptions
 const clients: Clients = new Map();

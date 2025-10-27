@@ -136,6 +136,15 @@ const api: IPCApi = {
       };
     },
   },
+  notification: {
+    subscribePush: (workspaceId: string, subscription: unknown) =>
+      ipcRenderer.invoke(IPC_CHANNELS.NOTIFICATION_SUBSCRIBE_PUSH, workspaceId, subscription),
+    unsubscribePush: (workspaceId: string, endpoint: string) =>
+      ipcRenderer.invoke(IPC_CHANNELS.NOTIFICATION_UNSUBSCRIBE_PUSH, workspaceId, endpoint),
+    getVapidKey: () => ipcRenderer.invoke(IPC_CHANNELS.NOTIFICATION_GET_VAPID_KEY),
+    send: (workspaceId: string, workspaceName: string) =>
+      ipcRenderer.invoke(IPC_CHANNELS.NOTIFICATION_SEND, workspaceId, workspaceName),
+  },
 };
 
 // Expose the API along with platform/versions

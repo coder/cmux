@@ -248,6 +248,12 @@ export interface IPCApi {
     install(): void;
     onStatus(callback: (status: UpdateStatus) => void): () => void;
   };
+  notification: {
+    subscribePush(workspaceId: string, subscription: unknown): Promise<void>;
+    unsubscribePush(workspaceId: string, endpoint: string): Promise<void>;
+    getVapidKey(): Promise<string | null>;
+    send(workspaceId: string, workspaceName: string): Promise<void>;
+  };
 }
 
 // Update status type (matches updater service)

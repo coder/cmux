@@ -5,8 +5,8 @@ import type { FrontendWorkspaceMetadata } from "@/types/workspace";
 import type { WorkspaceChatMessage } from "@/types/ipc";
 import type { TodoItem } from "@/types/tools";
 import { StreamingMessageAggregator } from "@/utils/messages/StreamingMessageAggregator";
-import { updatePersistedState } from "@/hooks/usePersistedState";
-import { getRetryStateKey } from "@/constants/storage";
+import { updatePersistedState, readPersistedState } from "@/hooks/usePersistedState";
+import { getRetryStateKey, NOTIFICATION_ENABLED_KEY } from "@/constants/storage";
 import { CUSTOM_EVENTS } from "@/constants/events";
 import { useSyncExternalStore } from "react";
 import {
@@ -903,6 +903,17 @@ export class WorkspaceStore {
       // Update usage stats and schedule consumer calculation
       // MUST happen after aggregator.handleStreamEnd() stores the metadata
       this.finalizeUsageStats(workspaceId, data.metadata);
+
+      // Trigger completion notification if enabled
+      const notificationsEnabled = readPersistedState(NOTIFICATION_ENABLED_KEY, false);
+      if (notificationsEnabled) {
+        // Only notify if document is hidden (tab backgrounded) or on desktop
+        const shouldNotify = typeof document === "undefined" || document.hidden;
+        if (shouldNotify) {
+          // Use workspaceId as the display name for notifications
+          void window.api.notification.send(workspaceId, workspaceId);
+        }
+      }
 
       return;
     }

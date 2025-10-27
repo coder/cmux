@@ -16,7 +16,9 @@ import { AIService } from "@/services/aiService";
 import { HistoryService } from "@/services/historyService";
 import { PartialService } from "@/services/partialService";
 import { AgentSession } from "@/services/agentSession";
+import { NotificationService } from "@/services/NotificationService";
 import type { CmuxMessage } from "@/types/message";
+import type { PushSubscription } from "@/types/notification";
 import { log } from "@/services/log";
 import { IPC_CHANNELS, getChatChannel } from "@/constants/ipc-constants";
 import type { SendMessageError } from "@/types/errors";
@@ -47,6 +49,7 @@ export class IpcMain {
   private readonly historyService: HistoryService;
   private readonly partialService: PartialService;
   private readonly aiService: AIService;
+  private readonly notificationService: NotificationService;
   private readonly sessions = new Map<string, AgentSession>();
   private readonly sessionSubscriptions = new Map<
     string,
@@ -54,12 +57,15 @@ export class IpcMain {
   >();
   private mainWindow: BrowserWindow | null = null;
   private registered = false;
+  private readonly isDesktop: boolean;
 
-  constructor(config: Config) {
+  constructor(config: Config, isDesktop = true) {
     this.config = config;
+    this.isDesktop = isDesktop;
     this.historyService = new HistoryService(config);
     this.partialService = new PartialService(config, this.historyService);
     this.aiService = new AIService(config, this.historyService, this.partialService);
+    this.notificationService = new NotificationService(config.rootDir, isDesktop);
   }
 
   private getOrCreateSession(workspaceId: string): AgentSession {
@@ -143,6 +149,7 @@ export class IpcMain {
     this.registerWindowHandlers(ipcMain);
     this.registerWorkspaceHandlers(ipcMain);
     this.registerProviderHandlers(ipcMain);
+    this.registerNotificationHandlers(ipcMain);
     this.registerProjectHandlers(ipcMain);
     this.registerSubscriptionHandlers(ipcMain);
     this.registered = true;
@@ -1055,6 +1062,69 @@ export class IpcMain {
         return [];
       }
     });
+  }
+
+
+  private registerNotificationHandlers(ipcMain: ElectronIpcMain): void {
+    // Get VAPID public key for push subscription
+    ipcMain.handle(IPC_CHANNELS.NOTIFICATION_GET_VAPID_KEY, () => {
+      return this.notificationService.getVapidPublicKey();
+    });
+
+    // Subscribe to push notifications
+    ipcMain.handle(
+      IPC_CHANNELS.NOTIFICATION_SUBSCRIBE_PUSH,
+      (_event, workspaceId: string, subscription: unknown) => {
+        try {
+          this.notificationService.subscribePush(workspaceId, subscription as PushSubscription);
+        } catch (error) {
+          log.error("Failed to subscribe to push notifications:", error);
+        }
+      }
+    );
+
+    // Unsubscribe from push notifications
+    ipcMain.handle(
+      IPC_CHANNELS.NOTIFICATION_UNSUBSCRIBE_PUSH,
+      (_event, workspaceId: string, endpoint: string) => {
+        try {
+          this.notificationService.unsubscribePush(workspaceId, endpoint);
+        } catch (error) {
+          log.error("Failed to unsubscribe from push notifications:", error);
+        }
+      }
+    );
+
+    // Send notification (for desktop or push)
+    ipcMain.handle(
+      IPC_CHANNELS.NOTIFICATION_SEND,
+      async (_event, workspaceId: string, workspaceName: string) => {
+        try {
+          if (this.isDesktop) {
+            // For desktop, we'll import Notification dynamically and show it
+            const { Notification } = await import("electron");
+            const notification = new Notification({
+              title: "Completion",
+              body: `${workspaceName} has finished`,
+            });
+            notification.on("click", () => {
+              if (this.mainWindow) {
+                if (this.mainWindow.isMinimized()) {
+                  this.mainWindow.restore();
+                }
+                this.mainWindow.focus();
+              }
+            });
+            notification.show();
+          } else {
+            // For web/mobile, send push notifications
+            await this.notificationService.sendCompletionNotification(workspaceId, workspaceName);
+          }
+        } catch (error) {
+          log.error("Failed to send notification:", error);
+        }
+      }
+    );
   }
 
   private registerProjectHandlers(ipcMain: ElectronIpcMain): void {
