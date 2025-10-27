@@ -203,6 +203,8 @@
   --color-interrupted: hsl(38 92% 50%);
   --color-code-bg: hsl(0 6.43% 8.04%);
   --color-border: hsl(240 2% 25%);
+  --color-popover: hsl(0 0% 18%);
+  --color-popover-foreground: hsl(0 0% 83%);
   --color-text: hsl(0 0% 83%);
   --color-text-secondary: hsl(0 0% 42%);
   --color-user-border: hsl(0 0% 38%);
