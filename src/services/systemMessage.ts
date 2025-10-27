@@ -53,6 +53,66 @@ function getSystemDirectory(): string {
 }
 
 /**
+ * Read the first available file from a list using runtime.
+ *
+ * @param runtime - Runtime instance (may be local or SSH)
+ * @param directory - Directory to search in
+ * @param filenames - List of filenames to try, in priority order
+ * @returns Content of the first file found, or null if none exist
+ */
+async function readFirstAvailableFileFromRuntime(
+  runtime: Runtime,
+  directory: string,
+  filenames: readonly string[]
+): Promise<string | null> {
+  for (const filename of filenames) {
+    try {
+      const filePath = path.join(directory, filename);
+      return await readFileString(runtime, filePath);
+    } catch {
+      // File doesn't exist or can't be read, try next
+      continue;
+    }
+  }
+  return null;
+}
+
+/**
+ * Read a file with optional local variant using runtime.
+ * Follows the same pattern as readFileWithLocalVariant but uses Runtime.
+ *
+ * @param runtime - Runtime instance (may be local or SSH)
+ * @param directory - Directory to search
+ * @param baseFilenames - Base filenames to try in priority order
+ * @param localFilename - Optional local filename to append if present
+ * @returns Combined content or null if no base file exists
+ */
+async function readFileWithLocalVariantFromRuntime(
+  runtime: Runtime,
+  directory: string,
+  baseFilenames: readonly string[],
+  localFilename?: string
+): Promise<string | null> {
+  const baseContent = await readFirstAvailableFileFromRuntime(runtime, directory, baseFilenames);
+
+  if (!baseContent) {
+    return null;
+  }
+
+  if (!localFilename) {
+    return baseContent;
+  }
+
+  try {
+    const localFilePath = path.join(directory, localFilename);
+    const localContent = await readFileString(runtime, localFilePath);
+    return `${baseContent}\n\n${localContent}`;
+  } catch {
+    return baseContent;
+  }
+}
+
+/**
  * Read instruction set from a workspace using the runtime abstraction.
  * This supports both local workspaces and remote SSH workspaces.
  *
@@ -65,32 +125,12 @@ async function readInstructionSetFromRuntime(
   workspacePath: string
 ): Promise<string | null> {
   const LOCAL_INSTRUCTION_FILENAME = "AGENTS.local.md";
-
-  // Try to read base instruction file
-  let baseContent: string | null = null;
-  for (const filename of INSTRUCTION_FILE_NAMES) {
-    try {
-      const filePath = path.join(workspacePath, filename);
-      baseContent = await readFileString(runtime, filePath);
-      break; // Found one, stop searching
-    } catch {
-      // File doesn't exist or can't be read, try next
-      continue;
-    }
-  }
-
-  if (!baseContent) {
-    return null;
-  }
-
-  // Try to read local variant
-  try {
-    const localFilePath = path.join(workspacePath, LOCAL_INSTRUCTION_FILENAME);
-    const localContent = await readFileString(runtime, localFilePath);
-    return `${baseContent}\n\n${localContent}`;
-  } catch {
-    return baseContent;
-  }
+  return readFileWithLocalVariantFromRuntime(
+    runtime,
+    workspacePath,
+    INSTRUCTION_FILE_NAMES,
+    LOCAL_INSTRUCTION_FILENAME
+  );
 }
 
 /**
