@@ -1,8 +1,9 @@
 import * as os from "os";
 import * as path from "path";
 import type { WorkspaceMetadata } from "@/types/workspace";
-import { gatherInstructionSets, readInstructionSet } from "@/utils/main/instructionFiles";
+import { readInstructionSet, readInstructionSetFromRuntime } from "@/utils/main/instructionFiles";
 import { extractModeSection } from "@/utils/main/markdown";
+import type { Runtime } from "@/runtime/Runtime";
 
 // NOTE: keep this in sync with the docs/models.md file
 
@@ -28,6 +29,9 @@ Use GitHub-style \`<details>/<summary>\` tags to create collapsible sections for
 </prelude>
 `;
 
+/**
+ * Build environment context XML block describing the workspace.
+ */
 function buildEnvironmentContext(workspacePath: string): string {
   return `
 <environment>
@@ -42,95 +46,71 @@ You are in a git worktree at ${workspacePath}
 }
 
 /**
- * The system directory where global cmux configuration lives.
- * This is where users can place global AGENTS.md and .cmux/PLAN.md files
- * that apply to all workspaces.
+ * Get the system directory where global cmux configuration lives.
+ * Users can place global AGENTS.md and .cmux/PLAN.md files here.
  */
 function getSystemDirectory(): string {
   return path.join(os.homedir(), ".cmux");
 }
 
 /**
- * Builds a system message for the AI model by combining multiple instruction sources.
+ * Builds a system message for the AI model by combining instruction sources.
  *
- * Instruction sources are layered in this order:
- * 1. Global instructions: ~/.cmux/AGENTS.md (+ AGENTS.local.md)
- * 2. Workspace instructions: <workspace>/AGENTS.md (+ AGENTS.local.md)
- * 3. Mode-specific context (if mode provided): Extract a section titled "Mode: <mode>"
- *    (case-insensitive) from the instruction file. We search at most one section in
- *    precedence order: workspace instructions first, then global instructions.
+ * Instruction layers:
+ * 1. Global: ~/.cmux/AGENTS.md (always included)
+ * 2. Context: workspace/AGENTS.md OR project/AGENTS.md (workspace takes precedence)
+ * 3. Mode: Extracts "Mode: <mode>" section from context then global (if mode provided)
  *
- * Each instruction file location is searched for in priority order:
- * - AGENTS.md
- * - AGENT.md
- * - CLAUDE.md
+ * File search order: AGENTS.md → AGENT.md → CLAUDE.md
+ * Local variants: AGENTS.local.md appended if found (for .gitignored personal preferences)
  *
- * If a base instruction file is found, its corresponding .local.md variant is also
- * checked and appended when building the instruction set (useful for personal preferences not committed to git).
- *
- * @param metadata - Workspace metadata
- * @param workspacePath - Absolute path to the workspace worktree directory
- * @param mode - Optional mode name (e.g., "plan", "exec") - looks for {MODE}.md files if provided
- * @param additionalSystemInstructions - Optional additional system instructions to append at the end
- * @returns System message string with all instruction sources combined
- * @throws Error if metadata is invalid
+ * @param metadata - Workspace metadata (contains projectPath)
+ * @param runtime - Runtime for reading workspace files (supports SSH)
+ * @param workspacePath - Workspace directory path
+ * @param mode - Optional mode name (e.g., "plan", "exec")
+ * @param additionalSystemInstructions - Optional instructions appended last
+ * @throws Error if metadata or workspacePath invalid
  */
 export async function buildSystemMessage(
   metadata: WorkspaceMetadata,
+  runtime: Runtime,
   workspacePath: string,
   mode?: string,
   additionalSystemInstructions?: string
 ): Promise<string> {
-  // Validate inputs
-  if (!metadata) {
-    throw new Error("Invalid workspace metadata: metadata is required");
-  }
-  if (!workspacePath) {
-    throw new Error("Invalid workspace path: workspacePath is required");
-  }
+  if (!metadata) throw new Error("Invalid workspace metadata: metadata is required");
+  if (!workspacePath) throw new Error("Invalid workspace path: workspacePath is required");
 
-  const systemDir = getSystemDirectory();
-  const workspaceDir = workspacePath;
+  // Read instruction sets
+  const globalInstructions = await readInstructionSet(getSystemDirectory());
+  const workspaceInstructions = await readInstructionSetFromRuntime(runtime, workspacePath);
+  const contextInstructions =
+    workspaceInstructions ?? (await readInstructionSet(metadata.projectPath));
 
-  // Gather instruction sets from both global and workspace directories
-  // Global instructions apply first, then workspace-specific ones
-  const instructionDirectories = [systemDir, workspaceDir];
-  const instructionSegments = await gatherInstructionSets(instructionDirectories);
-  const customInstructions = instructionSegments.join("\n\n");
+  // Combine: global + context (workspace takes precedence over project)
+  const customInstructions = [globalInstructions, contextInstructions].filter(Boolean).join("\n\n");
 
-  // Look for a "Mode: <mode>" section inside instruction sets, preferring workspace over global
-  // This behavior is documented in docs/instruction-files.md - keep both in sync when changing.
+  // Extract mode-specific section (context first, then global fallback)
   let modeContent: string | null = null;
   if (mode) {
-    const workspaceInstructions = await readInstructionSet(workspaceDir);
-    if (workspaceInstructions) {
-      modeContent = extractModeSection(workspaceInstructions, mode);
-    }
-    if (!modeContent) {
-      const globalInstructions = await readInstructionSet(systemDir);
-      if (globalInstructions) {
-        modeContent = extractModeSection(globalInstructions, mode);
-      }
-    }
+    modeContent =
+      (contextInstructions && extractModeSection(contextInstructions, mode)) ??
+      (globalInstructions && extractModeSection(globalInstructions, mode)) ??
+      null;
   }
 
-  // Build the final system message
-  const environmentContext = buildEnvironmentContext(workspaceDir);
-  const trimmedPrelude = PRELUDE.trim();
-  let systemMessage = `${trimmedPrelude}\n\n${environmentContext}`;
+  // Build system message
+  let systemMessage = `${PRELUDE.trim()}\n\n${buildEnvironmentContext(workspacePath)}`;
 
-  // Add custom instructions if found
   if (customInstructions) {
     systemMessage += `\n<custom-instructions>\n${customInstructions}\n</custom-instructions>`;
   }
 
-  // Add mode-specific content if found
   if (modeContent) {
     const tag = (mode ?? "mode").toLowerCase().replace(/[^a-z0-9_-]/gi, "-");
     systemMessage += `\n\n<${tag}>\n${modeContent}\n</${tag}>`;
   }
 
-  // Add additional system instructions at the end (highest priority)
   if (additionalSystemInstructions) {
     systemMessage += `\n\n<additional-instructions>\n${additionalSystemInstructions}\n</additional-instructions>`;
   }

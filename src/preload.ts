@@ -49,8 +49,14 @@ const api: IPCApi = {
   },
   workspace: {
     list: () => ipcRenderer.invoke(IPC_CHANNELS.WORKSPACE_LIST),
-    create: (projectPath, branchName, trunkBranch: string) =>
-      ipcRenderer.invoke(IPC_CHANNELS.WORKSPACE_CREATE, projectPath, branchName, trunkBranch),
+    create: (projectPath, branchName, trunkBranch: string, runtimeConfig?) =>
+      ipcRenderer.invoke(
+        IPC_CHANNELS.WORKSPACE_CREATE,
+        projectPath,
+        branchName,
+        trunkBranch,
+        runtimeConfig
+      ),
     remove: (workspaceId: string, options?: { force?: boolean }) =>
       ipcRenderer.invoke(IPC_CHANNELS.WORKSPACE_REMOVE, workspaceId, options),
     rename: (workspaceId: string, newName: string) =>
@@ -73,7 +79,7 @@ const api: IPCApi = {
     openTerminal: (workspacePath) =>
       ipcRenderer.invoke(IPC_CHANNELS.WORKSPACE_OPEN_TERMINAL, workspacePath),
 
-    onChat: (workspaceId, callback) => {
+    onChat: (workspaceId: string, callback) => {
       const channel = getChatChannel(workspaceId);
       const handler = (_event: unknown, data: WorkspaceChatMessage) => {
         callback(data);

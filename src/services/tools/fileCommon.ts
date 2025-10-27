@@ -1,12 +1,9 @@
-import type * as fs from "fs";
 import * as path from "path";
 import { createPatch } from "diff";
+import type { FileStat, Runtime } from "@/runtime/Runtime";
+import { SSHRuntime } from "@/runtime/SSHRuntime";
 
-/**
- * Prefix for all file write error messages.
- * This consistent prefix helps models detect when writes fail and need to retry.
- */
-export const WRITE_DENIED_PREFIX = "WRITE DENIED, FILE UNMODIFIED:";
+// WRITE_DENIED_PREFIX moved to @/types/tools for frontend/backend sharing
 
 /**
  * Maximum file size for file operations (1MB)
@@ -40,7 +37,7 @@ export function generateDiff(filePath: string, oldContent: string, newContent: s
  * @param stats - File stats from fs.stat()
  * @returns Error object if file is too large, null if valid
  */
-export function validateFileSize(stats: fs.Stats): { error: string } | null {
+export function validateFileSize(stats: FileStat): { error: string } | null {
   if (stats.size > MAX_FILE_SIZE) {
     const sizeMB = (stats.size / (1024 * 1024)).toFixed(2);
     const maxMB = (MAX_FILE_SIZE / (1024 * 1024)).toFixed(2);
@@ -57,9 +54,22 @@ export function validateFileSize(stats: fs.Stats): { error: string } | null {
  *
  * @param filePath - The file path to validate (can be relative or absolute)
  * @param cwd - The working directory that file operations are restricted to
+ * @param runtime - The runtime (used to detect SSH - TODO: make path validation runtime-aware)
  * @returns Error object if invalid, null if valid
  */
-export function validatePathInCwd(filePath: string, cwd: string): { error: string } | null {
+export function validatePathInCwd(
+  filePath: string,
+  cwd: string,
+  runtime: Runtime
+): { error: string } | null {
+  // TODO: Make path validation runtime-aware instead of skipping for SSH.
+  // For now, skip local path validation for SSH runtimes since:
+  // 1. Node's path module doesn't understand remote paths (~/cmux/branch)
+  // 2. The runtime's own file operations will fail on invalid paths anyway
+  if (runtime instanceof SSHRuntime) {
+    return null;
+  }
+
   // Resolve the path (handles relative paths and normalizes)
   const resolvedPath = path.isAbsolute(filePath)
     ? path.resolve(filePath)

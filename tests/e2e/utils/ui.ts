@@ -57,7 +57,7 @@ function sanitizeMode(mode: ChatMode): ChatMode {
 }
 
 function sliderLocator(page: Page): Locator {
-  return page.getByRole("slider", { name: "Thinking:" });
+  return page.getByRole("slider", { name: "Thinking level" });
 }
 
 function transcriptLocator(page: Page): Locator {

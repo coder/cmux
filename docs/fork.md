@@ -1,6 +1,6 @@
 # Forking Workspaces
 
-Use `/fork` to clone a workspace with its full conversation history and UI state. The forked workspace gets a new git worktree on a new branch.
+Use `/fork` to clone a workspace with its full conversation history and UI state. The forked workspace gets a new workspace on a new branch (using the same backend as the current workspace).
 
 Usage:
 

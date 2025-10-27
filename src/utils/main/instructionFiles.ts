@@ -1,5 +1,7 @@
 import * as fs from "fs/promises";
 import * as path from "path";
+import type { Runtime } from "@/runtime/Runtime";
+import { readFileString } from "@/utils/runtime/helpers";
 
 /**
  * Instruction file names to search for, in priority order.
@@ -13,81 +15,88 @@ export const INSTRUCTION_FILE_NAMES = ["AGENTS.md", "AGENT.md", "CLAUDE.md"] as 
  *
  * Example: If AGENTS.md exists, we also check for AGENTS.local.md
  */
-const LOCAL_INSTRUCTION_FILENAME = "AGENTS.local.md";
+export const LOCAL_INSTRUCTION_FILENAME = "AGENTS.local.md";
 
 /**
- * Attempts to read the first available file from a list of filenames in a directory.
+ * File reader abstraction for reading files from either local fs or Runtime.
+ */
+interface FileReader {
+  readFile(filePath: string): Promise<string>;
+}
+
+/**
+ * Create a FileReader for local filesystem access.
+ */
+function createLocalFileReader(): FileReader {
+  return {
+    readFile: (filePath: string) => fs.readFile(filePath, "utf-8"),
+  };
+}
+
+/**
+ * Create a FileReader for Runtime-based access (supports SSH).
+ */
+function createRuntimeFileReader(runtime: Runtime): FileReader {
+  return {
+    readFile: (filePath: string) => readFileString(runtime, filePath),
+  };
+}
+
+/**
+ * Read the first available file from a list using the provided file reader.
  *
+ * @param reader - FileReader abstraction (local or runtime)
  * @param directory - Directory to search in
  * @param filenames - List of filenames to try, in priority order
  * @returns Content of the first file found, or null if none exist
  */
-export async function readFirstAvailableFile(
+async function readFirstAvailableFile(
+  reader: FileReader,
   directory: string,
   filenames: readonly string[]
 ): Promise<string | null> {
   for (const filename of filenames) {
     try {
-      const filePath = path.join(directory, filename);
-      const content = await fs.readFile(filePath, "utf-8");
-      return content;
+      return await reader.readFile(path.join(directory, filename));
     } catch {
-      // File doesn't exist or can't be read, try next
-      continue;
+      continue; // File doesn't exist, try next
     }
   }
   return null;
 }
 
 /**
- * Attempts to read a local variant of an instruction file.
+ * Read a base file with optional local variant using the provided file reader.
  *
- * Local files allow users to keep personal preferences separate from
- * shared team instructions (e.g., add AGENTS.local.md to .gitignore).
- */
-
-/**
- * Reads a base file with an optional local variant and returns their combined content.
- *
- * @param directory - Directory to search (can be null/undefined)
+ * @param reader - FileReader abstraction (local or runtime)
+ * @param directory - Directory to search
  * @param baseFilenames - Base filenames to try in priority order
  * @param localFilename - Optional local filename to append if present
  * @returns Combined content or null if no base file exists
  */
-export async function readFileWithLocalVariant(
-  directory: string | null | undefined,
+async function readFileWithLocalVariant(
+  reader: FileReader,
+  directory: string,
   baseFilenames: readonly string[],
   localFilename?: string
 ): Promise<string | null> {
-  if (!directory) {
-    return null;
-  }
-
-  const normalizedDirectory = path.resolve(directory);
-  const baseContent = await readFirstAvailableFile(normalizedDirectory, baseFilenames);
-
-  if (!baseContent) {
-    return null;
-  }
-
-  if (!localFilename) {
-    return baseContent;
-  }
+  const baseContent = await readFirstAvailableFile(reader, directory, baseFilenames);
+  if (!baseContent) return null;
+  if (!localFilename) return baseContent;
 
   try {
-    const localFilePath = path.join(normalizedDirectory, localFilename);
-    const localContent = await fs.readFile(localFilePath, "utf-8");
+    const localContent = await reader.readFile(path.join(directory, localFilename));
     return `${baseContent}\n\n${localContent}`;
   } catch {
-    return baseContent;
+    return baseContent; // Local variant missing, return base only
   }
 }
 
 /**
- * Reads an instruction set from a directory.
+ * Read an instruction set from a local directory.
  *
  * An instruction set consists of:
- * 1. A base instruction file (first found from INSTRUCTION_FILE_NAMES)
+ * 1. A base instruction file (AGENTS.md → AGENT.md → CLAUDE.md, first found wins)
  * 2. An optional local instruction file (AGENTS.local.md)
  *
  * If both exist, they are concatenated with a blank line separator.
@@ -95,8 +104,38 @@ export async function readFileWithLocalVariant(
  * @param directory - Directory to search for instruction files
  * @returns Combined instruction content, or null if no base file exists
  */
-export async function readInstructionSet(directory: string): Promise<string | null> {
-  return readFileWithLocalVariant(directory, INSTRUCTION_FILE_NAMES, LOCAL_INSTRUCTION_FILENAME);
+export async function readInstructionSet(
+  directory: string | null | undefined
+): Promise<string | null> {
+  if (!directory) return null;
+  const reader = createLocalFileReader();
+  return readFileWithLocalVariant(
+    reader,
+    path.resolve(directory),
+    INSTRUCTION_FILE_NAMES,
+    LOCAL_INSTRUCTION_FILENAME
+  );
+}
+
+/**
+ * Read an instruction set from a workspace using Runtime abstraction.
+ * Supports both local and remote (SSH) workspaces.
+ *
+ * @param runtime - Runtime instance (may be local or SSH)
+ * @param directory - Directory to search for instruction files
+ * @returns Combined instruction content, or null if no base file exists
+ */
+export async function readInstructionSetFromRuntime(
+  runtime: Runtime,
+  directory: string
+): Promise<string | null> {
+  const reader = createRuntimeFileReader(runtime);
+  return readFileWithLocalVariant(
+    reader,
+    directory,
+    INSTRUCTION_FILE_NAMES,
+    LOCAL_INSTRUCTION_FILENAME
+  );
 }
 
 /**

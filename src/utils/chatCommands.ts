@@ -9,20 +9,65 @@
 import type { SendMessageOptions } from "@/types/ipc";
 import type { CmuxFrontendMetadata, CompactionRequestData } from "@/types/message";
 import type { FrontendWorkspaceMetadata } from "@/types/workspace";
+import type { RuntimeConfig } from "@/types/runtime";
+import { RUNTIME_MODE, SSH_RUNTIME_PREFIX } from "@/types/runtime";
 import { CUSTOM_EVENTS } from "@/constants/events";
 import type { Toast } from "@/components/ChatInputToast";
 import type { ParsedCommand } from "@/utils/slashCommands/types";
 import { applyCompactionOverrides } from "@/utils/messages/compactionOptions";
 import { resolveCompactionModel } from "@/utils/messages/compactionModelPreference";
+import { getRuntimeKey } from "@/constants/storage";
 
 // ============================================================================
 // Workspace Creation
 // ============================================================================
 
+/**
+ * Parse runtime string from -r flag into RuntimeConfig for backend
+ * Supports formats:
+ * - "ssh <host>" or "ssh <user@host>" -> SSH runtime
+ * - "local" -> Local runtime (explicit)
+ * - undefined -> Local runtime (default)
+ */
+export function parseRuntimeString(
+  runtime: string | undefined,
+  _workspaceName: string
+): RuntimeConfig | undefined {
+  if (!runtime) {
+    return undefined; // Default to local (backend decides)
+  }
+
+  const trimmed = runtime.trim();
+  const lowerTrimmed = trimmed.toLowerCase();
+
+  if (lowerTrimmed === RUNTIME_MODE.LOCAL) {
+    return undefined; // Explicit local - let backend use default
+  }
+
+  // Parse "ssh <host>" or "ssh <user@host>" format
+  if (lowerTrimmed === RUNTIME_MODE.SSH || lowerTrimmed.startsWith(SSH_RUNTIME_PREFIX)) {
+    const hostPart = trimmed.slice(SSH_RUNTIME_PREFIX.length - 1).trim(); // Preserve original case for host
+    if (!hostPart) {
+      throw new Error("SSH runtime requires host (e.g., 'ssh hostname' or 'ssh user@host')");
+    }
+
+    // Accept both "hostname" and "user@hostname" formats
+    // SSH will use current user or ~/.ssh/config if user not specified
+    return {
+      type: RUNTIME_MODE.SSH,
+      host: hostPart,
+      srcBaseDir: "~/cmux", // Default remote base directory (NOT including workspace name)
+    };
+  }
+
+  throw new Error(`Unknown runtime type: '${runtime}'. Use 'ssh <host>' or 'local'`);
+}
+
 export interface CreateWorkspaceOptions {
   projectPath: string;
   workspaceName: string;
   trunkBranch?: string;
+  runtime?: string;
   startMessage?: string;
   sendMessageOptions?: SendMessageOptions;
 }
@@ -49,10 +94,24 @@ export async function createNewWorkspace(
     effectiveTrunk = recommendedTrunk ?? "main";
   }
 
+  // Use saved runtime preference if not explicitly provided
+  let effectiveRuntime = options.runtime;
+  if (effectiveRuntime === undefined) {
+    const runtimeKey = getRuntimeKey(options.projectPath);
+    const savedRuntime = localStorage.getItem(runtimeKey);
+    if (savedRuntime) {
+      effectiveRuntime = savedRuntime;
+    }
+  }
+
+  // Parse runtime config if provided
+  const runtimeConfig = parseRuntimeString(effectiveRuntime, options.workspaceName);
+
   const result = await window.api.workspace.create(
     options.projectPath,
     options.workspaceName,
-    effectiveTrunk
+    effectiveTrunk,
+    runtimeConfig
   );
 
   if (!result.success) {
@@ -88,11 +147,15 @@ export async function createNewWorkspace(
 export function formatNewCommand(
   workspaceName: string,
   trunkBranch?: string,
+  runtime?: string,
   startMessage?: string
 ): string {
   let cmd = `/new ${workspaceName}`;
   if (trunkBranch) {
     cmd += ` -t ${trunkBranch}`;
+  }
+  if (runtime) {
+    cmd += ` -r '${runtime}'`;
   }
   if (startMessage) {
     cmd += `\n${startMessage}`;
@@ -262,6 +325,7 @@ export async function handleNewCommand(
       projectPath: workspaceInfo.projectPath,
       workspaceName: parsed.workspaceName,
       trunkBranch: parsed.trunkBranch,
+      runtime: parsed.runtime,
       startMessage: parsed.startMessage,
       sendMessageOptions,
     });

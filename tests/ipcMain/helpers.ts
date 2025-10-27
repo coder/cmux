@@ -66,7 +66,8 @@ export async function createWorkspace(
   mockIpcRenderer: IpcRenderer,
   projectPath: string,
   branchName: string,
-  trunkBranch?: string
+  trunkBranch?: string,
+  runtimeConfig?: import("../../src/types/runtime").RuntimeConfig
 ): Promise<
   { success: true; metadata: WorkspaceMetadataWithPaths } | { success: false; error: string }
 > {
@@ -79,7 +80,8 @@ export async function createWorkspace(
     IPC_CHANNELS.WORKSPACE_CREATE,
     projectPath,
     branchName,
-    resolvedTrunk
+    resolvedTrunk,
+    runtimeConfig
   )) as { success: true; metadata: WorkspaceMetadataWithPaths } | { success: false; error: string };
 }
 
@@ -146,24 +148,102 @@ export class EventCollector {
       pollInterval = Math.min(pollInterval * 1.5, 500);
     }
 
-    // Log diagnostic info on timeout
-    const eventTypes = this.events
-      .filter((e) => "type" in e)
-      .map((e) => (e as { type: string }).type);
-    console.warn(
-      `waitForEvent timeout: Expected "${eventType}" but got events: [${eventTypes.join(", ")}]`
-    );
-
-    // If there was a stream-error, log the error details
-    const errorEvent = this.events.find((e) => "type" in e && e.type === "stream-error");
-    if (errorEvent && "error" in errorEvent) {
-      console.error("Stream error details:", errorEvent.error);
-      if ("errorType" in errorEvent) {
-        console.error("Stream error type:", errorEvent.errorType);
-      }
-    }
+    // Timeout - log detailed diagnostic info
+    this.logEventDiagnostics(`waitForEvent timeout: Expected "${eventType}"`);
 
     return null;
+  }
+
+  /**
+   * Log detailed event diagnostics for debugging
+   * Includes timestamps, event types, tool calls, and error details
+   */
+  logEventDiagnostics(context: string): void {
+    console.error(`\n${"=".repeat(80)}`);
+    console.error(`EVENT DIAGNOSTICS: ${context}`);
+    console.error(`${"=".repeat(80)}`);
+    console.error(`Workspace: ${this.workspaceId}`);
+    console.error(`Total events: ${this.events.length}`);
+    console.error(`\nEvent sequence:`);
+
+    // Log all events with details
+    this.events.forEach((event, idx) => {
+      const timestamp =
+        "timestamp" in event ? new Date(event.timestamp as number).toISOString() : "no-ts";
+      const type = "type" in event ? (event as { type: string }).type : "no-type";
+
+      console.error(`  [${idx}] ${timestamp} - ${type}`);
+
+      // Log tool call details
+      if (type === "tool-call-start" && "toolName" in event) {
+        console.error(`      Tool: ${event.toolName}`);
+        if ("args" in event) {
+          console.error(`      Args: ${JSON.stringify(event.args)}`);
+        }
+      }
+
+      if (type === "tool-call-end" && "toolName" in event) {
+        console.error(`      Tool: ${event.toolName}`);
+        if ("result" in event) {
+          const result =
+            typeof event.result === "string"
+              ? event.result.length > 100
+                ? `${event.result.substring(0, 100)}... (${event.result.length} chars)`
+                : event.result
+              : JSON.stringify(event.result);
+          console.error(`      Result: ${result}`);
+        }
+      }
+
+      // Log error details
+      if (type === "stream-error") {
+        if ("error" in event) {
+          console.error(`      Error: ${event.error}`);
+        }
+        if ("errorType" in event) {
+          console.error(`      Error Type: ${event.errorType}`);
+        }
+      }
+
+      // Log delta content (first 100 chars)
+      if (type === "stream-delta" && "delta" in event) {
+        const delta =
+          typeof event.delta === "string"
+            ? event.delta.length > 100
+              ? `${event.delta.substring(0, 100)}...`
+              : event.delta
+            : JSON.stringify(event.delta);
+        console.error(`      Delta: ${delta}`);
+      }
+
+      // Log final content (first 200 chars)
+      if (type === "stream-end" && "content" in event) {
+        const content =
+          typeof event.content === "string"
+            ? event.content.length > 200
+              ? `${event.content.substring(0, 200)}... (${event.content.length} chars)`
+              : event.content
+            : JSON.stringify(event.content);
+        console.error(`      Content: ${content}`);
+      }
+    });
+
+    // Summary
+    const eventTypeCounts = this.events.reduce(
+      (acc, e) => {
+        const type = "type" in e ? (e as { type: string }).type : "unknown";
+        acc[type] = (acc[type] || 0) + 1;
+        return acc;
+      },
+      {} as Record<string, number>
+    );
+
+    console.error(`\nEvent type counts:`);
+    Object.entries(eventTypeCounts).forEach(([type, count]) => {
+      console.error(`  ${type}: ${count}`);
+    });
+
+    console.error(`${"=".repeat(80)}\n`);
   }
 
   /**
@@ -211,19 +291,22 @@ export function createEventCollector(
  */
 export function assertStreamSuccess(collector: EventCollector): void {
   const allEvents = collector.getEvents();
-  const eventTypes = allEvents.filter((e) => "type" in e).map((e) => (e as { type: string }).type);
 
   // Check for stream-end
   if (!collector.hasStreamEnd()) {
     const errorEvent = allEvents.find((e) => "type" in e && e.type === "stream-error");
     if (errorEvent && "error" in errorEvent) {
+      collector.logEventDiagnostics(
+        `Stream did not complete successfully. Got stream-error: ${errorEvent.error}`
+      );
       throw new Error(
         `Stream did not complete successfully. Got stream-error: ${errorEvent.error}\n` +
-          `All events: [${eventTypes.join(", ")}]`
+          `See detailed event diagnostics above.`
       );
     }
+    collector.logEventDiagnostics("Stream did not emit stream-end event");
     throw new Error(
-      `Stream did not emit stream-end event.\n` + `All events: [${eventTypes.join(", ")}]`
+      `Stream did not emit stream-end event.\n` + `See detailed event diagnostics above.`
     );
   }
 
@@ -231,17 +314,19 @@ export function assertStreamSuccess(collector: EventCollector): void {
   if (collector.hasError()) {
     const errorEvent = allEvents.find((e) => "type" in e && e.type === "stream-error");
     const errorMsg = errorEvent && "error" in errorEvent ? errorEvent.error : "unknown";
+    collector.logEventDiagnostics(`Stream completed but also has error event: ${errorMsg}`);
     throw new Error(
       `Stream completed but also has error event: ${errorMsg}\n` +
-        `All events: [${eventTypes.join(", ")}]`
+        `See detailed event diagnostics above.`
     );
   }
 
   // Check for final message
   const finalMessage = collector.getFinalMessage();
   if (!finalMessage) {
+    collector.logEventDiagnostics("Stream completed but final message is missing");
     throw new Error(
-      `Stream completed but final message is missing.\n` + `All events: [${eventTypes.join(", ")}]`
+      `Stream completed but final message is missing.\n` + `See detailed event diagnostics above.`
     );
   }
 }
@@ -297,6 +382,60 @@ export async function waitForFileExists(filePath: string, timeoutMs = 5000): Pro
       return false;
     }
   }, timeoutMs);
+}
+
+/**
+ * Wait for init hook to complete by watching for init-end event
+ * More reliable than static sleeps
+ * Based on workspaceInitHook.test.ts pattern
+ */
+export async function waitForInitComplete(
+  env: import("./setup").TestEnvironment,
+  workspaceId: string,
+  timeoutMs = 5000
+): Promise<void> {
+  const startTime = Date.now();
+  let pollInterval = 50;
+
+  while (Date.now() - startTime < timeoutMs) {
+    // Check for init-end event in sentEvents
+    const initEndEvent = env.sentEvents.find(
+      (e) =>
+        e.channel === getChatChannel(workspaceId) &&
+        typeof e.data === "object" &&
+        e.data !== null &&
+        "type" in e.data &&
+        e.data.type === "init-end"
+    );
+
+    if (initEndEvent) {
+      // Check if init succeeded (exitCode === 0)
+      const exitCode = (initEndEvent.data as any).exitCode;
+      if (exitCode !== 0) {
+        // Collect all init output for debugging
+        const initOutputEvents = env.sentEvents.filter(
+          (e) =>
+            e.channel === getChatChannel(workspaceId) &&
+            typeof e.data === "object" &&
+            e.data !== null &&
+            "type" in e.data &&
+            (e.data as any).type === "init-output"
+        );
+        const output = initOutputEvents
+          .map((e) => (e.data as any).line)
+          .filter(Boolean)
+          .join("\n");
+        throw new Error(`Init hook failed with exit code ${exitCode}:\n${output}`);
+      }
+      return;
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, pollInterval));
+    pollInterval = Math.min(pollInterval * 1.5, 500);
+  }
+
+  // Throw error on timeout - workspace creation must complete for tests to be valid
+  throw new Error(`Init did not complete within ${timeoutMs}ms - workspace may not be ready`);
 }
 
 /**

@@ -41,7 +41,8 @@
     "docs:watch": "make docs-watch",
     "storybook": "make storybook",
     "storybook:build": "make storybook-build",
-    "test:storybook": "make test-storybook"
+    "test:storybook": "make test-storybook",
+    "rebuild": "echo \"No native modules to rebuild\""
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^2.0.29",
@@ -68,7 +69,10 @@
     "lru-cache": "^11.2.2",
     "markdown-it": "^14.1.0",
     "minimist": "^1.2.8",
+    "rehype-harden": "^1.1.5",
+    "shescape": "^2.1.6",
     "source-map-support": "^0.5.21",
+    "streamdown": "^1.4.0",
     "undici": "^7.16.0",
     "web-push": "^3.6.7",
     "write-file-atomic": "^6.0.0",
@@ -133,10 +137,8 @@
     "react-dnd": "^16.0.1",
     "react-dnd-html5-backend": "^16.0.1",
     "react-dom": "^18.2.0",
-    "react-markdown": "^10.1.0",
     "rehype-katex": "^7.0.1",
     "rehype-raw": "^7.0.0",
-    "rehype-sanitize": "^6.0.0",
     "remark-gfm": "^4.0.1",
     "remark-math": "^6.0.0",
     "shiki": "^3.13.0",

@@ -1,11 +1,11 @@
 import React, { useMemo } from "react";
-import ReactMarkdown from "react-markdown";
-import type { PluggableList } from "unified";
+import { Streamdown } from "streamdown";
+import type { Pluggable } from "unified";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
 import rehypeRaw from "rehype-raw";
-import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
+import { harden } from "rehype-harden";
 import "katex/dist/katex.min.css";
 import { normalizeMarkdown } from "./MarkdownStyles";
 import { markdownComponents } from "./MarkdownComponents";
@@ -16,24 +16,24 @@ interface MarkdownCoreProps {
 }
 
 // Plugin arrays are defined at module scope to maintain stable references.
-// ReactMarkdown treats new array references as changes requiring full re-parse.
-const REMARK_PLUGINS = [remarkGfm, remarkMath];
+// Streamdown treats new array references as changes requiring full re-parse.
+const REMARK_PLUGINS: Pluggable[] = [
+  [remarkGfm, {}],
+  [remarkMath, { singleDollarTextMath: false }],
+];
 
-// Sanitization schema: whitelist only safe HTML elements
-// This prevents XSS attacks while allowing <details>/<summary> toggles
-const SANITIZE_SCHEMA = {
-  ...defaultSchema,
-  tagNames: [...(defaultSchema.tagNames ?? []), "details", "summary"],
-  attributes: {
-    ...defaultSchema.attributes,
-    details: ["open"], // Allow 'open' attribute for default-expanded state
-  },
-};
-
-const REHYPE_PLUGINS: PluggableList = [
-  rehypeRaw, // Parse HTML elements
-  [rehypeSanitize, SANITIZE_SCHEMA], // Sanitize to whitelist only
-  rehypeKatex, // Render math (must be after sanitization)
+const REHYPE_PLUGINS: Pluggable[] = [
+  rehypeRaw, // Parse HTML elements first
+  [
+    harden, // Sanitize after parsing raw HTML to prevent XSS
+    {
+      allowedImagePrefixes: ["*"],
+      allowedLinkPrefixes: ["*"],
+      defaultOrigin: undefined,
+      allowDataImages: true,
+    },
+  ],
+  [rehypeKatex, { errorColor: "var(--color-muted-foreground)" }], // Render math
 ];
 
 /**
@@ -48,13 +48,15 @@ export const MarkdownCore = React.memo<MarkdownCoreProps>(({ content, children }
 
   return (
     <>
-      <ReactMarkdown
+      <Streamdown
         components={markdownComponents}
         remarkPlugins={REMARK_PLUGINS}
         rehypePlugins={REHYPE_PLUGINS}
+        parseIncompleteMarkdown={true}
+        className="space-y-2" // Reduce from default space-y-4 (16px) to space-y-2 (8px)
       >
         {normalizedContent}
-      </ReactMarkdown>
+      </Streamdown>
       {children}
     </>
   );

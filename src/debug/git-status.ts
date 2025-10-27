@@ -31,7 +31,10 @@ function findWorkspaces(): Array<{ id: string; path: string }> {
         const workspacePath = join(projectPath, branch);
         if (statSync(workspacePath).isDirectory()) {
           workspaces.push({
-            id: `${project}-${branch}`,
+            // NOTE: Using directory name as display ID for debug purposes only.
+            // This is NOT how workspace IDs are determined in production code.
+            // Production workspace IDs come from metadata.json in the session dir.
+            id: branch,
             path: workspacePath,
           });
         }
