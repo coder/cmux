@@ -1,11 +1,11 @@
 import { describe, it, expect } from "bun:test";
+import { LocalRuntime } from "@/runtime/LocalRuntime";
 import { createBashTool } from "./bash";
 import type { BashToolArgs, BashToolResult } from "@/types/tools";
 import { BASH_MAX_TOTAL_BYTES } from "@/constants/toolLimits";
 import * as fs from "fs";
-import { TestTempDir } from "./testHelpers";
+import { TestTempDir, createTestToolConfig, getTestDeps } from "./testHelpers";
 import { createRuntime } from "@/runtime/runtimeFactory";
-
 import type { ToolCallOptions } from "ai";
 
 // Mock ToolCallOptions for testing
@@ -19,12 +19,9 @@ const mockToolCallOptions: ToolCallOptions = {
 // Use with: using testEnv = createTestBashTool();
 function createTestBashTool(options?: { niceness?: number }) {
   const tempDir = new TestTempDir("test-bash");
-  const tool = createBashTool({
-    cwd: process.cwd(),
-    runtime: createRuntime({ type: "local", srcBaseDir: "/tmp" }),
-    runtimeTempDir: tempDir.path,
-    ...options,
-  });
+  const config = createTestToolConfig(process.cwd(), { niceness: options?.niceness });
+  config.runtimeTempDir = tempDir.path; // Override runtimeTempDir to use test's disposable temp dir
+  const tool = createBashTool(config);
 
   return {
     tool,
@@ -161,12 +158,10 @@ describe("bash tool", () => {
 
   it("should truncate overflow output when overflow_policy is 'truncate'", async () => {
     const tempDir = new TestTempDir("test-bash-truncate");
-    const tool = createBashTool({
-      cwd: process.cwd(),
-      runtime: createRuntime({ type: "local", srcBaseDir: "/tmp" }),
-      runtimeTempDir: tempDir.path,
-      overflow_policy: "truncate",
-    });
+    const config = createTestToolConfig(process.cwd());
+    config.runtimeTempDir = tempDir.path;
+    config.overflow_policy = "truncate";
+    const tool = createBashTool(config);
 
     const args: BashToolArgs = {
       // Generate ~1.5MB of output (1700 lines * 900 bytes) to exceed 1MB byte limit
@@ -201,8 +196,9 @@ describe("bash tool", () => {
   it("should reject single overlong line before storing it (IPC mode)", async () => {
     const tempDir = new TestTempDir("test-bash-overlong-line");
     const tool = createBashTool({
+      ...getTestDeps(),
       cwd: process.cwd(),
-      runtime: createRuntime({ type: "local", srcBaseDir: "/tmp" }),
+      runtime: new LocalRuntime(process.cwd()),
       runtimeTempDir: tempDir.path,
       overflow_policy: "truncate",
     });
@@ -233,8 +229,9 @@ describe("bash tool", () => {
   it("should reject overlong line at boundary (IPC mode)", async () => {
     const tempDir = new TestTempDir("test-bash-boundary");
     const tool = createBashTool({
+      ...getTestDeps(),
       cwd: process.cwd(),
-      runtime: createRuntime({ type: "local", srcBaseDir: "/tmp" }),
+      runtime: new LocalRuntime(process.cwd()),
       runtimeTempDir: tempDir.path,
       overflow_policy: "truncate",
     });
@@ -269,8 +266,9 @@ describe("bash tool", () => {
   it("should use tmpfile policy by default when overflow_policy not specified", async () => {
     const tempDir = new TestTempDir("test-bash-default");
     const tool = createBashTool({
+      ...getTestDeps(),
       cwd: process.cwd(),
-      runtime: createRuntime({ type: "local", srcBaseDir: "/tmp" }),
+      runtime: new LocalRuntime(process.cwd()),
       runtimeTempDir: tempDir.path,
       // overflow_policy not specified - should default to tmpfile
     });
@@ -302,8 +300,9 @@ describe("bash tool", () => {
   it("should preserve up to 100KB in temp file even after 16KB display limit", async () => {
     const tempDir = new TestTempDir("test-bash-100kb");
     const tool = createBashTool({
+      ...getTestDeps(),
       cwd: process.cwd(),
-      runtime: createRuntime({ type: "local", srcBaseDir: "/tmp" }),
+      runtime: new LocalRuntime(process.cwd()),
       runtimeTempDir: tempDir.path,
     });
 
@@ -354,8 +353,9 @@ describe("bash tool", () => {
   it("should stop collection at 100KB file limit", async () => {
     const tempDir = new TestTempDir("test-bash-100kb-limit");
     const tool = createBashTool({
+      ...getTestDeps(),
       cwd: process.cwd(),
-      runtime: createRuntime({ type: "local", srcBaseDir: "/tmp" }),
+      runtime: new LocalRuntime(process.cwd()),
       runtimeTempDir: tempDir.path,
     });
 
@@ -397,8 +397,9 @@ describe("bash tool", () => {
   it("should NOT kill process at display limit (16KB) - verify command completes naturally", async () => {
     const tempDir = new TestTempDir("test-bash-no-kill-display");
     const tool = createBashTool({
+      ...getTestDeps(),
       cwd: process.cwd(),
-      runtime: createRuntime({ type: "local", srcBaseDir: "/tmp" }),
+      runtime: new LocalRuntime(process.cwd()),
       runtimeTempDir: tempDir.path,
     });
 
@@ -439,8 +440,9 @@ describe("bash tool", () => {
   it("should kill process immediately when single line exceeds per-line limit", async () => {
     const tempDir = new TestTempDir("test-bash-per-line-kill");
     const tool = createBashTool({
+      ...getTestDeps(),
       cwd: process.cwd(),
-      runtime: createRuntime({ type: "local", srcBaseDir: "/tmp" }),
+      runtime: new LocalRuntime(process.cwd()),
       runtimeTempDir: tempDir.path,
     });
 
@@ -479,8 +481,9 @@ describe("bash tool", () => {
   it("should handle output just under 16KB without truncation", async () => {
     const tempDir = new TestTempDir("test-bash-under-limit");
     const tool = createBashTool({
+      ...getTestDeps(),
       cwd: process.cwd(),
-      runtime: createRuntime({ type: "local", srcBaseDir: "/tmp" }),
+      runtime: new LocalRuntime(process.cwd()),
       runtimeTempDir: tempDir.path,
     });
 
@@ -509,8 +512,9 @@ describe("bash tool", () => {
   it("should trigger display truncation at exactly 300 lines", async () => {
     const tempDir = new TestTempDir("test-bash-exact-limit");
     const tool = createBashTool({
+      ...getTestDeps(),
       cwd: process.cwd(),
-      runtime: createRuntime({ type: "local", srcBaseDir: "/tmp" }),
+      runtime: new LocalRuntime(process.cwd()),
       runtimeTempDir: tempDir.path,
     });
 
@@ -1160,6 +1164,7 @@ describe("SSH runtime redundant cd detection", () => {
     });
 
     const tool = createBashTool({
+      ...getTestDeps(),
       cwd,
       runtime: sshRuntime,
       runtimeTempDir: tempDir.path,

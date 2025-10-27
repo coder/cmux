@@ -128,9 +128,14 @@ export class IpcMain {
     this.config = config;
     this.historyService = new HistoryService(config);
     this.partialService = new PartialService(config, this.historyService);
-    this.aiService = new AIService(config, this.historyService, this.partialService);
-    this.bashService = new BashExecutionService();
     this.initStateManager = new InitStateManager(config);
+    this.aiService = new AIService(
+      config,
+      this.historyService,
+      this.partialService,
+      this.initStateManager
+    );
+    this.bashService = new BashExecutionService();
   }
 
   private getOrCreateSession(workspaceId: string): AgentSession {
@@ -917,6 +922,7 @@ export class IpcMain {
 
           // Create bash tool with workspace's cwd and secrets
           // All IPC bash calls are from UI (background operations) - use truncate to avoid temp file spam
+          // No init wait needed - IPC calls are user-initiated, not AI tool use
           const bashTool = createBashTool({
             cwd: workspacePath, // Bash executes in the workspace directory
             runtime,

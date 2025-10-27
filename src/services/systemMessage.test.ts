@@ -3,8 +3,7 @@ import * as os from "os";
 import * as path from "path";
 import { buildSystemMessage } from "./systemMessage";
 import type { WorkspaceMetadata } from "@/types/workspace";
-import { spyOn, describe, test, expect, beforeEach, afterEach } from "bun:test";
-import type { Mock } from "bun:test";
+import { describe, test, expect, beforeEach, afterEach, spyOn, type Mock } from "bun:test";
 import { LocalRuntime } from "@/runtime/LocalRuntime";
 
 describe("buildSystemMessage", () => {

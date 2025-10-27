@@ -20,6 +20,7 @@ export const createFileReadTool: ToolFactory = (config: ToolConfiguration) => {
       { abortSignal: _abortSignal }
     ): Promise<FileReadToolResult> => {
       // Note: abortSignal available but not used - file reads are fast and complete quickly
+
       try {
         // Validate no redundant path prefix (must come first to catch absolute paths)
         const redundantPrefixValidation = validateNoRedundantPrefix(
