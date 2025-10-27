@@ -9,7 +9,14 @@ import {
   type TestEnvironment,
 } from "./setup";
 import { IPC_CHANNELS, getChatChannel } from "../../src/constants/ipc-constants";
-import { generateBranchName, createWorkspace } from "./helpers";
+import {
+  generateBranchName,
+  createWorkspace,
+  waitForInitComplete,
+  waitForInitEnd,
+  collectInitEvents,
+  waitFor,
+} from "./helpers";
 import type { WorkspaceChatMessage, WorkspaceInitEvent } from "../../src/types/ipc";
 import { isInitStart, isInitOutput, isInitEnd } from "../../src/types/ipc";
 import * as path from "path";
@@ -133,31 +140,11 @@ describeIntegration("IpcMain workspace init hook integration tests", () => {
 
         const workspaceId = createResult.metadata.id;
 
-        // Wait for hook to complete by polling sentEvents
-        const deadline = Date.now() + 10000;
-        let initEvents: WorkspaceInitEvent[] = [];
-        while (Date.now() < deadline) {
-          // Filter sentEvents for this workspace's init events on chat channel
-          initEvents = env.sentEvents
-            .filter((e) => e.channel === getChatChannel(workspaceId))
-            .map((e) => e.data as WorkspaceChatMessage)
-            .filter(
-              (msg) => isInitStart(msg) || isInitOutput(msg) || isInitEnd(msg)
-            ) as WorkspaceInitEvent[];
+        // Wait for hook to complete
+        await waitForInitComplete(env, workspaceId, 10000);
 
-          // Check if we have the end event
-          const hasEnd = initEvents.some((e) => isInitEnd(e));
-          if (hasEnd) break;
-
-          // Wait a bit before checking again
-          await new Promise((resolve) => setTimeout(resolve, 100));
-        }
-
-        // Verify we got the end event
-        const successEndEvent = initEvents.find((e) => isInitEnd(e));
-        if (!successEndEvent) {
-          throw new Error("Hook did not complete in time");
-        }
+        // Collect all init events for verification
+        const initEvents = collectInitEvents(env, workspaceId);
 
         // Verify event sequence
         expect(initEvents.length).toBeGreaterThan(0);
@@ -230,27 +217,11 @@ describeIntegration("IpcMain workspace init hook integration tests", () => {
 
         const workspaceId = createResult.metadata.id;
 
-        // Wait for hook to complete by polling sentEvents
-        const deadline = Date.now() + 10000;
-        let initEvents: WorkspaceInitEvent[] = [];
-        while (Date.now() < deadline) {
-          initEvents = env.sentEvents
-            .filter((e) => e.channel === getChatChannel(workspaceId))
-            .map((e) => e.data as WorkspaceChatMessage)
-            .filter(
-              (msg) => isInitStart(msg) || isInitOutput(msg) || isInitEnd(msg)
-            ) as WorkspaceInitEvent[];
+        // Wait for hook to complete (without throwing on failure)
+        await waitForInitEnd(env, workspaceId, 10000);
 
-          const hasEnd = initEvents.some((e) => isInitEnd(e));
-          if (hasEnd) break;
-
-          await new Promise((resolve) => setTimeout(resolve, 100));
-        }
-
-        const failureEndEvent = initEvents.find((e) => isInitEnd(e));
-        if (!failureEndEvent) {
-          throw new Error("Hook did not complete in time");
-        }
+        // Collect all init events for verification
+        const initEvents = collectInitEvents(env, workspaceId);
 
         // Verify we got events
         expect(initEvents.length).toBeGreaterThan(0);
@@ -320,10 +291,7 @@ describeIntegration("IpcMain workspace init hook integration tests", () => {
         await new Promise((resolve) => setTimeout(resolve, 500));
 
         // Verify init events were sent (workspace creation logs even without hook)
-        const initEvents = env.sentEvents
-          .filter((e) => e.channel === getChatChannel(workspaceId))
-          .map((e) => e.data as WorkspaceChatMessage)
-          .filter((msg) => isInitStart(msg) || isInitOutput(msg) || isInitEnd(msg));
+        const initEvents = collectInitEvents(env, workspaceId);
 
         // Should have init-start event (always emitted, even without hook)
         const startEvent = initEvents.find((e) => isInitStart(e));
@@ -374,7 +342,7 @@ describeIntegration("IpcMain workspace init hook integration tests", () => {
         const workspaceId = createResult.metadata.id;
 
         // Wait for init hook to complete
-        await new Promise((resolve) => setTimeout(resolve, 1000));
+        await waitForInitComplete(env, workspaceId, 5000);
 
         // Verify init-status.json exists on disk
         const initStatusPath = path.join(env.config.getSessionDir(workspaceId), "init-status.json");
@@ -443,25 +411,19 @@ test.concurrent(
       const workspaceId = createResult.metadata.id;
 
       // Wait for all init events to arrive
-      const deadline = Date.now() + 10000;
-      let initOutputEvents: Array<{ timestamp: number; line: string }> = [];
+      await waitForInitComplete(env, workspaceId, 10000);
 
-      while (Date.now() < deadline) {
-        const currentEvents = env.sentEvents
-          .filter((e) => e.channel === getChatChannel(workspaceId))
-          .filter((e) => isInitOutput(e.data as WorkspaceChatMessage));
-
-        const allOutputEvents = currentEvents.map((e) => ({
+      // Collect timestamped output events
+      const allOutputEvents = env.sentEvents
+        .filter((e) => e.channel === getChatChannel(workspaceId))
+        .filter((e) => isInitOutput(e.data as WorkspaceChatMessage))
+        .map((e) => ({
           timestamp: e.timestamp, // Use timestamp from when event was sent
           line: (e.data as { line: string }).line,
         }));
 
-        // Filter to only hook output lines (exclude workspace creation logs)
-        initOutputEvents = allOutputEvents.filter((e) => e.line.startsWith("Line "));
-
-        if (initOutputEvents.length >= 4) break;
-        await new Promise((resolve) => setTimeout(resolve, 50));
-      }
+      // Filter to only hook output lines (exclude workspace creation logs)
+      const initOutputEvents = allOutputEvents.filter((e) => e.line.startsWith("Line "));
 
       expect(initOutputEvents.length).toBe(4);
 
@@ -605,28 +567,18 @@ exit 1
             expect(sendResult.success).toBe(true);
 
             // Wait for stream completion
-            const deadline = Date.now() + streamTimeout;
-            let streamComplete = false;
-
-            while (Date.now() < deadline && !streamComplete) {
+            await waitFor(() => {
               const chatChannel = getChatChannel(workspaceId);
-              const chatEvents = env.sentEvents.filter((e) => e.channel === chatChannel);
-
-              // Check for stream-end event
-              streamComplete = chatEvents.some(
-                (e) =>
-                  typeof e.data === "object" &&
-                  e.data !== null &&
-                  "type" in e.data &&
-                  e.data.type === "stream-end"
-              );
-
-              if (!streamComplete) {
-                await new Promise((resolve) => setTimeout(resolve, 100));
-              }
-            }
-
-            expect(streamComplete).toBe(true);
+              return env.sentEvents
+                .filter((e) => e.channel === chatChannel)
+                .some(
+                  (e) =>
+                    typeof e.data === "object" &&
+                    e.data !== null &&
+                    "type" in e.data &&
+                    e.data.type === "stream-end"
+                );
+            }, streamTimeout);
 
             // Extract all tool call end events from the stream
             const chatChannel = getChatChannel(workspaceId);
@@ -660,29 +612,16 @@ exit 1
             const content = fileReadResult.result?.content;
             expect(content).toContain("Hello from init hook!");
 
-            // Wait for init to complete (to check events)
-            const initDeadline = Date.now() + initWaitBuffer;
-            let initComplete = false;
-            let initExitCode: number | undefined;
-
-            while (Date.now() < initDeadline && !initComplete) {
-              const initEndEvents = env.sentEvents
-                .filter((e) => e.channel === chatChannel)
-                .map((e) => e.data as WorkspaceChatMessage)
-                .filter((msg) => isInitEnd(msg));
-
-              if (initEndEvents.length > 0) {
-                initComplete = true;
-                initExitCode = (initEndEvents[0] as any).exitCode;
-                break;
-              }
-
-              await new Promise((resolve) => setTimeout(resolve, 100));
-            }
+            // Wait for init to complete (with failure)
+            await waitForInitEnd(env, workspaceId, initWaitBuffer);
 
             // Verify init completed with FAILURE (exit code 1)
-            expect(initComplete).toBe(true);
-            expect(initExitCode).toBe(1);
+            const initEvents = collectInitEvents(env, workspaceId);
+            const initEndEvent = initEvents.find((e) => isInitEnd(e));
+            expect(initEndEvent).toBeDefined();
+            if (initEndEvent && isInitEnd(initEndEvent)) {
+              expect(initEndEvent.exitCode).toBe(1);
+            }
 
             // ========================================================================
             // SECOND MESSAGE: Verify init state persistence (with failed init)

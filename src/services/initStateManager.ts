@@ -300,8 +300,12 @@ export class InitStateManager extends EventEmitter {
    *
    * Behavior:
    * - No init state: Returns immediately (init not needed or backwards compat)
-   * - Init succeeded/failed: Returns immediately (let tool proceed/fail naturally)
-   * - Init running: Waits for completion promise (up to 5 minutes)
+   * - Init succeeded/failed: Returns immediately (tools proceed regardless of init outcome)
+   * - Init running: Waits for completion promise (up to 5 minutes, then proceeds anyway)
+   *
+   * This method NEVER throws - tools should always proceed. If init fails or times out,
+   * the tool will either succeed (if init wasn't critical) or fail with its own error
+   * (e.g., file not found). This provides better error messages than blocking on init.
    *
    * Promise-based approach eliminates race conditions:
    * - Multiple tools share the same promise (no duplicate listeners)
@@ -309,7 +313,6 @@ export class InitStateManager extends EventEmitter {
    * - Timeout races handled by Promise.race()
    *
    * @param workspaceId Workspace ID to wait for
-   * @throws Error if init times out after 5 minutes
    */
   async waitForInit(workspaceId: string): Promise<void> {
     const state = this.getInitState(workspaceId);
@@ -320,6 +323,7 @@ export class InitStateManager extends EventEmitter {
     }
 
     // Init already completed (success or failure) - proceed immediately
+    // Tools should work regardless of init outcome
     if (state.status !== "running") {
       return;
     }
@@ -334,14 +338,24 @@ export class InitStateManager extends EventEmitter {
     }
 
     const INIT_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
-    const timeoutPromise = new Promise<void>((_, reject) => {
+    const timeoutPromise = new Promise<void>((resolve) => {
       setTimeout(() => {
-        reject(new Error("Workspace initialization timed out after 5 minutes"));
+        log.error(
+          `Init timeout for ${workspaceId} after 5 minutes - tools will proceed anyway. ` +
+            `Init will continue in background.`
+        );
+        resolve(); // Resolve, don't reject - tools should proceed
       }, INIT_TIMEOUT_MS);
     });
 
     // Race between completion and timeout
-    // If timeout wins, promise rejection propagates to caller
-    await Promise.race([promiseEntry.promise, timeoutPromise]);
+    // Both resolve (no rejection), so tools always proceed
+    try {
+      await Promise.race([promiseEntry.promise, timeoutPromise]);
+    } catch (error) {
+      // Init promise was rejected (e.g., workspace deleted)
+      // Log and proceed anyway - let the tool fail with its own error if needed
+      log.error(`Init wait interrupted for ${workspaceId}: ${error} - proceeding anyway`);
+    }
   }
 }

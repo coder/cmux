@@ -23,13 +23,7 @@ export const createFileReadTool: ToolFactory = (config: ToolConfiguration) => {
       // Note: abortSignal available but not used - file reads are fast and complete quickly
 
       // Wait for workspace initialization to complete (no-op if already complete or not needed)
-      const initError = await waitForWorkspaceInit(config, "read file");
-      if (initError) {
-        return {
-          success: false,
-          error: initError,
-        };
-      }
+      await waitForWorkspaceInit(config);
 
       try {
         // Validate no redundant path prefix (must come first to catch absolute paths)

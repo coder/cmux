@@ -2,20 +2,11 @@ import type { ToolConfiguration } from "@/utils/tools/tools";
 
 /**
  * Wait for workspace initialization to complete before executing tool.
- * Wraps InitStateManager.waitForInit() with consistent error handling.
+ * Wraps InitStateManager.waitForInit() for tool consistency.
  *
- * Returns null on success, or an error message string on failure.
- * The returned error message is ready to use in tool error results.
+ * This is a no-op wrapper since waitForInit() never throws and always allows
+ * tools to proceed. Kept for consistency and future extensibility.
  */
-export async function waitForWorkspaceInit(
-  config: ToolConfiguration,
-  operationName: string
-): Promise<string | null> {
-  try {
-    await config.initStateManager.waitForInit(config.workspaceId);
-    return null;
-  } catch (error) {
-    const errorMsg = error instanceof Error ? error.message : String(error);
-    return `Cannot ${operationName}: ${errorMsg}`;
-  }
+export async function waitForWorkspaceInit(config: ToolConfiguration): Promise<void> {
+  await config.initStateManager.waitForInit(config.workspaceId);
 }

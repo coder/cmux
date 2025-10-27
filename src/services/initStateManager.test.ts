@@ -236,15 +236,15 @@ describe("InitStateManager", () => {
       // Get the init promise before clearing
       const initPromise = manager.waitForInit(workspaceId);
 
-      // Clear in-memory state (should reject pending promises)
+      // Clear in-memory state (rejects internal promise, but waitForInit catches it)
       manager.clearInMemoryState(workspaceId);
 
       // Verify state is cleared
       expect(manager.getInitState(workspaceId)).toBeUndefined();
 
-      // Verify the promise was rejected
-      // eslint-disable-next-line @typescript-eslint/await-thenable
-      await expect(initPromise).rejects.toThrow("Workspace test-workspace was deleted");
+      // waitForInit never throws - it resolves even when init is canceled
+      // This allows tools to proceed and fail naturally with their own errors
+      await expect(initPromise).resolves.toBeUndefined();
     });
   });
 

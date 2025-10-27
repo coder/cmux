@@ -26,13 +26,7 @@ export const createFileEditInsertTool: ToolFactory = (config: ToolConfiguration)
       create,
     }): Promise<FileEditInsertToolResult> => {
       // Wait for workspace initialization to complete (no-op if already complete or not needed)
-      const initError = await waitForWorkspaceInit(config, "insert into file");
-      if (initError) {
-        return {
-          success: false,
-          error: `${WRITE_DENIED_PREFIX} ${initError}`,
-        };
-      }
+      await waitForWorkspaceInit(config);
 
       try {
         // Validate no redundant path prefix (must come first to catch absolute paths)

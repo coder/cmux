@@ -1,6 +1,11 @@
 import type { IpcRenderer } from "electron";
 import { IPC_CHANNELS, getChatChannel } from "../../src/constants/ipc-constants";
-import type { SendMessageOptions, WorkspaceChatMessage } from "../../src/types/ipc";
+import type {
+  SendMessageOptions,
+  WorkspaceChatMessage,
+  WorkspaceInitEvent,
+} from "../../src/types/ipc";
+import { isInitStart, isInitOutput, isInitEnd } from "../../src/types/ipc";
 import type { Result } from "../../src/types/result";
 import type { SendMessageError } from "../../src/types/errors";
 import type { WorkspaceMetadataWithPaths } from "../../src/types/workspace";
@@ -546,6 +551,57 @@ export async function waitForInitComplete(
 
   // Throw error on timeout - workspace creation must complete for tests to be valid
   throw new Error(`Init did not complete within ${timeoutMs}ms - workspace may not be ready`);
+}
+
+/**
+ * Collect all init events for a workspace.
+ * Filters sentEvents for init-start, init-output, and init-end events.
+ * Returns the events in chronological order.
+ */
+export function collectInitEvents(
+  env: import("./setup").TestEnvironment,
+  workspaceId: string
+): WorkspaceInitEvent[] {
+  return env.sentEvents
+    .filter((e) => e.channel === getChatChannel(workspaceId))
+    .map((e) => e.data as WorkspaceChatMessage)
+    .filter((msg) => isInitStart(msg) || isInitOutput(msg) || isInitEnd(msg)) as WorkspaceInitEvent[];
+}
+
+/**
+ * Wait for init-end event without checking exit code.
+ * Use this when you want to test failure cases or inspect the exit code yourself.
+ * For success-only tests, use waitForInitComplete() which throws on failure.
+ */
+export async function waitForInitEnd(
+  env: import("./setup").TestEnvironment,
+  workspaceId: string,
+  timeoutMs = 5000
+): Promise<void> {
+  const startTime = Date.now();
+  let pollInterval = 50;
+
+  while (Date.now() - startTime < timeoutMs) {
+    // Check for init-end event in sentEvents
+    const initEndEvent = env.sentEvents.find(
+      (e) =>
+        e.channel === getChatChannel(workspaceId) &&
+        typeof e.data === "object" &&
+        e.data !== null &&
+        "type" in e.data &&
+        e.data.type === "init-end"
+    );
+
+    if (initEndEvent) {
+      return; // Found end event, regardless of exit code
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, pollInterval));
+    pollInterval = Math.min(pollInterval * 1.5, 500);
+  }
+
+  // Throw error on timeout
+  throw new Error(`Init did not complete within ${timeoutMs}ms`);
 }
 
 /**

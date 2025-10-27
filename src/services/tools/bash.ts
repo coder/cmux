@@ -40,15 +40,7 @@ export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
     inputSchema: TOOL_DEFINITIONS.bash.schema,
     execute: async ({ script, timeout_secs }, { abortSignal }): Promise<BashToolResult> => {
       // Wait for workspace initialization to complete (no-op if already complete or not needed)
-      const initError = await waitForWorkspaceInit(config, "execute bash");
-      if (initError) {
-        return {
-          success: false,
-          error: initError,
-          exitCode: -1,
-          wall_duration_ms: 0,
-        };
-      }
+      await waitForWorkspaceInit(config);
 
       // Validate script is not empty - likely indicates a malformed tool call
 

@@ -42,13 +42,7 @@ export async function executeFileEditOperation<TMetadata>({
   FileEditErrorResult | (FileEditDiffSuccessBase & TMetadata)
 > {
   // Wait for workspace initialization to complete (no-op if already complete or not needed)
-  const initError = await waitForWorkspaceInit(config, "edit file");
-  if (initError) {
-    return {
-      success: false,
-      error: `${WRITE_DENIED_PREFIX} ${initError}`,
-    };
-  }
+  await waitForWorkspaceInit(config);
 
   try {
     // Validate no redundant path prefix (must come first to catch absolute paths)
