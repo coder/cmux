@@ -160,6 +160,40 @@ export interface WorkspaceInitResult {
  *
  * All methods return streaming primitives for memory efficiency.
  * Use helpers in utils/runtime/ for convenience wrappers (e.g., readFileString, execBuffered).
+
+/**
+ * Parameters for forking an existing workspace
+ */
+export interface WorkspaceForkParams {
+  /** Project root path (local path) */
+  projectPath: string;
+  /** Name of the source workspace to fork from */
+  sourceWorkspaceName: string;
+  /** Name for the new workspace */
+  newWorkspaceName: string;
+  /** Logger for streaming initialization events */
+  initLogger: InitLogger;
+}
+
+/**
+ * Result of forking a workspace
+ */
+export interface WorkspaceForkResult {
+  /** Whether the fork operation succeeded */
+  success: boolean;
+  /** Path to the new workspace (if successful) */
+  workspacePath?: string;
+  /** Branch that was forked from */
+  sourceBranch?: string;
+  /** Error message (if failed) */
+  error?: string;
+}
+
+/**
+ * Runtime interface - minimal, low-level abstraction for tool execution environments.
+ *
+ * All methods return streaming primitives for memory efficiency.
+ * Use helpers in utils/runtime/ for convenience wrappers (e.g., readFileString, execBuffered).
  */
 export interface Runtime {
   /**
@@ -306,6 +340,17 @@ export interface Runtime {
     workspaceName: string,
     force: boolean
   ): Promise<{ success: true; deletedPath: string } | { success: false; error: string }>;
+
+  /**
+   * Fork an existing workspace to create a new one
+   * Creates a new workspace branching from the source workspace's current branch
+   * - LocalRuntime: Detects source branch via git, creates new worktree from that branch
+   * - SSHRuntime: Currently unimplemented (returns static error)
+   *
+   * @param params Fork parameters (source workspace name, new workspace name, etc.)
+   * @returns Result with new workspace path and source branch, or error
+   */
+  forkWorkspace(params: WorkspaceForkParams): Promise<WorkspaceForkResult>;
 }
 
 /**

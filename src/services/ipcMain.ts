@@ -5,12 +5,7 @@ import * as fs from "fs";
 import * as fsPromises from "fs/promises";
 import * as path from "path";
 import type { Config, ProjectConfig } from "@/config";
-import {
-  createWorktree,
-  listLocalBranches,
-  detectDefaultTrunkBranch,
-  getCurrentBranch,
-} from "@/git";
+import { listLocalBranches, detectDefaultTrunkBranch } from "@/git";
 import { AIService } from "@/services/aiService";
 import { HistoryService } from "@/services/historyService";
 import { PartialService } from "@/services/partialService";
@@ -544,7 +539,7 @@ export class IpcMain {
             await this.partialService.commitToHistory(sourceWorkspaceId);
           }
 
-          // Get source workspace metadata and paths
+          // Get source workspace metadata
           const sourceMetadataResult = this.aiService.getWorkspaceMetadata(sourceWorkspaceId);
           if (!sourceMetadataResult.success) {
             return {
@@ -554,47 +549,55 @@ export class IpcMain {
           }
           const sourceMetadata = sourceMetadataResult.data;
           const foundProjectPath = sourceMetadata.projectPath;
+          const projectName = sourceMetadata.projectName;
 
-          // Compute source workspace path from metadata (use name for directory lookup) using Runtime
-          const sourceRuntime = createRuntime(
-            sourceMetadata.runtimeConfig ?? { type: "local", srcBaseDir: this.config.srcDir }
-          );
-          const sourceWorkspacePath = sourceRuntime.getWorkspacePath(
-            foundProjectPath,
-            sourceMetadata.name
-          );
-
-          // Get current branch from source workspace (fork from current branch, not trunk)
-          const sourceBranch = await getCurrentBranch(sourceWorkspacePath);
-          if (!sourceBranch) {
-            return {
-              success: false,
-              error: "Failed to detect current branch in source workspace",
-            };
-          }
+          // Create runtime for source workspace
+          const sourceRuntimeConfig =
+            sourceMetadata.runtimeConfig ?? { type: "local", srcBaseDir: this.config.srcDir };
+          const runtime = createRuntime(sourceRuntimeConfig);
 
           // Generate stable workspace ID for the new workspace
           const newWorkspaceId = this.config.generateStableId();
 
-          // Create new workspace branching from source workspace's branch
-          const result = await createWorktree(this.config, foundProjectPath, newName, {
-            trunkBranch: sourceBranch,
-            directoryName: newName,
+          // Create session BEFORE forking so init events can be forwarded
+          const session = this.getOrCreateSession(newWorkspaceId);
+
+          // Start init tracking
+          this.initStateManager.startInit(newWorkspaceId, foundProjectPath);
+
+          // Create InitLogger
+          const initLogger = {
+            logStep: (message: string) => {
+              this.initStateManager.appendOutput(newWorkspaceId, message, false);
+            },
+            logStdout: (line: string) => {
+              this.initStateManager.appendOutput(newWorkspaceId, line, false);
+            },
+            logStderr: (line: string) => {
+              this.initStateManager.appendOutput(newWorkspaceId, line, true);
+            },
+            logComplete: (exitCode: number) => {
+              void this.initStateManager.endInit(newWorkspaceId, exitCode);
+            },
+          };
+
+          // Delegate fork operation to runtime
+          const forkResult = await runtime.forkWorkspace({
+            projectPath: foundProjectPath,
+            sourceWorkspaceName: sourceMetadata.name,
+            newWorkspaceName: newName,
+            initLogger,
           });
 
-          if (!result.success || !result.path) {
-            return { success: false, error: result.error ?? "Failed to create worktree" };
+          if (!forkResult.success) {
+            return { success: false, error: forkResult.error };
           }
 
-          const newWorkspacePath = result.path;
-          const projectName = sourceMetadata.projectName;
-
-          // Copy chat history from source to destination
+          // Copy session files (chat.jsonl, partial.json) - local backend operation
           const sourceSessionDir = this.config.getSessionDir(sourceWorkspaceId);
           const newSessionDir = this.config.getSessionDir(newWorkspaceId);
 
           try {
-            // Create new session directory
             await fsPromises.mkdir(newSessionDir, { recursive: true });
 
             // Copy chat.jsonl if it exists
@@ -603,7 +606,6 @@ export class IpcMain {
             try {
               await fsPromises.copyFile(sourceChatPath, newChatPath);
             } catch (error) {
-              // chat.jsonl doesn't exist yet - that's okay, continue
               if (
                 !(error && typeof error === "object" && "code" in error && error.code === "ENOENT")
               ) {
@@ -611,13 +613,12 @@ export class IpcMain {
               }
             }
 
-            // Copy partial.json if it exists (preserves in-progress streaming response)
+            // Copy partial.json if it exists
             const sourcePartialPath = path.join(sourceSessionDir, "partial.json");
             const newPartialPath = path.join(newSessionDir, "partial.json");
             try {
               await fsPromises.copyFile(sourcePartialPath, newPartialPath);
             } catch (error) {
-              // partial.json doesn't exist - that's okay, continue
               if (
                 !(error && typeof error === "object" && "code" in error && error.code === "ENOENT")
               ) {
@@ -626,34 +627,29 @@ export class IpcMain {
             }
           } catch (copyError) {
             // If copy fails, clean up everything we created
-            // 1. Remove the workspace using Runtime abstraction
-            const cleanupRuntime = createRuntime({ type: "local", srcBaseDir: this.config.srcDir });
-            await cleanupRuntime.deleteWorkspace(foundProjectPath, newName, true);
-            // 2. Remove the session directory (may contain partial copies)
+            await runtime.deleteWorkspace(foundProjectPath, newName, true);
             try {
               await fsPromises.rm(newSessionDir, { recursive: true, force: true });
             } catch (cleanupError) {
-              // Log but don't fail - workspace cleanup is more important
               log.error(`Failed to clean up session dir ${newSessionDir}:`, cleanupError);
             }
             const message = copyError instanceof Error ? copyError.message : String(copyError);
             return { success: false, error: `Failed to copy chat history: ${message}` };
           }
 
-          // Initialize workspace metadata with stable ID and name
+          // Initialize workspace metadata
           const metadata: WorkspaceMetadata = {
             id: newWorkspaceId,
-            name: newName, // Name is separate from ID
+            name: newName,
             projectName,
             projectPath: foundProjectPath,
             createdAt: new Date().toISOString(),
           };
 
-          // Write metadata directly to config.json (single source of truth)
+          // Write metadata to config.json
           this.config.addWorkspace(foundProjectPath, metadata);
 
-          // Emit metadata event for new workspace
-          const session = this.getOrCreateSession(newWorkspaceId);
+          // Emit metadata event
           session.emitMetadata(metadata);
 
           return {

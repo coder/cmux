@@ -12,6 +12,8 @@ import type {
   WorkspaceCreationResult,
   WorkspaceInitParams,
   WorkspaceInitResult,
+  WorkspaceForkParams,
+  WorkspaceForkResult,
   InitLogger,
 } from "./Runtime";
 import { RuntimeError as RuntimeErrorClass } from "./Runtime";
@@ -560,6 +562,54 @@ export class LocalRuntime implements Runtime {
 
       // force=false - return the git error without attempting rm -rf
       return { success: false, error: `Failed to remove worktree: ${message}` };
+    }
+  }
+
+  async forkWorkspace(params: WorkspaceForkParams): Promise<WorkspaceForkResult> {
+    const { projectPath, sourceWorkspaceName, newWorkspaceName, initLogger } = params;
+
+    // Get source workspace path
+    const sourceWorkspacePath = this.getWorkspacePath(projectPath, sourceWorkspaceName);
+
+    // Get current branch from source workspace
+    try {
+      using proc = execAsync(`git -C "${sourceWorkspacePath}" branch --show-current`);
+      const { stdout } = await proc.result;
+      const sourceBranch = stdout.trim();
+
+      if (!sourceBranch) {
+        return {
+          success: false,
+          error: "Failed to detect branch in source workspace",
+        };
+      }
+
+      // Use createWorkspace with sourceBranch as trunk to fork from source branch
+      const createResult = await this.createWorkspace({
+        projectPath,
+        branchName: newWorkspaceName,
+        trunkBranch: sourceBranch, // Fork from source branch instead of main/master
+        directoryName: newWorkspaceName,
+        initLogger,
+      });
+
+      if (!createResult.success || !createResult.workspacePath) {
+        return {
+          success: false,
+          error: createResult.error ?? "Failed to create workspace",
+        };
+      }
+
+      return {
+        success: true,
+        workspacePath: createResult.workspacePath,
+        sourceBranch,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: getErrorMessage(error),
+      };
     }
   }
 }

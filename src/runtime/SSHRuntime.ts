@@ -11,6 +11,8 @@ import type {
   WorkspaceCreationResult,
   WorkspaceInitParams,
   WorkspaceInitResult,
+  WorkspaceForkParams,
+  WorkspaceForkResult,
   InitLogger,
 } from "./Runtime";
 import { RuntimeError as RuntimeErrorClass } from "./Runtime";
@@ -971,7 +973,21 @@ export class SSHRuntime implements Runtime {
       return { success: false, error: `Failed to delete directory: ${getErrorMessage(error)}` };
     }
   }
-}
+
+  async forkWorkspace(_params: WorkspaceForkParams): Promise<WorkspaceForkResult> {
+    // SSH forking is not yet implemented due to unresolved complexities:
+    // - Users expect the new workspace's filesystem state to match the remote workspace,
+    //   not the local project (which may be out of sync or on a different commit)
+    // - This requires: detecting the branch, copying remote state, handling uncommitted changes
+    // - For now, users should create a new workspace from the desired branch instead
+    return {
+      success: false,
+      error: "Forking SSH workspaces is not yet implemented. Create a new workspace instead.",
+    };
+  }
+
+  }
+
 
 /**
  * Helper to convert a ReadableStream to a string
