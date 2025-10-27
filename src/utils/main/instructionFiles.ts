@@ -67,13 +67,6 @@ async function readFirstAvailableFile(
 }
 
 /**
- * Attempts to read a local variant of an instruction file.
- *
- * Local files allow users to keep personal preferences separate from
- * shared team instructions (e.g., add AGENTS.local.md to .gitignore).
- */
-
-/**
  * Read a base file with optional local variant using the provided file reader.
  *
  * @param reader - FileReader abstraction (local or runtime)
