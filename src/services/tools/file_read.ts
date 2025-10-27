@@ -5,6 +5,7 @@ import { TOOL_DEFINITIONS } from "@/utils/tools/toolDefinitions";
 import { validatePathInCwd, validateFileSize, validateNoRedundantPrefix } from "./fileCommon";
 import { RuntimeError } from "@/runtime/Runtime";
 import { readFileString } from "@/utils/runtime/helpers";
+import { waitForWorkspaceInit } from "./toolHelpers";
 
 /**
  * File read tool factory for AI assistant
@@ -20,6 +21,16 @@ export const createFileReadTool: ToolFactory = (config: ToolConfiguration) => {
       { abortSignal: _abortSignal }
     ): Promise<FileReadToolResult> => {
       // Note: abortSignal available but not used - file reads are fast and complete quickly
+
+      // Wait for workspace initialization to complete (no-op if already complete or not needed)
+      const initError = await waitForWorkspaceInit(config, "read file");
+      if (initError) {
+        return {
+          success: false,
+          error: initError,
+        };
+      }
+
       try {
         // Validate no redundant path prefix (must come first to catch absolute paths)
         const redundantPrefixValidation = validateNoRedundantPrefix(

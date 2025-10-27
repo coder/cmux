@@ -1,6 +1,10 @@
 import * as fs from "fs";
 import * as path from "path";
 import * as os from "os";
+import { LocalRuntime } from "@/runtime/LocalRuntime";
+import { InitStateManager } from "@/services/initStateManager";
+import { Config } from "@/config";
+import type { ToolConfiguration } from "@/utils/tools/tools";
 
 /**
  * Disposable test temp directory that auto-cleans when disposed
@@ -24,4 +28,51 @@ export class TestTempDir implements Disposable {
       }
     }
   }
+}
+
+// Singleton instances for test configuration (shared across all test tool configs)
+let testConfig: Config | null = null;
+let testInitStateManager: InitStateManager | null = null;
+
+function getTestConfig(): Config {
+  if (!testConfig) {
+    testConfig = new Config();
+  }
+  return testConfig;
+}
+
+function getTestInitStateManager(): InitStateManager {
+  if (!testInitStateManager) {
+    testInitStateManager = new InitStateManager(getTestConfig());
+  }
+  return testInitStateManager;
+}
+
+/**
+ * Create basic tool configuration for testing.
+ * Returns a config object with default values that can be overridden.
+ */
+export function createTestToolConfig(
+  tempDir: string,
+  options?: { niceness?: number }
+): ToolConfiguration {
+  return {
+    cwd: tempDir,
+    runtime: new LocalRuntime(tempDir),
+    workspaceId: "test-workspace",
+    initStateManager: getTestInitStateManager(),
+    runtimeTempDir: tempDir,
+    niceness: options?.niceness,
+  };
+}
+
+/**
+ * Get shared test config and initStateManager for inline tool configs in tests.
+ * Use this when creating tool configs inline in tests.
+ */
+export function getTestDeps() {
+  return {
+    workspaceId: "test-workspace" as const,
+    initStateManager: getTestInitStateManager(),
+  };
 }

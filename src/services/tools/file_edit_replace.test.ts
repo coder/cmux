@@ -12,6 +12,7 @@ import type {
 } from "@/types/tools";
 import type { ToolCallOptions } from "ai";
 import { createRuntime } from "@/runtime/runtimeFactory";
+import { getTestDeps } from "./testHelpers";
 
 // Mock ToolCallOptions for testing
 const mockToolCallOptions: ToolCallOptions = {
@@ -58,6 +59,7 @@ describe("file_edit_replace_string tool", () => {
   it("should apply a single edit successfully", async () => {
     await setupFile(testFilePath, "Hello world\nThis is a test\nGoodbye world");
     const tool = createFileEditReplaceStringTool({
+      ...getTestDeps(),
       cwd: testDir,
       runtime: createRuntime({ type: "local", srcBaseDir: "/tmp" }),
       runtimeTempDir: "/tmp",
@@ -96,6 +98,7 @@ describe("file_edit_replace_lines tool", () => {
   it("should replace a line range successfully", async () => {
     await setupFile(testFilePath, "line1\nline2\nline3\nline4");
     const tool = createFileEditReplaceLinesTool({
+      ...getTestDeps(),
       cwd: testDir,
       runtime: createRuntime({ type: "local", srcBaseDir: "/tmp" }),
       runtimeTempDir: "/tmp",

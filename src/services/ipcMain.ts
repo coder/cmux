@@ -134,9 +134,14 @@ export class IpcMain {
     this.config = config;
     this.historyService = new HistoryService(config);
     this.partialService = new PartialService(config, this.historyService);
-    this.aiService = new AIService(config, this.historyService, this.partialService);
-    this.bashService = new BashExecutionService();
     this.initStateManager = new InitStateManager(config);
+    this.aiService = new AIService(
+      config,
+      this.historyService,
+      this.partialService,
+      this.initStateManager
+    );
+    this.bashService = new BashExecutionService();
   }
 
   private getOrCreateSession(workspaceId: string): AgentSession {
@@ -922,6 +927,8 @@ export class IpcMain {
           const bashTool = createBashTool({
             cwd: workspacePath, // Bash executes in the workspace directory
             runtime,
+            workspaceId,
+            initStateManager: this.initStateManager,
             secrets: secretsToRecord(projectSecrets),
             niceness: options?.niceness,
             runtimeTempDir: tempDir.path,

@@ -47,14 +47,28 @@ type InitHookState = InitStatus;
  * - Permanent persistence (init logs kept forever as workspace metadata)
  *
  * Lifecycle:
- * 1. startInit() - Create in-memory state, emit init-start
+ * 1. startInit() - Create in-memory state, emit init-start, create completion promise
  * 2. appendOutput() - Accumulate lines, emit init-output
- * 3. endInit() - Finalize state, write to disk, emit init-end
+ * 3. endInit() - Finalize state, write to disk, emit init-end, resolve promise
  * 4. State remains in memory until cleared or process restart
  * 5. replayInit() - Re-emit events from in-memory or disk state (via EventStore)
+ *
+ * Waiting: Tools use waitForInit() which returns a promise that resolves when
+ * init completes. This promise is stored in initPromises map and resolved by
+ * endInit(). No event listeners needed, eliminating race conditions.
  */
 export class InitStateManager extends EventEmitter {
   private readonly store: EventStore<InitHookState, WorkspaceInitEvent & { workspaceId: string }>;
+
+  /**
+   * Promise-based completion tracking for running inits.
+   * Each running init has a promise that resolves when endInit() is called.
+   * Multiple tools can await the same promise without race conditions.
+   */
+  private readonly initPromises: Map<
+    string,
+    { promise: Promise<void>; resolve: () => void; reject: (error: Error) => void }
+  > = new Map();
 
   constructor(config: Config) {
     super();
@@ -111,7 +125,7 @@ export class InitStateManager extends EventEmitter {
 
   /**
    * Start tracking a new init hook execution.
-   * Creates in-memory state and emits init-start event.
+   * Creates in-memory state, completion promise, and emits init-start event.
    */
   startInit(workspaceId: string, hookPath: string): void {
     const startTime = Date.now();
@@ -126,6 +140,21 @@ export class InitStateManager extends EventEmitter {
     };
 
     this.store.setState(workspaceId, state);
+
+    // Create completion promise for this init
+    // This allows multiple tools to await the same init without event listeners
+    let resolve: () => void;
+    let reject: (error: Error) => void;
+    const promise = new Promise<void>((res, rej) => {
+      resolve = res;
+      reject = rej;
+    });
+
+    this.initPromises.set(workspaceId, {
+      promise,
+      resolve: resolve!,
+      reject: reject!,
+    });
 
     log.debug(`Init hook started for workspace ${workspaceId}: ${hookPath}`);
 
@@ -167,7 +196,7 @@ export class InitStateManager extends EventEmitter {
 
   /**
    * Finalize init hook execution.
-   * Updates state, persists to disk, and emits init-end event.
+   * Updates state, persists to disk, emits init-end event, and resolves completion promise.
    */
   async endInit(workspaceId: string, exitCode: number): Promise<void> {
     const state = this.store.getState(workspaceId);
@@ -196,6 +225,13 @@ export class InitStateManager extends EventEmitter {
       exitCode,
       timestamp: endTime,
     } satisfies WorkspaceInitEvent & { workspaceId: string });
+
+    // Resolve completion promise for waiting tools
+    const promiseEntry = this.initPromises.get(workspaceId);
+    if (promiseEntry) {
+      promiseEntry.resolve();
+      this.initPromises.delete(workspaceId);
+    }
 
     // Keep state in memory for replay (unlike streams which delete immediately)
   }
@@ -244,8 +280,68 @@ export class InitStateManager extends EventEmitter {
    * Clear in-memory state for a workspace.
    * Useful for testing or cleanup after workspace deletion.
    * Does NOT delete disk file (use deleteInitStatus for that).
+   *
+   * Also cancels any running init promises to prevent orphaned waiters.
    */
   clearInMemoryState(workspaceId: string): void {
     this.store.deleteState(workspaceId);
+
+    // Cancel any running init promise for this workspace
+    const promiseEntry = this.initPromises.get(workspaceId);
+    if (promiseEntry) {
+      promiseEntry.reject(new Error(`Workspace ${workspaceId} was deleted`));
+      this.initPromises.delete(workspaceId);
+    }
+  }
+
+  /**
+   * Wait for workspace initialization to complete.
+   * Used by tools (bash, file_*) to ensure files are ready before executing.
+   *
+   * Behavior:
+   * - No init state: Returns immediately (init not needed or backwards compat)
+   * - Init succeeded/failed: Returns immediately (let tool proceed/fail naturally)
+   * - Init running: Waits for completion promise (up to 5 minutes)
+   *
+   * Promise-based approach eliminates race conditions:
+   * - Multiple tools share the same promise (no duplicate listeners)
+   * - No event cleanup needed (promise auto-resolves once)
+   * - Timeout races handled by Promise.race()
+   *
+   * @param workspaceId Workspace ID to wait for
+   * @throws Error if init times out after 5 minutes
+   */
+  async waitForInit(workspaceId: string): Promise<void> {
+    const state = this.getInitState(workspaceId);
+
+    // No init state - proceed immediately (backwards compat or init not needed)
+    if (!state) {
+      return;
+    }
+
+    // Init already completed (success or failure) - proceed immediately
+    if (state.status !== "running") {
+      return;
+    }
+
+    // Init is running - wait for completion promise with timeout
+    const promiseEntry = this.initPromises.get(workspaceId);
+
+    if (!promiseEntry) {
+      // State says running but no promise exists (shouldn't happen, but handle gracefully)
+      log.error(`Init state is running for ${workspaceId} but no promise found, proceeding`);
+      return;
+    }
+
+    const INIT_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
+    const timeoutPromise = new Promise<void>((_, reject) => {
+      setTimeout(() => {
+        reject(new Error("Workspace initialization timed out after 5 minutes"));
+      }, INIT_TIMEOUT_MS);
+    });
+
+    // Race between completion and timeout
+    // If timeout wins, promise rejection propagates to caller
+    await Promise.race([promiseEntry.promise, timeoutPromise]);
   }
 }
