@@ -163,7 +163,7 @@ const WorkspaceListItemInner: React.FC<WorkspaceListItemProps> = ({
       >
         <TooltipWrapper inline>
           <button
-            className="text-neutral-400 hover:text-foreground col-start-1 flex h-5 w-5 shrink-0 cursor-pointer items-center justify-center border-none bg-transparent p-0 text-base opacity-0 transition-all duration-200 hover:rounded-sm hover:bg-white/10"
+            className="hover:text-foreground col-start-1 flex h-5 w-5 shrink-0 cursor-pointer items-center justify-center border-none bg-transparent p-0 text-base text-neutral-400 opacity-0 transition-all duration-200 hover:rounded-sm hover:bg-white/10"
             onClick={(e) => {
               e.stopPropagation();
               void onRemoveWorkspace(workspaceId, e.currentTarget);
