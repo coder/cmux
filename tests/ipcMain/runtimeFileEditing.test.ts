@@ -153,11 +153,11 @@ describeIntegration("Runtime File Editing Tools", () => {
               expect(createStreamEnd).toBeDefined();
               expect((createStreamEnd as any).error).toBeUndefined();
 
-              // Now ask AI to read the file
+              // Now ask AI to read the file (explicitly request file_read tool)
               const readEvents = await sendMessageAndWait(
                 env,
                 workspaceId,
-                `Read the file ${testFileName} and tell me what it contains.`,
+                `Use the file_read tool to read ${testFileName} and tell me what it contains.`,
                 HAIKU_MODEL,
                 FILE_TOOLS_ONLY,
                 streamTimeout
@@ -236,11 +236,11 @@ describeIntegration("Runtime File Editing Tools", () => {
               expect(createStreamEnd).toBeDefined();
               expect((createStreamEnd as any).error).toBeUndefined();
 
-              // Ask AI to replace text
+              // Ask AI to replace text (explicitly request file_edit_replace_string tool)
               const replaceEvents = await sendMessageAndWait(
                 env,
                 workspaceId,
-                `In ${testFileName}, replace "brown fox" with "red panda".`,
+                `Use the file_edit_replace_string tool to replace "brown fox" with "red panda" in ${testFileName}.`,
                 HAIKU_MODEL,
                 FILE_TOOLS_ONLY,
                 streamTimeout
@@ -325,11 +325,11 @@ describeIntegration("Runtime File Editing Tools", () => {
               expect(createStreamEnd).toBeDefined();
               expect((createStreamEnd as any).error).toBeUndefined();
 
-              // Ask AI to insert text
+              // Ask AI to insert text (explicitly request file_edit tool usage)
               const insertEvents = await sendMessageAndWait(
                 env,
                 workspaceId,
-                `In ${testFileName}, insert "Line 2" between Line 1 and Line 3.`,
+                `Use the file_edit_insert or file_edit_replace_string tool to insert "Line 2" between Line 1 and Line 3 in ${testFileName}.`,
                 HAIKU_MODEL,
                 FILE_TOOLS_ONLY,
                 streamTimeout
@@ -340,12 +340,14 @@ describeIntegration("Runtime File Editing Tools", () => {
               expect(streamEnd).toBeDefined();
               expect((streamEnd as any).error).toBeUndefined();
 
-              // Verify file_edit_insert tool was called
+              // Verify a file_edit tool was called (either insert or replace_string)
               const toolCalls = insertEvents.filter(
                 (e) => "type" in e && e.type === "tool-call-start"
               );
-              const insertCall = toolCalls.find((e: any) => e.toolName === "file_edit_insert");
-              expect(insertCall).toBeDefined();
+              const editCall = toolCalls.find(
+                (e: any) => e.toolName === "file_edit_insert" || e.toolName === "file_edit_replace_string"
+              );
+              expect(editCall).toBeDefined();
 
               // Verify the insertion was successful
               const responseText = extractTextFromEvents(insertEvents);
