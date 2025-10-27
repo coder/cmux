@@ -52,7 +52,7 @@ function createAndAddWorkspace(
     name: options.name ?? `test-branch-${workspaceId}`,
     projectName: options.projectName ?? "test-project",
     projectPath: options.projectPath ?? "/path/to/project",
-    namedWorkspacePath: options.namedWorkspacePath ?? "/path/to/worktree",
+    namedWorkspacePath: options.namedWorkspacePath ?? "/path/to/workspace",
     createdAt: options.createdAt ?? new Date().toISOString(),
   };
   store.addWorkspace(metadata);
@@ -83,7 +83,7 @@ describe("WorkspaceStore", () => {
         name: "test-branch",
         projectName: "test-project",
         projectPath: "/path/to/project",
-        namedWorkspacePath: "/path/to/worktree",
+        namedWorkspacePath: "/path/to/workspace",
         createdAt,
       };
 
@@ -110,7 +110,7 @@ describe("WorkspaceStore", () => {
         name: "test-branch-2",
         projectName: "test-project",
         projectPath: "/path/to/project",
-        namedWorkspacePath: "/path/to/worktree",
+        namedWorkspacePath: "/path/to/workspace",
         createdAt,
       };
 

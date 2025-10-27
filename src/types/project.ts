@@ -25,7 +25,7 @@ import type { RuntimeConfig } from "./runtime";
  * For legacy entries, metadata is read from ~/.cmux/sessions/{workspaceId}/metadata.json
  */
 export interface Workspace {
-  /** Absolute path to workspace worktree - REQUIRED for backward compatibility */
+  /** Absolute path to workspace directory - REQUIRED for backward compatibility */
   path: string;
 
   /** Stable workspace ID (10 hex chars for new workspaces) - optional for legacy */

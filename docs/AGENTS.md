@@ -105,7 +105,7 @@ Verify with React DevTools Profiler - MarkdownCore should only re-render when co
 - `src/App.tsx` - Main React component
 - `src/config.ts` - Configuration management
 - `~/.cmux/config.json` - User configuration file
-- `~/.cmux/src/<project_name>/<branch>` - Workspace directories for git worktrees
+- `~/.cmux/src/<project_name>/<branch>` - Local workspace directories (git worktrees)
 - `~/.cmux/sessions/<workspace_id>/chat.jsonl` - Session chat histories
 
 ## Documentation Guidelines
@@ -137,7 +137,7 @@ in `/tmp/ai-sdk-docs/**.mdx`.
 ## Key Features
 
 - Projects sidebar (left panel)
-- Workspaces using git worktrees
+- Workspaces (local uses git worktrees, SSH uses remote git clones)
 - Configuration persisted to `~/.cmux/config.json`
 
 ## Performance Patterns
@@ -179,7 +179,7 @@ This project uses **Make** as the primary build orchestrator. See `Makefile` for
 
 - When refactoring, use `git mv` to preserve file history instead of rewriting files from scratch
 
-**⚠️ NEVER kill the running cmux process** - The main cmux instance is used for active development. Use `make test` or `make typecheck` to verify changes instead of starting the app in test worktrees.
+**⚠️ NEVER kill the running cmux process** - The main cmux instance is used for active development. Use `make test` or `make typecheck` to verify changes instead of starting the app in test workspaces.
 
 ## Testing
 

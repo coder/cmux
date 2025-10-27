@@ -1,9 +1,11 @@
 # Workspaces
 
-Currently, cmux supports one Workspace backend: [git worktrees](https://git-scm.com/docs/git-worktree).
+cmux supports multiple workspace backends for different use cases:
 
-We plan on adding support for SSH and Docker backends in the near future for
-additional isolation and security.
+- **Local workspaces**: [git worktrees](https://git-scm.com/docs/git-worktree) on your local machine
+- **SSH workspaces**: Regular git clones on a remote server accessed via SSH
+
+The backend is selected based on your runtime configuration. Local workspaces use git worktrees which share the `.git` directory with your main repository, while SSH workspaces are independent git clones on the remote machine.
 
 ## Basics of worktrees
 
@@ -43,7 +45,9 @@ dev server (e.g. `bun dev`) there directly and observe the agent's work in real-
 
 ## Filesystem Layout
 
-All worktrees are stored in `~/.cmux/src/<project-name>/<workspace-name>`.
+Local workspaces are stored in `~/.cmux/src/<project-name>/<workspace-name>`.
+
+SSH workspaces are stored on the remote machine at `~/workspace/<project-name>/<workspace-name>` (or your configured remote path).
 
 Example layout:
 
