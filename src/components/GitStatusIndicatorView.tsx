@@ -2,6 +2,7 @@ import React from "react";
 import { createPortal } from "react-dom";
 import type { GitStatus } from "@/types/workspace";
 import type { GitCommit, GitBranchHeader } from "@/utils/git/parseGitLog";
+import RefreshIcon from "@/assets/icons/refresh.svg?react";
 import { cn } from "@/lib/utils";
 
 // Helper for indicator colors
@@ -14,20 +15,313 @@ const getIndicatorColor = (branch: number): string => {
     case 2:
       return "#b66bcc"; // Purple for origin/branch
     default:
-      return "#6b6b6b"; // Gray fallback
+      return "#cccccc"; // Gray for other branches
   }
 };
+
+// Simple styled-component helper (for backwards compatibility with the auto-rebase branch code)
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const styled = new Proxy({} as any, {
+  get: (_, tag: string) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return (strings: TemplateStringsArray, ...values: any[]) => {
+      // Return a component that applies the tag
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      return React.forwardRef((props: any, ref) => {
+        // Merge styles - this is a simplified version, real styled-components does much more
+        const css = strings.reduce((result, str, i) => {
+          const value = values[i];
+          const computed = typeof value === "function" ? value(props) : value ?? "";
+          return result + str + computed;
+        }, "");
+        
+        return React.createElement(tag, { ...props, ref, style: { ...props.style }, css });
+      });
+    };
+  },
+});
+
+const Container = styled.span<{
+  clickable?: boolean;
+  isRebasing?: boolean;
+  isAgentResolving?: boolean;
+}>`
+  color: #569cd6;
+  font-size: 11px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-right: 6px;
+  font-family: var(--font-monospace);
+  position: relative;
+  // @ts-expect-error - styled-components types need fixing
+  cursor: ${(props) =>
+    props.isRebasing || props.isAgentResolving ? "wait" : props.clickable ? "pointer" : "default"};
+  transition: opacity 0.2s;
+
+  // @ts-expect-error - styled-components types need fixing
+  ${(props) =>
+    props.clickable &&
+    !props.isRebasing &&
+    !props.isAgentResolving &&
+    `
+    &:hover .status-indicators {
+      display: none !important;
+    }
+    &:hover .refresh-icon-wrapper {
+      display: flex !important;
+    }
+  `}
+
+  // @ts-expect-error - styled-components types need fixing
+  ${(props) =>
+    // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
+    (props.isRebasing || props.isAgentResolving) &&
+    `
+    .status-indicators {
+      display: none !important;
+    }
+    .refresh-icon-wrapper {
+      display: flex !important;
+    }
+  `}
+`;
+
+const pulseAnimation = `
+  @keyframes pulse {
+    0%, 100% {
+      opacity: 1;
+      transform: scale(1);
+    }
+    50% {
+      opacity: 0.7;
+      transform: scale(1.1);
+    }
+  }
+`;
+
+const StatusIndicators = styled.span`
+  display: flex;
+  align-items: center;
+  gap: 4px;
+`;
+
+const Arrow = styled.span`
+  display: flex;
+  align-items: center;
+  font-weight: normal;
+`;
+
+const RefreshIconWrapper = styled.span<{ isRebasing?: boolean; isAgentResolving?: boolean }>`
+  display: none;
+  align-items: center;
+
+  svg {
+    width: 14px;
+    height: 14px;
+    color: currentColor;
+  }
+
+  // @ts-expect-error - styled-components types need fixing
+  ${(props) =>
+    // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
+    (props.isRebasing || props.isAgentResolving) &&
+    `
+    ${pulseAnimation}
+    animation: pulse 1.5s ease-in-out infinite;
+  `}
+`;
+
+const DirtyIndicator = styled.span`
+  display: flex;
+  align-items: center;
+  font-weight: normal;
+  color: var(--color-git-dirty);
+  line-height: 1;
+`;
+
+const Tooltip = styled.div<{ show: boolean }>`
+  position: fixed;
+  z-index: 10000;
+  background: #2d2d30;
+  color: #cccccc;
+  border: 1px solid #464647;
+  border-radius: 4px;
+  padding: 8px 12px;
+  font-size: 11px;
+  font-family: var(--font-monospace);
+  white-space: pre;
+  max-width: 600px;
+  max-height: 400px;
+  overflow: auto;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+  pointer-events: auto;
+  // @ts-expect-error - styled-components types need fixing
+  opacity: ${(props) => (props.show ? 1 : 0)};
+  // @ts-expect-error - styled-components types need fixing
+  visibility: ${(props) => (props.show ? "visible" : "hidden")};
+  transition:
+    opacity 0.2s,
+    visibility 0.2s;
+`;
+
+const ErrorMessage = styled.div`
+  background: var(--color-error-bg);
+  border-left: 3px solid var(--color-error);
+  color: var(--color-error);
+  padding: 6px 8px;
+  margin-bottom: 8px;
+  font-family: var(--font-monospace);
+  white-space: normal;
+`;
+
+const AgentResolvingMessage = styled.div`
+  background: rgba(86, 156, 214, 0.15);
+  border-left: 3px solid #569cd6;
+  color: #569cd6;
+  padding: 6px 8px;
+  margin-bottom: 8px;
+  font-family: var(--font-monospace);
+  white-space: normal;
+  font-weight: 500;
+`;
+
+const ConflictFileList = styled.div`
+  margin-bottom: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #464647;
+`;
+
+const ConflictFile = styled.div`
+  color: #cccccc;
+  font-family: var(--font-monospace);
+  font-size: 11px;
+  padding: 2px 0;
+  padding-left: 8px;
+`;
+
+const BranchHeader = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #464647;
+`;
+
+const BranchHeaderLine = styled.div`
+  display: flex;
+  gap: 8px;
+  font-family: var(--font-monospace);
+  line-height: 1.4;
+`;
+
+const BranchName = styled.span`
+  color: #cccccc;
+`;
+
+const DirtySection = styled.div`
+  margin-bottom: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #464647;
+`;
+
+const DirtySectionTitle = styled.div`
+  color: var(--color-git-dirty);
+  font-weight: 600;
+  margin-bottom: 4px;
+  font-family: var(--font-monospace);
+`;
+
+const DirtyFileList = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+`;
+
+const DirtyFileLine = styled.div`
+  color: #cccccc;
+  font-family: var(--font-monospace);
+  font-size: 11px;
+  line-height: 1.4;
+  white-space: pre;
+`;
+
+const TruncationNote = styled.div`
+  color: #808080;
+  font-style: italic;
+  margin-top: 4px;
+  font-size: 10px;
+`;
+
+const CommitList = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+`;
+
+const CommitLine = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+`;
+
+const CommitMainLine = styled.div`
+  display: flex;
+  gap: 8px;
+  font-family: var(--font-monospace);
+  line-height: 1.4;
+`;
+
+const CommitIndicators = styled.span`
+  color: #6b6b6b;
+  white-space: pre;
+  flex-shrink: 0;
+  font-family: var(--font-monospace);
+  margin-right: 8px;
+`;
+
+const IndicatorChar = styled.span<{ branch: number }>`
+  // @ts-expect-error - styled-components types need fixing
+  color: ${(props) => {
+    switch (props.branch) {
+      case 0:
+        return "#6bcc6b"; // Green for HEAD
+      case 1:
+        return "#6ba3cc"; // Blue for origin/main
+      case 2:
+        return "#b66bcc"; // Purple for origin/branch
+      default:
+        return "#6b6b6b"; // Gray fallback
+    }
+  }};
+`;
+
+const CommitHash = styled.span`
+  color: #569cd6;
+  flex-shrink: 0;
+  user-select: all;
+`;
+
+const CommitDate = styled.span`
+  color: #808080;
+  flex-shrink: 0;
+`;
+
+const CommitSubject = styled.span`
+  color: #cccccc;
+  flex: 1;
+  word-break: break-word;
+`;
 
 export interface GitStatusIndicatorViewProps {
   gitStatus: GitStatus | null;
   tooltipPosition?: "right" | "bottom";
-  // Tooltip data
   branchHeaders: GitBranchHeader[] | null;
   commits: GitCommit[] | null;
   dirtyFiles: string[] | null;
   isLoading: boolean;
   errorMessage: string | null;
-  // Interaction
   showTooltip: boolean;
   tooltipCoords: { top: number; left: number };
   onMouseEnter: () => void;
@@ -35,6 +329,12 @@ export interface GitStatusIndicatorViewProps {
   onTooltipMouseEnter: () => void;
   onTooltipMouseLeave: () => void;
   onContainerRef: (el: HTMLSpanElement | null) => void;
+  canRebase: boolean;
+  isRebasing: boolean;
+  isAgentResolving?: boolean;
+  agentConflictFiles?: string[] | null;
+  onRebaseClick: () => void;
+  rebaseError: string | null;
 }
 
 /**
@@ -57,8 +357,13 @@ export const GitStatusIndicatorView: React.FC<GitStatusIndicatorViewProps> = ({
   onTooltipMouseEnter,
   onTooltipMouseLeave,
   onContainerRef,
+  canRebase,
+  isRebasing,
+  isAgentResolving = false,
+  agentConflictFiles = null,
+  onRebaseClick,
+  rebaseError,
 }) => {
-  // Handle null gitStatus (loading state)
   if (!gitStatus) {
     return (
       <span
@@ -68,7 +373,6 @@ export const GitStatusIndicatorView: React.FC<GitStatusIndicatorViewProps> = ({
     );
   }
 
-  // Render empty placeholder when nothing to show (prevents layout shift)
   if (gitStatus.ahead === 0 && gitStatus.behind === 0 && !gitStatus.dirty) {
     return (
       <span
@@ -78,20 +382,16 @@ export const GitStatusIndicatorView: React.FC<GitStatusIndicatorViewProps> = ({
     );
   }
 
-  // Render colored indicator characters
-  const renderIndicators = (indicators: string) => {
-    return (
-      <span className="text-placeholder mr-2 shrink-0 font-mono whitespace-pre">
-        {Array.from(indicators).map((char, index) => (
-          <span key={index} style={{ color: getIndicatorColor(index) }}>
-            {char}
-          </span>
-        ))}
-      </span>
-    );
-  };
+  const renderIndicators = (indicators: string) => (
+    <CommitIndicators>
+      {Array.from(indicators).map((char, index) => (
+        <IndicatorChar key={index} branch={index}>
+          {char}
+        </IndicatorChar>
+      ))}
+    </CommitIndicators>
+  );
 
-  // Render branch header showing which column corresponds to which branch
   const renderBranchHeaders = () => {
     if (!branchHeaders || branchHeaders.length === 0) {
       return null;
@@ -100,24 +400,22 @@ export const GitStatusIndicatorView: React.FC<GitStatusIndicatorViewProps> = ({
     return (
       <div className="border-separator-light mb-2 flex flex-col gap-0.5 border-b pb-2">
         {branchHeaders.map((header, index) => (
-          <div key={index} className="flex gap-2 font-mono leading-snug">
-            <span className="text-placeholder mr-2 shrink-0 font-mono whitespace-pre">
-              {/* Create spacing to align with column */}
+          <BranchHeaderLine key={index}>
+            <CommitIndicators>
               {Array.from({ length: header.columnIndex }).map((_, i) => (
                 <span key={i} style={{ color: getIndicatorColor(i) }}>
                   {" "}
                 </span>
               ))}
               <span style={{ color: getIndicatorColor(header.columnIndex) }}>!</span>
-            </span>
+            </CommitIndicators>
             <span className="text-foreground">[{header.branch}]</span>
-          </div>
+          </BranchHeaderLine>
         ))}
       </div>
     );
   };
 
-  // Render dirty files section
   const renderDirtySection = () => {
     if (!dirtyFiles || dirtyFiles.length === 0) {
       return null;
@@ -149,22 +447,62 @@ export const GitStatusIndicatorView: React.FC<GitStatusIndicatorViewProps> = ({
     );
   };
 
-  // Render tooltip content
   const renderTooltipContent = () => {
     if (isLoading) {
       return "Loading...";
     }
 
+    // Show agent resolving status with conflict file list
+    if (isAgentResolving && agentConflictFiles && agentConflictFiles.length > 0) {
+      return (
+        <>
+          <AgentResolvingMessage>🤖 Agent is resolving conflicts in:</AgentResolvingMessage>
+          <ConflictFileList>
+            {agentConflictFiles.map((file) => (
+              <ConflictFile key={file}>• {file}</ConflictFile>
+            ))}
+          </ConflictFileList>
+          {renderDirtySection()}
+          {renderBranchHeaders()}
+          {commits && commits.length > 0 && (
+            <CommitList>
+              {commits.map((commit, index) => (
+                <CommitLine key={`${commit.hash}-${index}`}>
+                  <CommitMainLine>
+                    {renderIndicators(commit.indicators)}
+                    <CommitHash>{commit.hash}</CommitHash>
+                    <CommitDate>{commit.date}</CommitDate>
+                    <CommitSubject>{commit.subject}</CommitSubject>
+                  </CommitMainLine>
+                </CommitLine>
+              ))}
+            </CommitList>
+          )}
+        </>
+      );
+    }
+
     if (errorMessage) {
-      return errorMessage;
+      return (
+        <>
+          {rebaseError && <ErrorMessage role="alert">{rebaseError}</ErrorMessage>}
+          {errorMessage}
+        </>
+      );
     }
 
     if (!commits || commits.length === 0) {
-      return "No commits to display";
+      return (
+        <>
+          {rebaseError && <ErrorMessage role="alert">{rebaseError}</ErrorMessage>}
+          {"No commits to display"}
+        </>
+      );
     }
 
     return (
       <>
+        {rebaseError && <ErrorMessage role="alert">{rebaseError}</ErrorMessage>}
         {renderDirtySection()}
         {renderBranchHeaders()}
         <div className="flex flex-col gap-1">
@@ -183,13 +521,10 @@ export const GitStatusIndicatorView: React.FC<GitStatusIndicatorViewProps> = ({
     );
   };
 
-  // Render tooltip via portal to bypass overflow constraints
   const tooltipElement = (
-    <div
-      className={cn(
-        "fixed z-[10000] bg-modal-bg text-foreground border border-separator-light rounded px-3 py-2 text-[11px] font-mono whitespace-pre max-w-96 max-h-[400px] overflow-auto shadow-[0_4px_12px_rgba(0,0,0,0.5)] pointer-events-auto transition-opacity duration-200",
-        showTooltip ? "opacity-100 visible" : "opacity-0 invisible"
-      )}
+    <Tooltip
+      data-git-tooltip
+      show={showTooltip}
       style={{
         top: `${tooltipCoords.top}px`,
         left: `${tooltipCoords.left}px`,
@@ -199,27 +534,53 @@ export const GitStatusIndicatorView: React.FC<GitStatusIndicatorViewProps> = ({
       onMouseLeave={onTooltipMouseLeave}
     >
       {renderTooltipContent()}
-    </div>
+    </Tooltip>
   );
 
   return (
     <>
-      <span
+      <Container
         ref={onContainerRef}
         onMouseEnter={onMouseEnter}
         onMouseLeave={onMouseLeave}
-        className="text-accent relative mr-1.5 flex items-center gap-1 font-mono text-[11px]"
+        clickable={canRebase}
+        isRebasing={isRebasing}
+        isAgentResolving={isAgentResolving}
+        onClick={
+          canRebase
+            ? () => {
+                void onRebaseClick();
+              }
+            : undefined
+        }
+        role={canRebase ? "button" : undefined}
+        tabIndex={canRebase ? 0 : undefined}
+        onKeyDown={
+          canRebase
+            ? (event: React.KeyboardEvent) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  void onRebaseClick();
+                }
+              }
+            : undefined
+        }
+        aria-busy={isRebasing || isAgentResolving ? "true" : undefined}
+        className="git-status-wrapper"
       >
-        {gitStatus.ahead > 0 && (
-          <span className="flex items-center font-normal">↑{gitStatus.ahead}</span>
-        )}
-        {gitStatus.behind > 0 && (
-          <span className="flex items-center font-normal">↓{gitStatus.behind}</span>
-        )}
-        {gitStatus.dirty && (
-          <span className="text-git-dirty flex items-center leading-none font-normal">*</span>
-        )}
-      </span>
+        <StatusIndicators className="status-indicators">
+          {gitStatus.ahead > 0 && <Arrow>↑{gitStatus.ahead}</Arrow>}
+          {gitStatus.behind > 0 && <Arrow>↓{gitStatus.behind}</Arrow>}
+        </StatusIndicators>
+        <RefreshIconWrapper
+          className="refresh-icon-wrapper"
+          isRebasing={isRebasing}
+          isAgentResolving={isAgentResolving}
+        >
+          <RefreshIcon />
+        </RefreshIconWrapper>
+        {gitStatus.dirty && <DirtyIndicator>*</DirtyIndicator>}
+      </Container>
 
       {createPortal(tooltipElement, document.body)}
     </>

@@ -1,4 +1,4 @@
-import assert from "@/utils/assert";
+import { assert } from "@/utils/assert";
 import type { BrowserWindow, IpcMain as ElectronIpcMain } from "electron";
 import { spawn, spawnSync } from "child_process";
 import * as fs from "fs";
@@ -11,7 +11,13 @@ import {
   detectDefaultTrunkBranch,
   getCurrentBranch,
 } from "@/git";
-import { removeWorktree, pruneWorktrees } from "@/services/gitService";
+import {
+  removeWorktreeSafe,
+  removeWorktree,
+  pruneWorktrees,
+  rebaseOntoTrunk,
+  gatherGitDiagnostics,
+} from "@/services/gitService";
 import { AIService } from "@/services/aiService";
 import { HistoryService } from "@/services/historyService";
 import { PartialService } from "@/services/partialService";
@@ -269,9 +275,9 @@ export class IpcMain {
           return { success: false, error: validation.error };
         }
 
-        if (typeof trunkBranch !== "string" || trunkBranch.trim().length === 0) {
-          return { success: false, error: "Trunk branch is required" };
-        }
+        // Defensive assertions for trunk branch
+        assert(typeof trunkBranch === "string", "trunkBranch must be a string");
+        assert(trunkBranch.trim().length > 0, "trunkBranch must not be empty");
 
         const normalizedTrunkBranch = trunkBranch.trim();
 
@@ -341,8 +347,59 @@ export class IpcMain {
           initLogger,
         });
 
-        if (!createResult.success || !createResult.workspacePath) {
-          return { success: false, error: createResult.error ?? "Failed to create workspace" };
+        if (createResult.success && createResult.workspacePath) {
+          const projectName =
+            projectPath.split("/").pop() ?? projectPath.split("\\").pop() ?? "unknown";
+
+          // Initialize workspace metadata with stable ID and name
+          const metadata = {
+            id: workspaceId,
+            name: branchName, // Name is separate from ID
+            projectName,
+            projectPath, // Full project path for computing worktree path
+            createdAt: new Date().toISOString(),
+          };
+          // Note: metadata.json no longer written - config is the only source of truth
+
+          // Update config to include the new workspace (with full metadata)
+          this.config.editConfig((config) => {
+            let projectConfig = config.projects.get(projectPath);
+            if (!projectConfig) {
+              // Create project config if it doesn't exist
+              projectConfig = {
+                workspaces: [],
+              };
+              config.projects.set(projectPath, projectConfig);
+            }
+            // Add workspace to project config with full metadata
+            projectConfig.workspaces.push({
+              path: createResult.workspacePath!,
+              trunkBranch: normalizedTrunkBranch,
+              id: workspaceId,
+              name: branchName,
+              createdAt: metadata.createdAt,
+            });
+            return config;
+          });
+
+          // No longer creating symlinks - directory name IS the workspace name
+
+          // Get complete metadata from config (includes paths)
+          const allMetadata = this.config.getAllWorkspaceMetadata();
+          const completeMetadata = allMetadata.find((m) => m.id === workspaceId);
+          if (!completeMetadata) {
+            return { success: false, error: "Failed to retrieve workspace metadata" };
+          }
+
+          // Emit metadata event for new workspace
+          const session = this.getOrCreateSession(workspaceId);
+          session.emitMetadata(completeMetadata);
+
+          // Return complete metadata with paths for frontend
+          return {
+            success: true,
+            metadata: completeMetadata,
+          };
         }
 
         const projectName =
@@ -393,12 +450,14 @@ export class IpcMain {
 
         // Phase 2: Initialize workspace asynchronously (SLOW - runs in background)
         // This streams progress via initLogger and doesn't block the IPC return
+        const trunkForInit = normalizedTrunkBranch; // Capture for closure
+        const workspacePathForInit = createResult.workspacePath; // Capture for closure
         void runtime
           .initWorkspace({
             projectPath,
             branchName,
-            trunkBranch: normalizedTrunkBranch,
-            workspacePath: createResult.workspacePath,
+            trunkBranch: trunkForInit,
+            workspacePath: workspacePathForInit!,
             initLogger,
           })
           .catch((error: unknown) => {
@@ -1025,24 +1084,217 @@ export class IpcMain {
       }
     });
 
-    // Debug IPC - only for testing
     ipcMain.handle(
-      IPC_CHANNELS.DEBUG_TRIGGER_STREAM_ERROR,
-      (_event, workspaceId: string, errorMessage: string) => {
+      IPC_CHANNELS.WORKSPACE_REBASE,
+      async (_event, workspaceId: string, sendMessageOptions: SendMessageOptions) => {
+        let workspacePath: string | undefined;
+        let trunkBranch: string | undefined;
+        let operationStep = "initialization";
+
+        assert(typeof sendMessageOptions == "object", "sendMessageOptions must be an object");
+        sendMessageOptions.mode = "exec";
+
         try {
-          // eslint-disable-next-line @typescript-eslint/dot-notation -- accessing private member for testing
-          const triggered = this.aiService["streamManager"].debugTriggerStreamError(
-            workspaceId,
-            errorMessage
-          );
-          return { success: triggered };
+          // Defensive assertions
+          assert(workspaceId.trim().length > 0, "workspaceId must not be empty");
+
+          // Verify agent is idle
+          operationStep = "checking agent state";
+          if (this.aiService.isStreaming(workspaceId)) {
+            return {
+              success: false,
+              status: "aborted" as const,
+              error: "Cannot rebase while agent is active",
+              step: operationStep,
+            };
+          }
+
+          // Lookup workspace paths
+          operationStep = "looking up workspace configuration";
+          const workspace = this.config.findWorkspace(workspaceId);
+          if (!workspace) {
+            return {
+              success: false,
+              status: "aborted" as const,
+              error: `Workspace not found: ${workspaceId}`,
+              step: operationStep,
+            };
+          }
+
+          workspacePath = workspace.workspacePath;
+
+          // Get trunk branch from config
+          operationStep = "retrieving trunk branch";
+          const retrievedTrunkBranch = this.config.getTrunkBranch(workspaceId);
+          if (!retrievedTrunkBranch) {
+            return {
+              success: false,
+              status: "aborted" as const,
+              error: `Trunk branch not found for workspace: ${workspaceId}`,
+              step: operationStep,
+            };
+          }
+          trunkBranch = retrievedTrunkBranch;
+
+          // Perform rebase
+          operationStep = "executing git rebase";
+          const result = await rebaseOntoTrunk(workspacePath, trunkBranch);
+
+          // If rebase failed (conflicts or other errors), inject comprehensive diagnostic and auto-trigger agent
+          if (!result.success) {
+            // Build error message based on failure type
+            let errorMsg: string;
+            if (result.status === "conflicts" && result.conflictFiles) {
+              const conflictList = result.conflictFiles.map((f) => `- ${f}`).join("\n");
+              errorMsg = `Git rebase has conflicts in the following files:\n${conflictList}`;
+            } else {
+              errorMsg = result.error ?? "Unknown error";
+            }
+
+            const agentTriggered = await this.injectRebaseErrorMessage(
+              workspaceId,
+              workspacePath,
+              trunkBranch,
+              errorMsg,
+              result.errorStack,
+              result.step ?? operationStep,
+              sendMessageOptions
+            );
+
+            // If agent was triggered, return "resolving" status instead of failure
+            if (agentTriggered) {
+              return {
+                success: false,
+                status: "resolving" as const,
+                conflictFiles: result.conflictFiles,
+                error: result.error,
+                step: result.step,
+              };
+            }
+          }
+
+          return result;
         } catch (error) {
-          const message = error instanceof Error ? error.message : String(error);
-          log.error(`Failed to trigger stream error: ${message}`);
-          return { success: false, error: message };
+          // Catch ALL errors including assertion failures
+          log.error("Failed to rebase workspace:", error);
+
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          const errorStack = error instanceof Error ? error.stack : undefined;
+
+          // Inject comprehensive error message and auto-trigger agent to resolve
+          if (workspacePath && trunkBranch) {
+            try {
+              const agentTriggered = await this.injectRebaseErrorMessage(
+                workspaceId,
+                workspacePath,
+                trunkBranch,
+                errorMessage,
+                errorStack,
+                operationStep,
+                sendMessageOptions
+              );
+
+              // If agent was triggered, return "resolving" status
+              if (agentTriggered) {
+                return {
+                  success: false,
+                  status: "resolving" as const,
+                  error: errorMessage,
+                  errorStack,
+                  step: operationStep,
+                };
+              }
+            } catch (injectionError) {
+              log.error("Failed to inject error message:", injectionError);
+            }
+          }
+
+          return {
+            success: false,
+            status: "aborted" as const,
+            error: errorMessage,
+            errorStack,
+            step: operationStep,
+          };
         }
       }
     );
+  }
+
+  /**
+   * Inject a comprehensive error message into chat history when rebase fails,
+   * then auto-trigger the agent to investigate and resolve the issue.
+   * Uses same flow as user sending a message (via session.sendMessage).
+   *
+   * @returns true if agent was successfully triggered, false otherwise
+   */
+  private async injectRebaseErrorMessage(
+    workspaceId: string,
+    workspacePath: string,
+    trunkBranch: string,
+    error: string,
+    errorStack: string | undefined,
+    step: string,
+    sendMessageOptions: SendMessageOptions
+  ): Promise<boolean> {
+    try {
+      let gitDiagnostics = "";
+      try {
+        gitDiagnostics = await gatherGitDiagnostics(workspacePath);
+      } catch (diagError) {
+        gitDiagnostics = `Error gathering diagnostics: ${diagError instanceof Error ? diagError.message : String(diagError)}`;
+      }
+
+      // Build comprehensive error message
+      const content = `I attempted to automatically rebase the workspace onto origin/${trunkBranch}, but the operation failed.
+
+**Operation Details:**
+- Workspace: ${workspacePath}
+- Target branch: origin/${trunkBranch}
+- Failed at step: ${step}
+
+**Error:**
+${error}
+
+${errorStack ? `**Stack Trace:**\n\`\`\`\n${errorStack}\n\`\`\`\n\n` : ""}**Current Git State:**
+\`\`\`
+${gitDiagnostics}
+\`\`\`
+
+**What I need you to do:**
+Please investigate the error, check the git state in the workspace, and resolve any issues that are preventing the rebase from completing. You may need to:
+1. Check what went wrong at the "${step}" step
+2. Research the changes made between merge-base, origin/${trunkBranch}, and HEAD
+3. Manually inspect the git state
+4. Fix any issues (e.g., abort a stuck rebase, resolve conflicts, restore stashed changes)
+5. Complete or retry the rebase operation
+
+Use the bash tool to run git commands in the workspace directory: ${workspacePath}`;
+
+      // Auto-trigger agent to resolve the error (same flow as user sending message)
+      const session = this.getOrCreateSession(workspaceId);
+
+      // Defensive check: verify agent is still idle
+      if (!this.aiService.isStreaming(workspaceId)) {
+        const triggerResult = await session.sendMessage(content, sendMessageOptions);
+        if (!triggerResult.success) {
+          log.error(
+            "Failed to auto-trigger agent for rebase error resolution:",
+            triggerResult.error
+          );
+          return false;
+        } else {
+          log.info(`Auto-triggered agent to resolve rebase error for workspace ${workspaceId}`);
+          return true;
+        }
+      }
+
+      // Agent already streaming - couldn't trigger
+      return false;
+    } catch (injectionError) {
+      log.error("Failed to create diagnostic message or trigger agent:", injectionError);
+      return false;
+    }
   }
 
   /**

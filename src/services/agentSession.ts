@@ -1,4 +1,4 @@
-import assert from "@/utils/assert";
+import { assert } from "@/utils/assert";
 import { EventEmitter } from "events";
 import * as path from "path";
 import { createCmuxMessage } from "@/types/message";

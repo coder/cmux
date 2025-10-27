@@ -72,6 +72,21 @@ export async function sendMessageWithModel(
 }
 
 /**
+ * Create default SendMessageOptions for tests
+ * Provides standard options for rebase and other IPC calls requiring SendMessageOptions
+ */
+export function createDefaultSendOptions(
+  provider = "anthropic",
+  model = "claude-sonnet-4-5"
+): SendMessageOptions {
+  return {
+    model: modelString(provider, model),
+    thinkingLevel: "medium" as const,
+    mode: "exec",
+  };
+}
+
+/**
  * Create a workspace via IPC
  */
 export async function createWorkspace(

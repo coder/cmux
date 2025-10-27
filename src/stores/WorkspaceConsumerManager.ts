@@ -1,4 +1,4 @@
-import assert from "@/utils/assert";
+import { assert } from "@/utils/assert";
 import type { WorkspaceConsumersState } from "./WorkspaceStore";
 import { TokenStatsWorker } from "@/utils/tokens/TokenStatsWorker";
 import type { StreamingMessageAggregator } from "@/utils/messages/StreamingMessageAggregator";

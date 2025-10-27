@@ -35,6 +35,16 @@ export interface BranchListResult {
   recommendedTrunk: string;
 }
 
+export interface RebaseResult {
+  success: boolean;
+  status: "completed" | "conflicts" | "aborted" | "resolving";
+  conflictFiles?: string[];
+  error?: string;
+  errorStack?: string;
+  step?: string;
+  stashed?: boolean; // Deprecated: always false (git --autostash handles this internally)
+}
+
 // Caught up message type
 export interface CaughtUpMessage {
   type: "caught-up";
@@ -274,6 +284,7 @@ export interface IPCApi {
       }
     ): Promise<Result<BashToolResult, string>>;
     openTerminal(workspacePath: string): Promise<void>;
+    rebase(workspaceId: string, sendMessageOptions: SendMessageOptions): Promise<RebaseResult>;
 
     // Event subscriptions (renderer-only)
     // These methods are designed to send current state immediately upon subscription,

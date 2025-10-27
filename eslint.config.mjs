@@ -386,6 +386,208 @@ export default defineConfig([
               message:
                 "Frontend code cannot import from utils/main/ (contains Node.js APIs). Move shared code to utils/ or use IPC.",
             },
+            {
+              group: ["node:*"],
+              message:
+                "Frontend code cannot import Node.js built-in modules (node:* imports). These modules are only available in the main process. Use window.api IPC calls to access Node.js functionality.",
+            },
+          ],
+          paths: [
+            {
+              name: "assert",
+              message:
+                "Frontend code cannot import Node.js 'assert' module. Use window.api IPC calls to access Node.js functionality.",
+            },
+            {
+              name: "assert/strict",
+              message:
+                "Frontend code cannot import Node.js 'assert/strict' module. Use window.api IPC calls to access Node.js functionality.",
+            },
+            {
+              name: "buffer",
+              message:
+                "Frontend code cannot import Node.js 'buffer' module. Use window.api IPC calls to access Node.js functionality.",
+            },
+            {
+              name: "child_process",
+              message:
+                "Frontend code cannot import Node.js 'child_process' module. Use window.api IPC calls to access Node.js functionality.",
+            },
+            {
+              name: "cluster",
+              message:
+                "Frontend code cannot import Node.js 'cluster' module. Use window.api IPC calls to access Node.js functionality.",
+            },
+            {
+              name: "crypto",
+              message:
+                "Frontend code cannot import Node.js 'crypto' module. Use window.api IPC calls to access Node.js functionality.",
+            },
+            {
+              name: "dgram",
+              message:
+                "Frontend code cannot import Node.js 'dgram' module. Use window.api IPC calls to access Node.js functionality.",
+            },
+            {
+              name: "dns",
+              message:
+                "Frontend code cannot import Node.js 'dns' module. Use window.api IPC calls to access Node.js functionality.",
+            },
+            {
+              name: "domain",
+              message:
+                "Frontend code cannot import Node.js 'domain' module. Use window.api IPC calls to access Node.js functionality.",
+            },
+            {
+              name: "events",
+              message:
+                "Frontend code cannot import Node.js 'events' module. Use window.api IPC calls to access Node.js functionality.",
+            },
+            {
+              name: "fs",
+              message:
+                "Frontend code cannot import Node.js 'fs' module. Use window.api IPC calls to access Node.js functionality.",
+            },
+            {
+              name: "fs/promises",
+              message:
+                "Frontend code cannot import Node.js 'fs/promises' module. Use window.api IPC calls to access Node.js functionality.",
+            },
+            {
+              name: "http",
+              message:
+                "Frontend code cannot import Node.js 'http' module. Use window.api IPC calls to access Node.js functionality.",
+            },
+            {
+              name: "http2",
+              message:
+                "Frontend code cannot import Node.js 'http2' module. Use window.api IPC calls to access Node.js functionality.",
+            },
+            {
+              name: "https",
+              message:
+                "Frontend code cannot import Node.js 'https' module. Use window.api IPC calls to access Node.js functionality.",
+            },
+            {
+              name: "inspector",
+              message:
+                "Frontend code cannot import Node.js 'inspector' module. Use window.api IPC calls to access Node.js functionality.",
+            },
+            {
+              name: "module",
+              message:
+                "Frontend code cannot import Node.js 'module' module. Use window.api IPC calls to access Node.js functionality.",
+            },
+            {
+              name: "net",
+              message:
+                "Frontend code cannot import Node.js 'net' module. Use window.api IPC calls to access Node.js functionality.",
+            },
+            {
+              name: "os",
+              message:
+                "Frontend code cannot import Node.js 'os' module. Use window.api IPC calls to access Node.js functionality.",
+            },
+            {
+              name: "path",
+              message:
+                "Frontend code cannot import Node.js 'path' module. Use window.api IPC calls to access Node.js functionality.",
+            },
+            {
+              name: "perf_hooks",
+              message:
+                "Frontend code cannot import Node.js 'perf_hooks' module. Use window.api IPC calls to access Node.js functionality.",
+            },
+            {
+              name: "process",
+              message:
+                "Frontend code cannot import Node.js 'process' module. Use window.api IPC calls to access Node.js functionality.",
+            },
+            {
+              name: "punycode",
+              message:
+                "Frontend code cannot import Node.js 'punycode' module. Use window.api IPC calls to access Node.js functionality.",
+            },
+            {
+              name: "querystring",
+              message:
+                "Frontend code cannot import Node.js 'querystring' module. Use window.api IPC calls to access Node.js functionality.",
+            },
+            {
+              name: "readline",
+              message:
+                "Frontend code cannot import Node.js 'readline' module. Use window.api IPC calls to access Node.js functionality.",
+            },
+            {
+              name: "repl",
+              message:
+                "Frontend code cannot import Node.js 'repl' module. Use window.api IPC calls to access Node.js functionality.",
+            },
+            {
+              name: "stream",
+              message:
+                "Frontend code cannot import Node.js 'stream' module. Use window.api IPC calls to access Node.js functionality.",
+            },
+            {
+              name: "string_decoder",
+              message:
+                "Frontend code cannot import Node.js 'string_decoder' module. Use window.api IPC calls to access Node.js functionality.",
+            },
+            {
+              name: "sys",
+              message:
+                "Frontend code cannot import Node.js 'sys' module. Use window.api IPC calls to access Node.js functionality.",
+            },
+            {
+              name: "timers",
+              message:
+                "Frontend code cannot import Node.js 'timers' module. Use window.api IPC calls to access Node.js functionality.",
+            },
+            {
+              name: "tls",
+              message:
+                "Frontend code cannot import Node.js 'tls' module. Use window.api IPC calls to access Node.js functionality.",
+            },
+            {
+              name: "trace_events",
+              message:
+                "Frontend code cannot import Node.js 'trace_events' module. Use window.api IPC calls to access Node.js functionality.",
+            },
+            {
+              name: "tty",
+              message:
+                "Frontend code cannot import Node.js 'tty' module. Use window.api IPC calls to access Node.js functionality.",
+            },
+            {
+              name: "url",
+              message:
+                "Frontend code cannot import Node.js 'url' module. Use window.api IPC calls to access Node.js functionality.",
+            },
+            {
+              name: "util",
+              message:
+                "Frontend code cannot import Node.js 'util' module. Use window.api IPC calls to access Node.js functionality.",
+            },
+            {
+              name: "v8",
+              message:
+                "Frontend code cannot import Node.js 'v8' module. Use window.api IPC calls to access Node.js functionality.",
+            },
+            {
+              name: "vm",
+              message:
+                "Frontend code cannot import Node.js 'vm' module. Use window.api IPC calls to access Node.js functionality.",
+            },
+            {
+              name: "worker_threads",
+              message:
+                "Frontend code cannot import Node.js 'worker_threads' module. Use window.api IPC calls to access Node.js functionality.",
+            },
+            {
+              name: "zlib",
+              message:
+                "Frontend code cannot import Node.js 'zlib' module. Use window.api IPC calls to access Node.js functionality.",
+            },
           ],
         },
       ],

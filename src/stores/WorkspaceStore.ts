@@ -1,4 +1,4 @@
-import assert from "@/utils/assert";
+import { assert } from "@/utils/assert";
 import type { CmuxMessage, DisplayedMessage } from "@/types/message";
 import { createCmuxMessage } from "@/types/message";
 import type { FrontendWorkspaceMetadata } from "@/types/workspace";
@@ -333,7 +333,7 @@ export class WorkspaceStore {
    */
   private assertGet(workspaceId: string): StreamingMessageAggregator {
     const aggregator = this.aggregators.get(workspaceId);
-    assert(aggregator, `Workspace ${workspaceId} not found - must call addWorkspace() first`);
+    assert(aggregator !== undefined, `Workspace ${workspaceId} not found - must call addWorkspace() first`);
     return aggregator;
   }
 
@@ -759,11 +759,11 @@ export class WorkspaceStore {
 
     // Backend guarantees createdAt via config.ts - this should never be undefined
     assert(
-      metadata.createdAt,
+      metadata.createdAt !== undefined,
       `Workspace ${workspaceId} missing createdAt - backend contract violated`
     );
 
-    const aggregator = this.getOrCreateAggregator(workspaceId, metadata.createdAt);
+    const aggregator = this.getOrCreateAggregator(workspaceId, metadata.createdAt!);
 
     // Initialize recency cache and bump derived store immediately
     // This ensures UI sees correct workspace order before messages load

@@ -7,6 +7,8 @@ import writeFileAtomic from "write-file-atomic";
 import type { WorkspaceMetadata, FrontendWorkspaceMetadata } from "./types/workspace";
 import type { Secret, SecretsConfig } from "./types/secrets";
 import type { Workspace, ProjectConfig, ProjectsConfig } from "./types/project";
+import { detectDefaultTrunkBranch } from "./git";
+import { assert } from "./utils/assert";
 
 // Re-export project types from dedicated types file (for preload usage)
 export type { Workspace, ProjectConfig, ProjectsConfig };
@@ -69,6 +71,47 @@ export class Config {
     };
   }
 
+  /**
+   * Migrate workspaces to include trunk branch field.
+   * For any workspace without a trunk branch, detect and backfill it.
+   * This migration runs automatically on config load and is idempotent.
+   */
+  async migrateWorkspaceTrunkBranches(): Promise<void> {
+    const config = this.loadConfigOrDefault();
+    let needsSave = false;
+
+    for (const [projectPath, projectConfig] of config.projects) {
+      for (const workspace of projectConfig.workspaces) {
+        // Backfill missing trunk branches
+        if (!workspace.trunkBranch) {
+          try {
+            const trunk = await detectDefaultTrunkBranch(projectPath);
+            workspace.trunkBranch = trunk;
+            needsSave = true;
+            console.log(`Migrated workspace ${workspace.path} to use trunk branch: ${trunk}`);
+          } catch (error) {
+            console.error(`Failed to detect trunk branch for workspace ${workspace.path}:`, error);
+            // Skip this workspace - will fail assertion below if it's still missing
+          }
+        }
+
+        // Post-migration assertion - all workspaces MUST have trunk branch
+        assert(
+          workspace.trunkBranch,
+          `Workspace ${workspace.path} must have trunk branch after migration`
+        );
+        assert(
+          workspace.trunkBranch.trim().length > 0,
+          `Workspace ${workspace.path} trunk branch must not be empty`
+        );
+      }
+    }
+
+    if (needsSave) {
+      this.saveConfig(config);
+    }
+  }
+
   saveConfig(config: ProjectsConfig): void {
     try {
       if (!fs.existsSync(this.rootDir)) {
@@ -129,6 +172,10 @@ export class Config {
    * Get the workspace directory path for a given directory name.
    * The directory name is the workspace name (branch name).
    */
+  getWorkspacePath(projectPath: string, workspaceName: string): string {
+    const projectName = this.getProjectName(projectPath);
+    return path.join(this.srcDir, projectName, workspaceName);
+  }
 
   /**
    * Add paths to WorkspaceMetadata to create FrontendWorkspaceMetadata.
@@ -192,7 +239,30 @@ export class Config {
   }
 
   /**
+   * Get the trunk branch for a workspace by workspace ID
+   * @returns Trunk branch name, or null if workspace not found
+   */
+  getTrunkBranch(workspaceId: string): string | null {
+    const config = this.loadConfigOrDefault();
+
+    for (const [projectPath, project] of config.projects) {
+      for (const workspace of project.workspaces) {
+        const workspaceIdToMatch =
+          workspace.id ?? this.generateLegacyId(projectPath, workspace.path);
+        if (workspaceIdToMatch === workspaceId) {
+          assert(workspace.trunkBranch, `Workspace ${workspace.path} must have trunk branch`);
+          return workspace.trunkBranch;
+        }
+      }
+    }
+
+    return null;
+  }
+
+  /**
    * Workspace Path Architecture:
+   * WARNING: Never try to derive workspace path from workspace ID!
+   * This is a code smell that leads to bugs.
    *
    * Workspace paths are computed on-demand from projectPath + workspace name using
    * config.getWorkspacePath(projectPath, directoryName). This ensures a single source of truth.
