@@ -614,11 +614,6 @@ code {
   max-height: 80vh;
 }
 
-/* Hide any mermaid error messages that slip through */
-[id^="d"][id*="mermaid"] {
-  display: none !important;
-}
-
 /* Zoom wrapper for mermaid */
 .markdown-content .react-transform-wrapper {
   position: relative;

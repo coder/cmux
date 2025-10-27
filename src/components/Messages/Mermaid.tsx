@@ -151,19 +151,11 @@ export const Mermaid: React.FC<{ chart: string }> = ({ chart }) => {
           containerRef.current.innerHTML = renderedSvg;
         }
       } catch (err) {
-        // Clean up any DOM elements mermaid might have created
+        // Clean up any DOM elements mermaid might have created with our ID
         const errorElement = document.getElementById(id);
         if (errorElement) {
           errorElement.remove();
         }
-
-        // Also clean up any error-related elements mermaid might have added to the body
-        const errorMessages = document.querySelectorAll('[id^="d"][id*="mermaid"]');
-        errorMessages.forEach((el) => {
-          if (el.textContent?.includes("Syntax error")) {
-            el.remove();
-          }
-        });
 
         setError(err instanceof Error ? err.message : "Failed to render diagram");
         setSvg(""); // Clear any previous SVG
