@@ -98,10 +98,16 @@ export class SSHRuntime implements Runtime {
     parts.push(command);
 
     // Join all parts with && to ensure each step succeeds before continuing
-    const fullCommand = parts.join(" && ");
+    let fullCommand = parts.join(" && ");
 
-    // Wrap in bash -c with shescape for safe shell execution
-    const remoteCommand = `bash -c ${shescape.quote(fullCommand)}`;
+    // Wrap remote command with timeout to ensure the command is killed on the remote side
+    // even if the local SSH client is killed but the ControlMaster connection persists
+    // Use timeout command with KILL signal
+    // Set remote timeout slightly longer (+1s) than local timeout to ensure
+    // the local timeout fires first in normal cases (for cleaner error handling)
+    // Note: Using BusyBox-compatible syntax (-s KILL) which also works with GNU timeout
+    const remoteTimeout = Math.ceil(options.timeout) + 1;
+    fullCommand = `timeout -s KILL ${remoteTimeout} bash -c ${shescape.quote(fullCommand)}`;
 
     // Build SSH args
     const sshArgs: string[] = ["-T"];
@@ -125,15 +131,35 @@ export class SSHRuntime implements Runtime {
     // ControlMaster=auto: Create master connection if none exists, otherwise reuse
     // ControlPath: Unix socket path for multiplexing
     // ControlPersist=60: Keep master connection alive for 60s after last session
+    //
+    // Socket reuse is safe even with timeouts because:
+    // - Each SSH command gets its own channel within the multiplexed connection
+    // - SIGKILL on the client immediately closes that channel
+    // - Remote sshd terminates the command when the channel closes
+    // - Multiplexing only shares the TCP connection, not command lifetime
     sshArgs.push("-o", "ControlMaster=auto");
     sshArgs.push("-o", `ControlPath=${this.controlPath}`);
     sshArgs.push("-o", "ControlPersist=60");
 
-    sshArgs.push(this.config.host, remoteCommand);
+    // Set comprehensive timeout options to ensure SSH respects the timeout
+    // ConnectTimeout: Maximum time to wait for connection establishment (DNS, TCP handshake, SSH auth)
+    // Cap at 15 seconds - users wanting long timeouts for builds shouldn't wait that long for connection
+    // ServerAliveInterval: Send keepalive every 5 seconds to detect dead connections
+    // ServerAliveCountMax: Consider connection dead after 2 missed keepalives (10 seconds total)
+    // Together these ensure that:
+    // 1. Connection establishment can't hang indefinitely (max 15s)
+    // 2. Established connections that die are detected quickly
+    // 3. The overall command timeout is respected from the moment ssh command starts
+    sshArgs.push("-o", `ConnectTimeout=${Math.min(Math.ceil(options.timeout), 15)}`);
+    // Set aggressive keepalives to detect dead connections
+    sshArgs.push("-o", "ServerAliveInterval=5");
+    sshArgs.push("-o", "ServerAliveCountMax=2");
+
+    sshArgs.push(this.config.host, fullCommand);
 
     // Debug: log the actual SSH command being executed
     log.debug(`SSH command: ssh ${sshArgs.join(" ")}`);
-    log.debug(`Remote command: ${remoteCommand}`);
+    log.debug(`Remote command: ${fullCommand}`);
 
     // Spawn ssh command
     const sshProcess = spawn("ssh", sshArgs, {
@@ -175,16 +201,14 @@ export class SSHRuntime implements Runtime {
 
     // Handle abort signal
     if (options.abortSignal) {
-      options.abortSignal.addEventListener("abort", () => sshProcess.kill());
+      options.abortSignal.addEventListener("abort", () => sshProcess.kill("SIGKILL"));
     }
 
     // Handle timeout
-    if (options.timeout !== undefined) {
-      setTimeout(() => {
-        timedOut = true;
-        sshProcess.kill();
-      }, options.timeout * 1000);
-    }
+    setTimeout(() => {
+      timedOut = true;
+      sshProcess.kill("SIGKILL");
+    }, options.timeout * 1000);
 
     return { stdout, stderr, stdin, exitCode, duration };
   }

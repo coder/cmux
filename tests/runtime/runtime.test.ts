@@ -142,6 +142,29 @@ describeIntegration("Runtime integration tests", () => {
 
           expect(result.stdout.trim()).toContain(workspace.path);
         });
+        test.concurrent(
+          "handles timeout correctly",
+          async () => {
+            const runtime = createRuntime();
+            await using workspace = await TestWorkspace.create(runtime, type);
+
+            // Command that sleeps longer than timeout
+            const startTime = performance.now();
+            const result = await execBuffered(runtime, "sleep 10", {
+              cwd: workspace.path,
+              timeout: 1, // 1 second timeout
+            });
+            const duration = performance.now() - startTime;
+
+            // Exit code should be EXIT_CODE_TIMEOUT (-998)
+            expect(result.exitCode).toBe(-998);
+            // Should complete in around 1 second, not 10 seconds
+            // Allow some margin for overhead (especially on SSH)
+            expect(duration).toBeLessThan(3000); // 3 seconds max
+            expect(duration).toBeGreaterThan(500); // At least 0.5 seconds
+          },
+          15000
+        ); // 15 second timeout for test (includes workspace creation overhead)
       });
 
       describe("readFile() - File reading", () => {
