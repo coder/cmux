@@ -21,7 +21,6 @@ import { log } from "../services/log";
 import { checkInitHookExists, createLineBufferedLoggers } from "./initHook";
 import { streamProcessToLogger } from "./streamProcess";
 import { expandTildeForSSH, cdCommandForSSH } from "./tildeExpansion";
-import { findBashPath } from "./executablePaths";
 import { getProjectName } from "../utils/runtime/helpers";
 import { getErrorMessage } from "../utils/errors";
 import { execAsync } from "../utils/disposableExec";
@@ -431,8 +430,7 @@ export class SSHRuntime implements Runtime {
         const command = `cd ${shescape.quote(projectPath)} && git bundle create - --all | ssh ${sshArgs.join(" ")} "cat > ${bundleTempPath}"`;
 
         log.debug(`Creating bundle: ${command}`);
-        const bashPath = findBashPath();
-        const proc = spawn(bashPath, ["-c", command]);
+        const proc = spawn("bash", ["-c", command]);
 
         streamProcessToLogger(proc, initLogger, {
           logStdout: false,
