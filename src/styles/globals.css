@@ -187,6 +187,19 @@
   --radius: 0.5rem;
 }
 
+/* Explicit tooltip utilities (in case Tailwind doesn't generate them) */
+.bg-primary {
+  background-color: hsl(0 0% 18%) !important;
+}
+
+.text-primary-foreground {
+  color: hsl(0 0% 98%) !important;
+}
+
+.fill-primary {
+  fill: hsl(0 0% 18%) !important;
+}
+
 :root {
   /* Legacy RGB for special uses */
   --plan-mode-rgb: 31, 107, 184;
