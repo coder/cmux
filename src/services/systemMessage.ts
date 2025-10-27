@@ -95,8 +95,8 @@ export async function buildSystemMessage(
   let modeContent: string | null = null;
   if (mode) {
     modeContent =
-      (contextInstructions && extractModeSection(contextInstructions, mode)) ||
-      (globalInstructions && extractModeSection(globalInstructions, mode)) ||
+      (contextInstructions && extractModeSection(contextInstructions, mode)) ??
+      (globalInstructions && extractModeSection(globalInstructions, mode)) ??
       null;
   }
 

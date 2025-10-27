@@ -21,9 +21,9 @@ export const LOCAL_INSTRUCTION_FILENAME = "AGENTS.local.md";
 /**
  * File reader abstraction for reading files from either local fs or Runtime.
  */
-type FileReader = {
+interface FileReader {
   readFile(filePath: string): Promise<string>;
-};
+}
 
 /**
  * Create a FileReader for local filesystem access.
