@@ -194,5 +194,41 @@ describe("fileCommon", () => {
       expect(result).not.toBeNull();
       expect(result?.error).toContain("src/components/Button/index.ts");
     });
+
+    it("should reject path that equals cwd exactly", () => {
+      const result = validateNoRedundantPrefix("/workspace/project", cwd, runtime);
+      expect(result).not.toBeNull();
+      expect(result?.error).toContain("Redundant path prefix detected");
+      expect(result?.error).toContain("."); // Should suggest current directory
+    });
+
+    it("should not match partial directory names", () => {
+      // /workspace/project2 should NOT match /workspace/project
+      expect(validateNoRedundantPrefix("/workspace/project2/file.ts", cwd, runtime)).toBeNull();
+      expect(validateNoRedundantPrefix("/workspace/project-old/file.ts", cwd, runtime)).toBeNull();
+    });
+
+    it("should work with SSH runtime", () => {
+      const sshRuntime = createRuntime({
+        type: "ssh",
+        host: "user@localhost",
+        srcBaseDir: "/home/user/cmux",
+        identityFile: "/tmp/fake-key",
+      });
+      const sshCwd = "/home/user/cmux/project/branch";
+
+      // Should reject absolute paths with redundant prefix on SSH too
+      const result = validateNoRedundantPrefix(
+        "/home/user/cmux/project/branch/src/file.ts",
+        sshCwd,
+        sshRuntime
+      );
+      expect(result).not.toBeNull();
+      expect(result?.error).toContain("Redundant path prefix detected");
+      expect(result?.error).toContain("src/file.ts");
+
+      // Should allow relative paths on SSH
+      expect(validateNoRedundantPrefix("src/file.ts", sshCwd, sshRuntime)).toBeNull();
+    });
   });
 });

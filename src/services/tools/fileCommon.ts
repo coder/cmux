@@ -53,9 +53,12 @@ export function validateFileSize(stats: FileStat): { error: string } | null {
  * Returns an error object if the path contains the cwd prefix, null if valid.
  * This helps save tokens by encouraging relative paths.
  *
+ * Works for both local and SSH runtimes by using simple string matching
+ * for absolute paths instead of Node's path module (which only handles local paths).
+ *
  * @param filePath - The file path to validate
  * @param cwd - The working directory
- * @param runtime - The runtime (skip check for SSH since paths are remote)
+ * @param runtime - The runtime (unused, kept for consistency)
  * @returns Error object if redundant prefix found, null if valid
  */
 export function validateNoRedundantPrefix(
@@ -63,26 +66,29 @@ export function validateNoRedundantPrefix(
   cwd: string,
   runtime: Runtime
 ): { error: string } | null {
-  // Skip for SSH runtimes - remote paths don't apply
-  if (runtime instanceof SSHRuntime) {
+  // Only check absolute paths (start with /) - relative paths are fine
+  // This works for both local and SSH since both use Unix-style paths
+  if (!filePath.startsWith("/")) {
     return null;
   }
 
-  // Check if the path contains the cwd as a prefix (indicating redundancy)
-  // This catches cases like "/workspace/project/src/file.ts" when cwd is "/workspace/project"
-  const normalizedPath = path.normalize(filePath);
-  const normalizedCwd = path.normalize(cwd);
+  // Normalize both paths: remove trailing slashes for consistent comparison
+  const normalizedPath = filePath.replace(/\/+$/, "");
+  const normalizedCwd = cwd.replace(/\/+$/, "");
 
-  // Only check absolute paths - relative paths are fine
-  if (path.isAbsolute(normalizedPath)) {
-    // Check if the absolute path starts with the cwd
-    if (normalizedPath.startsWith(normalizedCwd)) {
-      // Calculate what the relative path would be
-      const relativePath = path.relative(normalizedCwd, normalizedPath);
-      return {
-        error: `Redundant path prefix detected. The path '${filePath}' contains the workspace directory. Please use relative paths to save tokens: '${relativePath}'`,
-      };
-    }
+  // Check if the absolute path starts with the cwd
+  // Use startsWith + check for path separator to avoid partial matches
+  // e.g., /workspace/project should match /workspace/project/src but not /workspace/project2
+  if (
+    normalizedPath === normalizedCwd ||
+    normalizedPath.startsWith(normalizedCwd + "/")
+  ) {
+    // Calculate what the relative path would be
+    const relativePath =
+      normalizedPath === normalizedCwd ? "." : normalizedPath.substring(normalizedCwd.length + 1);
+    return {
+      error: `Redundant path prefix detected. The path '${filePath}' contains the workspace directory. Please use relative paths to save tokens: '${relativePath}'`,
+    };
   }
 
   return null;
