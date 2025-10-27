@@ -318,10 +318,18 @@ export class SSHRuntime implements Runtime {
     };
   }
   async resolvePath(filePath: string): Promise<string> {
-    // Use shell to expand tildes and resolve path on remote system
-    // We use `realpath` which resolves symlinks and gives canonical path
-    // Note: realpath also verifies the path exists
-    const command = `realpath ${shescape.quote(filePath)}`;
+    // Use shell to expand tildes and normalize path on remote system
+    // Uses bash to expand ~ and readlink -m to normalize without checking existence
+    // readlink -m canonicalizes the path (handles .., ., //) without requiring it to exist
+    const command = `bash -c 'readlink -m ${shescape.quote(filePath)}'`;
+    return this.execSSHCommand(command);
+  }
+
+  /**
+   * Execute a simple SSH command and return stdout
+   * @private
+   */
+  private async execSSHCommand(command: string): Promise<string> {
     const sshArgs = this.buildSSHArgs();
     sshArgs.push(this.config.host, command);
 
@@ -340,33 +348,18 @@ export class SSHRuntime implements Runtime {
 
       proc.on("close", (code) => {
         if (code !== 0) {
-          reject(
-            new RuntimeErrorClass(
-              `Failed to resolve path '${filePath}' on remote host: ${stderr.trim()}`,
-              "file_io"
-            )
-          );
+          reject(new RuntimeErrorClass(`SSH command failed: ${stderr.trim()}`, "network"));
           return;
         }
 
-        const resolved = stdout.trim();
-        if (!resolved?.startsWith("/")) {
-          reject(
-            new RuntimeErrorClass(
-              `Invalid resolved path '${resolved}' for '${filePath}' (expected absolute path)`,
-              "file_io"
-            )
-          );
-          return;
-        }
-
-        resolve(resolved);
+        const output = stdout.trim();
+        resolve(output);
       });
 
       proc.on("error", (err) => {
         reject(
           new RuntimeErrorClass(
-            `Cannot resolve path '${filePath}' on remote host: ${getErrorMessage(err)}`,
+            `Cannot execute SSH command: ${getErrorMessage(err)}`,
             "network",
             err instanceof Error ? err : undefined
           )

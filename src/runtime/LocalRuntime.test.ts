@@ -51,12 +51,11 @@ describe("LocalRuntime.resolvePath", () => {
     expect(resolved).toBe("/tmp");
   });
 
-  it("should reject non-existent paths", async () => {
+  it("should resolve non-existent paths without checking existence", async () => {
     const runtime = new LocalRuntime("/tmp");
-    // eslint-disable-next-line @typescript-eslint/await-thenable
-    await expect(runtime.resolvePath("/this/path/does/not/exist/12345")).rejects.toThrow(
-      /Cannot resolve path/
-    );
+    const resolved = await runtime.resolvePath("/this/path/does/not/exist/12345");
+    // Should resolve to absolute path without checking if it exists
+    expect(resolved).toBe("/this/path/does/not/exist/12345");
   });
 
   it("should resolve relative paths from cwd", async () => {
