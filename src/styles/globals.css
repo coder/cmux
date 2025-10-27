@@ -43,6 +43,8 @@
   --color-ring: hsl(207 100% 40%);          /* focus ring - uses accent */
   --color-muted-foreground: hsl(0 0% 60%);  /* muted text */
   --color-accent-foreground: hsl(0 0% 98%); /* white text on accent */
+  --color-primary: hsl(0 0% 18%);           /* primary - dark for tooltips */
+  --color-primary-foreground: hsl(0 0% 98%); /* white text on primary */
   
   /* Code */
   --color-code-bg: hsl(0 6.43% 8.04%);
@@ -205,6 +207,8 @@
   --color-border: hsl(240 2% 25%);
   --color-popover: hsl(0 0% 18%);
   --color-popover-foreground: hsl(0 0% 83%);
+  --color-primary: hsl(0 0% 18%);
+  --color-primary-foreground: hsl(0 0% 98%);
   --color-text: hsl(0 0% 83%);
   --color-text-secondary: hsl(0 0% 42%);
   --color-user-border: hsl(0 0% 38%);
