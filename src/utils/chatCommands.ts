@@ -53,7 +53,7 @@ export function parseRuntimeString(
 
     // Extract username from user@host format, or default to current user
     const atIndex = hostPart.indexOf("@");
-    const user = atIndex > 0 ? hostPart.substring(0, atIndex) : process.env.USER ?? "user";
+    const user = atIndex > 0 ? hostPart.substring(0, atIndex) : (process.env.USER ?? "user");
 
     // Determine home directory path based on user
     // root user's home is /root, all others are /home/<user>
