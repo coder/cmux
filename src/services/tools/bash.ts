@@ -76,11 +76,25 @@ export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
       let displayTruncated = false; // Hit 16KB display limit
       let fileTruncated = false; // Hit 100KB file limit
 
-      // Detect if command starts with cd - we'll add an educational note for the agent
-      const scriptStartsWithCd = /^\s*cd\s/.test(script);
-      const cdNote = scriptStartsWithCd
-        ? `Note: Each bash command starts in ${config.cwd}. Directory changes (cd) do not persist between commands.`
-        : undefined;
+      // Detect redundant cd to working directory
+      // Match patterns like: "cd /path &&", "cd /path;", "cd '/path' &&", "cd \"/path\" &&"
+      const cdPattern = /^\s*cd\s+['"]?([^'";&|]+)['"]?\s*[;&|]/;
+      const match = cdPattern.exec(script);
+      if (match) {
+        const targetPath = match[1].trim();
+        // Normalize paths for comparison using runtime's path resolution
+        const normalizedTarget = config.runtime.normalizePath(targetPath, config.cwd);
+        const normalizedCwd = config.runtime.normalizePath(".", config.cwd);
+
+        if (normalizedTarget === normalizedCwd) {
+          return {
+            success: false,
+            error: `Redundant cd to working directory detected. The tool already runs in ${config.cwd} - no cd needed. Remove the 'cd ${targetPath}' prefix.`,
+            exitCode: -1,
+            wall_duration_ms: 0,
+          };
+        }
+      }
 
       // Execute using runtime interface (works for both local and SSH)
       const execStream = await config.runtime.exec(script, {
@@ -377,7 +391,6 @@ export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
                   output,
                   exitCode: 0,
                   wall_duration_ms,
-                  ...(cdNote && { note: cdNote }),
                   truncated: {
                     reason: overflowReason ?? "unknown reason",
                     totalLines: lines.length,
@@ -465,7 +478,6 @@ File will be automatically cleaned up when stream ends.`;
               output: lines.join("\n"),
               exitCode: 0,
               wall_duration_ms,
-              ...(cdNote && { note: cdNote }),
             });
           } else {
             resolveOnce({
