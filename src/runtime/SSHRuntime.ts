@@ -895,18 +895,6 @@ export class SSHRuntime implements Runtime {
       return { success: false, error: `Failed to delete directory: ${getErrorMessage(error)}` };
     }
   }
-
-  /**
-   * Cleanup SSH control socket on disposal.
-   *
-   * Note: This is a no-op because:
-   * - ControlPersist=60 automatically removes socket 60s after last use
-   * - Multiple SSHRuntime instances may share the same connection
-   * - Explicit cleanup could interfere with other active operations
-   */
-  dispose(): void {
-    // No-op: Let ControlPersist handle cleanup automatically
-  }
 }
 
 /**
