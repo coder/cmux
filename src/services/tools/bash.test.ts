@@ -1172,7 +1172,6 @@ describe("SSH runtime redundant cd detection", () => {
     };
   }
 
-
   it("should add educational note when command starts with cd", async () => {
     const remoteCwd = "~/workspace/project/branch";
     using testEnv = createTestBashToolWithSSH(remoteCwd);
@@ -1208,6 +1207,4 @@ describe("SSH runtime redundant cd detection", () => {
     // Should not have a note field
     expect(result).not.toHaveProperty("note");
   });
-
-
 });

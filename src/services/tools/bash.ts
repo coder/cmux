@@ -82,7 +82,6 @@ export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
         ? `Note: Each bash command starts in ${config.cwd}. Directory changes (cd) do not persist between commands.`
         : undefined;
 
-
       // Execute using runtime interface (works for both local and SSH)
       const execStream = await config.runtime.exec(script, {
         cwd: config.cwd,
