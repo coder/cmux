@@ -20,6 +20,7 @@ export type BashToolResult =
       success: true;
       output: string;
       exitCode: 0;
+      note?: string; // Agent-only message (not displayed in UI)
       truncated?: {
         reason: string;
         totalLines: number;
@@ -30,6 +31,7 @@ export type BashToolResult =
       output?: string;
       exitCode: number;
       error: string;
+      note?: string; // Agent-only message (not displayed in UI)
       truncated?: {
         reason: string;
         totalLines: number;

@@ -22,8 +22,8 @@ export interface ToolConfiguration {
   secrets?: Record<string, string>;
   /** Process niceness level (optional, -20 to 19, lower = higher priority) */
   niceness?: number;
-  /** Temporary directory for tool outputs (required) */
-  tempDir: string;
+  /** Temporary directory for tool outputs in runtime's context (local or remote) */
+  runtimeTempDir: string;
   /** Overflow policy for bash tool output (optional, not exposed to AI) */
   overflow_policy?: "truncate" | "tmpfile";
 }

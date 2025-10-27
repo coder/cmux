@@ -15,7 +15,17 @@ import {
   setupProviders,
 } from "./setup";
 import { IPC_CHANNELS } from "../../src/constants/ipc-constants";
-import { createTempGitRepo, cleanupTempGitRepo, generateBranchName } from "./helpers";
+import {
+  createTempGitRepo,
+  cleanupTempGitRepo,
+  generateBranchName,
+  createWorkspaceWithInit,
+  sendMessageAndWait,
+  extractTextFromEvents,
+  HAIKU_MODEL,
+  TEST_TIMEOUT_LOCAL_MS,
+  TEST_TIMEOUT_SSH_MS,
+} from "./helpers";
 import {
   isDockerAvailable,
   startSSHServer,
@@ -24,16 +34,6 @@ import {
 } from "../runtime/ssh-fixture";
 import type { RuntimeConfig } from "../../src/types/runtime";
 import type { ToolPolicy } from "../../src/utils/tools/toolPolicy";
-import {
-  createWorkspaceHelper,
-  sendMessageAndWait,
-  extractTextFromEvents,
-} from "./test-helpers/runtimeTestHelpers";
-
-// Test constants
-const TEST_TIMEOUT_LOCAL_MS = 25000;
-const TEST_TIMEOUT_SSH_MS = 45000;
-const HAIKU_MODEL = "anthropic:claude-haiku-4-5";
 
 // Tool policy: Only allow bash tool
 const BASH_ONLY: ToolPolicy = [
@@ -109,11 +109,12 @@ describeIntegration("Runtime Bash Execution", () => {
             // Create workspace
             const branchName = generateBranchName("bash-simple");
             const runtimeConfig = getRuntimeConfig(branchName);
-            const { workspaceId, cleanup } = await createWorkspaceHelper(
+            const { workspaceId, cleanup } = await createWorkspaceWithInit(
               env,
               tempGitRepo,
               branchName,
               runtimeConfig,
+              true, // waitForInit
               type === "ssh"
             );
 
@@ -166,11 +167,12 @@ describeIntegration("Runtime Bash Execution", () => {
             // Create workspace
             const branchName = generateBranchName("bash-env");
             const runtimeConfig = getRuntimeConfig(branchName);
-            const { workspaceId, cleanup } = await createWorkspaceHelper(
+            const { workspaceId, cleanup } = await createWorkspaceWithInit(
               env,
               tempGitRepo,
               branchName,
               runtimeConfig,
+              true, // waitForInit
               type === "ssh"
             );
 
@@ -223,11 +225,12 @@ describeIntegration("Runtime Bash Execution", () => {
             // Create workspace
             const branchName = generateBranchName("bash-special");
             const runtimeConfig = getRuntimeConfig(branchName);
-            const { workspaceId, cleanup } = await createWorkspaceHelper(
+            const { workspaceId, cleanup } = await createWorkspaceWithInit(
               env,
               tempGitRepo,
               branchName,
               runtimeConfig,
+              true, // waitForInit
               type === "ssh"
             );
 

@@ -21,7 +21,7 @@ function createTestFileReadTool(options?: { cwd?: string }) {
   const tool = createFileReadTool({
     cwd: options?.cwd ?? process.cwd(),
     runtime: createRuntime({ type: "local", srcBaseDir: "/tmp" }),
-    tempDir: tempDir.path,
+    runtimeTempDir: tempDir.path,
   });
 
   return {
@@ -335,7 +335,7 @@ describe("file_read tool", () => {
     const tool = createFileReadTool({
       cwd: subDir,
       runtime: createRuntime({ type: "local", srcBaseDir: "/tmp" }),
-      tempDir: "/tmp",
+      runtimeTempDir: "/tmp",
     });
     const args: FileReadToolArgs = {
       filePath: "../test.txt", // This goes outside subDir back to testDir

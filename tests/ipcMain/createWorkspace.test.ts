@@ -273,6 +273,95 @@ describeIntegration("WORKSPACE_CREATE with both runtimes", () => {
           },
           TEST_TIMEOUT_MS
         );
+
+        test.concurrent(
+          "creates new branch from specified trunk branch, not from default branch",
+          async () => {
+            const env = await createTestEnvironment();
+            const tempGitRepo = await createTempGitRepo();
+
+            try {
+              // Create a custom trunk branch with a unique commit
+              const customTrunkBranch = "custom-trunk";
+              await execAsync(
+                `git checkout -b ${customTrunkBranch} && echo "custom-trunk-content" > trunk-file.txt && git add . && git commit -m "Custom trunk commit"`,
+                { cwd: tempGitRepo }
+              );
+
+              // Create a different branch (which will become the default if we checkout to it)
+              const otherBranch = "other-branch";
+              await execAsync(
+                `git checkout -b ${otherBranch} && echo "other-content" > other-file.txt && git add . && git commit -m "Other branch commit"`,
+                { cwd: tempGitRepo }
+              );
+
+              // Switch back to the original default branch
+              const defaultBranch = await detectDefaultTrunkBranch(tempGitRepo);
+              await execAsync(`git checkout ${defaultBranch}`, { cwd: tempGitRepo });
+
+              // Now create a workspace specifying custom-trunk as the trunk branch
+              const newBranchName = generateBranchName("from-custom-trunk");
+              const runtimeConfig = getRuntimeConfig(newBranchName);
+
+              const { result, cleanup } = await createWorkspaceWithCleanup(
+                env,
+                tempGitRepo,
+                newBranchName,
+                customTrunkBranch, // Specify custom trunk branch
+                runtimeConfig
+              );
+
+              expect(result.success).toBe(true);
+              if (!result.success) {
+                throw new Error(
+                  `Failed to create workspace from custom trunk '${customTrunkBranch}': ${result.error}`
+                );
+              }
+
+              // Wait for workspace initialization to complete
+              await new Promise((resolve) => setTimeout(resolve, getInitWaitTime()));
+
+              // Verify the new branch was created from custom-trunk, not from default branch
+              // Use WORKSPACE_EXECUTE_BASH to check files (works for both local and SSH runtimes)
+
+              // Check that trunk-file.txt exists (from custom-trunk)
+              const checkTrunkFileResult = await env.mockIpcRenderer.invoke(
+                IPC_CHANNELS.WORKSPACE_EXECUTE_BASH,
+                result.metadata.id,
+                `test -f trunk-file.txt && echo "exists" || echo "missing"`
+              );
+              expect(checkTrunkFileResult.success).toBe(true);
+              expect(checkTrunkFileResult.data.success).toBe(true);
+              expect(checkTrunkFileResult.data.output.trim()).toBe("exists");
+
+              // Check that other-file.txt does NOT exist (from other-branch)
+              const checkOtherFileResult = await env.mockIpcRenderer.invoke(
+                IPC_CHANNELS.WORKSPACE_EXECUTE_BASH,
+                result.metadata.id,
+                `test -f other-file.txt && echo "exists" || echo "missing"`
+              );
+              expect(checkOtherFileResult.success).toBe(true);
+              expect(checkOtherFileResult.data.success).toBe(true);
+              expect(checkOtherFileResult.data.output.trim()).toBe("missing");
+
+              // Verify git log shows the custom trunk commit
+              const gitLogResult = await env.mockIpcRenderer.invoke(
+                IPC_CHANNELS.WORKSPACE_EXECUTE_BASH,
+                result.metadata.id,
+                `git log --oneline --all`
+              );
+              expect(gitLogResult.success).toBe(true);
+              expect(gitLogResult.data.success).toBe(true);
+              expect(gitLogResult.data.output).toContain("Custom trunk commit");
+
+              await cleanup();
+            } finally {
+              await cleanupTestEnvironment(env);
+              await cleanupTempGitRepo(tempGitRepo);
+            }
+          },
+          TEST_TIMEOUT_MS
+        );
       });
 
       describe("Init hook execution", () => {
