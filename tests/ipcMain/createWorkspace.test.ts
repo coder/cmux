@@ -590,22 +590,20 @@ exit 1
           );
 
           test.concurrent(
-            "rejects tilde paths in srcBaseDir (SSH only)",
+            "resolves tilde paths in srcBaseDir to absolute paths (SSH only)",
             async () => {
-              // Skip if SSH server not available
               if (!sshConfig) {
-                console.log("Skipping SSH-specific test: SSH server not available");
-                return;
+                throw new Error("SSH server is required for SSH integration tests");
               }
 
               const env = await createTestEnvironment();
               const tempGitRepo = await createTempGitRepo();
 
               try {
-                const branchName = generateBranchName("tilde-rejection-test");
+                const branchName = generateBranchName("tilde-resolution-test");
                 const trunkBranch = await detectDefaultTrunkBranch(tempGitRepo);
 
-                // Try to use tilde path - should be rejected
+                // Use tilde path - should be accepted and resolved
                 const tildeRuntimeConfig: RuntimeConfig = {
                   type: "ssh",
                   host: `testuser@localhost`,
@@ -614,17 +612,32 @@ exit 1
                   port: sshConfig.port,
                 };
 
-                const result = await env.mockIpcRenderer.invoke(
-                  IPC_CHANNELS.WORKSPACE_CREATE,
+                const { result, cleanup } = await createWorkspaceWithCleanup(
+                  env,
                   tempGitRepo,
                   branchName,
                   trunkBranch,
                   tildeRuntimeConfig
                 );
 
-                // Should fail with error about tilde
-                expect(result.success).toBe(false);
-                expect(result.error).toMatch(/cannot start with tilde/i);
+                // Should succeed and resolve tilde to absolute path
+                expect(result.success).toBe(true);
+                if (!result.success) {
+                  throw new Error(`Failed to create workspace: ${result.error}`);
+                }
+
+                // Verify the stored runtimeConfig has resolved path (not tilde)
+                const projectsConfig = env.config.loadConfigOrDefault();
+                const projectWorkspaces =
+                  projectsConfig.projects.get(tempGitRepo)?.workspaces ?? [];
+                const workspace = projectWorkspaces.find((w) => w.name === branchName);
+
+                expect(workspace).toBeDefined();
+                expect(workspace?.runtimeConfig?.srcBaseDir).toBeDefined();
+                expect(workspace?.runtimeConfig?.srcBaseDir).toMatch(/^\/home\//);
+                expect(workspace?.runtimeConfig?.srcBaseDir).not.toContain("~");
+
+                await cleanup();
               } finally {
                 await cleanupTestEnvironment(env);
                 await cleanupTempGitRepo(tempGitRepo);
@@ -634,22 +647,20 @@ exit 1
           );
 
           test.concurrent(
-            "rejects bare tilde in srcBaseDir (SSH only)",
+            "resolves bare tilde in srcBaseDir to home directory (SSH only)",
             async () => {
-              // Skip if SSH server not available
               if (!sshConfig) {
-                console.log("Skipping SSH-specific test: SSH server not available");
-                return;
+                throw new Error("SSH server is required for SSH integration tests");
               }
 
               const env = await createTestEnvironment();
               const tempGitRepo = await createTempGitRepo();
 
               try {
-                const branchName = generateBranchName("bare-tilde-rejection");
+                const branchName = generateBranchName("bare-tilde-resolution");
                 const trunkBranch = await detectDefaultTrunkBranch(tempGitRepo);
 
-                // Try to use bare tilde - should be rejected
+                // Use bare tilde - should be accepted and resolved to home directory
                 const tildeRuntimeConfig: RuntimeConfig = {
                   type: "ssh",
                   host: `testuser@localhost`,
@@ -658,17 +669,32 @@ exit 1
                   port: sshConfig.port,
                 };
 
-                const result = await env.mockIpcRenderer.invoke(
-                  IPC_CHANNELS.WORKSPACE_CREATE,
+                const { result, cleanup } = await createWorkspaceWithCleanup(
+                  env,
                   tempGitRepo,
                   branchName,
                   trunkBranch,
                   tildeRuntimeConfig
                 );
 
-                // Should fail with error about tilde
-                expect(result.success).toBe(false);
-                expect(result.error).toMatch(/cannot start with tilde/i);
+                // Should succeed and resolve tilde to home directory
+                expect(result.success).toBe(true);
+                if (!result.success) {
+                  throw new Error(`Failed to create workspace: ${result.error}`);
+                }
+
+                // Verify the stored runtimeConfig has resolved path (not tilde)
+                const projectsConfig = env.config.loadConfigOrDefault();
+                const projectWorkspaces =
+                  projectsConfig.projects.get(tempGitRepo)?.workspaces ?? [];
+                const workspace = projectWorkspaces.find((w) => w.name === branchName);
+
+                expect(workspace).toBeDefined();
+                expect(workspace?.runtimeConfig?.srcBaseDir).toBeDefined();
+                expect(workspace?.runtimeConfig?.srcBaseDir).toMatch(/^\/home\//);
+                expect(workspace?.runtimeConfig?.srcBaseDir).not.toContain("~");
+
+                await cleanup();
               } finally {
                 await cleanupTestEnvironment(env);
                 await cleanupTempGitRepo(tempGitRepo);
@@ -783,10 +809,8 @@ exit 1
     test.concurrent(
       "forwards origin remote instead of bundle path",
       async () => {
-        // Skip if SSH server not available
         if (!sshConfig) {
-          console.log("Skipping SSH-specific test: SSH server not available");
-          return;
+          throw new Error("SSH server is required for SSH integration tests");
         }
 
         const env = await createTestEnvironment();
