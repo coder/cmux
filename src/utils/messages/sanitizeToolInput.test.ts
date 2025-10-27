@@ -18,7 +18,7 @@ describe("sanitizeToolInput", () => {
           // This is the malformed input from the actual chat - a string instead of object
           input: '{"script" timeout_secs="10": "ls"}',
           output: {
-            error: 'Invalid input for tool bash: JSON parsing failed',
+            error: "Invalid input for tool bash: JSON parsing failed",
           },
         },
       ],
@@ -132,7 +132,7 @@ describe("sanitizeToolInput", () => {
 
       const sanitized = sanitizeToolInputs([problematicMessage]);
       const sanitizedTool = sanitized[0].parts[1];
-      
+
       if (sanitizedTool.type === "dynamic-tool") {
         // Should be converted to empty object
         expect(sanitizedTool.input).toEqual({});
@@ -247,6 +247,7 @@ describe("sanitizeToolInput", () => {
               toolCallId: "toolu_null",
               toolName: "bash",
               state: "output-available",
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
               input: null as any,
               output: { error: "Invalid" },
             },
@@ -273,6 +274,7 @@ describe("sanitizeToolInput", () => {
               toolCallId: "toolu_array",
               toolName: "bash",
               state: "output-available",
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
               input: ["not", "valid"] as any,
               output: { error: "Invalid" },
             },
@@ -289,4 +291,3 @@ describe("sanitizeToolInput", () => {
     });
   });
 });
-

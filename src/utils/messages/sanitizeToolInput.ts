@@ -42,15 +42,12 @@ export function sanitizeToolInputs(messages: CmuxMessage[]): CmuxMessage[] {
         }
 
         // Sanitize the input if it's not a valid object
-        if (
-          typeof part.input !== "object" ||
-          part.input === null ||
-          Array.isArray(part.input)
-        ) {
-          return {
+        if (typeof part.input !== "object" || part.input === null || Array.isArray(part.input)) {
+          const sanitized: CmuxToolPart = {
             ...part,
             input: {}, // Replace with empty object
-          } as CmuxToolPart;
+          };
+          return sanitized;
         }
 
         return part;
@@ -58,4 +55,3 @@ export function sanitizeToolInputs(messages: CmuxMessage[]): CmuxMessage[] {
     };
   });
 }
-
