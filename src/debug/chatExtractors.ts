@@ -1,4 +1,4 @@
-import assert from "@/utils/assert";
+import { assert } from "@/utils/assert";
 import type { CmuxReasoningPart, CmuxTextPart, CmuxToolPart } from "@/types/message";
 
 export function extractAssistantText(parts: unknown): string {

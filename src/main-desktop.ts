@@ -516,6 +516,16 @@ if (gotTheLock) {
         await showSplashScreen(); // Wait for splash to actually load
       }
       await loadServices();
+
+      // Migrate workspace configs to include trunk branch (after config is loaded)
+      try {
+        if (config) {
+          await config.migrateWorkspaceTrunkBranches();
+        }
+      } catch (error) {
+        console.error("Failed to migrate workspace trunk branches:", error);
+        // Don't block app startup - user can still use the app
+      }
       createWindow();
       // Note: splash closes in ready-to-show event handler
 

@@ -172,6 +172,10 @@ export class Config {
    * Get the workspace directory path for a given directory name.
    * The directory name is the workspace name (branch name).
    */
+  getWorkspacePath(projectPath: string, workspaceName: string): string {
+    const projectName = this.getProjectName(projectPath);
+    return path.join(this.srcDir, projectName, workspaceName);
+  }
 
   /**
    * Add paths to WorkspaceMetadata to create FrontendWorkspaceMetadata.
@@ -244,7 +248,7 @@ export class Config {
     for (const [projectPath, project] of config.projects) {
       for (const workspace of project.workspaces) {
         const workspaceIdToMatch =
-          workspace.id ?? this.generateWorkspaceId(projectPath, workspace.path);
+          workspace.id ?? this.generateLegacyId(projectPath, workspace.path);
         if (workspaceIdToMatch === workspaceId) {
           assert(workspace.trunkBranch, `Workspace ${workspace.path} must have trunk branch`);
           return workspace.trunkBranch;

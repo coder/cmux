@@ -1,7 +1,7 @@
 /**
  * Token calculation utilities for chat statistics
  */
-import assert from "@/utils/assert";
+import { assert } from "@/utils/assert";
 import { LRUCache } from "lru-cache";
 import CRC32 from "crc-32";
 import { getToolSchemas, getAvailableTools } from "@/utils/tools/toolDefinitions";

@@ -3,7 +3,7 @@
  * Provides a clean async API for calculating stats off the main thread
  */
 
-import assert from "@/utils/assert";
+import { assert } from "@/utils/assert";
 import type { CmuxMessage } from "@/types/message";
 import type { ChatStats } from "@/types/chatStats";
 import type {

@@ -1,4 +1,4 @@
-import assert from "@/utils/assert";
+import { assert } from "@/utils/assert";
 import type { SendMessageError } from "@/types/errors";
 
 /**

@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(make typecheck:*)",
+      "Bash(make static-check:*)",
+      "Bash(git add:*)",
+      "Bash(git rebase:*)",
+      "Bash(bat:*)",
+      "Bash(bun test:*)",
+      "Bash(git mv:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

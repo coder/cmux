@@ -1,8 +1,9 @@
-import assert from "@/utils/assert";
+import { assert } from "@/utils/assert";
 import type { BrowserWindow, IpcMain as ElectronIpcMain } from "electron";
 import { spawn, spawnSync } from "child_process";
 import * as fs from "fs";
 import * as fsPromises from "fs/promises";
+import * as path from "path";
 import type { Config, ProjectConfig } from "@/config";
 import {
   createWorktree,
@@ -322,7 +323,7 @@ export class IpcMain {
           initLogger,
         });
 
-        if (result.success && result.path) {
+        if (createResult.success && createResult.workspacePath) {
           const projectName =
             projectPath.split("/").pop() ?? projectPath.split("\\").pop() ?? "unknown";
 
@@ -348,7 +349,7 @@ export class IpcMain {
             }
             // Add workspace to project config with full metadata
             projectConfig.workspaces.push({
-              path: result.path!,
+              path: createResult.workspacePath!,
               trunkBranch: normalizedTrunkBranch,
               id: workspaceId,
               name: branchName,
@@ -425,12 +426,14 @@ export class IpcMain {
 
         // Phase 2: Initialize workspace asynchronously (SLOW - runs in background)
         // This streams progress via initLogger and doesn't block the IPC return
+        const trunkForInit = normalizedTrunkBranch; // Capture for closure
+        const workspacePathForInit = createResult.workspacePath; // Capture for closure
         void runtime
           .initWorkspace({
             projectPath,
             branchName,
-            trunkBranch: normalizedTrunkBranch,
-            workspacePath: createResult.workspacePath,
+            trunkBranch: trunkForInit,
+            workspacePath: workspacePathForInit!,
             initLogger,
           })
           .catch((error: unknown) => {
