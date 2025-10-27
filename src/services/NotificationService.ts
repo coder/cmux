@@ -2,7 +2,7 @@ import * as fs from "fs";
 import * as path from "path";
 import webpush from "web-push";
 import type { PushSubscription, VapidKeys, NotificationPayload } from "../types/notification.js";
-import { log } from "./log.js";
+import { log } from "./log";
 
 /**
  * NotificationService manages completion notifications for both desktop and web/mobile.
