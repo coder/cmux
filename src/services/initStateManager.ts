@@ -355,7 +355,8 @@ export class InitStateManager extends EventEmitter {
     } catch (error) {
       // Init promise was rejected (e.g., workspace deleted)
       // Log and proceed anyway - let the tool fail with its own error if needed
-      log.error(`Init wait interrupted for ${workspaceId}: ${error} - proceeding anyway`);
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      log.error(`Init wait interrupted for ${workspaceId}: ${errorMsg} - proceeding anyway`);
     }
   }
 }

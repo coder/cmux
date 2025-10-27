@@ -244,6 +244,7 @@ describe("InitStateManager", () => {
 
       // waitForInit never throws - it resolves even when init is canceled
       // This allows tools to proceed and fail naturally with their own errors
+      // eslint-disable-next-line @typescript-eslint/await-thenable
       await expect(initPromise).resolves.toBeUndefined();
     });
   });
