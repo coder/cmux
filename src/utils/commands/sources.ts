@@ -6,6 +6,9 @@ import { CUSTOM_EVENTS } from "@/constants/events";
 import type { ProjectConfig } from "@/config";
 import type { FrontendWorkspaceMetadata } from "@/types/workspace";
 import type { BranchListResult } from "@/types/ipc";
+import { updatePersistedState, readPersistedState } from "@/hooks/usePersistedState";
+import { NOTIFICATION_ENABLED_KEY } from "@/constants/storage";
+import { subscribeToPush } from "@/utils/notifications/pushSubscription";
 
 export interface BuildSourcesParams {
   projects: Map<string, ProjectConfig>;
@@ -49,6 +52,7 @@ const section = {
   navigation: "Navigation",
   chat: "Chat",
   mode: "Modes & Model",
+  settings: "Settings",
   help: "Help",
   projects: "Projects",
 };
@@ -412,6 +416,40 @@ export function buildCoreSources(p: BuildSourcesParams): Array<() => CommandActi
     }
 
     return list;
+  });
+
+  // Settings
+  actions.push(() => {
+    const notificationsEnabled = readPersistedState(NOTIFICATION_ENABLED_KEY, false);
+
+    return [
+      {
+        id: "settings:toggle-notifications",
+        title: notificationsEnabled
+          ? "Disable Completion Notifications"
+          : "Enable Completion Notifications",
+        subtitle: notificationsEnabled ? "Currently enabled" : "Get notified when streams complete",
+        section: section.settings,
+        run: async () => {
+          const newValue = !notificationsEnabled;
+          updatePersistedState(NOTIFICATION_ENABLED_KEY, newValue);
+
+          // If enabling on web, request permission and subscribe
+          if (newValue && typeof navigator !== "undefined" && "serviceWorker" in navigator) {
+            // For web/mobile, subscribe to push notifications for the current workspace
+            const selectedWorkspace = p.selectedWorkspace;
+            if (selectedWorkspace) {
+              const result = await subscribeToPush(selectedWorkspace.workspaceId);
+              if (!result.success) {
+                // Revert preference on failure
+                updatePersistedState(NOTIFICATION_ENABLED_KEY, false);
+                alert(`Failed to enable notifications: ${result.error ?? "Unknown error"}`);
+              }
+            }
+          }
+        },
+      },
+    ];
   });
 
   // Help / Docs

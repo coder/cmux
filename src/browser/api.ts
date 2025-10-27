@@ -270,6 +270,13 @@ const webApi: IPCApi = {
       return wsManager.on(IPC_CHANNELS.UPDATE_STATUS, callback as (data: unknown) => void);
     },
   },
+  notification: {
+    subscribePush: (workspaceId, subscription) =>
+      invokeIPC(IPC_CHANNELS.NOTIFICATION_SUBSCRIBE_PUSH, workspaceId, subscription),
+    unsubscribePush: (workspaceId, endpoint) =>
+      invokeIPC(IPC_CHANNELS.NOTIFICATION_UNSUBSCRIBE_PUSH, workspaceId, endpoint),
+    getVapidKey: () => invokeIPC(IPC_CHANNELS.NOTIFICATION_GET_VAPID_KEY),
+  },
 };
 
 if (typeof window.api === "undefined") {

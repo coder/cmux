@@ -16,7 +16,9 @@ import { AIService } from "@/services/aiService";
 import { HistoryService } from "@/services/historyService";
 import { PartialService } from "@/services/partialService";
 import { AgentSession } from "@/services/agentSession";
+import { NotificationService } from "@/services/NotificationService";
 import type { CmuxMessage } from "@/types/message";
+import type { PushSubscription } from "@/types/notification";
 import { log } from "@/services/log";
 import { IPC_CHANNELS, getChatChannel } from "@/constants/ipc-constants";
 import type { SendMessageError } from "@/types/errors";
@@ -52,6 +54,8 @@ export class IpcMain {
   private readonly aiService: AIService;
   private readonly bashService: BashExecutionService;
   private readonly initStateManager: InitStateManager;
+  private readonly notificationService: NotificationService;
+  private readonly isDesktop: boolean;
   private readonly sessions = new Map<string, AgentSession>();
   private readonly sessionSubscriptions = new Map<
     string,
@@ -130,13 +134,15 @@ export class IpcMain {
   }
   private registered = false;
 
-  constructor(config: Config) {
+  constructor(config: Config, isDesktop = true) {
     this.config = config;
+    this.isDesktop = isDesktop;
     this.historyService = new HistoryService(config);
     this.partialService = new PartialService(config, this.historyService);
     this.aiService = new AIService(config, this.historyService, this.partialService);
     this.bashService = new BashExecutionService();
     this.initStateManager = new InitStateManager(config);
+    this.notificationService = new NotificationService(config.rootDir, isDesktop);
   }
 
   private getOrCreateSession(workspaceId: string): AgentSession {
@@ -156,6 +162,7 @@ export class IpcMain {
       partialService: this.partialService,
       aiService: this.aiService,
       initStateManager: this.initStateManager,
+      notificationService: this.notificationService,
     });
 
     const chatUnsubscribe = session.onChatEvent((event) => {
@@ -221,6 +228,7 @@ export class IpcMain {
     this.registerWindowHandlers(ipcMain);
     this.registerWorkspaceHandlers(ipcMain);
     this.registerProviderHandlers(ipcMain);
+    this.registerNotificationHandlers(ipcMain);
     this.registerProjectHandlers(ipcMain);
     this.registerSubscriptionHandlers(ipcMain);
     this.registered = true;
@@ -1194,6 +1202,41 @@ export class IpcMain {
         return [];
       }
     });
+  }
+
+  private registerNotificationHandlers(ipcMain: ElectronIpcMain): void {
+    // Get VAPID public key for push subscription
+    ipcMain.handle(IPC_CHANNELS.NOTIFICATION_GET_VAPID_KEY, () => {
+      return this.notificationService.getVapidPublicKey();
+    });
+
+    // Subscribe to push notifications
+    ipcMain.handle(
+      IPC_CHANNELS.NOTIFICATION_SUBSCRIBE_PUSH,
+      (_event, workspaceId: string, subscription: unknown) => {
+        try {
+          this.notificationService.subscribePush(workspaceId, subscription as PushSubscription);
+        } catch (error) {
+          log.error("Failed to subscribe to push notifications:", error);
+        }
+      }
+    );
+
+    // Unsubscribe from push notifications
+    ipcMain.handle(
+      IPC_CHANNELS.NOTIFICATION_UNSUBSCRIBE_PUSH,
+      (_event, workspaceId: string, endpoint: string) => {
+        try {
+          this.notificationService.unsubscribePush(workspaceId, endpoint);
+        } catch (error) {
+          log.error("Failed to unsubscribe from push notifications:", error);
+        }
+      }
+    );
+
+    // Note: NOTIFICATION_SEND handler intentionally omitted
+    // Notifications are now triggered server-side in AgentSession on stream-end
+    // This ensures push notifications work even when the app is closed (PWA/mobile)
   }
 
   private registerProjectHandlers(ipcMain: ElectronIpcMain): void {

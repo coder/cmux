@@ -294,6 +294,12 @@ export interface IPCApi {
     install(): void;
     onStatus(callback: (status: UpdateStatus) => void): () => void;
   };
+  notification: {
+    subscribePush(workspaceId: string, subscription: unknown): Promise<void>;
+    unsubscribePush(workspaceId: string, endpoint: string): Promise<void>;
+    getVapidKey(): Promise<string | null>;
+    // Note: send() method removed - notifications triggered server-side in AgentSession
+  };
 }
 
 // Update status type (matches updater service)

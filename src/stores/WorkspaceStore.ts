@@ -154,6 +154,8 @@ export class WorkspaceStore {
       this.states.bump(workspaceId);
       this.checkAndBumpRecencyIfChanged();
       this.finalizeUsageStats(workspaceId, (data as { metadata?: never }).metadata);
+      // Note: Completion notifications are now triggered server-side in AgentSession
+      // to support push notifications when the app is closed
     },
     "stream-abort": (workspaceId, aggregator, data) => {
       aggregator.clearTokenState((data as { messageId: string }).messageId);

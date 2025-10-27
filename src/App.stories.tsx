@@ -85,6 +85,11 @@ function setupMockAPI(options: {
       install: () => undefined,
       onStatus: () => () => undefined,
     },
+    notification: {
+      subscribePush: () => Promise.resolve(undefined),
+      unsubscribePush: () => Promise.resolve(undefined),
+      getVapidKey: () => Promise.resolve(null),
+    },
     ...options.apiOverrides,
   };
 

@@ -48,6 +48,11 @@ export const IPC_CHANNELS = {
   UPDATE_STATUS: "update:status",
   UPDATE_STATUS_SUBSCRIBE: "update:status:subscribe",
 
+  // Notification channels
+  NOTIFICATION_SUBSCRIBE_PUSH: "notification:subscribePush",
+  NOTIFICATION_UNSUBSCRIBE_PUSH: "notification:unsubscribePush",
+  NOTIFICATION_GET_VAPID_KEY: "notification:getVapidKey",
+
   // Dynamic channel prefixes
   WORKSPACE_CHAT_PREFIX: "workspace:chat:",
   WORKSPACE_METADATA: "workspace:metadata",
