@@ -491,8 +491,11 @@ export class LocalRuntime implements Runtime {
     const deletedPath = this.getWorkspacePath(projectPath, workspaceName);
 
     // Check if directory exists - if not, operation is idempotent
-    if (!fs.existsSync(deletedPath)) {
-      // Directory already gone - prune stale git records (best effort)
+    try {
+      await fsPromises.access(deletedPath);
+    } catch {
+      // Directory doesn't exist - operation is idempotent
+      // Prune stale git records (best effort)
       try {
         using pruneProc = execAsync(`git -C "${projectPath}" worktree prune`);
         await pruneProc.result;

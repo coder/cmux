@@ -552,8 +552,10 @@ export class IpcMain {
           const projectName = sourceMetadata.projectName;
 
           // Create runtime for source workspace
-          const sourceRuntimeConfig =
-            sourceMetadata.runtimeConfig ?? { type: "local", srcBaseDir: this.config.srcDir };
+          const sourceRuntimeConfig = sourceMetadata.runtimeConfig ?? {
+            type: "local",
+            srcBaseDir: this.config.srcDir,
+          };
           const runtime = createRuntime(sourceRuntimeConfig);
 
           // Generate stable workspace ID for the new workspace
