@@ -301,12 +301,12 @@ export class LocalRuntime implements Runtime {
     }
   }
 
-  async resolvePath(filePath: string): Promise<string> {
+  resolvePath(filePath: string): Promise<string> {
     // Expand tilde to actual home directory path
     const expanded = expandTilde(filePath);
 
     // Resolve to absolute path (handles relative paths like "./foo")
-    return path.resolve(expanded);
+    return Promise.resolve(path.resolve(expanded));
   }
 
   normalizePath(targetPath: string, basePath: string): string {
