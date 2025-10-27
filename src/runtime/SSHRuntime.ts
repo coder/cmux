@@ -59,15 +59,8 @@ export class SSHRuntime implements Runtime {
   private readonly controlPath: string;
 
   constructor(config: SSHRuntimeConfig) {
-    // Reject tilde paths - require explicit full paths for SSH
-    // Rationale: Simplifies logic and avoids ambiguity about which user's home directory
-    if (config.srcBaseDir.startsWith("~")) {
-      throw new Error(
-        `SSH runtime srcBaseDir cannot start with tilde. ` +
-          `Use full path (e.g., /home/username/cmux instead of ~/cmux)`
-      );
-    }
-
+    // Note: srcBaseDir may contain tildes - they will be resolved via resolvePath() before use
+    // The WORKSPACE_CREATE IPC handler resolves paths before storing in config
     this.config = config;
     // Get deterministic controlPath from connection pool
     // Multiple SSHRuntime instances with same config share the same controlPath,
@@ -324,6 +317,64 @@ export class SSHRuntime implements Runtime {
       isDirectory: fileType === "directory",
     };
   }
+  async resolvePath(filePath: string): Promise<string> {
+    // Use shell to expand tildes and resolve path on remote system
+    // We use `realpath` which resolves symlinks and gives canonical path
+    // Note: realpath also verifies the path exists
+    const command = `realpath ${shescape.quote(filePath)}`;
+    const sshArgs = this.buildSSHArgs();
+    sshArgs.push(this.config.host, command);
+
+    return new Promise((resolve, reject) => {
+      const proc = spawn("ssh", sshArgs);
+      let stdout = "";
+      let stderr = "";
+
+      proc.stdout?.on("data", (data: Buffer) => {
+        stdout += data.toString();
+      });
+
+      proc.stderr?.on("data", (data: Buffer) => {
+        stderr += data.toString();
+      });
+
+      proc.on("close", (code) => {
+        if (code !== 0) {
+          reject(
+            new RuntimeErrorClass(
+              `Failed to resolve path '${filePath}' on remote host: ${stderr.trim()}`,
+              "file_io"
+            )
+          );
+          return;
+        }
+
+        const resolved = stdout.trim();
+        if (!resolved?.startsWith("/")) {
+          reject(
+            new RuntimeErrorClass(
+              `Invalid resolved path '${resolved}' for '${filePath}' (expected absolute path)`,
+              "file_io"
+            )
+          );
+          return;
+        }
+
+        resolve(resolved);
+      });
+
+      proc.on("error", (err) => {
+        reject(
+          new RuntimeErrorClass(
+            `Cannot resolve path '${filePath}' on remote host: ${getErrorMessage(err)}`,
+            "network",
+            err instanceof Error ? err : undefined
+          )
+        );
+      });
+    });
+  }
+
   normalizePath(targetPath: string, basePath: string): string {
     // For SSH, handle paths in a POSIX-like manner without accessing the remote filesystem
     const target = targetPath.trim();

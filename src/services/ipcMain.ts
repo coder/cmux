@@ -284,10 +284,26 @@ export class IpcMain {
           srcBaseDir: this.config.srcDir,
         };
 
-        // Create runtime - catch validation errors (e.g., tilde paths in SSH)
+        // Create temporary runtime to resolve srcBaseDir path
+        // This allows tilde paths to work for both local and SSH runtimes
         let runtime;
+        let resolvedSrcBaseDir: string;
         try {
           runtime = createRuntime(finalRuntimeConfig);
+
+          // Resolve srcBaseDir to absolute path (expanding tildes, etc.)
+          resolvedSrcBaseDir = await runtime.resolvePath(finalRuntimeConfig.srcBaseDir);
+
+          // If path was resolved to something different, recreate runtime with resolved path
+          if (resolvedSrcBaseDir !== finalRuntimeConfig.srcBaseDir) {
+            const resolvedRuntimeConfig: RuntimeConfig = {
+              ...finalRuntimeConfig,
+              srcBaseDir: resolvedSrcBaseDir,
+            };
+            runtime = createRuntime(resolvedRuntimeConfig);
+            // Update finalRuntimeConfig to store resolved path in config
+            finalRuntimeConfig.srcBaseDir = resolvedSrcBaseDir;
+          }
         } catch (error) {
           const errorMsg = error instanceof Error ? error.message : String(error);
           return { success: false, error: errorMsg };

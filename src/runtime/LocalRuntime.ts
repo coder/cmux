@@ -301,6 +301,26 @@ export class LocalRuntime implements Runtime {
     }
   }
 
+  async resolvePath(filePath: string): Promise<string> {
+    // Expand tilde to actual home directory path
+    const expanded = expandTilde(filePath);
+
+    // Resolve to absolute path (handles relative paths like "./foo")
+    const resolved = path.resolve(expanded);
+
+    // Verify path exists
+    try {
+      await fsPromises.access(resolved);
+      return resolved;
+    } catch (err) {
+      throw new RuntimeErrorClass(
+        `Cannot resolve path '${filePath}': ${getErrorMessage(err)}`,
+        "file_io",
+        err instanceof Error ? err : undefined
+      );
+    }
+  }
+
   normalizePath(targetPath: string, basePath: string): string {
     // For local runtime, use Node.js path resolution
     // Handle special case: current directory

@@ -196,6 +196,24 @@ export interface Runtime {
   stat(path: string): Promise<FileStat>;
 
   /**
+   * Resolve a path to its absolute, canonical form (expanding tildes, resolving symlinks, etc.).
+   * This is used at workspace creation time to normalize srcBaseDir paths in config.
+   *
+   * @param path Path to resolve (may contain tildes or be relative)
+   * @returns Promise resolving to absolute path
+   * @throws RuntimeError if path cannot be resolved (e.g., doesn't exist, permission denied)
+   *
+   * @example
+   * // LocalRuntime
+   * await runtime.resolvePath("~/cmux")      // => "/home/user/cmux"
+   * await runtime.resolvePath("./relative")  // => "/current/dir/relative"
+   *
+   * // SSHRuntime
+   * await runtime.resolvePath("~/cmux")      // => "/home/user/cmux" (via SSH shell expansion)
+   */
+  resolvePath(path: string): Promise<string>;
+
+  /**
    * Normalize a path for comparison purposes within this runtime's context.
    * Handles runtime-specific path semantics (local vs remote).
    *

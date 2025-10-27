@@ -29,3 +29,40 @@ describe("LocalRuntime constructor", () => {
     expect(workspacePath).toBe(expected);
   });
 });
+
+describe("LocalRuntime.resolvePath", () => {
+  it("should expand tilde to home directory", async () => {
+    const runtime = new LocalRuntime("/tmp");
+    const resolved = await runtime.resolvePath("~");
+    expect(resolved).toBe(os.homedir());
+  });
+
+  it("should expand tilde with path", async () => {
+    const runtime = new LocalRuntime("/tmp");
+    // Use a path that likely exists (or use /tmp if ~ doesn't have subdirs)
+    const resolved = await runtime.resolvePath("~/..");
+    const expected = path.dirname(os.homedir());
+    expect(resolved).toBe(expected);
+  });
+
+  it("should resolve absolute paths", async () => {
+    const runtime = new LocalRuntime("/tmp");
+    const resolved = await runtime.resolvePath("/tmp");
+    expect(resolved).toBe("/tmp");
+  });
+
+  it("should reject non-existent paths", async () => {
+    const runtime = new LocalRuntime("/tmp");
+    // eslint-disable-next-line @typescript-eslint/await-thenable
+    await expect(runtime.resolvePath("/this/path/does/not/exist/12345")).rejects.toThrow(
+      /Cannot resolve path/
+    );
+  });
+
+  it("should resolve relative paths from cwd", async () => {
+    const runtime = new LocalRuntime("/tmp");
+    const resolved = await runtime.resolvePath(".");
+    // Should resolve to absolute path
+    expect(path.isAbsolute(resolved)).toBe(true);
+  });
+});
