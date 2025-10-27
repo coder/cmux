@@ -3,13 +3,13 @@ import type { ToolConfiguration } from "@/utils/tools/tools";
 
 /**
  * Wraps a tool to wait for workspace initialization before execution.
- * 
+ *
  * This wrapper handles the cross-cutting concern of init state waiting,
  * keeping individual tools simple and focused on their core functionality.
- * 
+ *
  * Only runtime-dependent tools (bash, file_read, file_edit_*) need this wrapper.
  * Non-runtime tools (propose_plan, todo, web_search) execute immediately.
- * 
+ *
  * @param tool The tool to wrap (returned from a tool factory)
  * @param config Tool configuration containing initStateManager
  * @returns Wrapped tool that waits for init before executing
@@ -33,4 +33,3 @@ export function wrapWithInitWait<TParameters, TResult>(
     },
   } as Tool<TParameters, TResult>;
 }
-
