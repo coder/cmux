@@ -48,7 +48,7 @@ describe("parseRuntimeString", () => {
   test("accepts SSH with hostname only (user will be inferred)", () => {
     const result = parseRuntimeString("ssh hostname", workspaceName);
     // When no user is specified, uses current user (process.env.USER)
-    const expectedUser = process.env.USER || "user";
+    const expectedUser = process.env.USER ?? "user";
     expect(result).toEqual({
       type: "ssh",
       host: "hostname",
@@ -59,7 +59,7 @@ describe("parseRuntimeString", () => {
   test("accepts SSH with hostname.domain only", () => {
     const result = parseRuntimeString("ssh dev.example.com", workspaceName);
     // When no user is specified, uses current user (process.env.USER)
-    const expectedUser = process.env.USER || "user";
+    const expectedUser = process.env.USER ?? "user";
     expect(result).toEqual({
       type: "ssh",
       host: "dev.example.com",

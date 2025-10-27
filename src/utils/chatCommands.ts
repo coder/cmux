@@ -53,7 +53,7 @@ export function parseRuntimeString(
 
     // Extract username from user@host format, or default to current user
     const atIndex = hostPart.indexOf("@");
-    const user = atIndex > 0 ? hostPart.substring(0, atIndex) : process.env.USER || "user";
+    const user = atIndex > 0 ? hostPart.substring(0, atIndex) : process.env.USER ?? "user";
 
     // Accept both "hostname" and "user@hostname" formats
     // SSH will use current user or ~/.ssh/config if user not specified
