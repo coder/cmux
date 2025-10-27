@@ -978,19 +978,22 @@ export class StreamManager extends EventEmitter {
         streamInfo.partialWriteTimer = undefined;
       }
 
-      // Clean up stream temp directory using runtime
+      // Clean up stream temp directory using runtime (fire-and-forget)
+      // Don't block stream completion waiting for directory deletion
+      // This is especially important for SSH where rm -rf can take 500ms-2s
       if (streamInfo.runtimeTempDir) {
-        try {
-          const result = await streamInfo.runtime.exec(`rm -rf "${streamInfo.runtimeTempDir}"`, {
+        void streamInfo.runtime
+          .exec(`rm -rf "${streamInfo.runtimeTempDir}"`, {
             cwd: "~",
             timeout: 10,
+          })
+          .then(async (result) => {
+            await result.exitCode;
+            log.debug(`Cleaned up temp dir: ${streamInfo.runtimeTempDir}`);
+          })
+          .catch((error) => {
+            log.error(`Failed to cleanup temp dir ${streamInfo.runtimeTempDir}:`, error);
           });
-          await result.exitCode; // Wait for completion
-          log.debug(`Cleaned up temp dir: ${streamInfo.runtimeTempDir}`);
-        } catch (error) {
-          log.error(`Failed to cleanup temp dir ${streamInfo.runtimeTempDir}:`, error);
-          // Don't throw - cleanup is best-effort
-        }
       }
 
       this.workspaceStreams.delete(workspaceId);
