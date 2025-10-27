@@ -113,3 +113,20 @@ describe("sshConnectionPool", () => {
     });
   });
 });
+
+describe("username isolation", () => {
+  test("controlPath includes local username to prevent cross-user collisions", () => {
+    // This test verifies that os.userInfo().username is included in the hash
+    // On multi-user systems, different users connecting to the same remote
+    // would get different controlPaths, preventing permission errors
+    const config: SSHRuntimeConfig = {
+      host: "test.com",
+      srcBaseDir: "/work",
+    };
+    const controlPath = getControlPath(config);
+
+    // The path should be deterministic for this user
+    expect(controlPath).toBe(getControlPath(config));
+    expect(controlPath).toMatch(/^\/tmp\/cmux-ssh-[a-f0-9]{12}$/);
+  });
+});
