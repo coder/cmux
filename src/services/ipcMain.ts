@@ -283,7 +283,15 @@ export class IpcMain {
           type: "local",
           srcBaseDir: this.config.srcDir,
         };
-        const runtime = createRuntime(finalRuntimeConfig);
+
+        // Create runtime - catch validation errors (e.g., tilde paths in SSH)
+        let runtime;
+        try {
+          runtime = createRuntime(finalRuntimeConfig);
+        } catch (error) {
+          const errorMsg = error instanceof Error ? error.message : String(error);
+          return { success: false, error: errorMsg };
+        }
 
         // Create session BEFORE starting init so events can be forwarded
         const session = this.getOrCreateSession(workspaceId);
