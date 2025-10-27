@@ -49,6 +49,46 @@ export function validateFileSize(stats: FileStat): { error: string } | null {
 }
 
 /**
+ * Validates that a file path doesn't contain redundant workspace prefix.
+ * Returns an error object if the path contains the cwd prefix, null if valid.
+ * This helps save tokens by encouraging relative paths.
+ *
+ * @param filePath - The file path to validate
+ * @param cwd - The working directory
+ * @param runtime - The runtime (skip check for SSH since paths are remote)
+ * @returns Error object if redundant prefix found, null if valid
+ */
+export function validateNoRedundantPrefix(
+  filePath: string,
+  cwd: string,
+  runtime: Runtime
+): { error: string } | null {
+  // Skip for SSH runtimes - remote paths don't apply
+  if (runtime instanceof SSHRuntime) {
+    return null;
+  }
+
+  // Check if the path contains the cwd as a prefix (indicating redundancy)
+  // This catches cases like "/workspace/project/src/file.ts" when cwd is "/workspace/project"
+  const normalizedPath = path.normalize(filePath);
+  const normalizedCwd = path.normalize(cwd);
+
+  // Only check absolute paths - relative paths are fine
+  if (path.isAbsolute(normalizedPath)) {
+    // Check if the absolute path starts with the cwd
+    if (normalizedPath.startsWith(normalizedCwd)) {
+      // Calculate what the relative path would be
+      const relativePath = path.relative(normalizedCwd, normalizedPath);
+      return {
+        error: `Redundant path prefix detected. The path '${filePath}' contains the workspace directory. Please use relative paths to save tokens: '${relativePath}'`,
+      };
+    }
+  }
+
+  return null;
+}
+
+/**
  * Validates that a file path is within the allowed working directory.
  * Returns an error object if the path is outside cwd, null if valid.
  *

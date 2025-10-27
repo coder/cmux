@@ -1,7 +1,12 @@
 import type { FileEditDiffSuccessBase, FileEditErrorResult } from "@/types/tools";
 import { WRITE_DENIED_PREFIX } from "@/types/tools";
 import type { ToolConfiguration } from "@/utils/tools/tools";
-import { generateDiff, validateFileSize, validatePathInCwd } from "./fileCommon";
+import {
+  generateDiff,
+  validateFileSize,
+  validatePathInCwd,
+  validateNoRedundantPrefix,
+} from "./fileCommon";
 import { RuntimeError } from "@/runtime/Runtime";
 import { readFileString, writeFileString } from "@/utils/runtime/helpers";
 
@@ -36,6 +41,19 @@ export async function executeFileEditOperation<TMetadata>({
   FileEditErrorResult | (FileEditDiffSuccessBase & TMetadata)
 > {
   try {
+    // Validate no redundant path prefix (must come first to catch absolute paths)
+    const redundantPrefixValidation = validateNoRedundantPrefix(
+      filePath,
+      config.cwd,
+      config.runtime
+    );
+    if (redundantPrefixValidation) {
+      return {
+        success: false,
+        error: `${WRITE_DENIED_PREFIX} ${redundantPrefixValidation.error}`,
+      };
+    }
+
     const pathValidation = validatePathInCwd(filePath, config.cwd, config.runtime);
     if (pathValidation) {
       return {

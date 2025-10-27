@@ -2,7 +2,7 @@ import { tool } from "ai";
 import type { FileEditInsertToolResult } from "@/types/tools";
 import type { ToolConfiguration, ToolFactory } from "@/utils/tools/tools";
 import { TOOL_DEFINITIONS } from "@/utils/tools/toolDefinitions";
-import { validatePathInCwd } from "./fileCommon";
+import { validatePathInCwd, validateNoRedundantPrefix } from "./fileCommon";
 import { WRITE_DENIED_PREFIX } from "@/types/tools";
 import { executeFileEditOperation } from "./file_edit_operation";
 import { RuntimeError } from "@/runtime/Runtime";
@@ -25,6 +25,19 @@ export const createFileEditInsertTool: ToolFactory = (config: ToolConfiguration)
       create,
     }): Promise<FileEditInsertToolResult> => {
       try {
+        // Validate no redundant path prefix (must come first to catch absolute paths)
+        const redundantPrefixValidation = validateNoRedundantPrefix(
+          file_path,
+          config.cwd,
+          config.runtime
+        );
+        if (redundantPrefixValidation) {
+          return {
+            success: false,
+            error: redundantPrefixValidation.error,
+          };
+        }
+
         const pathValidation = validatePathInCwd(file_path, config.cwd, config.runtime);
         if (pathValidation) {
           return {

@@ -1,6 +1,11 @@
 import { describe, it, expect } from "bun:test";
 import type { FileStat } from "@/runtime/Runtime";
-import { validatePathInCwd, validateFileSize, MAX_FILE_SIZE } from "./fileCommon";
+import {
+  validatePathInCwd,
+  validateFileSize,
+  validateNoRedundantPrefix,
+  MAX_FILE_SIZE,
+} from "./fileCommon";
 import { createRuntime } from "@/runtime/runtimeFactory";
 
 describe("fileCommon", () => {
@@ -129,6 +134,65 @@ describe("fileCommon", () => {
 
       const result = validatePathInCwd("../outside.ts", cwdWithSlash, runtime);
       expect(result).not.toBeNull();
+    });
+  });
+
+  describe("validateNoRedundantPrefix", () => {
+    const cwd = "/workspace/project";
+    const runtime = createRuntime({ type: "local", srcBaseDir: cwd });
+
+    it("should allow relative paths", () => {
+      expect(validateNoRedundantPrefix("src/file.ts", cwd, runtime)).toBeNull();
+      expect(validateNoRedundantPrefix("./src/file.ts", cwd, runtime)).toBeNull();
+      expect(validateNoRedundantPrefix("file.ts", cwd, runtime)).toBeNull();
+    });
+
+    it("should reject absolute paths that contain the cwd prefix", () => {
+      const result = validateNoRedundantPrefix("/workspace/project/src/file.ts", cwd, runtime);
+      expect(result).not.toBeNull();
+      expect(result?.error).toContain("Redundant path prefix detected");
+      expect(result?.error).toContain("Please use relative paths to save tokens");
+      expect(result?.error).toContain("src/file.ts"); // Should suggest the relative path
+    });
+
+    it("should reject absolute paths at the cwd root", () => {
+      const result = validateNoRedundantPrefix("/workspace/project/file.ts", cwd, runtime);
+      expect(result).not.toBeNull();
+      expect(result?.error).toContain("Redundant path prefix detected");
+      expect(result?.error).toContain("file.ts"); // Should suggest the relative path
+    });
+
+    it("should allow absolute paths outside cwd (they will be caught by validatePathInCwd)", () => {
+      // This validation only catches redundant prefixes, not paths outside cwd
+      expect(validateNoRedundantPrefix("/etc/passwd", cwd, runtime)).toBeNull();
+      expect(validateNoRedundantPrefix("/home/user/file.ts", cwd, runtime)).toBeNull();
+    });
+
+    it("should handle paths with ..", () => {
+      // Relative paths with .. are fine for this check
+      expect(validateNoRedundantPrefix("../outside.ts", cwd, runtime)).toBeNull();
+      expect(validateNoRedundantPrefix("src/../../outside.ts", cwd, runtime)).toBeNull();
+    });
+
+    it("should work with cwd that has trailing slash", () => {
+      const cwdWithSlash = "/workspace/project/";
+      const result = validateNoRedundantPrefix(
+        "/workspace/project/src/file.ts",
+        cwdWithSlash,
+        runtime
+      );
+      expect(result).not.toBeNull();
+      expect(result?.error).toContain("src/file.ts");
+    });
+
+    it("should handle nested paths correctly", () => {
+      const result = validateNoRedundantPrefix(
+        "/workspace/project/src/components/Button/index.ts",
+        cwd,
+        runtime
+      );
+      expect(result).not.toBeNull();
+      expect(result?.error).toContain("src/components/Button/index.ts");
     });
   });
 });
