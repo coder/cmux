@@ -18,7 +18,7 @@ describe("parseRuntimeString", () => {
     expect(result).toEqual({
       type: "ssh",
       host: "user@host",
-      srcBaseDir: "~/cmux",
+      srcBaseDir: "/home/cmux",
     });
   });
 
@@ -27,7 +27,7 @@ describe("parseRuntimeString", () => {
     expect(result).toEqual({
       type: "ssh",
       host: "User@Host.Example.Com",
-      srcBaseDir: "~/cmux",
+      srcBaseDir: "/home/cmux",
     });
   });
 
@@ -36,7 +36,7 @@ describe("parseRuntimeString", () => {
     expect(result).toEqual({
       type: "ssh",
       host: "user@host",
-      srcBaseDir: "~/cmux",
+      srcBaseDir: "/home/cmux",
     });
   });
 
@@ -50,7 +50,7 @@ describe("parseRuntimeString", () => {
     expect(result).toEqual({
       type: "ssh",
       host: "hostname",
-      srcBaseDir: "~/cmux",
+      srcBaseDir: "/home/cmux",
     });
   });
 
@@ -59,7 +59,7 @@ describe("parseRuntimeString", () => {
     expect(result).toEqual({
       type: "ssh",
       host: "dev.example.com",
-      srcBaseDir: "~/cmux",
+      srcBaseDir: "/home/cmux",
     });
   });
 

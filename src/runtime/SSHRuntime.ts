@@ -59,6 +59,15 @@ export class SSHRuntime implements Runtime {
   private readonly controlPath: string;
 
   constructor(config: SSHRuntimeConfig) {
+    // Reject tilde paths - require explicit full paths for SSH
+    // Rationale: Simplifies logic and avoids ambiguity about which user's home directory
+    if (config.srcBaseDir.startsWith("~")) {
+      throw new Error(
+        `SSH runtime srcBaseDir cannot start with tilde. ` +
+          `Use full path (e.g., /home/username/cmux instead of ~/cmux)`
+      );
+    }
+
     this.config = config;
     // Get deterministic controlPath from connection pool
     // Multiple SSHRuntime instances with same config share the same controlPath,

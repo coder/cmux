@@ -56,7 +56,7 @@ export function parseRuntimeString(
     return {
       type: RUNTIME_MODE.SSH,
       host: hostPart,
-      srcBaseDir: "~/cmux", // Default remote base directory (NOT including workspace name)
+      srcBaseDir: "/home/cmux", // Default remote base directory (NOT including workspace name)
     };
   }
 

@@ -14,8 +14,8 @@
  *
  * srcBaseDir (base directory for all workspaces):
  *   - Where cmux stores ALL workspace directories
- *   - Local: ~/.cmux/src
- *   - SSH: /home/user/workspace (or custom remote path)
+ *   - Local: ~/.cmux/src (tilde expanded to full path by LocalRuntime)
+ *   - SSH: /home/user/workspace (must be absolute path, no tilde allowed)
  *
  * Workspace Path Computation:
  *   {srcBaseDir}/{projectName}/{workspaceName}
@@ -27,14 +27,14 @@
  *     Example: "feature-123" or "main"
  *
  * Full Example (Local):
- *   srcBaseDir:    ~/.cmux/src
+ *   srcBaseDir:    ~/.cmux/src (expanded to /home/user/.cmux/src)
  *   projectPath:   /Users/me/git/my-project (local git repo)
  *   projectName:   my-project (extracted)
  *   workspaceName: feature-123
- *   → Workspace:   ~/.cmux/src/my-project/feature-123
+ *   → Workspace:   /home/user/.cmux/src/my-project/feature-123
  *
  * Full Example (SSH):
- *   srcBaseDir:    /home/user/workspace
+ *   srcBaseDir:    /home/user/workspace (absolute path required)
  *   projectPath:   /Users/me/git/my-project (local git repo)
  *   projectName:   my-project (extracted)
  *   workspaceName: feature-123
