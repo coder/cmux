@@ -3,6 +3,7 @@ import * as os from "os";
 import { EventEmitter } from "events";
 import { convertToModelMessages, type LanguageModel } from "ai";
 import { applyToolOutputRedaction } from "@/utils/messages/applyToolOutputRedaction";
+import { sanitizeToolInputs } from "@/utils/messages/sanitizeToolInput";
 import type { Result } from "@/types/result";
 import { Ok, Err } from "@/types/result";
 import type { WorkspaceMetadata } from "@/types/workspace";
@@ -461,10 +462,16 @@ export class AIService extends EventEmitter {
       const redactedForProvider = applyToolOutputRedaction(messagesWithModeContext);
       log.debug_obj(`${workspaceId}/2a_redacted_messages.json`, redactedForProvider);
 
+      // Sanitize tool inputs to ensure they are valid objects (not strings or arrays)
+      // This fixes cases where corrupted data in history has malformed tool inputs
+      // that would cause API errors like "Input should be a valid dictionary"
+      const sanitizedMessages = sanitizeToolInputs(redactedForProvider);
+      log.debug_obj(`${workspaceId}/2b_sanitized_messages.json`, sanitizedMessages);
+
       // Convert CmuxMessage to ModelMessage format using Vercel AI SDK utility
       // Type assertion needed because CmuxMessage has custom tool parts for interrupted tools
       // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-argument
-      const modelMessages = convertToModelMessages(redactedForProvider as any);
+      const modelMessages = convertToModelMessages(sanitizedMessages as any);
       log.debug_obj(`${workspaceId}/2_model_messages.json`, modelMessages);
 
       // Apply ModelMessage transforms based on provider requirements
