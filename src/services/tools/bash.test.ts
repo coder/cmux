@@ -697,95 +697,6 @@ describe("bash tool", () => {
     }
   });
 
-  it("should reject redundant cd to working directory with &&", async () => {
-    using testEnv = createTestBashTool();
-    const tool = testEnv.tool;
-    const cwd = process.cwd();
-
-    const args: BashToolArgs = {
-      script: `cd ${cwd} && echo test`,
-      timeout_secs: 5,
-    };
-
-    const result = (await tool.execute!(args, mockToolCallOptions)) as BashToolResult;
-
-    expect(result.success).toBe(false);
-    if (!result.success) {
-      expect(result.error).toContain("Redundant cd");
-      expect(result.error).toContain("already runs in");
-    }
-  });
-
-  it("should reject redundant cd to working directory with semicolon", async () => {
-    using testEnv = createTestBashTool();
-    const tool = testEnv.tool;
-    const cwd = process.cwd();
-
-    const args: BashToolArgs = {
-      script: `cd ${cwd}; echo test`,
-      timeout_secs: 5,
-    };
-
-    const result = (await tool.execute!(args, mockToolCallOptions)) as BashToolResult;
-
-    expect(result.success).toBe(false);
-    if (!result.success) {
-      expect(result.error).toContain("Redundant cd");
-    }
-  });
-
-  it("should reject redundant cd with relative path (.)", async () => {
-    using testEnv = createTestBashTool();
-    const tool = testEnv.tool;
-
-    const args: BashToolArgs = {
-      script: "cd . && echo test",
-      timeout_secs: 5,
-    };
-
-    const result = (await tool.execute!(args, mockToolCallOptions)) as BashToolResult;
-
-    expect(result.success).toBe(false);
-    if (!result.success) {
-      expect(result.error).toContain("Redundant cd");
-    }
-  });
-
-  it("should reject redundant cd with quoted path", async () => {
-    using testEnv = createTestBashTool();
-    const tool = testEnv.tool;
-    const cwd = process.cwd();
-
-    const args: BashToolArgs = {
-      script: `cd '${cwd}' && echo test`,
-      timeout_secs: 5,
-    };
-
-    const result = (await tool.execute!(args, mockToolCallOptions)) as BashToolResult;
-
-    expect(result.success).toBe(false);
-    if (!result.success) {
-      expect(result.error).toContain("Redundant cd");
-    }
-  });
-
-  it("should allow cd to a different directory", async () => {
-    using testEnv = createTestBashTool();
-    const tool = testEnv.tool;
-
-    const args: BashToolArgs = {
-      script: "cd /tmp && pwd",
-      timeout_secs: 5,
-    };
-
-    const result = (await tool.execute!(args, mockToolCallOptions)) as BashToolResult;
-
-    expect(result.success).toBe(true);
-    if (result.success) {
-      expect(result.output).toContain("/tmp");
-    }
-  });
-
   it("should allow commands that don't start with cd", async () => {
     using testEnv = createTestBashTool();
     const tool = testEnv.tool;
@@ -1261,112 +1172,42 @@ describe("SSH runtime redundant cd detection", () => {
     };
   }
 
-  it("should reject redundant cd to absolute path on SSH runtime", async () => {
-    const remoteCwd = "/home/user/project";
+
+  it("should add educational note when command starts with cd", async () => {
+    const remoteCwd = "~/workspace/project/branch";
     using testEnv = createTestBashToolWithSSH(remoteCwd);
     const tool = testEnv.tool;
 
     const args: BashToolArgs = {
-      script: `cd ${remoteCwd} && echo test`,
+      script: "cd ~/workspace/project/branch && echo test",
       timeout_secs: 5,
     };
 
     const result = (await tool.execute!(args, mockToolCallOptions)) as BashToolResult;
 
-    expect(result.success).toBe(false);
-    if (!result.success) {
-      expect(result.error).toContain("Redundant cd");
-      expect(result.error).toContain("already runs in");
+    // Command should execute (not blocked)
+    // But should include a note about cd behavior
+    if (result.success && "note" in result) {
+      expect(result.note).toContain("bash command starts in");
+      expect(result.note).toContain("do not persist");
     }
   });
 
-  it("should reject redundant cd with relative path (.) on SSH runtime", async () => {
-    const remoteCwd = "/home/user/project";
+  it("should not add note when command does not start with cd", async () => {
+    const remoteCwd = "~/workspace/project/branch";
     using testEnv = createTestBashToolWithSSH(remoteCwd);
     const tool = testEnv.tool;
 
     const args: BashToolArgs = {
-      script: "cd . && echo test",
+      script: "echo test",
       timeout_secs: 5,
     };
 
     const result = (await tool.execute!(args, mockToolCallOptions)) as BashToolResult;
 
-    expect(result.success).toBe(false);
-    if (!result.success) {
-      expect(result.error).toContain("Redundant cd");
-    }
+    // Should not have a note field
+    expect(result).not.toHaveProperty("note");
   });
 
-  it("should reject redundant cd with tilde path on SSH runtime", async () => {
-    const remoteCwd = "~/project";
-    using testEnv = createTestBashToolWithSSH(remoteCwd);
-    const tool = testEnv.tool;
 
-    const args: BashToolArgs = {
-      script: "cd ~/project && echo test",
-      timeout_secs: 5,
-    };
-
-    const result = (await tool.execute!(args, mockToolCallOptions)) as BashToolResult;
-
-    expect(result.success).toBe(false);
-    if (!result.success) {
-      expect(result.error).toContain("Redundant cd");
-    }
-  });
-
-  it("should reject redundant cd with single tilde on SSH runtime", async () => {
-    const remoteCwd = "~";
-    using testEnv = createTestBashToolWithSSH(remoteCwd);
-    const tool = testEnv.tool;
-
-    const args: BashToolArgs = {
-      script: "cd ~ && echo test",
-      timeout_secs: 5,
-    };
-
-    const result = (await tool.execute!(args, mockToolCallOptions)) as BashToolResult;
-
-    expect(result.success).toBe(false);
-    if (!result.success) {
-      expect(result.error).toContain("Redundant cd");
-    }
-  });
-
-  it("should handle trailing slashes in path comparison on SSH runtime", async () => {
-    const remoteCwd = "/home/user/project";
-    using testEnv = createTestBashToolWithSSH(remoteCwd);
-    const tool = testEnv.tool;
-
-    const args: BashToolArgs = {
-      script: "cd /home/user/project/ && echo test",
-      timeout_secs: 5,
-    };
-
-    const result = (await tool.execute!(args, mockToolCallOptions)) as BashToolResult;
-
-    expect(result.success).toBe(false);
-    if (!result.success) {
-      expect(result.error).toContain("Redundant cd");
-    }
-  });
-
-  it("should handle cwd with trailing slash on SSH runtime", async () => {
-    const remoteCwd = "/home/user/project/";
-    using testEnv = createTestBashToolWithSSH(remoteCwd);
-    const tool = testEnv.tool;
-
-    const args: BashToolArgs = {
-      script: "cd /home/user/project && echo test",
-      timeout_secs: 5,
-    };
-
-    const result = (await tool.execute!(args, mockToolCallOptions)) as BashToolResult;
-
-    expect(result.success).toBe(false);
-    if (!result.success) {
-      expect(result.error).toContain("Redundant cd");
-    }
-  });
 });

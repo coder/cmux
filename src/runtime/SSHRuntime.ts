@@ -317,7 +317,6 @@ export class SSHRuntime implements Runtime {
       isDirectory: fileType === "directory",
     };
   }
-
   normalizePath(targetPath: string, basePath: string): string {
     // For SSH, handle paths in a POSIX-like manner without accessing the remote filesystem
     const target = targetPath.trim();
