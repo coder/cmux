@@ -66,7 +66,7 @@ async function createTempGitRepoWithInitHook(options: {
 
   let scriptContent: string;
   if (options.customScript) {
-    scriptContent = `#!/usr/bin/env bash\n${options.customScript}\nexit ${options.exitCode}\n`;
+    scriptContent = `#!/bin/bash\n${options.customScript}\nexit ${options.exitCode}\n`;
   } else {
     const sleepCmd = options.sleepBetweenLines ? `sleep ${options.sleepBetweenLines / 1000}` : "";
 
@@ -79,10 +79,13 @@ async function createTempGitRepoWithInitHook(options: {
 
     const stderrCmds = (options.stderrLines ?? []).map((line) => `echo "${line}" >&2`).join("\n");
 
-    scriptContent = `#!/usr/bin/env bash\n${stdoutCmds}\n${stderrCmds}\nexit ${options.exitCode}\n`;
+    scriptContent = `#!/bin/bash\n${stdoutCmds}\n${stderrCmds}\nexit ${options.exitCode}\n`;
   }
 
   await fs.writeFile(hookPath, scriptContent, { mode: 0o755 });
+
+  // Commit the init hook (required for SSH runtime - git worktree syncs committed files)
+  await execAsync(`git add -A && git commit -m "Add init hook"`, { cwd: tempDir });
 
   return tempDir;
 }
