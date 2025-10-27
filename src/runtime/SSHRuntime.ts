@@ -706,18 +706,6 @@ export class SSHRuntime implements Runtime {
       // Note: We've already created local branches for all remote refs in syncProjectToRemote
       initLogger.logStep(`Checking out branch: ${branchName}`);
 
-      // DEBUG: Log git state after clone
-      initLogger.logStep(`[DEBUG] Inspecting git state after clone...`);
-      const debugStream = await this.exec(
-        `echo "=== Current branch ===" && git branch && echo "=== All branches ===" && git branch -a && echo "=== HEAD ===" && git rev-parse HEAD && echo "=== Files ===" && ls -la`,
-        { cwd: workspacePath, timeout: 30 }
-      );
-      const [debugOut] = await Promise.all([
-        streamToString(debugStream.stdout),
-        debugStream.exitCode,
-      ]);
-      initLogger.logStdout(debugOut);
-
       // Try to checkout existing branch, or create new branch from trunk
       // Since we've created local branches for all remote refs, we can use branch names directly
       const checkoutCmd = `git checkout ${shescape.quote(branchName)} 2>/dev/null || git checkout -b ${shescape.quote(branchName)} ${shescape.quote(trunkBranch)}`;
@@ -743,18 +731,6 @@ export class SSHRuntime implements Runtime {
         };
       }
       initLogger.logStep("Branch checked out successfully");
-
-      // DEBUG: Log git state after checkout
-      initLogger.logStep(`[DEBUG] Inspecting git state after checkout...`);
-      const debugStream2 = await this.exec(
-        `echo "=== Current branch ===" && git branch && echo "=== HEAD ===" && git rev-parse HEAD && echo "=== Files ===" && ls -la && echo "=== Last commits ===" && git log --oneline -5`,
-        { cwd: workspacePath, timeout: 30 }
-      );
-      const [debugOut2] = await Promise.all([
-        streamToString(debugStream2.stdout),
-        debugStream2.exitCode,
-      ]);
-      initLogger.logStdout(debugOut2);
 
       // 3. Run .cmux/init hook if it exists
       // Note: runInitHook calls logComplete() internally if hook exists
