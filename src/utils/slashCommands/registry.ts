@@ -515,8 +515,7 @@ const newCommandDefinition: SlashCommandDefinition = {
 
     // Check for unknown flags - return undefined workspaceName to open modal
     const unknownFlags = firstLineTokens.filter(
-      (token) =>
-        token.startsWith("-") && token !== "-t" && token !== "-m" && token !== "-r"
+      (token) => token.startsWith("-") && token !== "-t" && token !== "-m" && token !== "-r"
     );
     if (unknownFlags.length > 0) {
       return {
