@@ -78,6 +78,7 @@
         "electron-builder": "^24.6.0",
         "electron-devtools-installer": "^4.0.0",
         "electron-mock-ipc": "^0.3.12",
+        "esbuild": "^0.25.11",
         "escape-html": "^1.0.3",
         "eslint": "^9.36.0",
         "eslint-plugin-react": "^7.37.5",
