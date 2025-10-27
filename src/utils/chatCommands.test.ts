@@ -18,7 +18,7 @@ describe("parseRuntimeString", () => {
     expect(result).toEqual({
       type: "ssh",
       host: "user@host",
-      srcBaseDir: "/home/user/cmux",
+      srcBaseDir: "~/cmux",
     });
   });
 
@@ -27,7 +27,7 @@ describe("parseRuntimeString", () => {
     expect(result).toEqual({
       type: "ssh",
       host: "User@Host.Example.Com",
-      srcBaseDir: "/home/User/cmux",
+      srcBaseDir: "~/cmux",
     });
   });
 
@@ -36,7 +36,7 @@ describe("parseRuntimeString", () => {
     expect(result).toEqual({
       type: "ssh",
       host: "user@host",
-      srcBaseDir: "/home/user/cmux",
+      srcBaseDir: "~/cmux",
     });
   });
 
@@ -47,34 +47,31 @@ describe("parseRuntimeString", () => {
 
   test("accepts SSH with hostname only (user will be inferred)", () => {
     const result = parseRuntimeString("ssh hostname", workspaceName);
-    // When no user is specified, uses current user (process.env.USER)
-    const expectedUser = process.env.USER ?? "user";
-    const expectedHomeDir = expectedUser === "root" ? "/root" : `/home/${expectedUser}`;
+    // Uses tilde path - backend will resolve it via runtime.resolvePath()
     expect(result).toEqual({
       type: "ssh",
       host: "hostname",
-      srcBaseDir: `${expectedHomeDir}/cmux`,
+      srcBaseDir: "~/cmux",
     });
   });
 
   test("accepts SSH with hostname.domain only", () => {
     const result = parseRuntimeString("ssh dev.example.com", workspaceName);
-    // When no user is specified, uses current user (process.env.USER)
-    const expectedUser = process.env.USER ?? "user";
-    const expectedHomeDir = expectedUser === "root" ? "/root" : `/home/${expectedUser}`;
+    // Uses tilde path - backend will resolve it via runtime.resolvePath()
     expect(result).toEqual({
       type: "ssh",
       host: "dev.example.com",
-      srcBaseDir: `${expectedHomeDir}/cmux`,
+      srcBaseDir: "~/cmux",
     });
   });
 
-  test("uses /root for root user", () => {
+  test("uses tilde path for root user too", () => {
     const result = parseRuntimeString("ssh root@hostname", workspaceName);
+    // Backend will resolve ~ to /root for root user
     expect(result).toEqual({
       type: "ssh",
       host: "root@hostname",
-      srcBaseDir: "/root/cmux",
+      srcBaseDir: "~/cmux",
     });
   });
 
