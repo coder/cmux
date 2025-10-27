@@ -64,7 +64,7 @@ export function validateFileSize(stats: FileStat): { error: string } | null {
 export function validateNoRedundantPrefix(
   filePath: string,
   cwd: string,
-  runtime: Runtime
+  _runtime: Runtime
 ): { error: string } | null {
   // Only check absolute paths (start with /) - relative paths are fine
   // This works for both local and SSH since both use Unix-style paths
@@ -79,10 +79,7 @@ export function validateNoRedundantPrefix(
   // Check if the absolute path starts with the cwd
   // Use startsWith + check for path separator to avoid partial matches
   // e.g., /workspace/project should match /workspace/project/src but not /workspace/project2
-  if (
-    normalizedPath === normalizedCwd ||
-    normalizedPath.startsWith(normalizedCwd + "/")
-  ) {
+  if (normalizedPath === normalizedCwd || normalizedPath.startsWith(normalizedCwd + "/")) {
     // Calculate what the relative path would be
     const relativePath =
       normalizedPath === normalizedCwd ? "." : normalizedPath.substring(normalizedCwd.length + 1);
