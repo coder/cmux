@@ -104,6 +104,8 @@ function validateTodos(todos: TodoItem[]): void {
 async function writeTodos(tempDir: string, todos: TodoItem[]): Promise<void> {
   validateTodos(todos);
   const todoFile = getTodoFilePath(tempDir);
+  // Ensure directory exists before writing (SSH runtime might not have created it yet)
+  await fs.mkdir(tempDir, { recursive: true });
   await fs.writeFile(todoFile, JSON.stringify(todos, null, 2), "utf-8");
 }
 

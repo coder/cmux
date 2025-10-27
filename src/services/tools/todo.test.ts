@@ -209,6 +209,37 @@ describe("Todo Storage", () => {
       await setTodosForTempDir(runtimeTempDir, todos);
       expect(await getTodosForTempDir(runtimeTempDir)).toEqual(todos);
     });
+
+    it("should create directory if it doesn't exist", async () => {
+      // Use a non-existent nested directory path
+      const nonExistentDir = path.join(os.tmpdir(), "todo-nonexistent-test", "nested", "path");
+
+      try {
+        const todos: TodoItem[] = [
+          {
+            content: "Test task",
+            status: "pending",
+          },
+        ];
+
+        // Should not throw even though directory doesn't exist
+        await setTodosForTempDir(nonExistentDir, todos);
+
+        // Verify the file was created and is readable
+        const retrievedTodos = await getTodosForTempDir(nonExistentDir);
+        expect(retrievedTodos).toEqual(todos);
+
+        // Verify the directory was actually created
+        const dirStats = await fs.stat(nonExistentDir);
+        expect(dirStats.isDirectory()).toBe(true);
+      } finally {
+        // Clean up the created directory
+        await fs.rm(path.join(os.tmpdir(), "todo-nonexistent-test"), {
+          recursive: true,
+          force: true,
+        });
+      }
+    });
   });
 
   describe("getTodosForTempDir", () => {
