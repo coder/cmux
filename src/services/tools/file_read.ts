@@ -1,5 +1,4 @@
 import { tool } from "ai";
-import * as path from "path";
 import type { FileReadToolResult } from "@/types/tools";
 import type { ToolConfiguration, ToolFactory } from "@/utils/tools/tools";
 import { TOOL_DEFINITIONS } from "@/utils/tools/toolDefinitions";
@@ -31,10 +30,8 @@ export const createFileReadTool: ToolFactory = (config: ToolConfiguration) => {
           };
         }
 
-        // Resolve relative paths from configured working directory
-        const resolvedPath = path.isAbsolute(filePath)
-          ? filePath
-          : path.resolve(config.cwd, filePath);
+        // Use runtime's normalizePath method to resolve paths correctly for both local and SSH runtimes
+        const resolvedPath = config.runtime.normalizePath(filePath, config.cwd);
 
         // Check if file exists using runtime
         let fileStat;

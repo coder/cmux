@@ -484,6 +484,99 @@ describeIntegration("Runtime File Editing Tools", () => {
         },
         type === "ssh" ? TEST_TIMEOUT_SSH_MS : TEST_TIMEOUT_LOCAL_MS
       );
+
+      test.concurrent(
+        "should handle relative paths correctly when editing files",
+        async () => {
+          const env = await createTestEnvironment();
+          const tempGitRepo = await createTempGitRepo();
+
+          try {
+            // Setup provider
+            await setupProviders(env.mockIpcRenderer, {
+              anthropic: {
+                apiKey: getApiKey("ANTHROPIC_API_KEY"),
+              },
+            });
+
+            // Create workspace
+            const branchName = generateBranchName("relative-path-test");
+            const runtimeConfig = getRuntimeConfig(branchName);
+            const { workspaceId, cleanup } = await createWorkspaceHelper(
+              env,
+              tempGitRepo,
+              branchName,
+              runtimeConfig,
+              type === "ssh"
+            );
+
+            try {
+              const streamTimeout =
+                type === "ssh" ? STREAM_TIMEOUT_SSH_MS : STREAM_TIMEOUT_LOCAL_MS;
+
+              // Create a file using AI with a relative path
+              const relativeTestFile = "subdir/relative_test.txt";
+              const createEvents = await sendMessageAndWait(
+                env,
+                workspaceId,
+                `Create a file at path "${relativeTestFile}" with content: "Original content"`,
+                streamTimeout
+              );
+
+              // Verify file was created successfully
+              const createStreamEnd = createEvents.find(
+                (e) => "type" in e && e.type === "stream-end"
+              );
+              expect(createStreamEnd).toBeDefined();
+              expect((createStreamEnd as any).error).toBeUndefined();
+
+              // Now edit the file using a relative path
+              const editEvents = await sendMessageAndWait(
+                env,
+                workspaceId,
+                `Replace the text in ${relativeTestFile}: change "Original" to "Modified"`,
+                streamTimeout
+              );
+
+              // Verify edit was successful
+              const editStreamEnd = editEvents.find((e) => "type" in e && e.type === "stream-end");
+              expect(editStreamEnd).toBeDefined();
+              expect((editStreamEnd as any).error).toBeUndefined();
+
+              // Verify file_edit_replace_string tool was called
+              const toolCalls = editEvents.filter(
+                (e) => "type" in e && e.type === "tool-call-start"
+              );
+              const editCall = toolCalls.find(
+                (e: any) => e.toolName === "file_edit_replace_string"
+              );
+              expect(editCall).toBeDefined();
+
+              // Read the file to verify the edit was applied
+              const readEvents = await sendMessageAndWait(
+                env,
+                workspaceId,
+                `Read the file ${relativeTestFile} and tell me its content`,
+                streamTimeout
+              );
+
+              const responseText = extractTextFromEvents(readEvents);
+              // The file should contain "Modified" not "Original"
+              expect(responseText.toLowerCase()).toContain("modified");
+
+              // If this is SSH, the bug would cause the edit to fail because
+              // path.resolve() would resolve relative to the LOCAL filesystem
+              // instead of the REMOTE filesystem
+            } finally {
+              await cleanup();
+            }
+          } finally {
+            await cleanupTestEnvironment(env);
+            await cleanupTempGitRepo(tempGitRepo);
+          }
+        },
+        type === "ssh" ? TEST_TIMEOUT_SSH_MS : TEST_TIMEOUT_LOCAL_MS
+      );
     }
   );
 });
