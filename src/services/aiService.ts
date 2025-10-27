@@ -12,7 +12,7 @@ import type { CmuxMessage, CmuxTextPart } from "@/types/message";
 import { createCmuxMessage } from "@/types/message";
 import type { Config } from "@/config";
 import { StreamManager } from "./streamManager";
-import { InitStateManager } from "./initStateManager";
+import type { InitStateManager } from "./initStateManager";
 import type { SendMessageError } from "@/types/errors";
 import { getToolsForModel } from "@/utils/tools/tools";
 import { createRuntime } from "@/runtime/runtimeFactory";

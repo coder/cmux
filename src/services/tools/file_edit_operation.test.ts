@@ -1,7 +1,6 @@
 import { describe, test, expect, jest } from "@jest/globals";
 import { executeFileEditOperation } from "./file_edit_operation";
 import { WRITE_DENIED_PREFIX } from "@/types/tools";
-import { createRuntime } from "@/runtime/runtimeFactory";
 import type { Runtime } from "@/runtime/Runtime";
 
 import { createTestToolConfig, getTestDeps } from "./testHelpers";

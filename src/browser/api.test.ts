@@ -101,7 +101,6 @@ describe("Browser API invokeIPC", () => {
 
     const invokeIPC = createInvokeIPC(mockFetch);
 
-    // eslint-disable-next-line @typescript-eslint/await-thenable
     await expect(invokeIPC("WORKSPACE_REMOVE", "test-workspace", { force: false })).rejects.toThrow(
       "HTTP error! status: 500"
     );

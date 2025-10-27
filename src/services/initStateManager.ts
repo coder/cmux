@@ -65,10 +65,10 @@ export class InitStateManager extends EventEmitter {
    * Each running init has a promise that resolves when endInit() is called.
    * Multiple tools can await the same promise without race conditions.
    */
-  private readonly initPromises: Map<
+  private readonly initPromises = new Map<
     string,
     { promise: Promise<void>; resolve: () => void; reject: (error: Error) => void }
-  > = new Map();
+  >();
 
   constructor(config: Config) {
     super();

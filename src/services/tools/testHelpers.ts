@@ -35,16 +35,12 @@ let testConfig: Config | null = null;
 let testInitStateManager: InitStateManager | null = null;
 
 function getTestConfig(): Config {
-  if (!testConfig) {
-    testConfig = new Config();
-  }
+  testConfig ??= new Config();
   return testConfig;
 }
 
 function getTestInitStateManager(): InitStateManager {
-  if (!testInitStateManager) {
-    testInitStateManager = new InitStateManager(getTestConfig());
-  }
+  testInitStateManager ??= new InitStateManager(getTestConfig());
   return testInitStateManager;
 }
 
