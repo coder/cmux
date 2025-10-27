@@ -2,10 +2,8 @@ import * as fs from "fs/promises";
 import * as path from "path";
 import * as os from "os";
 import {
-  readFirstAvailableFile,
   readInstructionSet,
   gatherInstructionSets,
-  INSTRUCTION_FILE_NAMES,
 } from "./instructionFiles";
 
 describe("instructionFiles", () => {
@@ -17,36 +15,6 @@ describe("instructionFiles", () => {
 
   afterEach(async () => {
     await fs.rm(tempDir, { recursive: true, force: true });
-  });
-
-  describe("readFirstAvailableFile", () => {
-    it("should return null when no files exist", async () => {
-      const result = await readFirstAvailableFile(tempDir, INSTRUCTION_FILE_NAMES);
-      expect(result).toBeNull();
-    });
-
-    it("should return content of first available file in priority order", async () => {
-      await fs.writeFile(path.join(tempDir, "AGENT.md"), "agent content");
-      await fs.writeFile(path.join(tempDir, "CLAUDE.md"), "claude content");
-
-      const result = await readFirstAvailableFile(tempDir, INSTRUCTION_FILE_NAMES);
-      expect(result).toBe("agent content");
-    });
-
-    it("should prefer AGENTS.md over AGENT.md", async () => {
-      await fs.writeFile(path.join(tempDir, "AGENTS.md"), "agents content");
-      await fs.writeFile(path.join(tempDir, "AGENT.md"), "agent content");
-
-      const result = await readFirstAvailableFile(tempDir, INSTRUCTION_FILE_NAMES);
-      expect(result).toBe("agents content");
-    });
-
-    it("should fall back to lower priority files", async () => {
-      await fs.writeFile(path.join(tempDir, "CLAUDE.md"), "claude content");
-
-      const result = await readFirstAvailableFile(tempDir, INSTRUCTION_FILE_NAMES);
-      expect(result).toBe("claude content");
-    });
   });
 
   describe("readInstructionSet", () => {
