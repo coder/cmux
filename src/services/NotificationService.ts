@@ -10,15 +10,15 @@ import { log } from "./log.js";
  * - Web/Mobile: Sends web push notifications to subscribed clients
  */
 export class NotificationService {
-  private isDesktop: boolean;
+  private readonly isDesktop: boolean;
   private vapidKeys: VapidKeys | null = null;
   private subscriptions = new Map<string, PushSubscription[]>(); // workspaceId -> subscriptions
-  private vapidKeysPath: string;
+  private readonly vapidKeysPath: string;
 
   constructor(configDir: string, isDesktop: boolean) {
     this.isDesktop = isDesktop;
     this.vapidKeysPath = path.join(configDir, "vapid.json");
-    
+
     // Load or generate VAPID keys for web push
     if (!isDesktop) {
       this.initializeVapidKeys();
@@ -28,11 +28,15 @@ export class NotificationService {
   /**
    * Initialize VAPID keys for web push authentication
    * Generates new keys if they don't exist, otherwise loads from disk
+   * Note: Uses sync fs methods during startup initialization (before async operations start)
    */
   private initializeVapidKeys(): void {
     try {
+      // eslint-disable-next-line local/no-sync-fs-methods -- Startup initialization needs sync
       if (fs.existsSync(this.vapidKeysPath)) {
+        // eslint-disable-next-line local/no-sync-fs-methods -- Startup initialization needs sync
         const keysJson = fs.readFileSync(this.vapidKeysPath, "utf-8");
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- JSON parse is safe for VAPID keys
         this.vapidKeys = JSON.parse(keysJson);
         log.info("Loaded existing VAPID keys");
       } else {
@@ -41,6 +45,7 @@ export class NotificationService {
           publicKey: keys.publicKey,
           privateKey: keys.privateKey,
         };
+        // eslint-disable-next-line local/no-sync-fs-methods -- Startup initialization needs sync
         fs.writeFileSync(this.vapidKeysPath, JSON.stringify(this.vapidKeys, null, 2));
         log.info("Generated and saved new VAPID keys");
       }
@@ -70,9 +75,9 @@ export class NotificationService {
    */
   subscribePush(workspaceId: string, subscription: PushSubscription): void {
     const existing = this.subscriptions.get(workspaceId) ?? [];
-    
+
     // Check if subscription already exists (by endpoint)
-    const isDuplicate = existing.some(sub => sub.endpoint === subscription.endpoint);
+    const isDuplicate = existing.some((sub) => sub.endpoint === subscription.endpoint);
     if (isDuplicate) {
       log.debug(`Subscription already exists for workspace ${workspaceId}`);
       return;
@@ -88,8 +93,8 @@ export class NotificationService {
    */
   unsubscribePush(workspaceId: string, endpoint: string): void {
     const existing = this.subscriptions.get(workspaceId) ?? [];
-    const filtered = existing.filter(sub => sub.endpoint !== endpoint);
-    
+    const filtered = existing.filter((sub) => sub.endpoint !== endpoint);
+
     if (filtered.length < existing.length) {
       this.subscriptions.set(workspaceId, filtered);
       log.info(`Removed push subscription for workspace ${workspaceId}`);
@@ -135,16 +140,16 @@ export class NotificationService {
     });
 
     const results = await Promise.allSettled(sendPromises);
-    
+
     // Remove failed subscriptions
     const validSubscriptions = results
-      .filter((result, index) => {
+      .filter((result) => {
         if (result.status === "fulfilled" && result.value.success) {
           return true;
         }
         return false;
       })
-      .map((result, index) => subscriptions[index]);
+      .map((_result, index) => subscriptions[index]);
 
     this.subscriptions.set(workspaceId, validSubscriptions);
   }

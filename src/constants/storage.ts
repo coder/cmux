@@ -84,7 +84,6 @@ export const USE_1M_CONTEXT_KEY = "use1MContext";
  */
 export const NOTIFICATION_ENABLED_KEY = "notifications:completionEnabled";
 
-
 /**
  * Get the localStorage key for the preferred compaction model (global)
  * Format: "preferredCompactionModel"

@@ -421,16 +421,14 @@ export function buildCoreSources(p: BuildSourcesParams): Array<() => CommandActi
   // Settings
   actions.push(() => {
     const notificationsEnabled = readPersistedState(NOTIFICATION_ENABLED_KEY, false);
-    
+
     return [
       {
         id: "settings:toggle-notifications",
         title: notificationsEnabled
           ? "Disable Completion Notifications"
           : "Enable Completion Notifications",
-        subtitle: notificationsEnabled
-          ? "Currently enabled"
-          : "Get notified when streams complete",
+        subtitle: notificationsEnabled ? "Currently enabled" : "Get notified when streams complete",
         section: section.settings,
         run: async () => {
           const newValue = !notificationsEnabled;

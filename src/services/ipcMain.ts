@@ -1179,7 +1179,6 @@ export class IpcMain {
     });
   }
 
-
   private registerNotificationHandlers(ipcMain: ElectronIpcMain): void {
     // Get VAPID public key for push subscription
     ipcMain.handle(IPC_CHANNELS.NOTIFICATION_GET_VAPID_KEY, () => {
@@ -1216,7 +1215,8 @@ export class IpcMain {
       async (_event, workspaceId: string, workspaceName: string) => {
         try {
           if (this.isDesktop) {
-            // For desktop, we'll import Notification dynamically and show it
+            // Dynamic import required: can't statically import electron in server mode
+            // eslint-disable-next-line no-restricted-syntax -- Dynamic import necessary for server compatibility
             const { Notification } = await import("electron");
             const notification = new Notification({
               title: "Completion",
