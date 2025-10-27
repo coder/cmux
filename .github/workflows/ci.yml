@@ -97,7 +97,8 @@ jobs:
       - uses: ./.github/actions/setup-cmux
 
       - name: Run integration tests with coverage
-        run: TEST_INTEGRATION=1 bun x jest --coverage --maxWorkers=200% --silent ${{ github.event.inputs.test_filter || 'tests' }}
+        # --silent suppresses per-test output (17 test files × 32 workers = overwhelming logs)
+        run: TEST_INTEGRATION=1 bun x jest --coverage --maxWorkers=100% --silent ${{ github.event.inputs.test_filter || 'tests' }}
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
