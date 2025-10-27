@@ -1,7 +1,7 @@
 import * as fs from "fs/promises";
 import * as path from "path";
 import * as os from "os";
-import { describe, it, expect, beforeEach, afterEach } from "@jest/globals";
+import { describe, it, expect, beforeEach, afterEach } from "bun:test";
 import { Config } from "@/config";
 import { InitStateManager } from "./initStateManager";
 import type { WorkspaceInitEvent } from "@/types/ipc";

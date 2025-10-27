@@ -6,7 +6,7 @@
  * The hook itself is a thin wrapper around usePersistedState with manual testing.
  */
 
-import { describe, it, expect } from "@jest/globals";
+import { describe, it, expect } from "bun:test";
 import type { HunkReadState } from "@/types/review";
 import { evictOldestReviews } from "./useReviewState";
 

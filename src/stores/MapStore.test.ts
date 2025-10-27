@@ -1,4 +1,4 @@
-import { describe, test, expect, beforeEach } from "@jest/globals";
+import { describe, test, expect, beforeEach } from "bun:test";
 import { MapStore } from "./MapStore";
 
 describe("MapStore", () => {

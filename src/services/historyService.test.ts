@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from "@jest/globals";
+import { describe, it, expect, beforeEach, afterEach } from "bun:test";
 import { HistoryService } from "./historyService";
 import { Config } from "@/config";
 import { createCmuxMessage } from "@/types/message";

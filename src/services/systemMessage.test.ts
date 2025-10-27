@@ -3,7 +3,7 @@ import * as os from "os";
 import * as path from "path";
 import { buildSystemMessage } from "./systemMessage";
 import type { WorkspaceMetadata } from "@/types/workspace";
-import { describe, test, expect, beforeEach, afterEach, jest } from "@jest/globals";
+import { describe, test, expect, beforeEach, afterEach, spyOn, type Mock } from "bun:test";
 import { LocalRuntime } from "@/runtime/LocalRuntime";
 
 describe("buildSystemMessage", () => {
@@ -11,7 +11,7 @@ describe("buildSystemMessage", () => {
   let projectDir: string;
   let workspaceDir: string;
   let globalDir: string;
-  let mockHomedir: jest.SpiedFunction<typeof os.homedir>;
+  let mockHomedir: Mock<typeof os.homedir>;
   let runtime: LocalRuntime;
 
   beforeEach(async () => {
@@ -25,7 +25,7 @@ describe("buildSystemMessage", () => {
     await fs.mkdir(globalDir, { recursive: true });
 
     // Mock homedir to return our test directory (getSystemDirectory will append .cmux)
-    mockHomedir = jest.spyOn(os, "homedir");
+    mockHomedir = spyOn(os, "homedir");
     mockHomedir.mockReturnValue(tempDir);
 
     // Create a local runtime for tests
