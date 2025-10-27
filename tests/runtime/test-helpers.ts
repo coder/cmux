@@ -3,6 +3,7 @@
  */
 
 import * as fs from "fs/promises";
+import { realpathSync } from "fs";
 import * as os from "os";
 import * as path from "path";
 import type { Runtime } from "@/runtime/Runtime";
@@ -25,7 +26,9 @@ export function createTestRuntime(
 ): Runtime {
   switch (type) {
     case "local":
-      return new LocalRuntime(workdir);
+      // Resolve symlinks (e.g., /tmp -> /private/tmp on macOS) to match git worktree paths
+      const resolvedWorkdir = realpathSync(workdir);
+      return new LocalRuntime(resolvedWorkdir);
     case "ssh":
       if (!sshConfig) {
         throw new Error("SSH config required for SSH runtime");
@@ -81,7 +84,9 @@ export class TestWorkspace {
       return new TestWorkspace(runtime, workspacePath, true);
     } else {
       // For local, use temp directory
-      const workspacePath = await fs.mkdtemp(path.join(os.tmpdir(), "runtime-test-"));
+      // Resolve symlinks (e.g., /tmp -> /private/tmp on macOS) to avoid git worktree path mismatches
+      const tempPath = await fs.mkdtemp(path.join(os.tmpdir(), "runtime-test-"));
+      const workspacePath = await fs.realpath(tempPath);
       return new TestWorkspace(runtime, workspacePath, false);
     }
   }

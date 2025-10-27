@@ -350,7 +350,9 @@ blockquote:has(p:first-child > strong:first-child:is([class*="Note"], [class*="n
 blockquote > p:first-child:has(strong:first-child:is([class*="Note"], [class*="note"])) {
   border-left-color: hsl(210 70% 50%);
 }
-blockquote:has(p:first-child > strong:first-child:is([class*="Note"], [class*="note"])) p:first-child strong:first-child,
+blockquote:has(p:first-child > strong:first-child:is([class*="Note"], [class*="note"]))
+  p:first-child
+  strong:first-child,
 blockquote > p:first-child strong:first-child:is([class*="Note"], [class*="note"]) {
   color: hsl(210 70% 60%) !important;
 }
@@ -360,7 +362,9 @@ blockquote:has(p:first-child > strong:first-child:is([class*="Tip"], [class*="TI
 blockquote > p:first-child:has(strong:first-child:is([class*="Tip"], [class*="TIP"])) {
   border-left-color: hsl(120 50% 45%);
 }
-blockquote:has(p:first-child > strong:first-child:is([class*="Tip"], [class*="TIP"])) p:first-child strong:first-child,
+blockquote:has(p:first-child > strong:first-child:is([class*="Tip"], [class*="TIP"]))
+  p:first-child
+  strong:first-child,
 blockquote > p:first-child strong:first-child:is([class*="Tip"], [class*="TIP"]) {
   color: hsl(120 50% 55%) !important;
 }
@@ -370,7 +374,9 @@ blockquote:has(p:first-child > strong:first-child:is([class*="Important"], [clas
 blockquote > p:first-child:has(strong:first-child:is([class*="Important"], [class*="IMPORTANT"])) {
   border-left-color: hsl(268 94% 60%);
 }
-blockquote:has(p:first-child > strong:first-child:is([class*="Important"], [class*="IMPORTANT"])) p:first-child strong:first-child,
+blockquote:has(p:first-child > strong:first-child:is([class*="Important"], [class*="IMPORTANT"]))
+  p:first-child
+  strong:first-child,
 blockquote > p:first-child strong:first-child:is([class*="Important"], [class*="IMPORTANT"]) {
   color: hsl(268 94% 65%) !important;
 }
@@ -380,7 +386,9 @@ blockquote:has(p:first-child > strong:first-child:is([class*="Warning"], [class*
 blockquote > p:first-child:has(strong:first-child:is([class*="Warning"], [class*="WARNING"])) {
   border-left-color: hsl(38 92% 50%);
 }
-blockquote:has(p:first-child > strong:first-child:is([class*="Warning"], [class*="WARNING"])) p:first-child strong:first-child,
+blockquote:has(p:first-child > strong:first-child:is([class*="Warning"], [class*="WARNING"]))
+  p:first-child
+  strong:first-child,
 blockquote > p:first-child strong:first-child:is([class*="Warning"], [class*="WARNING"]) {
   color: hsl(38 92% 60%) !important;
 }
@@ -390,7 +398,9 @@ blockquote:has(p:first-child > strong:first-child:is([class*="Caution"], [class*
 blockquote > p:first-child:has(strong:first-child:is([class*="Caution"], [class*="CAUTION"])) {
   border-left-color: hsl(0 70% 55%);
 }
-blockquote:has(p:first-child > strong:first-child:is([class*="Caution"], [class*="CAUTION"])) p:first-child strong:first-child,
+blockquote:has(p:first-child > strong:first-child:is([class*="Caution"], [class*="CAUTION"]))
+  p:first-child
+  strong:first-child,
 blockquote > p:first-child strong:first-child:is([class*="Caution"], [class*="CAUTION"]) {
   color: hsl(0 70% 60%) !important;
 }

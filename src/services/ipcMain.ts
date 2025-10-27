@@ -1,7 +1,6 @@
 import assert from "@/utils/assert";
 import type { BrowserWindow, IpcMain as ElectronIpcMain } from "electron";
 import { spawn, spawnSync } from "child_process";
-import * as fs from "fs";
 import * as fsPromises from "fs/promises";
 import * as path from "path";
 import type { Config, ProjectConfig } from "@/config";
@@ -12,6 +11,8 @@ import { PartialService } from "@/services/partialService";
 import { AgentSession } from "@/services/agentSession";
 import type { CmuxMessage } from "@/types/message";
 import { log } from "@/services/log";
+import { countTokens, countTokensBatch } from "@/utils/main/tokenizer";
+import { calculateTokenStats } from "@/utils/tokens/tokenStatsCalculator";
 import { IPC_CHANNELS, getChatChannel } from "@/constants/ipc-constants";
 import type { SendMessageError } from "@/types/errors";
 import type { SendMessageOptions, DeleteMessage } from "@/types/ipc";
@@ -22,7 +23,6 @@ import { createBashTool } from "@/services/tools/bash";
 import type { BashToolResult } from "@/types/tools";
 import { secretsToRecord } from "@/types/secrets";
 import { DisposableTempDir } from "@/services/tempDir";
-import { BashExecutionService } from "@/services/bashExecutionService";
 import { InitStateManager } from "@/services/initStateManager";
 import { createRuntime } from "@/runtime/runtimeFactory";
 import type { RuntimeConfig } from "@/types/runtime";
@@ -45,7 +45,6 @@ export class IpcMain {
   private readonly historyService: HistoryService;
   private readonly partialService: PartialService;
   private readonly aiService: AIService;
-  private readonly bashService: BashExecutionService;
   private readonly initStateManager: InitStateManager;
   private readonly sessions = new Map<string, AgentSession>();
   private readonly sessionSubscriptions = new Map<
@@ -54,75 +53,6 @@ export class IpcMain {
   >();
   private mainWindow: BrowserWindow | null = null;
 
-  // Run optional .cmux/init hook for a newly created workspace and stream its output
-  private async startWorkspaceInitHook(params: {
-    projectPath: string;
-    worktreePath: string;
-    workspaceId: string;
-  }): Promise<void> {
-    const { projectPath, worktreePath, workspaceId } = params;
-    const hookPath = path.join(projectPath, ".cmux", "init");
-
-    // Check if hook exists and is executable
-    const exists = await fsPromises
-      .access(hookPath, fs.constants.X_OK)
-      .then(() => true)
-      .catch(() => false);
-
-    if (!exists) {
-      log.debug(`No init hook found at ${hookPath}`);
-      return; // Nothing to do
-    }
-
-    log.info(`Starting init hook for workspace ${workspaceId}: ${hookPath}`);
-
-    // Start init hook tracking (creates in-memory state + emits init-start event)
-    // This MUST complete before we return so replayInit() finds state
-    this.initStateManager.startInit(workspaceId, hookPath);
-
-    // Launch the hook process (don't await completion)
-    void (() => {
-      try {
-        const startTime = Date.now();
-
-        // Execute init hook through centralized bash service
-        // Quote path to handle spaces and special characters
-        this.bashService.executeStreaming(
-          `"${hookPath}"`,
-          {
-            cwd: worktreePath,
-            detached: false, // Don't need process group for simple script execution
-          },
-          {
-            onStdout: (line) => {
-              this.initStateManager.appendOutput(workspaceId, line, false);
-            },
-            onStderr: (line) => {
-              this.initStateManager.appendOutput(workspaceId, line, true);
-            },
-            onExit: (exitCode) => {
-              const duration = Date.now() - startTime;
-              const status = exitCode === 0 ? "success" : "error";
-              log.info(
-                `Init hook ${status} for workspace ${workspaceId} (exit code ${exitCode}, duration ${duration}ms)`
-              );
-              // Finalize init state (automatically emits init-end event and persists to disk)
-              void this.initStateManager.endInit(workspaceId, exitCode);
-            },
-          }
-        );
-      } catch (error) {
-        log.error(`Failed to run init hook for workspace ${workspaceId}:`, error);
-        // Report error through init state manager
-        this.initStateManager.appendOutput(
-          workspaceId,
-          error instanceof Error ? error.message : String(error),
-          true
-        );
-        void this.initStateManager.endInit(workspaceId, -1);
-      }
-    })();
-  }
   private registered = false;
 
   constructor(config: Config) {
@@ -136,7 +66,6 @@ export class IpcMain {
       this.partialService,
       this.initStateManager
     );
-    this.bashService = new BashExecutionService();
   }
 
   private getOrCreateSession(workspaceId: string): AgentSession {
@@ -218,6 +147,7 @@ export class IpcMain {
     }
 
     this.registerWindowHandlers(ipcMain);
+    this.registerTokenizerHandlers(ipcMain);
     this.registerWorkspaceHandlers(ipcMain);
     this.registerProviderHandlers(ipcMain);
     this.registerProjectHandlers(ipcMain);
@@ -230,6 +160,47 @@ export class IpcMain {
       if (!this.mainWindow) return;
       this.mainWindow.setTitle(title);
     });
+  }
+
+  private registerTokenizerHandlers(ipcMain: ElectronIpcMain): void {
+    ipcMain.handle(
+      IPC_CHANNELS.TOKENIZER_COUNT_TOKENS,
+      async (_event, model: string, input: string) => {
+        assert(
+          typeof model === "string" && model.length > 0,
+          "Tokenizer countTokens requires model name"
+        );
+        assert(typeof input === "string", "Tokenizer countTokens requires text");
+        return countTokens(model, input);
+      }
+    );
+
+    ipcMain.handle(
+      IPC_CHANNELS.TOKENIZER_COUNT_TOKENS_BATCH,
+      async (_event, model: string, texts: unknown[]) => {
+        assert(
+          typeof model === "string" && model.length > 0,
+          "Tokenizer countTokensBatch requires model name"
+        );
+        assert(Array.isArray(texts), "Tokenizer countTokensBatch requires an array of strings");
+        return countTokensBatch(model, texts as string[]);
+      }
+    );
+
+    ipcMain.handle(
+      IPC_CHANNELS.TOKENIZER_CALCULATE_STATS,
+      async (_event, messages: CmuxMessage[], model: string) => {
+        assert(Array.isArray(messages), "Tokenizer IPC requires an array of messages");
+        assert(typeof model === "string" && model.length > 0, "Tokenizer IPC requires model name");
+
+        try {
+          return await calculateTokenStats(messages, model);
+        } catch (error) {
+          log.error("[IpcMain] Token stats calculation failed", error);
+          throw error;
+        }
+      }
+    );
   }
 
   private registerWorkspaceHandlers(ipcMain: ElectronIpcMain): void {
@@ -692,7 +663,8 @@ export class IpcMain {
           }
           return result;
         } catch (error) {
-          const errorMessage = error instanceof Error ? error.message : String(error);
+          const errorMessage =
+            error instanceof Error ? error.message : JSON.stringify(error, null, 2);
           log.error("Unexpected error in sendMessage handler:", error);
           const sendError: SendMessageError = {
             type: "unknown",

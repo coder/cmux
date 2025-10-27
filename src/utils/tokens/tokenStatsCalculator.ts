@@ -12,12 +12,281 @@ import {
   getTokenizerForModel,
   countTokensForData,
   getToolDefinitionTokens,
+  type Tokenizer,
 } from "@/utils/main/tokenizer";
 import { createDisplayUsage } from "./displayUsage";
 import type { ChatUsageDisplay } from "./usageAggregator";
 
 // Re-export for backward compatibility
 export { createDisplayUsage };
+
+/**
+ * Helper Functions for Token Counting
+ * (Exported for testing)
+ */
+
+/**
+ * Extracts the actual data from nested tool output structure
+ * Tool results have nested structure: { type: "json", value: {...} }
+ */
+export function extractToolOutputData(output: unknown): unknown {
+  if (typeof output === "object" && output !== null && "value" in output) {
+    return (output as { value: unknown }).value;
+  }
+  return output;
+}
+
+/**
+ * Checks if the given data is encrypted web_search results
+ */
+export function isEncryptedWebSearch(toolName: string, data: unknown): boolean {
+  if (toolName !== "web_search" || !Array.isArray(data)) {
+    return false;
+  }
+
+  return data.some(
+    (item: unknown): item is { encryptedContent: string } =>
+      item !== null &&
+      typeof item === "object" &&
+      "encryptedContent" in item &&
+      typeof (item as Record<string, unknown>).encryptedContent === "string"
+  );
+}
+
+/**
+ * Calculates tokens for encrypted web_search content using heuristic
+ * Encrypted content is base64 encoded and then encrypted/compressed
+ * Apply reduction factors:
+ * 1. Remove base64 overhead (multiply by 0.75)
+ * 2. Apply an estimated token reduction factor of 4
+ */
+export function countEncryptedWebSearchTokens(data: unknown[]): number {
+  let encryptedChars = 0;
+  for (const item of data) {
+    if (
+      item !== null &&
+      typeof item === "object" &&
+      "encryptedContent" in item &&
+      typeof (item as Record<string, unknown>).encryptedContent === "string"
+    ) {
+      encryptedChars += (item as { encryptedContent: string }).encryptedContent.length;
+    }
+  }
+  // Use heuristic: encrypted chars * 0.75 for token estimation
+  return Math.ceil(encryptedChars * 0.75);
+}
+
+/**
+ * Counts tokens for tool output, handling special cases like encrypted web_search
+ */
+async function countToolOutputTokens(
+  part: { type: "dynamic-tool"; toolName: string; state: string; output?: unknown },
+  tokenizer: Tokenizer
+): Promise<number> {
+  if (part.state !== "output-available" || !part.output) {
+    return 0;
+  }
+
+  const outputData = extractToolOutputData(part.output);
+
+  // Special handling for web_search encrypted content
+  if (isEncryptedWebSearch(part.toolName, outputData)) {
+    return countEncryptedWebSearchTokens(outputData as unknown[]);
+  }
+
+  // Normal tool results
+  return countTokensForData(outputData, tokenizer);
+}
+
+/**
+ * Represents a single token counting operation
+ */
+export interface TokenCountJob {
+  consumer: string;
+  promise: Promise<number>;
+}
+
+/**
+ * Creates all token counting jobs from messages
+ * Jobs are executed immediately (promises start running)
+ */
+function createTokenCountingJobs(messages: CmuxMessage[], tokenizer: Tokenizer): TokenCountJob[] {
+  const jobs: TokenCountJob[] = [];
+
+  for (const message of messages) {
+    if (message.role === "user") {
+      // User message text - batch all text parts together
+      const textParts = message.parts.filter((p) => p.type === "text");
+      if (textParts.length > 0) {
+        const allText = textParts.map((p) => p.text).join("");
+        jobs.push({
+          consumer: "User",
+          promise: tokenizer.countTokens(allText),
+        });
+      }
+    } else if (message.role === "assistant") {
+      // Assistant text parts - batch together
+      const textParts = message.parts.filter((p) => p.type === "text");
+      if (textParts.length > 0) {
+        const allText = textParts.map((p) => p.text).join("");
+        jobs.push({
+          consumer: "Assistant",
+          promise: tokenizer.countTokens(allText),
+        });
+      }
+
+      // Reasoning parts - batch together
+      const reasoningParts = message.parts.filter((p) => p.type === "reasoning");
+      if (reasoningParts.length > 0) {
+        const allReasoning = reasoningParts.map((p) => p.text).join("");
+        jobs.push({
+          consumer: "Reasoning",
+          promise: tokenizer.countTokens(allReasoning),
+        });
+      }
+
+      // Tool parts - count arguments and results separately
+      for (const part of message.parts) {
+        if (part.type === "dynamic-tool") {
+          // Tool arguments
+          jobs.push({
+            consumer: part.toolName,
+            promise: countTokensForData(part.input, tokenizer),
+          });
+
+          // Tool results (if available)
+          jobs.push({
+            consumer: part.toolName,
+            promise: countToolOutputTokens(part, tokenizer),
+          });
+        }
+      }
+    }
+  }
+
+  return jobs;
+}
+
+/**
+ * Collects all unique tool names from messages
+ */
+export function collectUniqueToolNames(messages: CmuxMessage[]): Set<string> {
+  const toolNames = new Set<string>();
+
+  for (const message of messages) {
+    if (message.role === "assistant") {
+      for (const part of message.parts) {
+        if (part.type === "dynamic-tool") {
+          toolNames.add(part.toolName);
+        }
+      }
+    }
+  }
+
+  return toolNames;
+}
+
+/**
+ * Fetches all tool definitions in parallel
+ * Returns a map of tool name to token count
+ */
+export async function fetchAllToolDefinitions(
+  toolNames: Set<string>,
+  model: string
+): Promise<Map<string, number>> {
+  const entries = await Promise.all(
+    Array.from(toolNames).map(async (toolName) => {
+      const tokens = await getToolDefinitionTokens(toolName, model);
+      return [toolName, tokens] as const;
+    })
+  );
+
+  return new Map(entries);
+}
+
+/**
+ * Metadata that doesn't require async token counting
+ */
+interface SyncMetadata {
+  systemMessageTokens: number;
+  usageHistory: ChatUsageDisplay[];
+}
+
+/**
+ * Extracts synchronous metadata from messages (no token counting needed)
+ */
+export function extractSyncMetadata(messages: CmuxMessage[], model: string): SyncMetadata {
+  let systemMessageTokens = 0;
+  const usageHistory: ChatUsageDisplay[] = [];
+
+  for (const message of messages) {
+    if (message.role === "assistant") {
+      // Accumulate system message tokens
+      if (message.metadata?.systemMessageTokens) {
+        systemMessageTokens += message.metadata.systemMessageTokens;
+      }
+
+      // Store usage history for comparison with estimates
+      if (message.metadata?.usage) {
+        const usage = createDisplayUsage(
+          message.metadata.usage,
+          message.metadata.model ?? model, // Use actual model from request, not UI model
+          message.metadata.providerMetadata
+        );
+        if (usage) {
+          usageHistory.push(usage);
+        }
+      }
+    }
+  }
+
+  return { systemMessageTokens, usageHistory };
+}
+
+/**
+ * Merges token counting results into consumer map
+ * Adds tool definition tokens only once per tool
+ */
+export function mergeResults(
+  jobs: TokenCountJob[],
+  results: number[],
+  toolDefinitions: Map<string, number>,
+  systemMessageTokens: number
+): Map<string, { fixed: number; variable: number }> {
+  const consumerMap = new Map<string, { fixed: number; variable: number }>();
+  const toolsWithDefinitions = new Set<string>();
+
+  // Process all job results
+  for (let i = 0; i < jobs.length; i++) {
+    const job = jobs[i];
+    const tokenCount = results[i];
+
+    if (tokenCount === 0) {
+      continue; // Skip empty results
+    }
+
+    const existing = consumerMap.get(job.consumer) ?? { fixed: 0, variable: 0 };
+
+    // Add tool definition tokens if this is the first time we see this tool
+    let fixedTokens = existing.fixed;
+    if (toolDefinitions.has(job.consumer) && !toolsWithDefinitions.has(job.consumer)) {
+      fixedTokens += toolDefinitions.get(job.consumer)!;
+      toolsWithDefinitions.add(job.consumer);
+    }
+
+    // Add variable tokens
+    const variableTokens = existing.variable + tokenCount;
+
+    consumerMap.set(job.consumer, { fixed: fixedTokens, variable: variableTokens });
+  }
+
+  // Add system message tokens as a consumer if present
+  if (systemMessageTokens > 0) {
+    consumerMap.set("System", { fixed: 0, variable: systemMessageTokens });
+  }
+
+  return consumerMap;
+}
 
 /**
  * Calculate token statistics from raw CmuxMessages
@@ -27,7 +296,10 @@ export { createDisplayUsage };
  * @param model - Model string (e.g., "anthropic:claude-opus-4-1")
  * @returns ChatStats with token breakdown by consumer and usage history
  */
-export function calculateTokenStats(messages: CmuxMessage[], model: string): ChatStats {
+export async function calculateTokenStats(
+  messages: CmuxMessage[],
+  model: string
+): Promise<ChatStats> {
   if (messages.length === 0) {
     return {
       consumers: [],
@@ -40,148 +312,23 @@ export function calculateTokenStats(messages: CmuxMessage[], model: string): Cha
 
   performance.mark("calculateTokenStatsStart");
 
-  const tokenizer = getTokenizerForModel(model);
-  const consumerMap = new Map<string, { fixed: number; variable: number }>();
-  const toolsWithDefinitions = new Set<string>(); // Track which tools have definitions included
-  const usageHistory: ChatUsageDisplay[] = [];
-  let systemMessageTokens = 0; // Accumulate system message tokens across all requests
+  const tokenizer = await getTokenizerForModel(model);
 
-  // Calculate tokens by content producer (User, Assistant, individual tools)
-  // This shows what activities are consuming tokens, useful for debugging costs
-  for (const message of messages) {
-    if (message.role === "user") {
-      // User message text
-      let userTokens = 0;
-      for (const part of message.parts) {
-        if (part.type === "text") {
-          userTokens += tokenizer.countTokens(part.text);
-        }
-      }
+  // Phase 1: Fetch all tool definitions in parallel (first await point)
+  const toolNames = collectUniqueToolNames(messages);
+  const toolDefinitions = await fetchAllToolDefinitions(toolNames, model);
 
-      const existing = consumerMap.get("User") ?? { fixed: 0, variable: 0 };
-      consumerMap.set("User", { fixed: 0, variable: existing.variable + userTokens });
-    } else if (message.role === "assistant") {
-      // Accumulate system message tokens from this request
-      if (message.metadata?.systemMessageTokens) {
-        systemMessageTokens += message.metadata.systemMessageTokens;
-      }
+  // Phase 2: Extract sync metadata (no awaits)
+  const { systemMessageTokens, usageHistory } = extractSyncMetadata(messages, model);
 
-      // Store usage in history for comparison with estimates
-      if (message.metadata?.usage) {
-        const usage = createDisplayUsage(
-          message.metadata.usage,
-          message.metadata.model ?? model, // Use actual model from request, not UI model
-          message.metadata.providerMetadata
-        );
-        if (usage) {
-          usageHistory.push(usage);
-        }
-      }
+  // Phase 3: Create all token counting jobs (promises start immediately)
+  const jobs = createTokenCountingJobs(messages, tokenizer);
 
-      // Count assistant text separately from tools
-      // IMPORTANT: Batch tokenization by type to avoid calling tokenizer for each tiny part
-      // (reasoning messages can have 600+ parts like "I", "'m", " thinking")
+  // Phase 4: Execute all jobs in parallel (second await point)
+  const results = await Promise.all(jobs.map((j) => j.promise));
 
-      // Group and concatenate parts by type
-      const textParts = message.parts.filter((p) => p.type === "text");
-      const reasoningParts = message.parts.filter((p) => p.type === "reasoning");
-
-      // Tokenize text parts once (not per part!)
-      if (textParts.length > 0) {
-        const allText = textParts.map((p) => p.text).join("");
-        const textTokens = tokenizer.countTokens(allText);
-        const existing = consumerMap.get("Assistant") ?? { fixed: 0, variable: 0 };
-        consumerMap.set("Assistant", { fixed: 0, variable: existing.variable + textTokens });
-      }
-
-      // Tokenize reasoning parts once (not per part!)
-      if (reasoningParts.length > 0) {
-        const allReasoning = reasoningParts.map((p) => p.text).join("");
-        const reasoningTokens = tokenizer.countTokens(allReasoning);
-        const existing = consumerMap.get("Reasoning") ?? { fixed: 0, variable: 0 };
-        consumerMap.set("Reasoning", { fixed: 0, variable: existing.variable + reasoningTokens });
-      }
-
-      // Handle tool parts
-      for (const part of message.parts) {
-        if (part.type === "dynamic-tool") {
-          // Count tool arguments
-          const argsTokens = countTokensForData(part.input, tokenizer);
-
-          // Count tool results if available
-          // Tool results have nested structure: { type: "json", value: {...} }
-          let resultTokens = 0;
-          if (part.state === "output-available" && part.output) {
-            // Extract the actual data from the nested output structure
-            const outputData =
-              typeof part.output === "object" && part.output !== null && "value" in part.output
-                ? part.output.value
-                : part.output;
-
-            // Special handling for web_search encrypted content
-            if (part.toolName === "web_search" && Array.isArray(outputData)) {
-              // Check if this is encrypted web search results
-              const hasEncryptedContent = outputData.some(
-                (item: unknown): item is { encryptedContent: string } =>
-                  item !== null &&
-                  typeof item === "object" &&
-                  "encryptedContent" in item &&
-                  typeof (item as Record<string, unknown>).encryptedContent === "string"
-              );
-
-              if (hasEncryptedContent) {
-                // Calculate tokens for encrypted content with heuristic
-                // Encrypted content is base64 encoded and then encrypted/compressed
-                // Apply reduction factors:
-                // 1. Remove base64 overhead (multiply by 0.75)
-                // 2. Apply an estimated token reduction factor of 4
-                let encryptedChars = 0;
-                for (const item of outputData) {
-                  if (
-                    item !== null &&
-                    typeof item === "object" &&
-                    "encryptedContent" in item &&
-                    typeof (item as Record<string, unknown>).encryptedContent === "string"
-                  ) {
-                    encryptedChars += (item as { encryptedContent: string }).encryptedContent
-                      .length;
-                  }
-                }
-                // Use heuristic: encrypted chars / 40 for token estimation
-                resultTokens = Math.ceil(encryptedChars * 0.75);
-              } else {
-                // Normal web search results without encryption
-                resultTokens = countTokensForData(outputData, tokenizer);
-              }
-            } else {
-              // Normal tool results
-              resultTokens = countTokensForData(outputData, tokenizer);
-            }
-          }
-
-          // Get existing or create new consumer for this tool
-          const existing = consumerMap.get(part.toolName) ?? { fixed: 0, variable: 0 };
-
-          // Add tool definition tokens if this is the first time we see this tool
-          let fixedTokens = existing.fixed;
-          if (!toolsWithDefinitions.has(part.toolName)) {
-            fixedTokens += getToolDefinitionTokens(part.toolName, model);
-            toolsWithDefinitions.add(part.toolName);
-          }
-
-          // Add variable tokens (args + results)
-          const variableTokens = existing.variable + argsTokens + resultTokens;
-
-          consumerMap.set(part.toolName, { fixed: fixedTokens, variable: variableTokens });
-        }
-      }
-    }
-  }
-
-  // Add system message tokens as a consumer if present
-  if (systemMessageTokens > 0) {
-    consumerMap.set("System", { fixed: 0, variable: systemMessageTokens });
-  }
+  // Phase 5: Merge results (no awaits)
+  const consumerMap = mergeResults(jobs, results, toolDefinitions, systemMessageTokens);
 
   // Calculate total tokens
   const totalTokens = Array.from(consumerMap.values()).reduce(

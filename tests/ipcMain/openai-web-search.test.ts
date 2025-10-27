@@ -1,9 +1,4 @@
-import {
-  setupWorkspace,
-  shouldRunIntegrationTests,
-  validateApiKeys,
-  type TestEnvironment,
-} from "./setup";
+import { setupWorkspace, shouldRunIntegrationTests, validateApiKeys } from "./setup";
 import { sendMessageWithModel, createEventCollector, assertStreamSuccess } from "./helpers";
 
 // Skip all tests if TEST_INTEGRATION is not set

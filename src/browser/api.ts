@@ -186,6 +186,13 @@ const wsManager = new WebSocketManager();
 
 // Create the Web API implementation
 const webApi: IPCApi = {
+  tokenizer: {
+    countTokens: (model, text) => invokeIPC(IPC_CHANNELS.TOKENIZER_COUNT_TOKENS, model, text),
+    countTokensBatch: (model, texts) =>
+      invokeIPC(IPC_CHANNELS.TOKENIZER_COUNT_TOKENS_BATCH, model, texts),
+    calculateStats: (messages, model) =>
+      invokeIPC(IPC_CHANNELS.TOKENIZER_CALCULATE_STATS, messages, model),
+  },
   providers: {
     setProviderConfig: (provider, keyPath, value) =>
       invokeIPC(IPC_CHANNELS.PROVIDERS_SET_CONFIG, provider, keyPath, value),

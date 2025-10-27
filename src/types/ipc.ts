@@ -1,6 +1,7 @@
 import type { Result } from "./result";
 import type { FrontendWorkspaceMetadata, WorkspaceMetadata } from "./workspace";
 import type { CmuxMessage, CmuxFrontendMetadata } from "./message";
+import type { ChatStats } from "./chatStats";
 import type { ProjectConfig } from "@/config";
 import type { SendMessageError, StreamErrorType } from "./errors";
 import type { ThinkingLevel } from "./thinking";
@@ -200,6 +201,11 @@ export interface SendMessageOptions {
 // Minimize the number of methods - use optional parameters for operation variants
 // (e.g. remove(id, force?) not remove(id) + removeForce(id)).
 export interface IPCApi {
+  tokenizer: {
+    countTokens(model: string, text: string): Promise<number>;
+    countTokensBatch(model: string, texts: string[]): Promise<number[]>;
+    calculateStats(messages: CmuxMessage[], model: string): Promise<ChatStats>;
+  };
   providers: {
     setProviderConfig(
       provider: string,

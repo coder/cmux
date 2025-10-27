@@ -8,7 +8,7 @@ import type {
 import { isInitStart, isInitOutput, isInitEnd } from "../../src/types/ipc";
 import type { Result } from "../../src/types/result";
 import type { SendMessageError } from "../../src/types/errors";
-import type { WorkspaceMetadataWithPaths } from "../../src/types/workspace";
+import type { FrontendWorkspaceMetadata } from "../../src/types/workspace";
 import * as path from "path";
 import * as os from "os";
 import { detectDefaultTrunkBranch } from "../../src/git";
@@ -86,7 +86,7 @@ export async function createWorkspace(
   trunkBranch?: string,
   runtimeConfig?: import("../../src/types/runtime").RuntimeConfig
 ): Promise<
-  { success: true; metadata: WorkspaceMetadataWithPaths } | { success: false; error: string }
+  { success: true; metadata: FrontendWorkspaceMetadata } | { success: false; error: string }
 > {
   const resolvedTrunk =
     typeof trunkBranch === "string" && trunkBranch.trim().length > 0
@@ -99,7 +99,7 @@ export async function createWorkspace(
     branchName,
     resolvedTrunk,
     runtimeConfig
-  )) as { success: true; metadata: WorkspaceMetadataWithPaths } | { success: false; error: string };
+  )) as { success: true; metadata: FrontendWorkspaceMetadata } | { success: false; error: string };
 }
 
 /**
@@ -204,7 +204,7 @@ export async function sendMessageAndWait(
   );
 
   if (!result.success) {
-    throw new Error(`Failed to send message: ${result.error}`);
+    throw new Error(`Failed to send message: ${JSON.stringify(result, null, 2)}`);
   }
 
   // Wait for stream completion

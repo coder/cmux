@@ -5,7 +5,6 @@ import {
   setupWorkspaceWithoutProvider,
   shouldRunIntegrationTests,
   validateApiKeys,
-  type TestEnvironment,
 } from "./setup";
 import {
   sendMessageWithModel,

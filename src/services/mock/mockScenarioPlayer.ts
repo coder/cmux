@@ -1,3 +1,4 @@
+import assert from "@/utils/assert";
 import type { CmuxMessage } from "@/types/message";
 import { createCmuxMessage } from "@/types/message";
 import type { HistoryService } from "@/services/historyService";
@@ -5,6 +6,7 @@ import type { Result } from "@/types/result";
 import { Ok, Err } from "@/types/result";
 import type { SendMessageError } from "@/types/errors";
 import type { AIService } from "@/services/aiService";
+import { log } from "@/services/log";
 import type {
   MockAssistantEvent,
   MockStreamErrorEvent,
@@ -17,6 +19,91 @@ import type { ToolCallStartEvent, ToolCallEndEvent } from "@/types/stream";
 import type { ReasoningDeltaEvent } from "@/types/stream";
 import { getTokenizerForModel } from "@/utils/main/tokenizer";
 
+const MOCK_TOKENIZER_MODEL = "openai:gpt-5";
+const TOKENIZE_TIMEOUT_MS = 150;
+let tokenizerFallbackLogged = false;
+
+function approximateTokenCount(text: string): number {
+  const normalizedLength = text.trim().length;
+  if (normalizedLength === 0) {
+    return 0;
+  }
+  return Math.max(1, Math.ceil(normalizedLength / 4));
+}
+
+async function tokenizeWithMockModel(text: string, context: string): Promise<number> {
+  assert(typeof text === "string", `Mock scenario ${context} expects string input`);
+  const approximateTokens = approximateTokenCount(text);
+  let fallbackUsed = false;
+  let timeoutId: NodeJS.Timeout | undefined;
+
+  const fallbackPromise = new Promise<number>((resolve) => {
+    timeoutId = setTimeout(() => {
+      fallbackUsed = true;
+      resolve(approximateTokens);
+    }, TOKENIZE_TIMEOUT_MS);
+  });
+
+  const actualPromise = (async () => {
+    const tokenizer = await getTokenizerForModel(MOCK_TOKENIZER_MODEL);
+    assert(
+      typeof tokenizer.encoding === "string" && tokenizer.encoding.length > 0,
+      `Tokenizer for ${MOCK_TOKENIZER_MODEL} must expose a non-empty encoding`
+    );
+    const tokens = await tokenizer.countTokens(text);
+    assert(
+      Number.isFinite(tokens) && tokens >= 0,
+      `Tokenizer for ${MOCK_TOKENIZER_MODEL} returned invalid token count`
+    );
+    return tokens;
+  })();
+
+  let tokens: number;
+  try {
+    tokens = await Promise.race([actualPromise, fallbackPromise]);
+  } catch (error) {
+    if (timeoutId !== undefined) {
+      clearTimeout(timeoutId);
+    }
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    throw new Error(
+      `[MockScenarioPlayer] Failed to tokenize ${context} with ${MOCK_TOKENIZER_MODEL}: ${errorMessage}`
+    );
+  }
+
+  if (!fallbackUsed && timeoutId !== undefined) {
+    clearTimeout(timeoutId);
+  }
+
+  actualPromise
+    .then((resolvedTokens) => {
+      if (fallbackUsed && !tokenizerFallbackLogged) {
+        tokenizerFallbackLogged = true;
+        log.debug(
+          `[MockScenarioPlayer] Tokenizer fallback used for ${context}; emitted ${approximateTokens}, background tokenizer returned ${resolvedTokens}`
+        );
+      }
+    })
+    .catch((error) => {
+      if (fallbackUsed && !tokenizerFallbackLogged) {
+        tokenizerFallbackLogged = true;
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        log.debug(
+          `[MockScenarioPlayer] Tokenizer fallback used for ${context}; background error: ${errorMessage}`
+        );
+      }
+    });
+
+  if (fallbackUsed) {
+    assert(
+      Number.isFinite(tokens) && tokens >= 0,
+      `Token fallback produced invalid count for ${context}`
+    );
+  }
+
+  return tokens;
+}
+
 interface MockPlayerDeps {
   aiService: AIService;
   historyService: HistoryService;
@@ -25,6 +112,8 @@ interface MockPlayerDeps {
 interface ActiveStream {
   timers: NodeJS.Timeout[];
   messageId: string;
+  eventQueue: Array<() => Promise<void>>;
+  isProcessing: boolean;
 }
 
 export class MockScenarioPlayer {
@@ -120,7 +209,7 @@ export class MockScenarioPlayer {
     return Ok(undefined);
   }
 
-  replayStream(_workspaceId: string): void {
+  async replayStream(_workspaceId: string): Promise<void> {
     // No-op for mock scenario; events are deterministic and do not support mid-stream replay
   }
 
@@ -129,14 +218,46 @@ export class MockScenarioPlayer {
     this.activeStreams.set(workspaceId, {
       timers,
       messageId: turn.assistant.messageId,
+      eventQueue: [],
+      isProcessing: false,
     });
 
     for (const event of turn.assistant.events) {
       const timer = setTimeout(() => {
-        void this.dispatchEvent(workspaceId, event, turn.assistant.messageId, historySequence);
+        this.enqueueEvent(workspaceId, () =>
+          this.dispatchEvent(workspaceId, event, turn.assistant.messageId, historySequence)
+        );
       }, event.delay);
       timers.push(timer);
     }
+  }
+
+  private enqueueEvent(workspaceId: string, handler: () => Promise<void>): void {
+    const active = this.activeStreams.get(workspaceId);
+    if (!active) return;
+
+    active.eventQueue.push(handler);
+    void this.processQueue(workspaceId);
+  }
+
+  private async processQueue(workspaceId: string): Promise<void> {
+    const active = this.activeStreams.get(workspaceId);
+    if (!active || active.isProcessing) return;
+
+    active.isProcessing = true;
+
+    while (active.eventQueue.length > 0) {
+      const handler = active.eventQueue.shift();
+      if (!handler) break;
+
+      try {
+        await handler();
+      } catch (error) {
+        console.error(`[MockScenarioPlayer] Event handler error for ${workspaceId}:`, error);
+      }
+    }
+
+    active.isProcessing = false;
   }
 
   private async dispatchEvent(
@@ -159,8 +280,7 @@ export class MockScenarioPlayer {
       }
       case "reasoning-delta": {
         // Mock scenarios use the same tokenization logic as real streams for consistency
-        const tokenizer = getTokenizerForModel("gpt-4"); // Mock uses GPT-4 tokenizer
-        const tokens = tokenizer.countTokens(event.text);
+        const tokens = await tokenizeWithMockModel(event.text, "reasoning-delta text");
         const payload: ReasoningDeltaEvent = {
           type: "reasoning-delta",
           workspaceId,
@@ -175,8 +295,7 @@ export class MockScenarioPlayer {
       case "tool-start": {
         // Mock scenarios use the same tokenization logic as real streams for consistency
         const inputText = JSON.stringify(event.args);
-        const tokenizer = getTokenizerForModel("gpt-4"); // Mock uses GPT-4 tokenizer
-        const tokens = tokenizer.countTokens(inputText);
+        const tokens = await tokenizeWithMockModel(inputText, "tool-call args");
         const payload: ToolCallStartEvent = {
           type: "tool-call-start",
           workspaceId,
@@ -204,8 +323,13 @@ export class MockScenarioPlayer {
       }
       case "stream-delta": {
         // Mock scenarios use the same tokenization logic as real streams for consistency
-        const tokenizer = getTokenizerForModel("gpt-4"); // Mock uses GPT-4 tokenizer
-        const tokens = tokenizer.countTokens(event.text);
+        let tokens: number;
+        try {
+          tokens = await tokenizeWithMockModel(event.text, "stream-delta text");
+        } catch (error) {
+          console.error("[MockScenarioPlayer] tokenize failed for stream-delta", error);
+          throw error;
+        }
         const payload: StreamDeltaEvent = {
           type: "stream-delta",
           workspaceId,
@@ -278,9 +402,15 @@ export class MockScenarioPlayer {
   private cleanup(workspaceId: string): void {
     const active = this.activeStreams.get(workspaceId);
     if (!active) return;
+
+    // Clear all pending timers
     for (const timer of active.timers) {
       clearTimeout(timer);
     }
+
+    // Clear event queue to prevent any pending events from processing
+    active.eventQueue = [];
+
     this.activeStreams.delete(workspaceId);
   }
 

@@ -1,4 +1,13 @@
-import React, { useState, useRef, useCallback, useEffect, useId } from "react";
+import React, {
+  Suspense,
+  useState,
+  useRef,
+  useCallback,
+  useEffect,
+  useId,
+  useMemo,
+  useDeferredValue,
+} from "react";
 import { cn } from "@/lib/utils";
 import { CommandSuggestions, COMMAND_SUGGESTION_KEYS } from "./CommandSuggestions";
 import type { Toast } from "./ChatInputToast";
@@ -41,6 +50,37 @@ import type { ThinkingLevel } from "@/types/thinking";
 import type { CmuxFrontendMetadata } from "@/types/message";
 import { useTelemetry } from "@/hooks/useTelemetry";
 import { setTelemetryEnabled } from "@/telemetry";
+import { getTokenCountPromise } from "@/utils/tokenizer/rendererClient";
+
+type TokenCountReader = () => number;
+
+function createTokenCountResource(promise: Promise<number>): TokenCountReader {
+  let status: "pending" | "success" | "error" = "pending";
+  let value = 0;
+  let error: Error | null = null;
+
+  const suspender = promise.then(
+    (resolved) => {
+      status = "success";
+      value = resolved;
+    },
+    (reason: unknown) => {
+      status = "error";
+      error = reason instanceof Error ? reason : new Error(String(reason));
+    }
+  );
+
+  return () => {
+    if (status === "pending") {
+      // eslint-disable-next-line @typescript-eslint/only-throw-error
+      throw suspender;
+    }
+    if (status === "error") {
+      throw error ?? new Error("Unknown tokenizer error");
+    }
+    return value;
+  };
+}
 
 export interface ChatInputAPI {
   focus: () => void;
@@ -103,6 +143,19 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   const sendMessageOptions = useSendMessageOptions(workspaceId);
   // Extract model for convenience (don't create separate state - use hook as single source of truth)
   const preferredModel = sendMessageOptions.model;
+  const deferredModel = useDeferredValue(preferredModel);
+  const deferredInput = useDeferredValue(input);
+  const tokenCountPromise = useMemo(() => {
+    if (!deferredModel || deferredInput.trim().length === 0 || deferredInput.startsWith("/")) {
+      return Promise.resolve(0);
+    }
+    return getTokenCountPromise(deferredModel, deferredInput);
+  }, [deferredModel, deferredInput]);
+  const tokenCountReader = useMemo(
+    () => createTokenCountResource(tokenCountPromise),
+    [tokenCountPromise]
+  );
+  const hasTypedText = input.trim().length > 0;
   // Setter for model - updates localStorage directly so useSendMessageOptions picks it up
   const setPreferredModel = useCallback(
     (model: string) => {
@@ -807,6 +860,22 @@ export const ChatInput: React.FC<ChatInputProps> = ({
           <div className="max-@[500px]:hidden flex items-center" data-component="Context1MGroup">
             <Context1MCheckbox modelString={preferredModel} />
           </div>
+          {preferredModel && (
+            <div className={hasTypedText ? "block" : "hidden"}>
+              <Suspense
+                fallback={
+                  <div
+                    className="text-muted flex items-center gap-1 text-xs"
+                    data-component="TokenEstimate"
+                  >
+                    <span>Calculating tokens…</span>
+                  </div>
+                }
+              >
+                <TokenCountDisplay reader={tokenCountReader} />
+              </Suspense>
+            </div>
+          )}
           <div className="max-@[700px]:hidden ml-auto flex items-center gap-1.5">
             <div
               className={cn(
@@ -842,6 +911,18 @@ export const ChatInput: React.FC<ChatInputProps> = ({
           </div>
         </div>
       </div>
+    </div>
+  );
+};
+
+const TokenCountDisplay: React.FC<{ reader: TokenCountReader }> = ({ reader }) => {
+  const tokens = reader();
+  if (!tokens) {
+    return null;
+  }
+  return (
+    <div className="text-muted flex items-center gap-1 text-xs" data-component="TokenEstimate">
+      <span>{tokens.toLocaleString()} tokens</span>
     </div>
   );
 };

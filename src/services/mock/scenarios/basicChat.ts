@@ -12,7 +12,7 @@ const listProgrammingLanguagesTurn: ScenarioTurn = {
   assistant: {
     messageId: "msg-basic-1",
     events: [
-      { kind: "stream-start", delay: 0, messageId: "msg-basic-1", model: "mock:planner" },
+      { kind: "stream-start", delay: 0, messageId: "msg-basic-1", model: "openai:gpt-5" },
       {
         kind: "stream-delta",
         delay: STREAM_BASE_DELAY,
@@ -37,7 +37,7 @@ const listProgrammingLanguagesTurn: ScenarioTurn = {
         kind: "stream-end",
         delay: STREAM_BASE_DELAY * 5,
         metadata: {
-          model: "mock:planner",
+          model: "openai:gpt-5",
           inputTokens: 64,
           outputTokens: 48,
           systemMessageTokens: 12,

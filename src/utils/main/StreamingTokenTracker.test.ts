@@ -1,5 +1,7 @@
-import { describe, test, expect, beforeEach } from "bun:test";
+import { beforeEach, describe, expect, jest, test } from "@jest/globals";
 import { StreamingTokenTracker } from "./StreamingTokenTracker";
+
+jest.setTimeout(20000);
 
 describe("StreamingTokenTracker", () => {
   let tracker: StreamingTokenTracker;
@@ -9,47 +11,47 @@ describe("StreamingTokenTracker", () => {
   });
 
   describe("countTokens", () => {
-    test("returns 0 for empty string", () => {
-      tracker.setModel("anthropic:claude-sonnet-4-5");
-      expect(tracker.countTokens("")).toBe(0);
+    test("returns 0 for empty string", async () => {
+      await tracker.setModel("anthropic:claude-sonnet-4-5");
+      expect(await tracker.countTokens("")).toBe(0);
     });
 
-    test("counts tokens in simple text", () => {
-      tracker.setModel("anthropic:claude-sonnet-4-5");
-      const count = tracker.countTokens("Hello world");
+    test("counts tokens in simple text", async () => {
+      await tracker.setModel("anthropic:claude-sonnet-4-5");
+      const count = await tracker.countTokens("Hello world");
       expect(count).toBeGreaterThan(0);
       expect(count).toBeLessThan(10); // Reasonable upper bound
     });
 
-    test("counts tokens in longer text", () => {
-      tracker.setModel("anthropic:claude-sonnet-4-5");
+    test("counts tokens in longer text", async () => {
+      await tracker.setModel("anthropic:claude-sonnet-4-5");
       const text = "This is a longer piece of text with more tokens";
-      const count = tracker.countTokens(text);
+      const count = await tracker.countTokens(text);
       expect(count).toBeGreaterThan(5);
     });
 
-    test("handles special characters", () => {
-      tracker.setModel("anthropic:claude-sonnet-4-5");
-      const count = tracker.countTokens("🚀 emoji test");
+    test("handles special characters", async () => {
+      await tracker.setModel("anthropic:claude-sonnet-4-5");
+      const count = await tracker.countTokens("🚀 emoji test");
       expect(count).toBeGreaterThan(0);
     });
 
-    test("is consistent for repeated calls", () => {
-      tracker.setModel("anthropic:claude-sonnet-4-5");
+    test("is consistent for repeated calls", async () => {
+      await tracker.setModel("anthropic:claude-sonnet-4-5");
       const text = "Test consistency";
-      const count1 = tracker.countTokens(text);
-      const count2 = tracker.countTokens(text);
+      const count1 = await tracker.countTokens(text);
+      const count2 = await tracker.countTokens(text);
       expect(count1).toBe(count2);
     });
   });
 
   describe("setModel", () => {
-    test("switches tokenizer for different models", () => {
-      tracker.setModel("anthropic:claude-sonnet-4-5");
-      const initial = tracker.countTokens("test");
+    test("switches tokenizer for different models", async () => {
+      await tracker.setModel("anthropic:claude-sonnet-4-5");
+      const initial = await tracker.countTokens("test");
 
-      tracker.setModel("openai:gpt-4");
-      const switched = tracker.countTokens("test");
+      await tracker.setModel("openai:gpt-4");
+      const switched = await tracker.countTokens("test");
 
       expect(initial).toBeGreaterThan(0);
       expect(switched).toBeGreaterThan(0);

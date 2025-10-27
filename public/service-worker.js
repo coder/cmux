@@ -1,23 +1,22 @@
 // cmux Service Worker for PWA support
-const CACHE_NAME = 'cmux-v1';
-const urlsToCache = [
-  '/',
-  '/index.html',
-];
+const CACHE_NAME = "cmux-v1";
+const urlsToCache = ["/", "/index.html"];
 
 // Install event - cache core assets
-self.addEventListener('install', (event) => {
+self.addEventListener("install", (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME)
+    caches
+      .open(CACHE_NAME)
       .then((cache) => cache.addAll(urlsToCache))
       .then(() => self.skipWaiting())
   );
 });
 
 // Activate event - clean up old caches
-self.addEventListener('activate', (event) => {
+self.addEventListener("activate", (event) => {
   event.waitUntil(
-    caches.keys()
+    caches
+      .keys()
       .then((cacheNames) => {
         return Promise.all(
           cacheNames.map((cacheName) => {
@@ -32,10 +31,10 @@ self.addEventListener('activate', (event) => {
 });
 
 // Fetch event - network first, fallback to cache
-self.addEventListener('fetch', (event) => {
+self.addEventListener("fetch", (event) => {
   // Skip caching for non-GET requests (POST, PUT, DELETE, etc.)
   // The Cache API only supports GET requests
-  if (event.request.method !== 'GET') {
+  if (event.request.method !== "GET") {
     event.respondWith(fetch(event.request));
     return;
   }
@@ -45,10 +44,9 @@ self.addEventListener('fetch', (event) => {
       .then((response) => {
         // Clone the response before caching
         const responseToCache = response.clone();
-        caches.open(CACHE_NAME)
-          .then((cache) => {
-            cache.put(event.request, responseToCache);
-          });
+        caches.open(CACHE_NAME).then((cache) => {
+          cache.put(event.request, responseToCache);
+        });
         return response;
       })
       .catch(() => {
@@ -57,4 +55,3 @@ self.addEventListener('fetch', (event) => {
       })
   );
 });
-

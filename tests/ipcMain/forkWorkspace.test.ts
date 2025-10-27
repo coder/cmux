@@ -17,7 +17,6 @@ import {
 import { detectDefaultTrunkBranch } from "../../src/git";
 import { HistoryService } from "../../src/services/historyService";
 import { createCmuxMessage } from "../../src/types/message";
-import * as path from "path";
 
 // Skip all tests if TEST_INTEGRATION is not set
 const describeIntegration = shouldRunIntegrationTests() ? describe : describe.skip;

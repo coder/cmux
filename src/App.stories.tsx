@@ -4,6 +4,7 @@ import { AppLoader } from "./components/AppLoader";
 import type { ProjectConfig } from "./config";
 import type { FrontendWorkspaceMetadata } from "./types/workspace";
 import type { IPCApi } from "./types/ipc";
+import type { ChatStats } from "./types/chatStats";
 
 // Stable timestamp for visual testing (Apple demo time: Jan 24, 2024, 9:41 AM PST)
 const STABLE_TIMESTAMP = new Date("2024-01-24T09:41:00-08:00").getTime();
@@ -17,8 +18,20 @@ function setupMockAPI(options: {
 }) {
   const mockProjects = options.projects ?? new Map();
   const mockWorkspaces = options.workspaces ?? [];
+  const mockStats: ChatStats = {
+    consumers: [],
+    totalTokens: 0,
+    model: "mock-model",
+    tokenizerName: "mock-tokenizer",
+    usageHistory: [],
+  };
 
   const mockApi: IPCApi = {
+    tokenizer: {
+      countTokens: () => Promise.resolve(0),
+      countTokensBatch: (_model, texts) => Promise.resolve(texts.map(() => 0)),
+      calculateStats: () => Promise.resolve(mockStats),
+    },
     providers: {
       setProviderConfig: () => Promise.resolve({ success: true, data: undefined }),
       list: () => Promise.resolve([]),

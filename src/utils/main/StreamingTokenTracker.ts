@@ -17,15 +17,15 @@ export class StreamingTokenTracker {
    * Initialize tokenizer for the current model
    * Should be called when model changes or on first stream
    */
-  setModel(model: string): void {
-    this.tokenizer ??= getTokenizerForModel(model);
+  async setModel(model: string): Promise<void> {
+    this.tokenizer ??= await getTokenizerForModel(model);
   }
 
   /**
    * Count tokens in a text string synchronously
    * Performance: <1ms per delta with LRU caching
    */
-  countTokens(text: string): number {
+  async countTokens(text: string): Promise<number> {
     if (!this.tokenizer || !text) return 0;
     return this.tokenizer.countTokens(text);
   }

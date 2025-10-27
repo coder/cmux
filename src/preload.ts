@@ -26,6 +26,14 @@ import { IPC_CHANNELS, getChatChannel } from "./constants/ipc-constants";
 
 // Build the API implementation using the shared interface
 const api: IPCApi = {
+  tokenizer: {
+    countTokens: (model, text) =>
+      ipcRenderer.invoke(IPC_CHANNELS.TOKENIZER_COUNT_TOKENS, model, text),
+    countTokensBatch: (model, texts) =>
+      ipcRenderer.invoke(IPC_CHANNELS.TOKENIZER_COUNT_TOKENS_BATCH, model, texts),
+    calculateStats: (messages, model) =>
+      ipcRenderer.invoke(IPC_CHANNELS.TOKENIZER_CALCULATE_STATS, messages, model),
+  },
   providers: {
     setProviderConfig: (provider, keyPath, value) =>
       ipcRenderer.invoke(IPC_CHANNELS.PROVIDERS_SET_CONFIG, provider, keyPath, value),

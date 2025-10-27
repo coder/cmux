@@ -14,7 +14,6 @@ import { createUnknownSendMessageError } from "@/services/utils/sendMessageError
 import type { Result } from "@/types/result";
 import { Ok, Err } from "@/types/result";
 import { enforceThinkingPolicy } from "@/utils/thinking/policy";
-import { loadTokenizerForModel } from "@/utils/main/tokenizer";
 import { createRuntime } from "@/runtime/runtimeFactory";
 
 interface ImagePart {
@@ -147,7 +146,7 @@ export class AgentSession {
     const partial = await this.partialService.readPartial(this.workspaceId);
 
     if (streamInfo) {
-      this.aiService.replayStream(this.workspaceId);
+      await this.aiService.replayStream(this.workspaceId);
     } else if (partial) {
       listener({ workspaceId: this.workspaceId, message: partial });
     }
@@ -352,19 +351,6 @@ export class AgentSession {
     modelString: string,
     options?: SendMessageOptions
   ): Promise<Result<void, SendMessageError>> {
-    try {
-      assert(
-        typeof modelString === "string" && modelString.trim().length > 0,
-        "modelString must be a non-empty string"
-      );
-      await loadTokenizerForModel(modelString);
-    } catch (error) {
-      const reason = error instanceof Error ? error.message : String(error);
-      return Err(
-        createUnknownSendMessageError(`Failed to preload tokenizer for ${modelString}: ${reason}`)
-      );
-    }
-
     const commitResult = await this.partialService.commitToHistory(this.workspaceId);
     if (!commitResult.success) {
       return Err(createUnknownSendMessageError(commitResult.error));

@@ -45,18 +45,6 @@ export interface WorkspaceSidebarState {
 }
 
 /**
- * Helper to extract sidebar state from aggregator.
- */
-function extractSidebarState(aggregator: StreamingMessageAggregator): WorkspaceSidebarState {
-  return {
-    canInterrupt: aggregator.getActiveStreams().length > 0,
-    currentModel: aggregator.getCurrentModel() ?? null,
-    recencyTimestamp: aggregator.getRecencyTimestamp(),
-    agentStatus: aggregator.getAgentStatus(),
-  };
-}
-
-/**
  * Derived state values stored in the derived MapStore.
  * Currently only recency timestamps for workspace sorting.
  */
@@ -105,7 +93,6 @@ export class WorkspaceStore {
   // Architecture: WorkspaceStore orchestrates (decides when), manager executes (performs calculations)
   // Dual-cache: consumersStore (MapStore) handles subscriptions, manager owns data cache
   private readonly consumerManager: WorkspaceConsumerManager;
-  private readonly cleanupTokenizerReady: () => void;
 
   // Supporting data structures
   private aggregators = new Map<string, StreamingMessageAggregator>();
@@ -228,31 +215,6 @@ export class WorkspaceStore {
       this.consumersStore.bump(workspaceId);
     });
 
-    const rescheduleConsumers = () => {
-      for (const [workspaceId, aggregator] of this.aggregators.entries()) {
-        assert(
-          workspaceId.length > 0,
-          "Workspace ID must be non-empty when rescheduling consumers"
-        );
-        if (!this.caughtUp.get(workspaceId)) {
-          continue;
-        }
-        if (aggregator.getAllMessages().length === 0) {
-          continue;
-        }
-        this.consumerManager.scheduleCalculation(workspaceId, aggregator);
-      }
-    };
-
-    const cleanupReady = this.consumerManager.onTokenizerReady(rescheduleConsumers);
-    const cleanupEncoding = this.consumerManager.onTokenizerEncodingLoaded(() => {
-      rescheduleConsumers();
-    });
-    this.cleanupTokenizerReady = () => {
-      cleanupReady();
-      cleanupEncoding();
-    };
-
     // Note: We DON'T auto-check recency on every state bump.
     // Instead, checkAndBumpRecencyIfChanged() is called explicitly after
     // message completion events (not on deltas) to prevent App.tsx re-renders.
@@ -286,30 +248,6 @@ export class WorkspaceStore {
 
     if (recencyChanged) {
       this.derived.bump("recency");
-    }
-  }
-
-  /**
-   * Only bump workspace state if sidebar-relevant fields changed.
-   * Prevents unnecessary re-renders during stream deltas.
-   */
-  private bumpIfSidebarChanged(workspaceId: string): void {
-    const aggregator = this.aggregators.get(workspaceId);
-    if (!aggregator) return;
-
-    const current = extractSidebarState(aggregator);
-    const previous = this.previousSidebarValues.get(workspaceId);
-
-    // First time or any relevant field changed
-    if (
-      !previous ||
-      previous.canInterrupt !== current.canInterrupt ||
-      previous.currentModel !== current.currentModel ||
-      previous.recencyTimestamp !== current.recencyTimestamp ||
-      previous.agentStatus !== current.agentStatus
-    ) {
-      this.previousSidebarValues.set(workspaceId, current);
-      this.states.bump(workspaceId);
     }
   }
 
@@ -854,7 +792,6 @@ export class WorkspaceStore {
   dispose(): void {
     // Clean up consumer manager
     this.consumerManager.dispose();
-    this.cleanupTokenizerReady();
 
     for (const unsubscribe of this.ipcUnsubscribers.values()) {
       unsubscribe();

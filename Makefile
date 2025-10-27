@@ -203,11 +203,11 @@ check-deadcode: node_modules/.installed ## Check for potential dead code (manual
 		|| echo "✓ No obvious dead code found"
 
 ## Testing
-test-integration: node_modules/.installed ## Run all tests (unit + integration)
+test-integration: node_modules/.installed build-main ## Run all tests (unit + integration)
 	@bun test src
 	@TEST_INTEGRATION=1 bun x jest tests
 
-test-unit: node_modules/.installed ## Run unit tests
+test-unit: node_modules/.installed build-main ## Run unit tests
 	@bun test src
 
 test: test-unit ## Alias for test-unit
@@ -220,7 +220,7 @@ test-coverage: ## Run tests with coverage
 
 test-e2e: ## Run end-to-end tests
 	@$(MAKE) build
-	@CMUX_E2E_LOAD_DIST=1 CMUX_E2E_SKIP_BUILD=1 PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 bun x playwright test --project=electron
+	@CMUX_E2E_LOAD_DIST=1 CMUX_E2E_SKIP_BUILD=1 PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 bun x playwright test --project=electron $(PLAYWRIGHT_ARGS)
 
 ## Distribution
 dist: build ## Build distributable packages

@@ -340,15 +340,15 @@ export class HistoryService {
         }
 
         // Get tokenizer for counting (use a default model)
-        const tokenizer = getTokenizerForModel("anthropic:claude-sonnet-4-5");
+        const tokenizer = await getTokenizerForModel("anthropic:claude-sonnet-4-5");
 
         // Count tokens for each message
         // We stringify the entire message for simplicity - only relative weights matter
-        const messageTokens: Array<{ message: CmuxMessage; tokens: number }> = messages.map(
-          (msg) => {
-            const tokens = tokenizer.countTokens(JSON.stringify(msg));
+        const messageTokens: Array<{ message: CmuxMessage; tokens: number }> = await Promise.all(
+          messages.map(async (msg) => {
+            const tokens = await tokenizer.countTokens(JSON.stringify(msg));
             return { message: msg, tokens };
-          }
+          })
         );
 
         // Calculate total tokens and target to remove

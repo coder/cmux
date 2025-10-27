@@ -24,7 +24,7 @@ const compactConversationTurn: ScenarioTurn = {
         kind: "stream-start",
         delay: 0,
         messageId: "msg-slash-compact-1",
-        model: "anthropic:claude-sonnet-4-5",
+        model: "openai:gpt-5",
       },
       {
         kind: "stream-delta",
@@ -35,7 +35,7 @@ const compactConversationTurn: ScenarioTurn = {
         kind: "stream-end",
         delay: STREAM_BASE_DELAY * 2,
         metadata: {
-          model: "anthropic:claude-sonnet-4-5",
+          model: "openai:gpt-5",
           inputTokens: 220,
           outputTokens: 96,
           systemMessageTokens: 18,

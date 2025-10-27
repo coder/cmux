@@ -45,6 +45,11 @@ export const IPC_CHANNELS = {
   UPDATE_STATUS: "update:status",
   UPDATE_STATUS_SUBSCRIBE: "update:status:subscribe",
 
+  // Tokenizer channels
+  TOKENIZER_CALCULATE_STATS: "tokenizer:calculateStats",
+  TOKENIZER_COUNT_TOKENS: "tokenizer:countTokens",
+  TOKENIZER_COUNT_TOKENS_BATCH: "tokenizer:countTokensBatch",
+
   // Dynamic channel prefixes
   WORKSPACE_CHAT_PREFIX: "workspace:chat:",
   WORKSPACE_METADATA: "workspace:metadata",

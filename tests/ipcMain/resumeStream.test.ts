@@ -1,9 +1,4 @@
-import {
-  setupWorkspace,
-  shouldRunIntegrationTests,
-  validateApiKeys,
-  type TestEnvironment,
-} from "./setup";
+import { setupWorkspace, shouldRunIntegrationTests, validateApiKeys } from "./setup";
 import { sendMessageWithModel, createEventCollector, waitFor } from "./helpers";
 import { IPC_CHANNELS } from "../../src/constants/ipc-constants";
 import type { Result } from "../../src/types/result";
