@@ -84,12 +84,11 @@ export async function buildSystemMessage(
   // Read instruction sets
   const globalInstructions = await readInstructionSet(getSystemDirectory());
   const workspaceInstructions = await readInstructionSetFromRuntime(runtime, workspacePath);
-  const contextInstructions = workspaceInstructions ?? (await readInstructionSet(metadata.projectPath));
+  const contextInstructions =
+    workspaceInstructions ?? (await readInstructionSet(metadata.projectPath));
 
   // Combine: global + context (workspace takes precedence over project)
-  const customInstructions = [globalInstructions, contextInstructions]
-    .filter(Boolean)
-    .join("\n\n");
+  const customInstructions = [globalInstructions, contextInstructions].filter(Boolean).join("\n\n");
 
   // Extract mode-specific section (context first, then global fallback)
   let modeContent: string | null = null;

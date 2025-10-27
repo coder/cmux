@@ -1,10 +1,7 @@
 import * as fs from "fs/promises";
 import * as path from "path";
 import * as os from "os";
-import {
-  readInstructionSet,
-  gatherInstructionSets,
-} from "./instructionFiles";
+import { readInstructionSet, gatherInstructionSets } from "./instructionFiles";
 
 describe("instructionFiles", () => {
   let tempDir: string;

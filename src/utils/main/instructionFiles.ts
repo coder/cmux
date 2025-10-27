@@ -3,7 +3,6 @@ import * as path from "path";
 import type { Runtime } from "@/runtime/Runtime";
 import { readFileString } from "@/utils/runtime/helpers";
 
-
 /**
  * Instruction file names to search for, in priority order.
  * The first file found in a directory is used as the base instruction set.
@@ -105,10 +104,17 @@ async function readFileWithLocalVariant(
  * @param directory - Directory to search for instruction files
  * @returns Combined instruction content, or null if no base file exists
  */
-export async function readInstructionSet(directory: string | null | undefined): Promise<string | null> {
+export async function readInstructionSet(
+  directory: string | null | undefined
+): Promise<string | null> {
   if (!directory) return null;
   const reader = createLocalFileReader();
-  return readFileWithLocalVariant(reader, path.resolve(directory), INSTRUCTION_FILE_NAMES, LOCAL_INSTRUCTION_FILENAME);
+  return readFileWithLocalVariant(
+    reader,
+    path.resolve(directory),
+    INSTRUCTION_FILE_NAMES,
+    LOCAL_INSTRUCTION_FILENAME
+  );
 }
 
 /**
@@ -124,7 +130,12 @@ export async function readInstructionSetFromRuntime(
   directory: string
 ): Promise<string | null> {
   const reader = createRuntimeFileReader(runtime);
-  return readFileWithLocalVariant(reader, directory, INSTRUCTION_FILE_NAMES, LOCAL_INSTRUCTION_FILENAME);
+  return readFileWithLocalVariant(
+    reader,
+    directory,
+    INSTRUCTION_FILE_NAMES,
+    LOCAL_INSTRUCTION_FILENAME
+  );
 }
 
 /**
