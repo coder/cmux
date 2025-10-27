@@ -1251,7 +1251,7 @@ describe("SSH runtime redundant cd detection", () => {
     const tool = createBashTool({
       cwd,
       runtime: sshRuntime,
-      tempDir: tempDir.path,
+      runtimeTempDir: tempDir.path,
     });
 
     return {

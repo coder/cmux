@@ -66,7 +66,7 @@ describe("executeFileEditOperation", () => {
       config: {
         cwd: testCwd,
         runtime: mockRuntime,
-        tempDir: "/tmp",
+        runtimeTempDir: "/tmp",
       },
       filePath: testFilePath,
       operation: () => ({ success: true, newContent: "test", metadata: {} }),
