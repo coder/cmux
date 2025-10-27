@@ -126,7 +126,7 @@ export class Config {
   }
 
   /**
-   * Get the workspace worktree path for a given directory name.
+   * Get the workspace directory path for a given directory name.
    * The directory name is the workspace name (branch name).
    */
 
@@ -200,7 +200,7 @@ export class Config {
    * - Worktree directory name: uses workspace.name (the branch name)
    * - Workspace ID: stable random identifier for identity and sessions (not used for directories)
    *
-   * Backend: Uses getWorkspacePath(metadata.projectPath, metadata.name) for worktree directory paths
+   * Backend: Uses getWorkspacePath(metadata.projectPath, metadata.name) for workspace directory paths
    * Frontend: Gets enriched metadata with paths via IPC (FrontendWorkspaceMetadata)
    *
    * WorkspaceMetadata.workspacePath is deprecated and will be removed. Use computed

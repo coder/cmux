@@ -553,7 +553,7 @@ export class IpcMain {
           // Generate stable workspace ID for the new workspace
           const newWorkspaceId = this.config.generateStableId();
 
-          // Create new git worktree branching from source workspace's branch
+          // Create new workspace branching from source workspace's branch
           const result = await createWorktree(this.config, foundProjectPath, newName, {
             trunkBranch: sourceBranch,
             directoryName: newName,
@@ -603,7 +603,7 @@ export class IpcMain {
             }
           } catch (copyError) {
             // If copy fails, clean up everything we created
-            // 1. Remove the git worktree
+            // 1. Remove the workspace
             await removeWorktree(foundProjectPath, newWorkspacePath);
             // 2. Remove the session directory (may contain partial copies)
             try {

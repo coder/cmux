@@ -46,7 +46,7 @@ export interface WorkspaceMetadata {
   /** Project name extracted from project path (for display) */
   projectName: string;
 
-  /** Absolute path to the project (needed to compute worktree path) */
+  /** Absolute path to the project (needed to compute workspace path) */
   projectPath: string;
 
   /** ISO 8601 timestamp of when workspace was created (optional for backward compatibility) */

@@ -137,8 +137,9 @@ const NewWorkspaceModal: React.FC<NewWorkspaceModalProps> = ({
               <Tooltip width="wide" position="bottom" interactive>
                 <strong>About Workspaces:</strong>
                 <ul className="my-1 pl-4">
-                  <li>Uses git worktrees (separate directories sharing .git)</li>
-                  <li>All committed changes visible across all worktrees</li>
+                  <li>Isolated directories for parallel development</li>
+                  <li>Local: git worktrees sharing .git (fast, efficient)</li>
+                  <li>SSH: independent git clones on remote server</li>
                   <li>Agent can switch branches freely during session</li>
                   <li>Define branching strategy in AGENTS.md</li>
                 </ul>
@@ -243,7 +244,7 @@ const NewWorkspaceModal: React.FC<NewWorkspaceModalProps> = ({
         )}
 
         <ModalInfo id={infoId}>
-          <p>This will create a git worktree at:</p>
+          <p>This will create a workspace at:</p>
           <code className="block break-all">
             {runtimeMode === RUNTIME_MODE.SSH
               ? `${sshHost || "<host>"}:~/cmux/${branchName || "<branch-name>"}`

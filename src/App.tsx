@@ -156,7 +156,7 @@ function AppInner() {
 
   const openWorkspaceInTerminal = useCallback(
     (workspaceId: string) => {
-      // Look up workspace metadata to get the worktree path (directory uses workspace name)
+      // Look up workspace metadata to get the workspace path (directory uses workspace name)
       const metadata = workspaceMetadata.get(workspaceId);
       if (metadata) {
         void window.api.workspace.openTerminal(metadata.namedWorkspacePath);
