@@ -29,6 +29,7 @@ export type ParsedCommand =
       trunkBranch?: string;
       runtime?: string;
       startMessage?: string;
+      model?: string;
     }
   | { type: "unknown-command"; command: string; subcommand?: string }
   | null;

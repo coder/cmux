@@ -493,7 +493,7 @@ const forkCommandDefinition: SlashCommandDefinition = {
 const newCommandDefinition: SlashCommandDefinition = {
   key: "new",
   description:
-    "Create new workspace with optional trunk branch and runtime. Use -t <branch> to specify trunk, -r <runtime> for remote execution (e.g., 'ssh hostname' or 'ssh user@host'). Add start message on lines after the command.",
+    "Create new workspace with optional trunk branch, model, and runtime. Use -t <branch> to specify trunk, -m <model> to set initial model, -r <runtime> for remote execution (e.g., 'ssh hostname' or 'ssh user@host'). Add start message on lines after the command.",
   handler: ({ rawInput }): ParsedCommand => {
     const {
       tokens: firstLineTokens,
@@ -503,7 +503,7 @@ const newCommandDefinition: SlashCommandDefinition = {
 
     // Parse flags from first line using minimist
     const parsed = minimist(firstLineTokens, {
-      string: ["t", "r"],
+      string: ["t", "m", "r"],
       unknown: (arg: string) => {
         // Unknown flags starting with - are errors
         if (arg.startsWith("-")) {
@@ -515,7 +515,8 @@ const newCommandDefinition: SlashCommandDefinition = {
 
     // Check for unknown flags - return undefined workspaceName to open modal
     const unknownFlags = firstLineTokens.filter(
-      (token) => token.startsWith("-") && token !== "-t" && token !== "-r"
+      (token) =>
+        token.startsWith("-") && token !== "-t" && token !== "-m" && token !== "-r"
     );
     if (unknownFlags.length > 0) {
       return {
@@ -524,6 +525,7 @@ const newCommandDefinition: SlashCommandDefinition = {
         trunkBranch: undefined,
         runtime: undefined,
         startMessage: undefined,
+        model: undefined,
       };
     }
 
@@ -535,6 +537,7 @@ const newCommandDefinition: SlashCommandDefinition = {
         trunkBranch: undefined,
         runtime: undefined,
         startMessage: undefined,
+        model: undefined,
       };
     }
 
@@ -549,6 +552,7 @@ const newCommandDefinition: SlashCommandDefinition = {
         trunkBranch: undefined,
         runtime: undefined,
         startMessage: undefined,
+        model: undefined,
       };
     }
 
@@ -564,12 +568,21 @@ const newCommandDefinition: SlashCommandDefinition = {
       runtime = parsed.r.trim();
     }
 
+    // Handle -m (model) flag: resolve abbreviation if present, otherwise use as-is
+    let model: string | undefined;
+    if (parsed.m !== undefined && typeof parsed.m === "string" && parsed.m.trim().length > 0) {
+      const modelInput = parsed.m.trim();
+      // Check if it's an abbreviation
+      model = MODEL_ABBREVIATIONS[modelInput] ?? modelInput;
+    }
+
     return {
       type: "new",
       workspaceName,
       trunkBranch,
       runtime,
       startMessage: remainingLines,
+      model,
     };
   },
 };

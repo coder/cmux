@@ -302,11 +302,26 @@ export async function handleNewCommand(
 ): Promise<CommandHandlerResult> {
   const { workspaceId, sendMessageOptions, setInput, setIsSending, setToast } = context;
 
+  // Get workspace info to extract projectPath (needed for both cases)
+  const workspaceInfo = await window.api.workspace.getInfo(workspaceId);
+  if (!workspaceInfo) {
+    setToast({
+      id: Date.now().toString(),
+      type: "error",
+      message: "Failed to get workspace info",
+    });
+    return { clearInput: false, toastShown: true };
+  }
+
   // Open modal if no workspace name provided
   if (!parsed.workspaceName) {
     setInput("");
-    const event = new CustomEvent(CUSTOM_EVENTS.EXECUTE_COMMAND, {
-      detail: { commandId: "ws:new" },
+    const event = new CustomEvent(CUSTOM_EVENTS.OPEN_NEW_WORKSPACE_MODAL, {
+      detail: {
+        projectPath: workspaceInfo.projectPath,
+        startMessage: parsed.startMessage,
+        model: parsed.model,
+      },
     });
     window.dispatchEvent(event);
     return { clearInput: true, toastShown: false };
@@ -316,12 +331,6 @@ export async function handleNewCommand(
   setIsSending(true);
 
   try {
-    // Get workspace info to extract projectPath
-    const workspaceInfo = await window.api.workspace.getInfo(workspaceId);
-    if (!workspaceInfo) {
-      throw new Error("Failed to get workspace info");
-    }
-
     const createResult = await createNewWorkspace({
       projectPath: workspaceInfo.projectPath,
       workspaceName: parsed.workspaceName,
@@ -334,13 +343,17 @@ export async function handleNewCommand(
     if (!createResult.success) {
       const errorMsg = createResult.error ?? "Failed to create workspace";
       console.error("Failed to create workspace:", errorMsg);
-      setToast({
-        id: Date.now().toString(),
-        type: "error",
-        title: "Create Failed",
-        message: errorMsg,
+      // Open modal with error and preserve data
+      const event = new CustomEvent(CUSTOM_EVENTS.OPEN_NEW_WORKSPACE_MODAL, {
+        detail: {
+          projectPath: workspaceInfo.projectPath,
+          startMessage: parsed.startMessage,
+          model: parsed.model,
+          error: errorMsg,
+        },
       });
-      return { clearInput: false, toastShown: true };
+      window.dispatchEvent(event);
+      return { clearInput: true, toastShown: false };
     }
 
     setToast({
@@ -352,13 +365,17 @@ export async function handleNewCommand(
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : "Failed to create workspace";
     console.error("Create error:", error);
-    setToast({
-      id: Date.now().toString(),
-      type: "error",
-      title: "Create Failed",
-      message: errorMsg,
+    // Open modal with error and preserve data
+    const event = new CustomEvent(CUSTOM_EVENTS.OPEN_NEW_WORKSPACE_MODAL, {
+      detail: {
+        projectPath: workspaceInfo.projectPath,
+        startMessage: parsed.startMessage,
+        model: parsed.model,
+        error: errorMsg,
+      },
     });
-    return { clearInput: false, toastShown: true };
+    window.dispatchEvent(event);
+    return { clearInput: true, toastShown: false };
   } finally {
     setIsSending(false);
   }

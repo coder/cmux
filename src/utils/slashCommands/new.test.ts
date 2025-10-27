@@ -8,6 +8,7 @@ describe("/new command", () => {
       workspaceName: undefined,
       trunkBranch: undefined,
       startMessage: undefined,
+      model: undefined,
     });
   });
 
@@ -18,6 +19,7 @@ describe("/new command", () => {
       workspaceName: "feature-branch",
       trunkBranch: undefined,
       startMessage: undefined,
+      model: undefined,
     });
   });
 
@@ -28,6 +30,7 @@ describe("/new command", () => {
       workspaceName: "feature-branch",
       trunkBranch: "main",
       startMessage: undefined,
+      model: undefined,
     });
   });
 
@@ -38,6 +41,7 @@ describe("/new command", () => {
       workspaceName: "feature-branch",
       trunkBranch: undefined,
       startMessage: "Start implementing feature X",
+      model: undefined,
     });
   });
 
@@ -48,6 +52,7 @@ describe("/new command", () => {
       workspaceName: "feature-branch",
       trunkBranch: "main",
       startMessage: "Start implementing feature X",
+      model: undefined,
     });
   });
 
@@ -58,6 +63,7 @@ describe("/new command", () => {
       workspaceName: "feature-branch",
       trunkBranch: undefined,
       startMessage: "Line 1\nLine 2\nLine 3",
+      model: undefined,
     });
   });
 
@@ -68,6 +74,7 @@ describe("/new command", () => {
       workspaceName: undefined,
       trunkBranch: undefined,
       startMessage: undefined,
+      model: undefined,
     });
   });
 
@@ -78,6 +85,7 @@ describe("/new command", () => {
       workspaceName: "my feature",
       trunkBranch: undefined,
       startMessage: undefined,
+      model: undefined,
     });
   });
 
@@ -88,6 +96,7 @@ describe("/new command", () => {
       workspaceName: undefined,
       trunkBranch: undefined,
       startMessage: undefined,
+      model: undefined,
     });
   });
 
@@ -98,6 +107,7 @@ describe("/new command", () => {
       workspaceName: "feature-branch",
       trunkBranch: "release/v1.0",
       startMessage: undefined,
+      model: undefined,
     });
   });
 
@@ -108,6 +118,62 @@ describe("/new command", () => {
       workspaceName: "feature-branch",
       trunkBranch: "main",
       startMessage: undefined,
+      model: undefined,
+    });
+  });
+
+  it("should parse /new with -m flag (model)", () => {
+    const result = parseCommand("/new feature-branch -m sonnet");
+    expect(result).toEqual({
+      type: "new",
+      workspaceName: "feature-branch",
+      trunkBranch: undefined,
+      startMessage: undefined,
+      model: "anthropic:claude-sonnet-4-5", // Resolves abbreviation
+    });
+  });
+
+  it("should parse /new with -m flag (full model name)", () => {
+    const result = parseCommand("/new feature-branch -m anthropic:claude-opus-4-1");
+    expect(result).toEqual({
+      type: "new",
+      workspaceName: "feature-branch",
+      trunkBranch: undefined,
+      startMessage: undefined,
+      model: "anthropic:claude-opus-4-1",
+    });
+  });
+
+  it("should parse /new with both -t and -m flags", () => {
+    const result = parseCommand("/new feature-branch -t main -m haiku");
+    expect(result).toEqual({
+      type: "new",
+      workspaceName: "feature-branch",
+      trunkBranch: "main",
+      startMessage: undefined,
+      model: "anthropic:claude-haiku-4-5", // Resolves abbreviation
+    });
+  });
+
+  it("should parse /new with -m, -t, and start message", () => {
+    const result = parseCommand("/new feature-branch -m sonnet -t main\nImplement feature X");
+    expect(result).toEqual({
+      type: "new",
+      workspaceName: "feature-branch",
+      trunkBranch: "main",
+      startMessage: "Implement feature X",
+      model: "anthropic:claude-sonnet-4-5",
+    });
+  });
+
+  it("should return undefined workspaceName for unknown flag with -m", () => {
+    const result = parseCommand("/new feature-branch -m sonnet -x invalid");
+    expect(result).toEqual({
+      type: "new",
+      workspaceName: undefined,
+      trunkBranch: undefined,
+      startMessage: undefined,
+      model: undefined,
     });
   });
 });

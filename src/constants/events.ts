@@ -46,6 +46,12 @@ export const CUSTOM_EVENTS = {
    * Detail: { commandId: string }
    */
   EXECUTE_COMMAND: "cmux:executeCommand",
+
+  /**
+   * Event to open the new workspace modal with initial data
+   * Detail: { projectPath: string, startMessage?: string, model?: string, error?: string }
+   */
+  OPEN_NEW_WORKSPACE_MODAL: "cmux:openNewWorkspaceModal",
 } as const;
 
 /**

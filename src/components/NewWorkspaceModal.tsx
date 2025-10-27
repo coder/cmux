@@ -12,8 +12,16 @@ interface NewWorkspaceModalProps {
   branches: string[];
   defaultTrunkBranch?: string;
   loadErrorMessage?: string | null;
+  initialStartMessage?: string;
+  initialModel?: string;
   onClose: () => void;
-  onAdd: (branchName: string, trunkBranch: string, runtime?: string) => Promise<void>;
+  onAdd: (
+    branchName: string,
+    trunkBranch: string,
+    runtime?: string,
+    startMessage?: string,
+    model?: string
+  ) => Promise<void>;
 }
 
 // Shared form field styles
@@ -27,11 +35,14 @@ const NewWorkspaceModal: React.FC<NewWorkspaceModalProps> = ({
   branches,
   defaultTrunkBranch,
   loadErrorMessage,
+  initialStartMessage,
+  initialModel,
   onClose,
   onAdd,
 }) => {
   const [branchName, setBranchName] = useState("");
   const [trunkBranch, setTrunkBranch] = useState(defaultTrunkBranch ?? branches[0] ?? "");
+  const [startMessage, setStartMessage] = useState(initialStartMessage ?? "");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const infoId = useId();
@@ -44,6 +55,10 @@ const NewWorkspaceModal: React.FC<NewWorkspaceModalProps> = ({
   useEffect(() => {
     setError(loadErrorMessage ?? null);
   }, [loadErrorMessage]);
+
+  useEffect(() => {
+    setStartMessage(initialStartMessage ?? "");
+  }, [initialStartMessage]);
 
   useEffect(() => {
     const fallbackTrunk = defaultTrunkBranch ?? branches[0] ?? "";
@@ -66,6 +81,7 @@ const NewWorkspaceModal: React.FC<NewWorkspaceModalProps> = ({
     setBranchName("");
     setTrunkBranch(defaultTrunkBranch ?? branches[0] ?? "");
     setRuntimeOptions(RUNTIME_MODE.LOCAL, "");
+    setStartMessage("");
     setError(loadErrorMessage ?? null);
     onClose();
   };
@@ -104,11 +120,19 @@ const NewWorkspaceModal: React.FC<NewWorkspaceModalProps> = ({
     try {
       // Get runtime string from hook helper
       const runtime = getRuntimeString();
+      const trimmedStartMessage = startMessage.trim();
 
-      await onAdd(trimmedBranchName, normalizedTrunkBranch, runtime);
+      await onAdd(
+        trimmedBranchName,
+        normalizedTrunkBranch,
+        runtime,
+        trimmedStartMessage || undefined,
+        initialModel
+      );
       setBranchName("");
       setTrunkBranch(defaultTrunkBranch ?? branches[0] ?? "");
       setRuntimeOptions(RUNTIME_MODE.LOCAL, "");
+      setStartMessage("");
       onClose();
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to create workspace";
@@ -202,6 +226,7 @@ const NewWorkspaceModal: React.FC<NewWorkspaceModalProps> = ({
           )}
         </div>
 
+<<<<<<< HEAD
         <div className={formFieldClasses}>
           <label htmlFor="runtimeMode">Runtime:</label>
           <select
@@ -243,6 +268,17 @@ const NewWorkspaceModal: React.FC<NewWorkspaceModalProps> = ({
           </div>
         )}
 
+        <div className="[&_label]:text-foreground [&_textarea]:bg-modal-bg [&_textarea]:border-border-medium [&_textarea]:focus:border-accent mb-5 [&_label]:mb-2 [&_label]:block [&_label]:text-sm [&_textarea]:w-full [&_textarea]:rounded [&_textarea]:border [&_textarea]:px-3 [&_textarea]:py-2 [&_textarea]:text-sm [&_textarea]:text-white [&_textarea]:focus:outline-none [&_textarea]:disabled:cursor-not-allowed [&_textarea]:disabled:opacity-60 [&_textarea]:resize-y [&_textarea]:min-h-[80px]">
+          <label htmlFor="startMessage">Start Message (optional):</label>
+          <textarea
+            id="startMessage"
+            value={startMessage}
+            onChange={(event) => setStartMessage(event.target.value)}
+            disabled={isLoading}
+            placeholder="Enter a message to send after creating the workspace..."
+          />
+        </div>
+
         <ModalInfo id={infoId}>
           <p>This will create a workspace at:</p>
           <code className="block break-all">
@@ -259,6 +295,7 @@ const NewWorkspaceModal: React.FC<NewWorkspaceModalProps> = ({
               {formatNewCommand(
                 branchName.trim(),
                 trunkBranch.trim() || undefined,
+                startMessage.trim() || undefined,
                 getRuntimeString()
               )}
             </div>
