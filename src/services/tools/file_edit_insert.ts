@@ -8,7 +8,6 @@ import { executeFileEditOperation } from "./file_edit_operation";
 import { RuntimeError } from "@/runtime/Runtime";
 import { fileExists } from "@/utils/runtime/fileExists";
 import { writeFileString } from "@/utils/runtime/helpers";
-import { waitForWorkspaceInit } from "./toolHelpers";
 
 /**
  * File edit insert tool factory for AI assistant
@@ -25,9 +24,6 @@ export const createFileEditInsertTool: ToolFactory = (config: ToolConfiguration)
       content,
       create,
     }): Promise<FileEditInsertToolResult> => {
-      // Wait for workspace initialization to complete (no-op if already complete or not needed)
-      await waitForWorkspaceInit(config);
-
       try {
         // Validate no redundant path prefix (must come first to catch absolute paths)
         const redundantPrefixValidation = validateNoRedundantPrefix(

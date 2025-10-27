@@ -9,7 +9,6 @@ import {
 } from "./fileCommon";
 import { RuntimeError } from "@/runtime/Runtime";
 import { readFileString, writeFileString } from "@/utils/runtime/helpers";
-import { waitForWorkspaceInit } from "./toolHelpers";
 
 type FileEditOperationResult<TMetadata> =
   | {
@@ -41,9 +40,6 @@ export async function executeFileEditOperation<TMetadata>({
 }: ExecuteFileEditOperationOptions<TMetadata>): Promise<
   FileEditErrorResult | (FileEditDiffSuccessBase & TMetadata)
 > {
-  // Wait for workspace initialization to complete (no-op if already complete or not needed)
-  await waitForWorkspaceInit(config);
-
   try {
     // Validate no redundant path prefix (must come first to catch absolute paths)
     const redundantPrefixValidation = validateNoRedundantPrefix(

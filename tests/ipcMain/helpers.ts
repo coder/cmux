@@ -565,7 +565,9 @@ export function collectInitEvents(
   return env.sentEvents
     .filter((e) => e.channel === getChatChannel(workspaceId))
     .map((e) => e.data as WorkspaceChatMessage)
-    .filter((msg) => isInitStart(msg) || isInitOutput(msg) || isInitEnd(msg)) as WorkspaceInitEvent[];
+    .filter(
+      (msg) => isInitStart(msg) || isInitOutput(msg) || isInitEnd(msg)
+    ) as WorkspaceInitEvent[];
 }
 
 /**
