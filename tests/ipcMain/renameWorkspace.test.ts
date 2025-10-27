@@ -17,8 +17,15 @@ import { promisify } from "util";
 import { shouldRunIntegrationTests, createTestEnvironment, cleanupTestEnvironment } from "./setup";
 import type { TestEnvironment } from "./setup";
 import { IPC_CHANNELS } from "../../src/constants/ipc-constants";
-import { createTempGitRepo, cleanupTempGitRepo, generateBranchName } from "./helpers";
-import { detectDefaultTrunkBranch } from "../../src/git";
+import {
+  createTempGitRepo,
+  cleanupTempGitRepo,
+  generateBranchName,
+  createWorkspaceWithInit,
+  INIT_HOOK_WAIT_MS,
+  SSH_INIT_WAIT_MS,
+  TEST_TIMEOUT_SSH_MS,
+} from "./helpers";
 import {
   isDockerAvailable,
   startSSHServer,
@@ -26,15 +33,11 @@ import {
   type SSHServerConfig,
 } from "../runtime/ssh-fixture";
 import type { RuntimeConfig } from "../../src/types/runtime";
-import type { FrontendWorkspaceMetadata } from "../../src/types/workspace";
-import { waitForInitComplete } from "./helpers";
 
 const execAsync = promisify(exec);
 
 // Test constants
-const TEST_TIMEOUT_MS = 60000;
-const INIT_HOOK_WAIT_MS = 1500; // Wait for async init hook completion (local runtime)
-const SSH_INIT_WAIT_MS = 7000; // SSH init includes sync + checkout + hook, takes longer
+const TEST_TIMEOUT_MS = TEST_TIMEOUT_SSH_MS; // Use SSH timeout for consistency
 
 // Skip all tests if TEST_INTEGRATION is not set
 const describeIntegration = shouldRunIntegrationTests() ? describe : describe.skip;
@@ -43,40 +46,8 @@ const describeIntegration = shouldRunIntegrationTests() ? describe : describe.sk
 let sshConfig: SSHServerConfig | undefined;
 
 // ============================================================================
-// Test Helpers
+// Tests
 // ============================================================================
-
-/**
- * Create workspace and handle cleanup on test failure
- */
-async function createWorkspaceWithCleanup(
-  env: TestEnvironment,
-  projectPath: string,
-  branchName: string,
-  trunkBranch: string,
-  runtimeConfig?: RuntimeConfig
-): Promise<{
-  result:
-    | { success: true; metadata: FrontendWorkspaceMetadata }
-    | { success: false; error: string };
-  cleanup: () => Promise<void>;
-}> {
-  const result = await env.mockIpcRenderer.invoke(
-    IPC_CHANNELS.WORKSPACE_CREATE,
-    projectPath,
-    branchName,
-    trunkBranch,
-    runtimeConfig
-  );
-
-  const cleanup = async () => {
-    if (result.success) {
-      await env.mockIpcRenderer.invoke(IPC_CHANNELS.WORKSPACE_REMOVE, result.metadata.id);
-    }
-  };
-
-  return { result, cleanup };
-}
 
 describeIntegration("WORKSPACE_RENAME with both runtimes", () => {
   beforeAll(async () => {
@@ -129,29 +100,20 @@ describeIntegration("WORKSPACE_RENAME with both runtimes", () => {
 
           try {
             const branchName = generateBranchName("rename-test");
-            const trunkBranch = await detectDefaultTrunkBranch(tempGitRepo);
             const runtimeConfig = getRuntimeConfig(branchName);
 
-            // Create workspace
-            const { result, cleanup } = await createWorkspaceWithCleanup(
+            // Create workspace and wait for init
+            const { workspaceId, workspacePath, cleanup } = await createWorkspaceWithInit(
               env,
               tempGitRepo,
               branchName,
-              trunkBranch,
-              runtimeConfig
+              runtimeConfig,
+              true, // waitForInit
+              type === "ssh"
             );
 
-            expect(result.success).toBe(true);
-            if (!result.success) {
-              throw new Error(`Failed to create workspace: ${result.error}`);
-            }
-
-            const workspaceId = result.metadata.id;
-            const oldWorkspacePath = result.metadata.namedWorkspacePath;
+            const oldWorkspacePath = workspacePath;
             const oldSessionDir = env.config.getSessionDir(workspaceId);
-
-            // Wait for init hook to complete before renaming
-            await waitForInitComplete(env, workspaceId, getInitWaitTime());
 
             // Clear events before rename
             env.sentEvents.length = 0;
@@ -232,40 +194,33 @@ describeIntegration("WORKSPACE_RENAME with both runtimes", () => {
           try {
             const branchName = generateBranchName("first");
             const secondBranchName = generateBranchName("second");
-            const trunkBranch = await detectDefaultTrunkBranch(tempGitRepo);
             const runtimeConfig = getRuntimeConfig(branchName);
 
             // Create first workspace
-            const { result: firstResult, cleanup: firstCleanup } = await createWorkspaceWithCleanup(
-              env,
-              tempGitRepo,
-              branchName,
-              trunkBranch,
-              runtimeConfig
-            );
-            expect(firstResult.success).toBe(true);
-            if (!firstResult.success) {
-              throw new Error(`Failed to create first workspace: ${firstResult.error}`);
-            }
-
-            // Create second workspace
-            const { result: secondResult, cleanup: secondCleanup } =
-              await createWorkspaceWithCleanup(
+            const { workspaceId: firstWorkspaceId, cleanup: firstCleanup } =
+              await createWorkspaceWithInit(
                 env,
                 tempGitRepo,
-                secondBranchName,
-                trunkBranch,
-                runtimeConfig
+                branchName,
+                runtimeConfig,
+                true, // waitForInit
+                type === "ssh"
               );
-            expect(secondResult.success).toBe(true);
-            if (!secondResult.success) {
-              throw new Error(`Failed to create second workspace: ${secondResult.error}`);
-            }
+
+            // Create second workspace
+            const { cleanup: secondCleanup } = await createWorkspaceWithInit(
+              env,
+              tempGitRepo,
+              secondBranchName,
+              runtimeConfig,
+              true, // waitForInit
+              type === "ssh"
+            );
 
             // Try to rename first workspace to the second workspace's name
             const renameResult = await env.mockIpcRenderer.invoke(
               IPC_CHANNELS.WORKSPACE_RENAME,
-              firstResult.metadata.id,
+              firstWorkspaceId,
               secondBranchName
             );
             expect(renameResult.success).toBe(false);
@@ -274,10 +229,10 @@ describeIntegration("WORKSPACE_RENAME with both runtimes", () => {
             // Verify original workspace still exists and wasn't modified
             const metadataResult = await env.mockIpcRenderer.invoke(
               IPC_CHANNELS.WORKSPACE_GET_INFO,
-              firstResult.metadata.id
+              firstWorkspaceId
             );
             expect(metadataResult).toBeTruthy();
-            expect(metadataResult.id).toBe(firstResult.metadata.id);
+            expect(metadataResult.id).toBe(firstWorkspaceId);
 
             await firstCleanup();
             await secondCleanup();

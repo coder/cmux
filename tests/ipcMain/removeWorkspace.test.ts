@@ -22,8 +22,12 @@ import {
   addSubmodule,
   waitForFileNotExists,
   waitForInitComplete,
+  createWorkspaceWithInit,
+  TEST_TIMEOUT_LOCAL_MS,
+  TEST_TIMEOUT_SSH_MS,
+  INIT_HOOK_WAIT_MS,
+  SSH_INIT_WAIT_MS,
 } from "./helpers";
-import { detectDefaultTrunkBranch } from "../../src/git";
 import {
   isDockerAvailable,
   startSSHServer,
@@ -32,12 +36,6 @@ import {
 } from "../runtime/ssh-fixture";
 import type { RuntimeConfig } from "../../src/types/runtime";
 import { execAsync } from "../../src/utils/disposableExec";
-
-// Test constants
-const TEST_TIMEOUT_LOCAL_MS = 20000;
-const TEST_TIMEOUT_SSH_MS = 45000;
-const INIT_HOOK_WAIT_MS = 1500;
-const SSH_INIT_WAIT_MS = 7000;
 
 // Skip all tests if TEST_INTEGRATION is not set
 const describeIntegration = shouldRunIntegrationTests() ? describe : describe.skip;
@@ -48,49 +46,6 @@ let sshConfig: SSHServerConfig | undefined;
 // ============================================================================
 // Test Helpers
 // ============================================================================
-
-/**
- * Create workspace helper and wait for init hook to complete
- */
-async function createWorkspaceHelper(
-  env: TestEnvironment,
-  projectPath: string,
-  branchName: string,
-  runtimeConfig?: RuntimeConfig,
-  isSSH: boolean = false
-): Promise<{
-  workspaceId: string;
-  workspacePath: string;
-  cleanup: () => Promise<void>;
-}> {
-  const trunkBranch = await detectDefaultTrunkBranch(projectPath);
-  console.log(
-    `[createWorkspaceHelper] Creating workspace with trunk=${trunkBranch}, branch=${branchName}`
-  );
-  const result = await env.mockIpcRenderer.invoke(
-    IPC_CHANNELS.WORKSPACE_CREATE,
-    projectPath,
-    branchName,
-    trunkBranch,
-    runtimeConfig
-  );
-
-  if (!result.success) {
-    throw new Error(`Failed to create workspace: ${result.error}`);
-  }
-
-  const workspaceId = result.metadata.id;
-  const workspacePath = result.metadata.namedWorkspacePath;
-
-  // Wait for init hook to complete in real-time
-  await waitForInitComplete(env, workspaceId, isSSH ? SSH_INIT_WAIT_MS : INIT_HOOK_WAIT_MS);
-
-  const cleanup = async () => {
-    await env.mockIpcRenderer.invoke(IPC_CHANNELS.WORKSPACE_REMOVE, workspaceId);
-  };
-
-  return { workspaceId, workspacePath, cleanup };
-}
 
 /**
  * Execute bash command in workspace context (works for both local and SSH)
@@ -200,11 +155,12 @@ describeIntegration("Workspace deletion integration tests", () => {
           try {
             const branchName = generateBranchName("delete-test");
             const runtimeConfig = getRuntimeConfig(branchName);
-            const { workspaceId, workspacePath } = await createWorkspaceHelper(
+            const { workspaceId, workspacePath } = await createWorkspaceWithInit(
               env,
               tempGitRepo,
               branchName,
               runtimeConfig,
+              true, // waitForInit
               type === "ssh"
             );
 
@@ -272,11 +228,12 @@ describeIntegration("Workspace deletion integration tests", () => {
           try {
             const branchName = generateBranchName("already-deleted");
             const runtimeConfig = getRuntimeConfig(branchName);
-            const { workspaceId, workspacePath } = await createWorkspaceHelper(
+            const { workspaceId, workspacePath } = await createWorkspaceWithInit(
               env,
               tempGitRepo,
               branchName,
               runtimeConfig,
+              true, // waitForInit
               type === "ssh"
             );
 
@@ -317,11 +274,12 @@ describeIntegration("Workspace deletion integration tests", () => {
           try {
             const branchName = generateBranchName("delete-dirty");
             const runtimeConfig = getRuntimeConfig(branchName);
-            const { workspaceId } = await createWorkspaceHelper(
+            const { workspaceId } = await createWorkspaceWithInit(
               env,
               tempGitRepo,
               branchName,
               runtimeConfig,
+              true, // waitForInit
               type === "ssh"
             );
 
@@ -363,11 +321,12 @@ describeIntegration("Workspace deletion integration tests", () => {
           try {
             const branchName = generateBranchName("delete-dirty-force");
             const runtimeConfig = getRuntimeConfig(branchName);
-            const { workspaceId } = await createWorkspaceHelper(
+            const { workspaceId } = await createWorkspaceWithInit(
               env,
               tempGitRepo,
               branchName,
               runtimeConfig,
+              true, // waitForInit
               type === "ssh"
             );
 
@@ -410,12 +369,13 @@ describeIntegration("Workspace deletion integration tests", () => {
               await addSubmodule(tempGitRepo);
 
               const branchName = generateBranchName("delete-submodule-clean");
-              const { workspaceId, workspacePath } = await createWorkspaceHelper(
+              const { workspaceId, workspacePath } = await createWorkspaceWithInit(
                 env,
                 tempGitRepo,
                 branchName,
                 undefined,
-                false
+                true, // waitForInit
+                false // not SSH
               );
 
               // Initialize submodule in the worktree
@@ -462,12 +422,13 @@ describeIntegration("Workspace deletion integration tests", () => {
               await addSubmodule(tempGitRepo);
 
               const branchName = generateBranchName("delete-submodule-dirty");
-              const { workspaceId, workspacePath } = await createWorkspaceHelper(
+              const { workspaceId, workspacePath } = await createWorkspaceWithInit(
                 env,
                 tempGitRepo,
                 branchName,
                 undefined,
-                false
+                true, // waitForInit
+                false // not SSH
               );
 
               // Initialize submodule in the worktree
