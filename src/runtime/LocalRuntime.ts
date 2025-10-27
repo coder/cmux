@@ -20,7 +20,6 @@ import { EXIT_CODE_ABORTED, EXIT_CODE_TIMEOUT } from "../constants/exitCodes";
 import { listLocalBranches } from "../git";
 import { checkInitHookExists, getInitHookPath, createLineBufferedLoggers } from "./initHook";
 import { execAsync } from "../utils/disposableExec";
-import { findBashPath, findNicePath } from "./executablePaths";
 import { getProjectName } from "../utils/runtime/helpers";
 import { getErrorMessage } from "../utils/errors";
 
@@ -53,12 +52,9 @@ export class LocalRuntime implements Runtime {
       );
     }
 
-    // Find bash path (important for CI environments where PATH may not be set)
-    const bashPath = findBashPath();
-    const nicePath = findNicePath();
-
     // If niceness is specified, spawn nice directly to avoid escaping issues
-    const spawnCommand = options.niceness !== undefined ? nicePath : bashPath;
+    const spawnCommand = options.niceness !== undefined ? "nice" : "bash";
+    const bashPath = "bash";
     const spawnArgs =
       options.niceness !== undefined
         ? ["-n", options.niceness.toString(), bashPath, "-c", command]
@@ -328,19 +324,21 @@ export class LocalRuntime implements Runtime {
 
       // Create parent directory if needed
       const parentDir = path.dirname(workspacePath);
-      // eslint-disable-next-line local/no-sync-fs-methods
-      if (!fs.existsSync(parentDir)) {
-        // eslint-disable-next-line local/no-sync-fs-methods
-        fs.mkdirSync(parentDir, { recursive: true });
+      try {
+        await fsPromises.access(parentDir);
+      } catch {
+        await fsPromises.mkdir(parentDir, { recursive: true });
       }
 
       // Check if workspace already exists
-      // eslint-disable-next-line local/no-sync-fs-methods
-      if (fs.existsSync(workspacePath)) {
+      try {
+        await fsPromises.access(workspacePath);
         return {
           success: false,
           error: `Workspace already exists at ${workspacePath}`,
         };
+      } catch {
+        // Workspace doesn't exist, proceed with creation
       }
 
       // Check if branch exists locally
@@ -419,8 +417,7 @@ export class LocalRuntime implements Runtime {
     const loggers = createLineBufferedLoggers(initLogger);
 
     return new Promise<void>((resolve) => {
-      const bashPath = findBashPath();
-      const proc = spawn(bashPath, ["-c", `"${hookPath}"`], {
+      const proc = spawn("bash", ["-c", `"${hookPath}"`], {
         cwd: workspacePath,
         stdio: ["ignore", "pipe", "pipe"],
       });

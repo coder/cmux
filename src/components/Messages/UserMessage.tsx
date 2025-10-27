@@ -1,9 +1,10 @@
-import React, { useState } from "react";
+import React from "react";
 import type { DisplayedMessage } from "@/types/message";
 import type { ButtonConfig } from "./MessageWindow";
 import { MessageWindow } from "./MessageWindow";
 import { TerminalOutput } from "./TerminalOutput";
 import { formatKeybind, KEYBINDS } from "@/utils/ui/keybinds";
+import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
 import type { KebabMenuItem } from "@/components/KebabMenu";
 
 interface UserMessageProps {
@@ -30,8 +31,6 @@ export const UserMessage: React.FC<UserMessageProps> = ({
   isCompacting,
   clipboardWriteText = defaultClipboardWriteText,
 }) => {
-  const [copied, setCopied] = useState(false);
-
   const content = message.content;
 
   console.assert(
@@ -48,20 +47,8 @@ export const UserMessage: React.FC<UserMessageProps> = ({
     ? content.slice("<local-command-stdout>".length, -"</local-command-stdout>".length).trim()
     : "";
 
-  const handleCopy = async () => {
-    console.assert(
-      typeof content === "string",
-      "UserMessage copy handler expects message content to be a string."
-    );
-
-    try {
-      await clipboardWriteText(content);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch (err) {
-      console.error("Failed to copy:", err);
-    }
-  };
+  // Copy to clipboard with feedback
+  const { copied, copyToClipboard } = useCopyToClipboard(clipboardWriteText);
 
   const handleEdit = () => {
     if (onEdit && !isLocalCommandOutput) {
@@ -86,7 +73,7 @@ export const UserMessage: React.FC<UserMessageProps> = ({
       : []),
     {
       label: copied ? "✓ Copied" : "Copy",
-      onClick: () => void handleCopy(),
+      onClick: () => void copyToClipboard(content),
     },
   ];
 

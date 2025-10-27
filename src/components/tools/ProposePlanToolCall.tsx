@@ -12,6 +12,7 @@ import { useToolExpansion, getStatusDisplay, type ToolStatus } from "./shared/to
 import { MarkdownRenderer } from "../Messages/MarkdownRenderer";
 import { formatKeybind, KEYBINDS } from "@/utils/ui/keybinds";
 import { useStartHere } from "@/hooks/useStartHere";
+import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
 import { TooltipWrapper, Tooltip } from "../Tooltip";
 import { cn } from "@/lib/utils";
 
@@ -30,7 +31,6 @@ export const ProposePlanToolCall: React.FC<ProposePlanToolCallProps> = ({
 }) => {
   const { expanded, toggleExpanded } = useToolExpansion(true); // Expand by default
   const [showRaw, setShowRaw] = useState(false);
-  const [copied, setCopied] = useState(false);
 
   // Format: Title as H1 + plan content for "Start Here" functionality
   const startHereContent = `# ${args.title}\n\n${args.plan}`;
@@ -46,19 +46,12 @@ export const ProposePlanToolCall: React.FC<ProposePlanToolCallProps> = ({
     false // Plans are never already compacted
   );
 
+  // Copy to clipboard with feedback
+  const { copied, copyToClipboard } = useCopyToClipboard();
+
   const [isHovered, setIsHovered] = useState(false);
 
   const statusDisplay = getStatusDisplay(status);
-
-  const handleCopy = async () => {
-    try {
-      await navigator.clipboard.writeText(args.plan);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch (err) {
-      console.error("Failed to copy:", err);
-    }
-  };
 
   return (
     <ToolContainer expanded={expanded}>
@@ -134,8 +127,8 @@ export const ProposePlanToolCall: React.FC<ProposePlanToolCallProps> = ({
                   </TooltipWrapper>
                 )}
                 <button
-                  onClick={() => void handleCopy()}
-                  className="hover:text-plan-mode cursor-pointer rounded-sm bg-transparent px-2 py-1 font-mono text-[10px] text-neutral-400 transition-all duration-150 active:translate-y-px"
+                  onClick={() => void copyToClipboard(args.plan)}
+                  className="text-neutral-400 hover:text-plan-mode cursor-pointer rounded-sm bg-transparent px-2 py-1 font-mono text-[10px] transition-all duration-150 active:translate-y-px"
                   style={{
                     border: "1px solid rgba(136, 136, 136, 0.3)",
                   }}
@@ -188,7 +181,7 @@ export const ProposePlanToolCall: React.FC<ProposePlanToolCallProps> = ({
             </div>
 
             {showRaw ? (
-              <pre className="bg-code-bg m-0 rounded-sm p-2 font-mono text-xs leading-relaxed break-words whitespace-pre-wrap text-neutral-300">
+              <pre className="text-text bg-code-bg m-0 rounded-sm p-2 font-mono text-xs leading-relaxed break-words whitespace-pre-wrap">
                 {args.plan}
               </pre>
             ) : (
@@ -199,7 +192,7 @@ export const ProposePlanToolCall: React.FC<ProposePlanToolCallProps> = ({
 
             {status === "completed" && (
               <div
-                className="mt-3 pt-3 text-[11px] leading-normal text-neutral-400 italic"
+                className="text-neutral-400 mt-3 pt-3 text-[11px] leading-normal italic"
                 style={{
                   borderTop:
                     "1px solid color-mix(in srgb, var(--color-plan-mode), transparent 80%)",

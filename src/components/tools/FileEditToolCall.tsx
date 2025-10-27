@@ -19,6 +19,7 @@ import {
   LoadingDots,
 } from "./shared/ToolPrimitives";
 import { useToolExpansion, getStatusDisplay, type ToolStatus } from "./shared/toolUtils";
+import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
 import { TooltipWrapper, Tooltip } from "../Tooltip";
 import { DiffContainer, DiffRenderer, SelectableDiffRenderer } from "../shared/DiffRenderer";
 import { KebabMenu, type KebabMenuItem } from "../KebabMenu";
@@ -104,21 +105,11 @@ export const FileEditToolCall: React.FC<FileEditToolCallProps> = ({
 
   const { expanded, toggleExpanded } = useToolExpansion(initialExpanded);
   const [showRaw, setShowRaw] = React.useState(false);
-  const [copied, setCopied] = React.useState(false);
 
   const filePath = "file_path" in args ? args.file_path : undefined;
 
-  const handleCopyPatch = async () => {
-    if (result && result.success && result.diff) {
-      try {
-        await navigator.clipboard.writeText(result.diff);
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
-      } catch (err) {
-        console.error("Failed to copy:", err);
-      }
-    }
-  };
+  // Copy to clipboard with feedback
+  const { copied, copyToClipboard } = useCopyToClipboard();
 
   // Build kebab menu items for successful edits with diffs
   const kebabMenuItems: KebabMenuItem[] =
@@ -126,7 +117,7 @@ export const FileEditToolCall: React.FC<FileEditToolCallProps> = ({
       ? [
           {
             label: copied ? "✓ Copied" : "Copy Patch",
-            onClick: () => void handleCopyPatch(),
+            onClick: () => void copyToClipboard(result.diff),
           },
           {
             label: showRaw ? "Show Parsed" : "Show Patch",

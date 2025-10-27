@@ -1,7 +1,4 @@
 import { EventEmitter } from "events";
-import * as fs from "fs";
-import * as path from "path";
-import * as os from "os";
 import {
   streamText,
   stepCountIs,
@@ -31,6 +28,8 @@ import type { HistoryService } from "./historyService";
 import { AsyncMutex } from "@/utils/concurrency/asyncMutex";
 import type { ToolPolicy } from "@/utils/tools/toolPolicy";
 import { StreamingTokenTracker } from "@/utils/main/StreamingTokenTracker";
+import type { Runtime } from "@/runtime/Runtime";
+import { execBuffered } from "@/utils/runtime/helpers";
 
 // Type definitions for stream parts with extended properties
 interface ReasoningDeltaPart {
@@ -107,7 +106,9 @@ interface WorkspaceStreamInfo {
   // Track background processing promise for guaranteed cleanup
   processingPromise: Promise<void>;
   // Temporary directory for tool outputs (auto-cleaned when stream ends)
-  tempDir: string;
+  runtimeTempDir: string;
+  // Runtime for temp directory cleanup
+  runtime: Runtime;
 }
 
 /**
@@ -242,12 +243,26 @@ export class StreamManager extends EventEmitter {
    * - Agent mistakes when copying/manipulating paths
    * - Harder to read in tool outputs
    * - Potential path length issues on some systems
+   *
+   * Uses the Runtime abstraction so temp directories work for both local and SSH runtimes.
    */
-  public createTempDirForStream(streamToken: StreamToken): string {
-    const homeDir = os.homedir();
-    const tempDir = path.join(homeDir, ".cmux-tmp", streamToken);
-    fs.mkdirSync(tempDir, { recursive: true, mode: 0o700 });
-    return tempDir;
+  public async createTempDirForStream(streamToken: StreamToken, runtime: Runtime): Promise<string> {
+    // Create directory and get absolute path (works for both local and remote)
+    // Use 'cd' + 'pwd' to resolve ~ to absolute path
+    const command = `mkdir -p ~/.cmux-tmp/${streamToken} && cd ~/.cmux-tmp/${streamToken} && pwd`;
+    const result = await execBuffered(runtime, command, {
+      cwd: "/",
+      timeout: 10,
+    });
+
+    if (result.exitCode !== 0) {
+      throw new Error(
+        `Failed to create temp directory ~/.cmux-tmp/${streamToken}: exit code ${result.exitCode}`
+      );
+    }
+
+    // Return absolute path (e.g., "/home/user/.cmux-tmp/abc123")
+    return result.stdout.trim();
   }
 
   /**
@@ -429,7 +444,8 @@ export class StreamManager extends EventEmitter {
   private createStreamAtomically(
     workspaceId: WorkspaceId,
     streamToken: StreamToken,
-    tempDir: string,
+    runtimeTempDir: string,
+    runtime: Runtime,
     messages: ModelMessage[],
     model: LanguageModel,
     modelString: string,
@@ -508,7 +524,8 @@ export class StreamManager extends EventEmitter {
       lastPartialWriteTime: 0, // Initialize to 0 to allow immediate first write
       partialWritePromise: undefined, // No write in flight initially
       processingPromise: Promise.resolve(), // Placeholder, overwritten in startStream
-      tempDir, // Stream-scoped temp directory for tool outputs
+      runtimeTempDir, // Stream-scoped temp directory for tool outputs
+      runtime, // Runtime for temp directory cleanup
     };
 
     // Atomically register the stream
@@ -961,13 +978,17 @@ export class StreamManager extends EventEmitter {
         streamInfo.partialWriteTimer = undefined;
       }
 
-      // Clean up stream temp directory
-      if (streamInfo.tempDir && fs.existsSync(streamInfo.tempDir)) {
+      // Clean up stream temp directory using runtime
+      if (streamInfo.runtimeTempDir) {
         try {
-          fs.rmSync(streamInfo.tempDir, { recursive: true, force: true });
-          log.debug(`Cleaned up temp dir: ${streamInfo.tempDir}`);
+          const result = await streamInfo.runtime.exec(`rm -rf "${streamInfo.runtimeTempDir}"`, {
+            cwd: "~",
+            timeout: 10,
+          });
+          await result.exitCode; // Wait for completion
+          log.debug(`Cleaned up temp dir: ${streamInfo.runtimeTempDir}`);
         } catch (error) {
-          log.error(`Failed to cleanup temp dir ${streamInfo.tempDir}:`, error);
+          log.error(`Failed to cleanup temp dir ${streamInfo.runtimeTempDir}:`, error);
           // Don't throw - cleanup is best-effort
         }
       }
@@ -1090,6 +1111,7 @@ export class StreamManager extends EventEmitter {
     modelString: string,
     historySequence: number,
     system: string,
+    runtime: Runtime,
     abortSignal?: AbortSignal,
     tools?: Record<string, Tool>,
     initialMetadata?: Partial<CmuxMetadata>,
@@ -1123,18 +1145,16 @@ export class StreamManager extends EventEmitter {
       // Step 2: Use provided stream token or generate a new one
       const streamToken = providedStreamToken ?? this.generateStreamToken();
 
-      // Step 3: Create temp directory for this stream
-      // If token was provided, temp dir might already exist - that's fine
-      const tempDir = path.join(os.homedir(), ".cmux-tmp", streamToken);
-      if (!fs.existsSync(tempDir)) {
-        fs.mkdirSync(tempDir, { recursive: true, mode: 0o700 });
-      }
+      // Step 3: Create temp directory for this stream using runtime
+      // If token was provided, temp dir might already exist - mkdir -p handles this
+      const runtimeTempDir = await this.createTempDirForStream(streamToken, runtime);
 
       // Step 4: Atomic stream creation and registration
       const streamInfo = this.createStreamAtomically(
         typedWorkspaceId,
         streamToken,
-        tempDir,
+        runtimeTempDir,
+        runtime,
         messages,
         model,
         modelString,

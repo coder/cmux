@@ -5,6 +5,7 @@ import { TypewriterMarkdown } from "./TypewriterMarkdown";
 import type { ButtonConfig } from "./MessageWindow";
 import { MessageWindow } from "./MessageWindow";
 import { useStartHere } from "@/hooks/useStartHere";
+import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
 import { COMPACTED_EMOJI } from "@/constants/ui";
 import { ModelDisplay } from "./ModelDisplay";
 import { CompactingMessageContent } from "./CompactingMessageContent";
@@ -27,7 +28,6 @@ export const AssistantMessage: React.FC<AssistantMessageProps> = ({
   clipboardWriteText = (data: string) => navigator.clipboard.writeText(data),
 }) => {
   const [showRaw, setShowRaw] = useState(false);
-  const [copied, setCopied] = useState(false);
 
   const content = message.content;
   const isStreaming = message.isStreaming;
@@ -42,15 +42,8 @@ export const AssistantMessage: React.FC<AssistantMessageProps> = ({
     modal,
   } = useStartHere(workspaceId, content, isCompacted);
 
-  const handleCopy = async () => {
-    try {
-      await clipboardWriteText(content);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch (err) {
-      console.error("Failed to copy:", err);
-    }
-  };
+  // Copy to clipboard with feedback
+  const { copied, copyToClipboard } = useCopyToClipboard(clipboardWriteText);
 
   // Keep only Copy button visible (most common action)
   // Kebab menu saves horizontal space by collapsing less-used actions into a single ⋮ button
@@ -59,7 +52,7 @@ export const AssistantMessage: React.FC<AssistantMessageProps> = ({
     : [
         {
           label: copied ? "✓ Copied" : "Copy",
-          onClick: () => void handleCopy(),
+          onClick: () => void copyToClipboard(content),
         },
       ];
 

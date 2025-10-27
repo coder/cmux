@@ -116,7 +116,7 @@ export const createTodoWriteTool: ToolFactory = (config) => {
     description: TOOL_DEFINITIONS.todo_write.description,
     inputSchema: TOOL_DEFINITIONS.todo_write.schema,
     execute: async ({ todos }) => {
-      await writeTodos(config.tempDir, todos);
+      await writeTodos(config.runtimeTempDir, todos);
       return {
         success: true as const,
         count: todos.length,
@@ -134,7 +134,7 @@ export const createTodoReadTool: ToolFactory = (config) => {
     description: TOOL_DEFINITIONS.todo_read.description,
     inputSchema: TOOL_DEFINITIONS.todo_read.schema,
     execute: async () => {
-      const todos = await readTodos(config.tempDir);
+      const todos = await readTodos(config.runtimeTempDir);
       return {
         todos,
       };

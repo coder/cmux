@@ -10,7 +10,7 @@ function createConfig(runtime?: Runtime) {
   return {
     cwd: TEST_CWD,
     runtime: runtime ?? createRuntime({ type: "local", srcBaseDir: TEST_CWD }),
-    tempDir: "/tmp",
+    runtimeTempDir: "/tmp",
   };
 }
 
@@ -66,7 +66,7 @@ describe("executeFileEditOperation", () => {
       config: {
         cwd: testCwd,
         runtime: mockRuntime,
-        tempDir: "/tmp",
+        runtimeTempDir: "/tmp",
       },
       filePath: testFilePath,
       operation: () => ({ success: true, newContent: "test", metadata: {} }),
