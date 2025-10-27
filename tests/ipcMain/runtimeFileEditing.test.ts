@@ -345,7 +345,8 @@ describeIntegration("Runtime File Editing Tools", () => {
                 (e) => "type" in e && e.type === "tool-call-start"
               );
               const editCall = toolCalls.find(
-                (e: any) => e.toolName === "file_edit_insert" || e.toolName === "file_edit_replace_string"
+                (e: any) =>
+                  e.toolName === "file_edit_insert" || e.toolName === "file_edit_replace_string"
               );
               expect(editCall).toBeDefined();
 
