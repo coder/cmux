@@ -21,7 +21,7 @@ function createTestFileEditInsertTool(options?: { cwd?: string }) {
   const tool = createFileEditInsertTool({
     cwd: options?.cwd ?? process.cwd(),
     runtime: createRuntime({ type: "local", srcBaseDir: "/tmp" }),
-    tempDir: tempDir.path,
+    runtimeTempDir: tempDir.path,
   });
 
   return {
@@ -214,7 +214,7 @@ describe("file_edit_insert tool", () => {
     const tool = createFileEditInsertTool({
       cwd: testDir,
       runtime: createRuntime({ type: "local", srcBaseDir: "/tmp" }),
-      tempDir: "/tmp",
+      runtimeTempDir: "/tmp",
     });
     const args: FileEditInsertToolArgs = {
       file_path: nonExistentPath,
@@ -240,7 +240,7 @@ describe("file_edit_insert tool", () => {
     const tool = createFileEditInsertTool({
       cwd: testDir,
       runtime: createRuntime({ type: "local", srcBaseDir: "/tmp" }),
-      tempDir: "/tmp",
+      runtimeTempDir: "/tmp",
     });
     const args: FileEditInsertToolArgs = {
       file_path: nestedPath,
@@ -267,7 +267,7 @@ describe("file_edit_insert tool", () => {
     const tool = createFileEditInsertTool({
       cwd: testDir,
       runtime: createRuntime({ type: "local", srcBaseDir: "/tmp" }),
-      tempDir: "/tmp",
+      runtimeTempDir: "/tmp",
     });
     const args: FileEditInsertToolArgs = {
       file_path: testFilePath,

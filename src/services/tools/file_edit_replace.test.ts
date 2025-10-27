@@ -60,7 +60,7 @@ describe("file_edit_replace_string tool", () => {
     const tool = createFileEditReplaceStringTool({
       cwd: testDir,
       runtime: createRuntime({ type: "local", srcBaseDir: "/tmp" }),
-      tempDir: "/tmp",
+      runtimeTempDir: "/tmp",
     });
 
     const payload: FileEditReplaceStringToolArgs = {
@@ -98,7 +98,7 @@ describe("file_edit_replace_lines tool", () => {
     const tool = createFileEditReplaceLinesTool({
       cwd: testDir,
       runtime: createRuntime({ type: "local", srcBaseDir: "/tmp" }),
-      tempDir: "/tmp",
+      runtimeTempDir: "/tmp",
     });
 
     const payload: FileEditReplaceLinesToolArgs = {

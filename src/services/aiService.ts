@@ -426,7 +426,7 @@ export class AIService extends EventEmitter {
       const earlyAllTools = await getToolsForModel(modelString, {
         cwd: process.cwd(),
         runtime: earlyRuntime,
-        tempDir: os.tmpdir(),
+        runtimeTempDir: os.tmpdir(),
         secrets: {},
       });
       const earlyTools = applyToolPolicy(earlyAllTools, toolPolicy);
@@ -530,14 +530,14 @@ export class AIService extends EventEmitter {
 
       // Generate stream token and create temp directory for tools
       const streamToken = this.streamManager.generateStreamToken();
-      const tempDir = this.streamManager.createTempDirForStream(streamToken);
+      const runtimeTempDir = await this.streamManager.createTempDirForStream(streamToken, runtime);
 
       // Get model-specific tools with workspace path (correct for local or remote)
       const allTools = await getToolsForModel(modelString, {
         cwd: workspacePath,
         runtime,
         secrets: secretsToRecord(projectSecrets),
-        tempDir,
+        runtimeTempDir,
       });
 
       // Apply tool policy to filter tools (if policy provided)
@@ -702,6 +702,7 @@ export class AIService extends EventEmitter {
         modelString,
         historySequence,
         systemMessage,
+        runtime,
         abortSignal,
         tools,
         {

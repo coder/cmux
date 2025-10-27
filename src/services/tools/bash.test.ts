@@ -22,7 +22,7 @@ function createTestBashTool(options?: { niceness?: number }) {
   const tool = createBashTool({
     cwd: process.cwd(),
     runtime: createRuntime({ type: "local", srcBaseDir: "/tmp" }),
-    tempDir: tempDir.path,
+    runtimeTempDir: tempDir.path,
     ...options,
   });
 
@@ -164,7 +164,7 @@ describe("bash tool", () => {
     const tool = createBashTool({
       cwd: process.cwd(),
       runtime: createRuntime({ type: "local", srcBaseDir: "/tmp" }),
-      tempDir: tempDir.path,
+      runtimeTempDir: tempDir.path,
       overflow_policy: "truncate",
     });
 
@@ -203,7 +203,7 @@ describe("bash tool", () => {
     const tool = createBashTool({
       cwd: process.cwd(),
       runtime: createRuntime({ type: "local", srcBaseDir: "/tmp" }),
-      tempDir: tempDir.path,
+      runtimeTempDir: tempDir.path,
       overflow_policy: "truncate",
     });
 
@@ -235,7 +235,7 @@ describe("bash tool", () => {
     const tool = createBashTool({
       cwd: process.cwd(),
       runtime: createRuntime({ type: "local", srcBaseDir: "/tmp" }),
-      tempDir: tempDir.path,
+      runtimeTempDir: tempDir.path,
       overflow_policy: "truncate",
     });
 
@@ -271,7 +271,7 @@ describe("bash tool", () => {
     const tool = createBashTool({
       cwd: process.cwd(),
       runtime: createRuntime({ type: "local", srcBaseDir: "/tmp" }),
-      tempDir: tempDir.path,
+      runtimeTempDir: tempDir.path,
       // overflow_policy not specified - should default to tmpfile
     });
 
@@ -289,7 +289,8 @@ describe("bash tool", () => {
       expect(result.error).toContain("saved to");
       expect(result.error).not.toContain("[OUTPUT TRUNCATED");
 
-      // Verify temp file was created
+      // Verify temp file was created in runtimeTempDir
+      expect(fs.existsSync(tempDir.path)).toBe(true);
       const files = fs.readdirSync(tempDir.path);
       const bashFiles = files.filter((f) => f.startsWith("bash-"));
       expect(bashFiles.length).toBe(1);
@@ -303,7 +304,7 @@ describe("bash tool", () => {
     const tool = createBashTool({
       cwd: process.cwd(),
       runtime: createRuntime({ type: "local", srcBaseDir: "/tmp" }),
-      tempDir: tempDir.path,
+      runtimeTempDir: tempDir.path,
     });
 
     // Generate ~50KB of output (well over 16KB display limit, under 100KB file limit)
@@ -355,7 +356,7 @@ describe("bash tool", () => {
     const tool = createBashTool({
       cwd: process.cwd(),
       runtime: createRuntime({ type: "local", srcBaseDir: "/tmp" }),
-      tempDir: tempDir.path,
+      runtimeTempDir: tempDir.path,
     });
 
     // Generate ~150KB of output (exceeds 100KB file limit)
@@ -398,7 +399,7 @@ describe("bash tool", () => {
     const tool = createBashTool({
       cwd: process.cwd(),
       runtime: createRuntime({ type: "local", srcBaseDir: "/tmp" }),
-      tempDir: tempDir.path,
+      runtimeTempDir: tempDir.path,
     });
 
     // Generate output that exceeds display limit but not file limit
@@ -440,7 +441,7 @@ describe("bash tool", () => {
     const tool = createBashTool({
       cwd: process.cwd(),
       runtime: createRuntime({ type: "local", srcBaseDir: "/tmp" }),
-      tempDir: tempDir.path,
+      runtimeTempDir: tempDir.path,
     });
 
     // Generate a single line exceeding 1KB limit, then try to output more
@@ -480,7 +481,7 @@ describe("bash tool", () => {
     const tool = createBashTool({
       cwd: process.cwd(),
       runtime: createRuntime({ type: "local", srcBaseDir: "/tmp" }),
-      tempDir: tempDir.path,
+      runtimeTempDir: tempDir.path,
     });
 
     // Generate ~15KB of output (just under 16KB display limit)
@@ -510,7 +511,7 @@ describe("bash tool", () => {
     const tool = createBashTool({
       cwd: process.cwd(),
       runtime: createRuntime({ type: "local", srcBaseDir: "/tmp" }),
-      tempDir: tempDir.path,
+      runtimeTempDir: tempDir.path,
     });
 
     // Generate exactly 300 lines (hits line limit exactly)
@@ -1250,7 +1251,7 @@ describe("SSH runtime redundant cd detection", () => {
     const tool = createBashTool({
       cwd,
       runtime: sshRuntime,
-      tempDir: tempDir.path,
+      runtimeTempDir: tempDir.path,
     });
 
     return {
