@@ -1043,16 +1043,10 @@ describeIntegration("Runtime integration tests", () => {
           // Try to delete a workspace that doesn't exist
           const result = await runtime.deleteWorkspace(workspace.path, "non-existent", false);
 
-          // For SSH with rm -rf, deleting non-existent directory succeeds (rm -rf is idempotent)
-          // For local git worktree, it should fail
-          if (type === "local") {
-            expect(result.success).toBe(false);
-            if (!result.success) {
-              expect(result.error).toContain("Failed to remove worktree");
-            }
-          } else {
-            // SSH: rm -rf non-existent is a no-op (succeeds)
-            expect(result.success).toBe(true);
+          // Both local and SSH deleteWorkspace are now idempotent - return success for non-existent workspaces
+          expect(result.success).toBe(true);
+          if (result.success) {
+            expect(result.deletedPath).toBeDefined();
           }
         });
       });

@@ -12,6 +12,8 @@ import type {
   WorkspaceCreationResult,
   WorkspaceInitParams,
   WorkspaceInitResult,
+  WorkspaceForkParams,
+  WorkspaceForkResult,
   InitLogger,
 } from "./Runtime";
 import { RuntimeError as RuntimeErrorClass } from "./Runtime";
@@ -488,6 +490,21 @@ export class LocalRuntime implements Runtime {
     // Compute workspace path using the canonical method
     const deletedPath = this.getWorkspacePath(projectPath, workspaceName);
 
+    // Check if directory exists - if not, operation is idempotent
+    try {
+      await fsPromises.access(deletedPath);
+    } catch {
+      // Directory doesn't exist - operation is idempotent
+      // Prune stale git records (best effort)
+      try {
+        using pruneProc = execAsync(`git -C "${projectPath}" worktree prune`);
+        await pruneProc.result;
+      } catch {
+        // Ignore prune errors - directory is already deleted, which is the goal
+      }
+      return { success: true, deletedPath };
+    }
+
     try {
       // Use git worktree remove to delete the worktree
       // This updates git's internal worktree metadata correctly
@@ -501,6 +518,25 @@ export class LocalRuntime implements Runtime {
       return { success: true, deletedPath };
     } catch (error) {
       const message = getErrorMessage(error);
+
+      // Check if the error is due to missing/stale worktree
+      const normalizedError = message.toLowerCase();
+      const looksLikeMissingWorktree =
+        normalizedError.includes("not a working tree") ||
+        normalizedError.includes("does not exist") ||
+        normalizedError.includes("no such file");
+
+      if (looksLikeMissingWorktree) {
+        // Worktree records are stale - prune them
+        try {
+          using pruneProc = execAsync(`git -C "${projectPath}" worktree prune`);
+          await pruneProc.result;
+        } catch {
+          // Ignore prune errors
+        }
+        // Treat as success - workspace is gone (idempotent)
+        return { success: true, deletedPath };
+      }
 
       // If force is enabled and git worktree remove failed, fall back to rm -rf
       // This handles edge cases like submodules where git refuses to delete
@@ -529,6 +565,54 @@ export class LocalRuntime implements Runtime {
 
       // force=false - return the git error without attempting rm -rf
       return { success: false, error: `Failed to remove worktree: ${message}` };
+    }
+  }
+
+  async forkWorkspace(params: WorkspaceForkParams): Promise<WorkspaceForkResult> {
+    const { projectPath, sourceWorkspaceName, newWorkspaceName, initLogger } = params;
+
+    // Get source workspace path
+    const sourceWorkspacePath = this.getWorkspacePath(projectPath, sourceWorkspaceName);
+
+    // Get current branch from source workspace
+    try {
+      using proc = execAsync(`git -C "${sourceWorkspacePath}" branch --show-current`);
+      const { stdout } = await proc.result;
+      const sourceBranch = stdout.trim();
+
+      if (!sourceBranch) {
+        return {
+          success: false,
+          error: "Failed to detect branch in source workspace",
+        };
+      }
+
+      // Use createWorkspace with sourceBranch as trunk to fork from source branch
+      const createResult = await this.createWorkspace({
+        projectPath,
+        branchName: newWorkspaceName,
+        trunkBranch: sourceBranch, // Fork from source branch instead of main/master
+        directoryName: newWorkspaceName,
+        initLogger,
+      });
+
+      if (!createResult.success || !createResult.workspacePath) {
+        return {
+          success: false,
+          error: createResult.error ?? "Failed to create workspace",
+        };
+      }
+
+      return {
+        success: true,
+        workspacePath: createResult.workspacePath,
+        sourceBranch,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: getErrorMessage(error),
+      };
     }
   }
 }
