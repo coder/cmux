@@ -1,8 +1,6 @@
 import { spawn } from "child_process";
 import { Readable, Writable } from "stream";
 import * as path from "path";
-import * as os from "os";
-import * as crypto from "crypto";
 import { Shescape } from "shescape";
 import type {
   Runtime,
@@ -24,6 +22,7 @@ import { expandTildeForSSH, cdCommandForSSH } from "./tildeExpansion";
 import { getProjectName } from "../utils/runtime/helpers";
 import { getErrorMessage } from "../utils/errors";
 import { execAsync } from "../utils/disposableExec";
+import { getControlPath } from "./sshConnectionPool";
 
 /**
  * Shescape instance for bash shell escaping.
@@ -61,10 +60,10 @@ export class SSHRuntime implements Runtime {
 
   constructor(config: SSHRuntimeConfig) {
     this.config = config;
-    // Generate unique control path for SSH connection multiplexing
-    // This allows multiple SSH sessions to reuse a single TCP connection
-    const randomId = crypto.randomBytes(8).toString("hex");
-    this.controlPath = path.join(os.tmpdir(), `cmux-ssh-${randomId}`);
+    // Get deterministic controlPath from connection pool
+    // Multiple SSHRuntime instances with same config share the same controlPath,
+    // enabling ControlMaster to multiplex SSH connections across operations
+    this.controlPath = getControlPath(config);
   }
 
   /**
@@ -371,6 +370,12 @@ export class SSHRuntime implements Runtime {
       args.push("-o", "UserKnownHostsFile=/dev/null");
       args.push("-o", "LogLevel=ERROR");
     }
+
+    // Add ControlMaster options for connection multiplexing
+    // This ensures git bundle transfers also reuse the master connection
+    args.push("-o", "ControlMaster=auto");
+    args.push("-o", `ControlPath=${this.controlPath}`);
+    args.push("-o", "ControlPersist=60");
 
     if (includeHost) {
       args.push(this.config.host);
@@ -888,27 +893,6 @@ export class SSHRuntime implements Runtime {
       return { success: true, deletedPath };
     } catch (error) {
       return { success: false, error: `Failed to delete directory: ${getErrorMessage(error)}` };
-    }
-  }
-
-  /**
-   * Cleanup SSH control socket on disposal
-   * Note: ControlPersist will automatically close the master connection after timeout,
-   * but we try to clean up immediately for good hygiene
-   */
-  dispose(): void {
-    try {
-      // Send exit command to master connection (if it exists)
-      // This is a best-effort cleanup - the socket will auto-cleanup anyway
-      const exitArgs = ["-O", "exit", "-o", `ControlPath=${this.controlPath}`, this.config.host];
-
-      const exitProc = spawn("ssh", exitArgs, { stdio: "ignore" });
-
-      // Don't wait for it - fire and forget
-      exitProc.unref();
-    } catch (error) {
-      // Ignore errors - control socket will timeout naturally
-      log.debug(`SSH control socket cleanup failed (non-fatal): ${getErrorMessage(error)}`);
     }
   }
 }
