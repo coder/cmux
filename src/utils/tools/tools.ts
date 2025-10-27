@@ -55,21 +55,21 @@ export async function getToolsForModel(
 ): Promise<Record<string, Tool>> {
   const [provider, modelId] = modelString.split(":");
 
+  // Helper to reduce repetition when wrapping runtime tools
+  const wrap = <TParameters, TResult>(tool: Tool<TParameters, TResult>) =>
+    wrapWithInitWait(tool, workspaceId, initStateManager);
+
   // Runtime-dependent tools need to wait for workspace initialization
   // Wrap them to handle init waiting centrally instead of in each tool
   const runtimeTools: Record<string, Tool> = {
-    file_read: wrapWithInitWait(createFileReadTool(config), workspaceId, initStateManager),
-    file_edit_replace_string: wrapWithInitWait(
-      createFileEditReplaceStringTool(config),
-      workspaceId,
-      initStateManager
-    ),
+    file_read: wrap(createFileReadTool(config)),
+    file_edit_replace_string: wrap(createFileEditReplaceStringTool(config)),
     // DISABLED: file_edit_replace_lines - causes models (particularly GPT-5-Codex)
     // to leave repository in broken state due to issues with concurrent file modifications
     // and line number miscalculations. Use file_edit_replace_string or file_edit_insert instead.
-    // file_edit_replace_lines: wrapWithInitWait(createFileEditReplaceLinesTool(config), workspaceId, initStateManager),
-    file_edit_insert: wrapWithInitWait(createFileEditInsertTool(config), workspaceId, initStateManager),
-    bash: wrapWithInitWait(createBashTool(config), workspaceId, initStateManager),
+    // file_edit_replace_lines: wrap(createFileEditReplaceLinesTool(config)),
+    file_edit_insert: wrap(createFileEditInsertTool(config)),
+    bash: wrap(createBashTool(config)),
   };
 
   // Non-runtime tools execute immediately (no init wait needed)
