@@ -52,7 +52,6 @@ export const IPC_CHANNELS = {
   NOTIFICATION_SUBSCRIBE_PUSH: "notification:subscribePush",
   NOTIFICATION_UNSUBSCRIBE_PUSH: "notification:unsubscribePush",
   NOTIFICATION_GET_VAPID_KEY: "notification:getVapidKey",
-  NOTIFICATION_SEND: "notification:send",
 
   // Dynamic channel prefixes
   WORKSPACE_CHAT_PREFIX: "workspace:chat:",

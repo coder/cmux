@@ -89,7 +89,6 @@ function setupMockAPI(options: {
       subscribePush: () => Promise.resolve(undefined),
       unsubscribePush: () => Promise.resolve(undefined),
       getVapidKey: () => Promise.resolve(null),
-      send: () => Promise.resolve(undefined),
     },
     ...options.apiOverrides,
   };

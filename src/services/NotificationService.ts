@@ -103,13 +103,25 @@ export class NotificationService {
 
   /**
    * Send a completion notification
-   * Desktop: Shows Electron notification (handled by caller)
+   * Desktop: Shows Electron notification directly (no push needed)
    * Web/Mobile: Sends push notification to all subscribed clients
    */
   async sendCompletionNotification(workspaceId: string, workspaceName: string): Promise<void> {
     if (this.isDesktop) {
-      // Desktop notifications are handled by the caller (main-desktop.ts)
-      // This method is only called for web/mobile push notifications
+      // Desktop: Show native Electron notification
+      try {
+        // Dynamic import required: can't statically import electron in server mode
+        // eslint-disable-next-line no-restricted-syntax -- Dynamic import necessary for server compatibility
+        const electron = await import("electron");
+        const notification = new electron.Notification({
+          title: "Completion",
+          body: `${workspaceName} has finished`,
+        });
+        notification.show();
+        log.debug(`Showed desktop notification for workspace ${workspaceId}`);
+      } catch (error) {
+        log.error("Failed to show desktop notification:", error);
+      }
       return;
     }
 

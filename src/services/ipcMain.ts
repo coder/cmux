@@ -1210,37 +1210,9 @@ export class IpcMain {
       }
     );
 
-    // Send notification (for desktop or push)
-    ipcMain.handle(
-      IPC_CHANNELS.NOTIFICATION_SEND,
-      async (_event, workspaceId: string, workspaceName: string) => {
-        try {
-          if (this.isDesktop) {
-            // Dynamic import required: can't statically import electron in server mode
-            // eslint-disable-next-line no-restricted-syntax -- Dynamic import necessary for server compatibility
-            const { Notification } = await import("electron");
-            const notification = new Notification({
-              title: "Completion",
-              body: `${workspaceName} has finished`,
-            });
-            notification.on("click", () => {
-              if (this.mainWindow) {
-                if (this.mainWindow.isMinimized()) {
-                  this.mainWindow.restore();
-                }
-                this.mainWindow.focus();
-              }
-            });
-            notification.show();
-          } else {
-            // For web/mobile, send push notifications
-            await this.notificationService.sendCompletionNotification(workspaceId, workspaceName);
-          }
-        } catch (error) {
-          log.error("Failed to send notification:", error);
-        }
-      }
-    );
+    // Note: NOTIFICATION_SEND handler intentionally omitted
+    // Notifications are now triggered server-side in AgentSession on stream-end
+    // This ensures push notifications work even when the app is closed (PWA/mobile)
   }
 
   private registerProjectHandlers(ipcMain: ElectronIpcMain): void {

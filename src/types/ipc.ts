@@ -298,7 +298,7 @@ export interface IPCApi {
     subscribePush(workspaceId: string, subscription: unknown): Promise<void>;
     unsubscribePush(workspaceId: string, endpoint: string): Promise<void>;
     getVapidKey(): Promise<string | null>;
-    send(workspaceId: string, workspaceName: string): Promise<void>;
+    // Note: send() method removed - notifications triggered server-side in AgentSession
   };
 }
 

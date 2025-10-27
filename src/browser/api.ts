@@ -276,8 +276,6 @@ const webApi: IPCApi = {
     unsubscribePush: (workspaceId, endpoint) =>
       invokeIPC(IPC_CHANNELS.NOTIFICATION_UNSUBSCRIBE_PUSH, workspaceId, endpoint),
     getVapidKey: () => invokeIPC(IPC_CHANNELS.NOTIFICATION_GET_VAPID_KEY),
-    send: (workspaceId, workspaceName) =>
-      invokeIPC(IPC_CHANNELS.NOTIFICATION_SEND, workspaceId, workspaceName),
   },
 };
 
