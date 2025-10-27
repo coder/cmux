@@ -1,12 +1,12 @@
 import { describe, it, expect, beforeEach, afterEach } from "bun:test";
+import { LocalRuntime } from "@/runtime/LocalRuntime";
 import * as fs from "fs/promises";
 import * as path from "path";
 import * as os from "os";
 import { createFileReadTool } from "./file_read";
 import type { FileReadToolArgs, FileReadToolResult } from "@/types/tools";
 import type { ToolCallOptions } from "ai";
-import { TestTempDir } from "./testHelpers";
-import { createRuntime } from "@/runtime/runtimeFactory";
+import { TestTempDir, createTestToolConfig, getTestDeps } from "./testHelpers";
 
 // Mock ToolCallOptions for testing
 const mockToolCallOptions: ToolCallOptions = {
@@ -18,11 +18,9 @@ const mockToolCallOptions: ToolCallOptions = {
 // Returns both tool and disposable temp directory
 function createTestFileReadTool(options?: { cwd?: string }) {
   const tempDir = new TestTempDir("test-file-read");
-  const tool = createFileReadTool({
-    cwd: options?.cwd ?? process.cwd(),
-    runtime: createRuntime({ type: "local", srcBaseDir: "/tmp" }),
-    tempDir: tempDir.path,
-  });
+  const config = createTestToolConfig(options?.cwd ?? process.cwd());
+  config.tempDir = tempDir.path; // Override tempDir to use test's disposable temp dir
+  const tool = createFileReadTool(config);
 
   return {
     tool,
@@ -333,8 +331,9 @@ describe("file_read tool", () => {
 
     // Try to read file outside cwd by going up
     const tool = createFileReadTool({
+      ...getTestDeps(),
       cwd: subDir,
-      runtime: createRuntime({ type: "local", srcBaseDir: "/tmp" }),
+      runtime: new LocalRuntime(process.cwd()),
       tempDir: "/tmp",
     });
     const args: FileReadToolArgs = {

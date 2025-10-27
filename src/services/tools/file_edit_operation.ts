@@ -5,6 +5,7 @@ import type { ToolConfiguration } from "@/utils/tools/tools";
 import { generateDiff, validateFileSize, validatePathInCwd } from "./fileCommon";
 import { RuntimeError } from "@/runtime/Runtime";
 import { readFileString, writeFileString } from "@/utils/runtime/helpers";
+import { waitForWorkspaceInit } from "./toolHelpers";
 
 type FileEditOperationResult<TMetadata> =
   | {
@@ -36,6 +37,15 @@ export async function executeFileEditOperation<TMetadata>({
 }: ExecuteFileEditOperationOptions<TMetadata>): Promise<
   FileEditErrorResult | (FileEditDiffSuccessBase & TMetadata)
 > {
+  // Wait for workspace initialization to complete (no-op if already complete or not needed)
+  const initError = await waitForWorkspaceInit(config, "edit file");
+  if (initError) {
+    return {
+      success: false,
+      error: `${WRITE_DENIED_PREFIX} ${initError}`,
+    };
+  }
+
   try {
     const pathValidation = validatePathInCwd(filePath, config.cwd, config.runtime);
     if (pathValidation) {

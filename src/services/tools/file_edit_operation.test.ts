@@ -3,14 +3,12 @@ import { executeFileEditOperation } from "./file_edit_operation";
 import { WRITE_DENIED_PREFIX } from "@/types/tools";
 import { createRuntime } from "@/runtime/runtimeFactory";
 
+import { createTestToolConfig } from "./testHelpers";
+
 const TEST_CWD = "/tmp";
 
 function createConfig() {
-  return {
-    cwd: TEST_CWD,
-    runtime: createRuntime({ type: "local", srcBaseDir: TEST_CWD }),
-    tempDir: "/tmp",
-  };
+  return createTestToolConfig(TEST_CWD);
 }
 
 describe("executeFileEditOperation", () => {

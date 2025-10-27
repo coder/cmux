@@ -9,6 +9,7 @@ import { createTodoWriteTool, createTodoReadTool } from "@/services/tools/todo";
 import { log } from "@/services/log";
 
 import type { Runtime } from "@/runtime/Runtime";
+import type { InitStateManager } from "@/services/initStateManager";
 
 /**
  * Configuration for tools that need runtime context
@@ -18,6 +19,10 @@ export interface ToolConfiguration {
   cwd: string;
   /** Runtime environment for executing commands and file operations */
   runtime: Runtime;
+  /** Workspace ID - used to wait for initialization before executing tools */
+  workspaceId: string;
+  /** Init state manager - used by tools to wait for async initialization (SSH runtime) */
+  initStateManager: InitStateManager;
   /** Environment secrets to inject (optional) */
   secrets?: Record<string, string>;
   /** Process niceness level (optional, -20 to 19, lower = higher priority) */

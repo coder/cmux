@@ -9,3 +9,20 @@ require("disposablestack/auto");
 
 assert.equal(typeof Symbol.dispose, "symbol");
 assert.equal(typeof Symbol.asyncDispose, "symbol");
+
+// Polyfill File for undici in jest environment
+// undici expects File to be available globally but jest doesn't provide it
+if (typeof File === "undefined") {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const { Blob } = require("buffer");
+  // @ts-ignore - Adding File polyfill for jest
+  global.File = class File extends Blob {
+    constructor(bits: BlobPart[], name: string, options?: FilePropertyBag) {
+      super(bits, options);
+      // @ts-ignore
+      this.name = name;
+      // @ts-ignore
+      this.lastModified = options?.lastModified ?? Date.now();
+    }
+  };
+}

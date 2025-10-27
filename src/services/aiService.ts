@@ -11,6 +11,7 @@ import type { CmuxMessage, CmuxTextPart } from "@/types/message";
 import { createCmuxMessage } from "@/types/message";
 import type { Config } from "@/config";
 import { StreamManager } from "./streamManager";
+import { InitStateManager } from "./initStateManager";
 import type { SendMessageError } from "@/types/errors";
 import { getToolsForModel } from "@/utils/tools/tools";
 import { createRuntime } from "@/runtime/runtimeFactory";
@@ -107,10 +108,16 @@ export class AIService extends EventEmitter {
   private readonly historyService: HistoryService;
   private readonly partialService: PartialService;
   private readonly config: Config;
+  private readonly initStateManager: InitStateManager;
   private readonly mockModeEnabled: boolean;
   private readonly mockScenarioPlayer?: MockScenarioPlayer;
 
-  constructor(config: Config, historyService: HistoryService, partialService: PartialService) {
+  constructor(
+    config: Config,
+    historyService: HistoryService,
+    partialService: PartialService,
+    initStateManager: InitStateManager
+  ) {
     super();
     // Increase max listeners to accommodate multiple concurrent workspace listeners
     // Each workspace subscribes to stream events, and we expect >10 concurrent workspaces
@@ -118,6 +125,7 @@ export class AIService extends EventEmitter {
     this.config = config;
     this.historyService = historyService;
     this.partialService = partialService;
+    this.initStateManager = initStateManager;
     this.streamManager = new StreamManager(historyService, partialService);
     void this.ensureSessionsDir();
     this.setupStreamEventForwarding();
@@ -425,6 +433,8 @@ export class AIService extends EventEmitter {
       const earlyAllTools = await getToolsForModel(modelString, {
         cwd: process.cwd(),
         runtime: earlyRuntime,
+        workspaceId: "", // Empty workspace ID for early stub config
+        initStateManager: this.initStateManager,
         tempDir: os.tmpdir(),
         secrets: {},
       });
@@ -528,6 +538,8 @@ export class AIService extends EventEmitter {
       const allTools = await getToolsForModel(modelString, {
         cwd: workspacePath,
         runtime,
+        workspaceId,
+        initStateManager: this.initStateManager,
         secrets: secretsToRecord(projectSecrets),
         tempDir,
       });

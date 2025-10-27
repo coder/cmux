@@ -1,13 +1,34 @@
-import { shouldRunIntegrationTests, createTestEnvironment, cleanupTestEnvironment } from "./setup";
+import {
+  shouldRunIntegrationTests,
+  createTestEnvironment,
+  cleanupTestEnvironment,
+  validateApiKeys,
+  getApiKey,
+  setupProviders,
+  preloadTestModules,
+  type TestEnvironment,
+} from "./setup";
 import { IPC_CHANNELS, getChatChannel } from "../../src/constants/ipc-constants";
 import { generateBranchName, createWorkspace } from "./helpers";
 import type { WorkspaceChatMessage, WorkspaceInitEvent } from "../../src/types/ipc";
 import { isInitStart, isInitOutput, isInitEnd } from "../../src/types/ipc";
 import * as path from "path";
 import * as os from "os";
+import {
+  isDockerAvailable,
+  startSSHServer,
+  stopSSHServer,
+  type SSHServerConfig,
+} from "../runtime/ssh-fixture";
+import type { RuntimeConfig } from "../../src/types/runtime";
 
 // Skip all tests if TEST_INTEGRATION is not set
 const describeIntegration = shouldRunIntegrationTests() ? describe : describe.skip;
+
+// Validate API keys for AI tests
+if (shouldRunIntegrationTests()) {
+  validateApiKeys(["ANTHROPIC_API_KEY"]);
+}
 
 /**
  * Create a temp git repo with a .cmux/init hook that writes to stdout/stderr and exits with a given code
@@ -17,6 +38,7 @@ async function createTempGitRepoWithInitHook(options: {
   stdoutLines?: string[];
   stderrLines?: string[];
   sleepBetweenLines?: number; // milliseconds
+  customScript?: string; // Optional custom script content (overrides stdout/stderr)
 }): Promise<string> {
   const fs = await import("fs/promises");
   const { exec } = await import("child_process");
@@ -41,22 +63,24 @@ async function createTempGitRepoWithInitHook(options: {
 
   // Create init hook script
   const hookPath = path.join(cmuxDir, "init");
-  const sleepCmd = options.sleepBetweenLines ? `sleep ${options.sleepBetweenLines / 1000}` : "";
 
-  const stdoutCmds = (options.stdoutLines ?? [])
-    .map((line, idx) => {
-      const needsSleep = sleepCmd && idx < (options.stdoutLines?.length ?? 0) - 1;
-      return `echo "${line}"${needsSleep ? `\n${sleepCmd}` : ""}`;
-    })
-    .join("\n");
+  let scriptContent: string;
+  if (options.customScript) {
+    scriptContent = `#!/usr/bin/env bash\n${options.customScript}\nexit ${options.exitCode}\n`;
+  } else {
+    const sleepCmd = options.sleepBetweenLines ? `sleep ${options.sleepBetweenLines / 1000}` : "";
 
-  const stderrCmds = (options.stderrLines ?? []).map((line) => `echo "${line}" >&2`).join("\n");
+    const stdoutCmds = (options.stdoutLines ?? [])
+      .map((line, idx) => {
+        const needsSleep = sleepCmd && idx < (options.stdoutLines?.length ?? 0) - 1;
+        return `echo "${line}"${needsSleep ? `\n${sleepCmd}` : ""}`;
+      })
+      .join("\n");
 
-  const scriptContent = `#!/usr/bin/env bash
-${stdoutCmds}
-${stderrCmds}
-exit ${options.exitCode}
-`;
+    const stderrCmds = (options.stderrLines ?? []).map((line) => `echo "${line}" >&2`).join("\n");
+
+    scriptContent = `#!/usr/bin/env bash\n${stdoutCmds}\n${stderrCmds}\nexit ${options.exitCode}\n`;
+  }
 
   await fs.writeFile(hookPath, scriptContent, { mode: 0o755 });
 
@@ -461,3 +485,295 @@ test.concurrent(
   },
   15000
 );
+
+// SSH server config for runtime matrix tests
+let sshConfig: SSHServerConfig | undefined;
+
+// ============================================================================
+// Runtime Matrix Tests - Init Queue Behavior
+// ============================================================================
+
+describeIntegration("Init Queue - Runtime Matrix", () => {
+  beforeAll(async () => {
+    // Preload AI SDK providers and tokenizers
+    await preloadTestModules();
+
+    // Only start SSH server if Docker is available
+    if (await isDockerAvailable()) {
+      console.log("Starting SSH server container for init queue tests...");
+      sshConfig = await startSSHServer();
+      console.log(`SSH server ready on port ${sshConfig.port}`);
+    } else {
+      console.log("Docker not available - SSH tests will be skipped");
+    }
+  }, 60000);
+
+  afterAll(async () => {
+    if (sshConfig) {
+      console.log("Stopping SSH server container...");
+      await stopSSHServer(sshConfig);
+    }
+  }, 30000);
+
+  // Test matrix: Run tests for both local and SSH runtimes
+  describe.each<{ type: "local" | "ssh" }>([{ type: "local" }, { type: "ssh" }])(
+    "Runtime: $type",
+    ({ type }) => {
+      // Helper to build runtime config
+      const getRuntimeConfig = (branchName: string): RuntimeConfig | undefined => {
+        if (type === "ssh" && sshConfig) {
+          return {
+            type: "ssh",
+            host: `testuser@localhost`,
+            srcBaseDir: `${sshConfig.workdir}/${branchName}`,
+            identityFile: sshConfig.privateKeyPath,
+            port: sshConfig.port,
+          };
+        }
+        return undefined; // undefined = defaults to local
+      };
+
+      // Timeouts vary by runtime type
+      const testTimeout = type === "ssh" ? 90000 : 30000;
+      const streamTimeout = type === "ssh" ? 30000 : 15000;
+      const initWaitBuffer = type === "ssh" ? 10000 : 2000;
+
+      test.concurrent(
+        "file_read should wait for init hook before executing (even when init fails)",
+        async () => {
+          // Skip SSH test if Docker not available
+          if (type === "ssh" && !sshConfig) {
+            console.log("Skipping SSH test - Docker not available");
+            return;
+          }
+
+          const env = await createTestEnvironment();
+          const branchName = generateBranchName("init-wait-file-read");
+
+          // Setup API provider
+          await setupProviders(env.mockIpcRenderer, {
+            anthropic: {
+              apiKey: getApiKey("ANTHROPIC_API_KEY"),
+            },
+          });
+
+          // Create repo with init hook that sleeps 5s, writes a file, then FAILS
+          // This tests that tools proceed even when init hook fails (exit code 1)
+          const tempGitRepo = await createTempGitRepoWithInitHook({
+            exitCode: 1, // EXIT WITH FAILURE
+            customScript: `
+echo "Starting init..."
+sleep 5
+echo "Writing file before exit..."
+echo "Hello from init hook!" > init_created_file.txt
+echo "File written, now exiting with error"
+exit 1
+            `,
+          });
+
+          try {
+            // Create workspace with runtime config
+            const runtimeConfig = getRuntimeConfig(branchName);
+            const createResult = await createWorkspace(
+              env.mockIpcRenderer,
+              tempGitRepo,
+              branchName,
+              undefined,
+              runtimeConfig
+            );
+            expect(createResult.success).toBe(true);
+            if (!createResult.success) return;
+
+            const workspaceId = createResult.metadata.id;
+
+            // Clear sent events to isolate AI message events
+            env.sentEvents.length = 0;
+
+            // IMMEDIATELY ask AI to read the file (before init completes)
+            const sendResult = await env.mockIpcRenderer.invoke(
+              IPC_CHANNELS.WORKSPACE_SEND_MESSAGE,
+              workspaceId,
+              "Read the file init_created_file.txt and tell me what it says",
+              {
+                model: "anthropic:claude-haiku-4-5",
+              }
+            );
+
+            expect(sendResult.success).toBe(true);
+
+            // Wait for stream completion
+            const deadline = Date.now() + streamTimeout;
+            let streamComplete = false;
+
+            while (Date.now() < deadline && !streamComplete) {
+              const chatChannel = getChatChannel(workspaceId);
+              const chatEvents = env.sentEvents.filter((e) => e.channel === chatChannel);
+
+              // Check for stream-end event
+              streamComplete = chatEvents.some(
+                (e) =>
+                  typeof e.data === "object" &&
+                  e.data !== null &&
+                  "type" in e.data &&
+                  e.data.type === "stream-end"
+              );
+
+              if (!streamComplete) {
+                await new Promise((resolve) => setTimeout(resolve, 100));
+              }
+            }
+
+            expect(streamComplete).toBe(true);
+
+            // Extract all tool call end events from the stream
+            const chatChannel = getChatChannel(workspaceId);
+            const toolCallEndEvents = env.sentEvents
+              .filter((e) => e.channel === chatChannel)
+              .map((e) => e.data as WorkspaceChatMessage)
+              .filter(
+                (msg) =>
+                  typeof msg === "object" &&
+                  msg !== null &&
+                  "type" in msg &&
+                  msg.type === "tool-call-end"
+              );
+
+            // Count file_read tool calls
+            const fileReadCalls = toolCallEndEvents.filter(
+              (msg: any) => msg.toolName === "file_read"
+            );
+
+            // ASSERTION 1: Should have exactly ONE file_read call (no retries)
+            // This proves the tool waited for init to complete (even though init failed)
+            expect(fileReadCalls.length).toBe(1);
+
+            // ASSERTION 2: The file_read should have succeeded
+            // Init failure doesn't block tools - they proceed and fail/succeed naturally
+            const fileReadResult = fileReadCalls[0] as any;
+            expect(fileReadResult.result?.success).toBe(true);
+
+            // ASSERTION 3: Should contain the expected content
+            // File was created before init exited with error, so read succeeds
+            const content = fileReadResult.result?.content;
+            expect(content).toContain("Hello from init hook!");
+
+            // Wait for init to complete (to check events)
+            const initDeadline = Date.now() + initWaitBuffer;
+            let initComplete = false;
+            let initExitCode: number | undefined;
+
+            while (Date.now() < initDeadline && !initComplete) {
+              const initEndEvents = env.sentEvents
+                .filter((e) => e.channel === chatChannel)
+                .map((e) => e.data as WorkspaceChatMessage)
+                .filter((msg) => isInitEnd(msg));
+
+              if (initEndEvents.length > 0) {
+                initComplete = true;
+                initExitCode = (initEndEvents[0] as any).exitCode;
+                break;
+              }
+
+              await new Promise((resolve) => setTimeout(resolve, 100));
+            }
+
+            // Verify init completed with FAILURE (exit code 1)
+            expect(initComplete).toBe(true);
+            expect(initExitCode).toBe(1);
+
+            // ========================================================================
+            // SECOND MESSAGE: Verify init state persistence (with failed init)
+            // ========================================================================
+            // After init completes (even with failure), subsequent operations should
+            // NOT wait for init. This tests that waitForInit() correctly returns
+            // immediately when state.status !== "running" (whether "success" OR "error")
+            // ========================================================================
+
+            // Clear events to isolate second message
+            env.sentEvents.length = 0;
+
+            const startSecondMessage = Date.now();
+
+            // Send another message to read the same file
+            const sendResult2 = await env.mockIpcRenderer.invoke(
+              IPC_CHANNELS.WORKSPACE_SEND_MESSAGE,
+              workspaceId,
+              "Read init_created_file.txt again and confirm the content",
+              {
+                model: "anthropic:claude-haiku-4-5",
+              }
+            );
+
+            expect(sendResult2.success).toBe(true);
+
+            // Wait for stream completion
+            const deadline2 = Date.now() + streamTimeout;
+            let streamComplete2 = false;
+
+            while (Date.now() < deadline2 && !streamComplete2) {
+              const chatChannel = getChatChannel(workspaceId);
+              const chatEvents = env.sentEvents.filter((e) => e.channel === chatChannel);
+
+              streamComplete2 = chatEvents.some(
+                (e) =>
+                  typeof e.data === "object" &&
+                  e.data !== null &&
+                  "type" in e.data &&
+                  e.data.type === "stream-end"
+              );
+
+              if (!streamComplete2) {
+                await new Promise((resolve) => setTimeout(resolve, 100));
+              }
+            }
+
+            expect(streamComplete2).toBe(true);
+
+            // Extract tool calls from second message
+            const toolCallEndEvents2 = env.sentEvents
+              .filter((e) => e.channel === chatChannel)
+              .map((e) => e.data as WorkspaceChatMessage)
+              .filter(
+                (msg) =>
+                  typeof msg === "object" &&
+                  msg !== null &&
+                  "type" in msg &&
+                  msg.type === "tool-call-end"
+              );
+
+            const fileReadCalls2 = toolCallEndEvents2.filter(
+              (msg: any) => msg.toolName === "file_read"
+            );
+
+            // ASSERTION 4: Second message should also have exactly ONE file_read
+            expect(fileReadCalls2.length).toBe(1);
+
+            // ASSERTION 5: Second file_read should succeed (init already complete)
+            const fileReadResult2 = fileReadCalls2[0] as any;
+            expect(fileReadResult2.result?.success).toBe(true);
+
+            // ASSERTION 6: Content should still be correct
+            const content2 = fileReadResult2.result?.content;
+            expect(content2).toContain("Hello from init hook!");
+
+            // ASSERTION 7: Second message should be MUCH faster than first
+            // First message had to wait ~5 seconds for init. Second should be instant.
+            const secondMessageDuration = Date.now() - startSecondMessage;
+            // Allow 10 seconds for API round-trip but should be way less than first message
+            expect(secondMessageDuration).toBeLessThan(10000);
+
+            // Log timing for debugging
+            console.log(`Second message completed in ${secondMessageDuration}ms (no init wait)`);
+
+            // Cleanup workspace
+            await env.mockIpcRenderer.invoke(IPC_CHANNELS.WORKSPACE_REMOVE, workspaceId);
+          } finally {
+            await cleanupTestEnvironment(env);
+            await cleanupTempGitRepo(tempGitRepo);
+          }
+        },
+        testTimeout
+      );
+    }
+  );
+});

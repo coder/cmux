@@ -16,6 +16,7 @@ import { EXIT_CODE_ABORTED, EXIT_CODE_TIMEOUT } from "@/constants/exitCodes";
 import type { BashToolResult } from "@/types/tools";
 import type { ToolConfiguration, ToolFactory } from "@/utils/tools/tools";
 import { TOOL_DEFINITIONS } from "@/utils/tools/toolDefinitions";
+import { waitForWorkspaceInit } from "./toolHelpers";
 
 /**
  * Bash execution tool factory for AI assistant
@@ -38,6 +39,17 @@ export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
     description: TOOL_DEFINITIONS.bash.description + "\nRuns in " + config.cwd + " - no cd needed",
     inputSchema: TOOL_DEFINITIONS.bash.schema,
     execute: async ({ script, timeout_secs }, { abortSignal }): Promise<BashToolResult> => {
+      // Wait for workspace initialization to complete (no-op if already complete or not needed)
+      const initError = await waitForWorkspaceInit(config, "execute bash");
+      if (initError) {
+        return {
+          success: false,
+          error: initError,
+          exitCode: -1,
+          wall_duration_ms: 0,
+        };
+      }
+
       // Validate script is not empty - likely indicates a malformed tool call
 
       if (!script || script.trim().length === 0) {
