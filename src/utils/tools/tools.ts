@@ -20,10 +20,6 @@ export interface ToolConfiguration {
   cwd: string;
   /** Runtime environment for executing commands and file operations */
   runtime: Runtime;
-  /** Workspace ID - used to wait for initialization before executing tools */
-  workspaceId: string;
-  /** Init state manager - used by tools to wait for async initialization (SSH runtime) */
-  initStateManager: InitStateManager;
   /** Environment secrets to inject (optional) */
   secrets?: Record<string, string>;
   /** Process niceness level (optional, -20 to 19, lower = higher priority) */
@@ -47,25 +43,33 @@ export type ToolFactory = (config: ToolConfiguration) => Tool;
  *
  * @param modelString The model string in format "provider:model-id"
  * @param config Required configuration for tools
+ * @param workspaceId Workspace ID for init state tracking (required for runtime tools)
+ * @param initStateManager Init state manager for runtime tools to wait for initialization
  * @returns Promise resolving to record of tools available for the model
  */
 export async function getToolsForModel(
   modelString: string,
-  config: ToolConfiguration
+  config: ToolConfiguration,
+  workspaceId: string,
+  initStateManager: InitStateManager
 ): Promise<Record<string, Tool>> {
   const [provider, modelId] = modelString.split(":");
 
   // Runtime-dependent tools need to wait for workspace initialization
   // Wrap them to handle init waiting centrally instead of in each tool
   const runtimeTools: Record<string, Tool> = {
-    file_read: wrapWithInitWait(createFileReadTool(config), config),
-    file_edit_replace_string: wrapWithInitWait(createFileEditReplaceStringTool(config), config),
+    file_read: wrapWithInitWait(createFileReadTool(config), workspaceId, initStateManager),
+    file_edit_replace_string: wrapWithInitWait(
+      createFileEditReplaceStringTool(config),
+      workspaceId,
+      initStateManager
+    ),
     // DISABLED: file_edit_replace_lines - causes models (particularly GPT-5-Codex)
     // to leave repository in broken state due to issues with concurrent file modifications
     // and line number miscalculations. Use file_edit_replace_string or file_edit_insert instead.
-    // file_edit_replace_lines: wrapWithInitWait(createFileEditReplaceLinesTool(config), config),
-    file_edit_insert: wrapWithInitWait(createFileEditInsertTool(config), config),
-    bash: wrapWithInitWait(createBashTool(config), config),
+    // file_edit_replace_lines: wrapWithInitWait(createFileEditReplaceLinesTool(config), workspaceId, initStateManager),
+    file_edit_insert: wrapWithInitWait(createFileEditInsertTool(config), workspaceId, initStateManager),
+    bash: wrapWithInitWait(createBashTool(config), workspaceId, initStateManager),
   };
 
   // Non-runtime tools execute immediately (no init wait needed)

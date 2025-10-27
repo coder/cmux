@@ -55,8 +55,6 @@ export function createTestToolConfig(
   return {
     cwd: tempDir,
     runtime: new LocalRuntime(tempDir),
-    workspaceId: "test-workspace",
-    initStateManager: getTestInitStateManager(),
     runtimeTempDir: tempDir,
     niceness: options?.niceness,
   };

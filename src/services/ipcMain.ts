@@ -924,11 +924,10 @@ export class IpcMain {
 
           // Create bash tool with workspace's cwd and secrets
           // All IPC bash calls are from UI (background operations) - use truncate to avoid temp file spam
+          // No init wait needed - IPC calls are user-initiated, not AI tool use
           const bashTool = createBashTool({
             cwd: workspacePath, // Bash executes in the workspace directory
             runtime,
-            workspaceId,
-            initStateManager: this.initStateManager,
             secrets: secretsToRecord(projectSecrets),
             niceness: options?.niceness,
             runtimeTempDir: tempDir.path,

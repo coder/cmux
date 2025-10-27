@@ -431,14 +431,17 @@ export class AIService extends EventEmitter {
 
       // Get tool names early for mode transition sentinel (stub config, no workspace context needed)
       const earlyRuntime = createRuntime({ type: "local", srcBaseDir: process.cwd() });
-      const earlyAllTools = await getToolsForModel(modelString, {
-        cwd: process.cwd(),
-        runtime: earlyRuntime,
-        runtimeTempDir: os.tmpdir(),
-        workspaceId: "", // Empty workspace ID for early stub config
-        initStateManager: this.initStateManager,
-        secrets: {},
-      });
+      const earlyAllTools = await getToolsForModel(
+        modelString,
+        {
+          cwd: process.cwd(),
+          runtime: earlyRuntime,
+          runtimeTempDir: os.tmpdir(),
+          secrets: {},
+        },
+        "", // Empty workspace ID for early stub config
+        this.initStateManager
+      );
       const earlyTools = applyToolPolicy(earlyAllTools, toolPolicy);
       const toolNamesForSentinel = Object.keys(earlyTools);
 
@@ -543,14 +546,17 @@ export class AIService extends EventEmitter {
       const runtimeTempDir = await this.streamManager.createTempDirForStream(streamToken, runtime);
 
       // Get model-specific tools with workspace path (correct for local or remote)
-      const allTools = await getToolsForModel(modelString, {
-        cwd: workspacePath,
-        runtime,
+      const allTools = await getToolsForModel(
+        modelString,
+        {
+          cwd: workspacePath,
+          runtime,
+          secrets: secretsToRecord(projectSecrets),
+          runtimeTempDir,
+        },
         workspaceId,
-        initStateManager: this.initStateManager,
-        secrets: secretsToRecord(projectSecrets),
-        runtimeTempDir,
-      });
+        this.initStateManager
+      );
 
       // Apply tool policy to filter tools (if policy provided)
       const tools = applyToolPolicy(allTools, toolPolicy);

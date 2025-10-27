@@ -1,5 +1,5 @@
 import type { Tool } from "ai";
-import type { ToolConfiguration } from "@/utils/tools/tools";
+import type { InitStateManager } from "@/services/initStateManager";
 
 /**
  * Wraps a tool to wait for workspace initialization before execution.
@@ -11,19 +11,21 @@ import type { ToolConfiguration } from "@/utils/tools/tools";
  * Non-runtime tools (propose_plan, todo, web_search) execute immediately.
  *
  * @param tool The tool to wrap (returned from a tool factory)
- * @param config Tool configuration containing initStateManager
+ * @param workspaceId Workspace ID for init state tracking
+ * @param initStateManager Init state manager for waiting
  * @returns Wrapped tool that waits for init before executing
  */
 export function wrapWithInitWait<TParameters, TResult>(
   tool: Tool<TParameters, TResult>,
-  config: ToolConfiguration
+  workspaceId: string,
+  initStateManager: InitStateManager
 ): Tool<TParameters, TResult> {
   return {
     ...tool,
     execute: async (args: TParameters, options) => {
       // Wait for workspace initialization to complete (no-op if not needed)
       // This never throws - tools proceed regardless of init outcome
-      await config.initStateManager.waitForInit(config.workspaceId);
+      await initStateManager.waitForInit(workspaceId);
 
       // Execute the actual tool with all arguments
       if (!tool.execute) {
