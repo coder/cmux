@@ -53,7 +53,9 @@ describe("InitStateManager", () => {
       manager.appendOutput(workspaceId, "Installing deps...", false);
       manager.appendOutput(workspaceId, "Done!", false);
       expect(manager.getInitState(workspaceId)?.lines).toEqual([
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
         { line: "Installing deps...", isError: false, timestamp: expect.any(Number) },
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
         { line: "Done!", isError: false, timestamp: expect.any(Number) },
       ]);
 
@@ -79,7 +81,9 @@ describe("InitStateManager", () => {
 
       const state = manager.getInitState(workspaceId);
       expect(state?.lines).toEqual([
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
         { line: "stdout line", isError: false, timestamp: expect.any(Number) },
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
         { line: "stderr line", isError: true, timestamp: expect.any(Number) },
       ]);
     });
@@ -109,7 +113,9 @@ describe("InitStateManager", () => {
       expect(diskState?.status).toBe("success");
       expect(diskState?.exitCode).toBe(0);
       expect(diskState?.lines).toEqual([
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
         { line: "Line 1", isError: false, timestamp: expect.any(Number) },
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
         { line: "Line 2", isError: true, timestamp: expect.any(Number) },
       ]);
     });
@@ -237,6 +243,7 @@ describe("InitStateManager", () => {
       expect(manager.getInitState(workspaceId)).toBeUndefined();
 
       // Verify the promise was rejected
+      // eslint-disable-next-line @typescript-eslint/await-thenable
       await expect(initPromise).rejects.toThrow("Workspace test-workspace was deleted");
     });
   });
