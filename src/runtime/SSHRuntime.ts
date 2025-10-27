@@ -30,7 +30,7 @@ import { execAsync } from "../utils/disposableExec";
  * Shescape instance for bash shell escaping.
  * Reused across all SSH runtime operations for performance.
  */
-const shescape = new Shescape({ shell: "/bin/bash" });
+const shescape = new Shescape({ shell: "bash" });
 
 /**
  * SSH Runtime Configuration
