@@ -226,7 +226,6 @@ const NewWorkspaceModal: React.FC<NewWorkspaceModalProps> = ({
           )}
         </div>
 
-<<<<<<< HEAD
         <div className={formFieldClasses}>
           <label htmlFor="runtimeMode">Runtime:</label>
           <select
