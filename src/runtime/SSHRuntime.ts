@@ -322,10 +322,10 @@ export class SSHRuntime implements Runtime {
     };
   }
   async resolvePath(filePath: string): Promise<string> {
-    // Use shell to expand tildes and normalize path on remote system
-    // Uses bash to expand ~ and readlink -m to normalize without checking existence
-    // readlink -m canonicalizes the path (handles .., ., //) without requiring it to exist
-    const command = `bash -c 'readlink -m ${shescape.quote(filePath)}'`;
+    // Use shell to expand tildes on remote system
+    // Bash will expand ~ automatically when we echo the unquoted variable
+    // This works with BusyBox (doesn't require GNU coreutils)
+    const command = `bash -c 'p=${shescape.quote(filePath)}; echo $p'`;
     // Use 5 second timeout for path resolution (should be near-instant)
     return this.execSSHCommand(command, 5000);
   }
