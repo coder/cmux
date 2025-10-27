@@ -10,8 +10,9 @@ import {
   listLocalBranches,
   detectDefaultTrunkBranch,
   getCurrentBranch,
+  removeWorktree,
+  pruneWorktrees,
 } from "@/git";
-import { removeWorktree, pruneWorktrees } from "@/services/gitService";
 import { AIService } from "@/services/aiService";
 import { HistoryService } from "@/services/historyService";
 import { PartialService } from "@/services/partialService";
