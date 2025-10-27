@@ -9,6 +9,7 @@
 # Features
 
 - [Workspaces](./workspaces.md)
+  - [SSH](./ssh.md)
   - [Forking](./fork.md)
   - [Init Hooks](./init-hooks.md)
 - [Models](./models.md)

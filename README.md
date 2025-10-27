@@ -13,7 +13,7 @@
 
 ![cmux product screenshot](docs/img/product-hero.webp)
 
-A cross-platform desktop application for parallel agentic development.
+A desktop application for parallel agentic development.
 
 <details>
 <summary>Why parallelize?</summary>
@@ -33,7 +33,9 @@ Here are some specific use cases we enable:
 
 ## Features
 
-- Isolated workspaces with central view on git status updates
+- Isolated workspaces with central view on git divergence
+  - **Local**: git worktrees on your local machine
+  - **SSH**: regular git clones on a remote server access over SSH
 - Multi-model (`sonnet-4-*`, `gpt-5-*`, `opus-4-*`)
 - Supporting UI and keybinds for efficiently managing a suite of agents
 - Rich markdown outputs (mermaid diagrams, LaTeX, etc.)
