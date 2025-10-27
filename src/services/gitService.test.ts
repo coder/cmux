@@ -23,21 +23,25 @@ async function createTestRepo(basePath: string): Promise<string> {
   return repoPath;
 }
 
-// Mock config for createWorktree
-const mockConfig = {
-  srcDir: path.join(__dirname, "..", "test-workspaces"),
-  getWorkspacePath: (projectPath: string, branchName: string) => {
-    return path.join(path.dirname(projectPath), "workspaces", branchName);
-  },
-} as unknown as Config;
+// Helper to create mock config with unique temp directory
+function createMockConfig(tempDir: string): Config {
+  return {
+    srcDir: path.join(tempDir, "test-workspaces"),
+    getWorkspacePath: (projectPath: string, branchName: string) => {
+      return path.join(path.dirname(projectPath), "workspaces", branchName);
+    },
+  } as unknown as Config;
+}
 
 describe("removeWorktreeSafe", () => {
   let tempDir: string;
   let repoPath: string;
   let defaultBranch: string;
+  let mockConfig: Config;
 
   beforeEach(async () => {
     tempDir = await fs.mkdtemp(path.join(__dirname, "..", "test-temp-"));
+    mockConfig = createMockConfig(tempDir);
     repoPath = await createTestRepo(tempDir);
     defaultBranch = await detectDefaultTrunkBranch(repoPath);
   });
@@ -183,9 +187,11 @@ describe("isWorktreeClean", () => {
   let tempDir: string;
   let repoPath: string;
   let defaultBranch: string;
+  let mockConfig: Config;
 
   beforeEach(async () => {
     tempDir = await fs.mkdtemp(path.join(__dirname, "..", "test-temp-"));
+    mockConfig = createMockConfig(tempDir);
     repoPath = await createTestRepo(tempDir);
     defaultBranch = await detectDefaultTrunkBranch(repoPath);
   });
