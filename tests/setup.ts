@@ -9,3 +9,16 @@ require("disposablestack/auto");
 
 assert.equal(typeof Symbol.dispose, "symbol");
 assert.equal(typeof Symbol.asyncDispose, "symbol");
+
+// Polyfill File for Node 18 (undici needs it)
+if (typeof globalThis.File === "undefined") {
+  (globalThis as any).File = class File extends Blob {
+    constructor(bits: BlobPart[], name: string, options?: FilePropertyBag) {
+      super(bits, options);
+      this.name = name;
+      this.lastModified = options?.lastModified ?? Date.now();
+    }
+    name: string;
+    lastModified: number;
+  };
+}

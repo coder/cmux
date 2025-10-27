@@ -480,7 +480,21 @@ export class SSHRuntime implements Runtime {
         throw new Error(`Failed to clone repository: ${cloneStderr || cloneStdout}`);
       }
 
-      // Step 4: Update origin remote if we have an origin URL
+      // Step 4: Create local tracking branches for all remote branches
+      // This ensures that branch names like "custom-trunk" can be used directly
+      // in git checkout commands, rather than needing "origin/custom-trunk"
+      initLogger.logStep(`Creating local tracking branches...`);
+      const createTrackingBranchesStream = await this.exec(
+        `cd ${cloneDestPath} && for branch in $(git for-each-ref --format='%(refname:short)' refs/remotes/origin/ | grep -v 'origin/HEAD'); do localname=\${branch#origin/}; git show-ref --verify --quiet refs/heads/$localname || git branch $localname $branch; done`,
+        {
+          cwd: "~",
+          timeout: 30,
+        }
+      );
+      await createTrackingBranchesStream.exitCode;
+      // Don't fail if this fails - some branches may already exist
+
+      // Step 5: Update origin remote if we have an origin URL
       if (originUrl) {
         initLogger.logStep(`Setting origin remote to ${originUrl}...`);
         const setOriginStream = await this.exec(
@@ -669,13 +683,7 @@ export class SSHRuntime implements Runtime {
   }
 
   async initWorkspace(params: WorkspaceInitParams): Promise<WorkspaceInitResult> {
-    const {
-      projectPath,
-      branchName,
-      trunkBranch: _trunkBranch,
-      workspacePath,
-      initLogger,
-    } = params;
+    const { projectPath, branchName, trunkBranch, workspacePath, initLogger } = params;
 
     try {
       // 1. Sync project to remote (opportunistic rsync with scp fallback)
@@ -694,11 +702,13 @@ export class SSHRuntime implements Runtime {
       initLogger.logStep("Files synced successfully");
 
       // 2. Checkout branch remotely
-      // Note: After git clone, HEAD is already checked out to the default branch from the bundle
-      // We create new branches from HEAD instead of the trunkBranch name to avoid issues
-      // where the local repo's trunk name doesn't match the cloned repo's default branch
+      // If branch exists locally, check it out; otherwise create it from the specified trunk branch
+      // Note: We've already created local branches for all remote refs in syncProjectToRemote
       initLogger.logStep(`Checking out branch: ${branchName}`);
-      const checkoutCmd = `(git checkout ${shescape.quote(branchName)} 2>/dev/null || git checkout -b ${shescape.quote(branchName)} HEAD)`;
+
+      // Try to checkout existing branch, or create new branch from trunk
+      // Since we've created local branches for all remote refs, we can use branch names directly
+      const checkoutCmd = `git checkout ${shescape.quote(branchName)} 2>/dev/null || git checkout -b ${shescape.quote(branchName)} ${shescape.quote(trunkBranch)}`;
 
       const checkoutStream = await this.exec(checkoutCmd, {
         cwd: workspacePath, // Use the full workspace path for git operations
