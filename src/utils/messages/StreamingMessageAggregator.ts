@@ -769,14 +769,24 @@ export class StreamingMessageAggregator {
                 timestamp: part.timestamp ?? baseTimestamp,
               });
             } else if (isDynamicToolPart(part)) {
-              const status =
-                part.state === "output-available"
-                  ? "completed"
-                  : part.state === "input-available" && message.metadata?.partial
-                    ? "interrupted"
-                    : part.state === "input-available"
-                      ? "executing"
-                      : "pending";
+              // Determine status based on part state and result
+              let status: "pending" | "executing" | "completed" | "failed" | "interrupted";
+              if (part.state === "output-available") {
+                // Check if result indicates failure (for tools that return { success: boolean })
+                const output = part.output as unknown;
+                const isFailed =
+                  typeof output === "object" &&
+                  output !== null &&
+                  "success" in output &&
+                  output.success === false;
+                status = isFailed ? "failed" : "completed";
+              } else if (part.state === "input-available" && message.metadata?.partial) {
+                status = "interrupted";
+              } else if (part.state === "input-available") {
+                status = "executing";
+              } else {
+                status = "pending";
+              }
 
               displayedMessages.push({
                 type: "tool",

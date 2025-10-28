@@ -257,4 +257,124 @@ describe("StreamingMessageAggregator - Agent Status", () => {
     // Status should be cleared on new stream start
     expect(aggregator.getAgentStatus()).toBeUndefined();
   });
+
+  it("should show 'failed' status in UI when status_set validation fails", () => {
+    const aggregator = new StreamingMessageAggregator("2024-01-01T00:00:00.000Z");
+    const messageId = "msg1";
+
+    // Start a stream
+    aggregator.handleStreamStart({
+      type: "stream-start",
+      workspaceId: "workspace1",
+      messageId,
+      model: "test-model",
+      historySequence: 1,
+    });
+
+    // Add a status_set tool call with invalid emoji
+    aggregator.handleToolCallStart({
+      type: "tool-call-start",
+      workspaceId: "workspace1",
+      messageId,
+      toolCallId: "tool1",
+      toolName: "status_set",
+      args: { emoji: "not-an-emoji", message: "test" },
+      tokens: 10,
+      timestamp: Date.now(),
+    });
+
+    // Complete with validation failure
+    aggregator.handleToolCallEnd({
+      type: "tool-call-end",
+      workspaceId: "workspace1",
+      messageId,
+      toolCallId: "tool1",
+      toolName: "status_set",
+      result: { success: false, error: "emoji must be a single emoji character" },
+    });
+
+    // End the stream to finalize message
+    aggregator.handleStreamEnd({
+      type: "stream-end",
+      workspaceId: "workspace1",
+      messageId,
+      metadata: { model: "test-model" },
+      parts: [],
+    });
+
+    // Check that the tool message shows 'failed' status in the UI
+    const displayedMessages = aggregator.getDisplayedMessages();
+    const toolMessage = displayedMessages.find((m) => m.type === "tool");
+    expect(toolMessage).toBeDefined();
+    expect(toolMessage?.type).toBe("tool");
+    if (toolMessage?.type === "tool") {
+      expect(toolMessage.status).toBe("failed");
+      expect(toolMessage.toolName).toBe("status_set");
+    }
+
+    // And status should NOT be updated in aggregator
+    expect(aggregator.getAgentStatus()).toBeUndefined();
+  });
+
+  it("should show 'completed' status in UI when status_set validation succeeds", () => {
+    const aggregator = new StreamingMessageAggregator("2024-01-01T00:00:00.000Z");
+    const messageId = "msg1";
+
+    // Start a stream
+    aggregator.handleStreamStart({
+      type: "stream-start",
+      workspaceId: "workspace1",
+      messageId,
+      model: "test-model",
+      historySequence: 1,
+    });
+
+    // Add a successful status_set tool call
+    aggregator.handleToolCallStart({
+      type: "tool-call-start",
+      workspaceId: "workspace1",
+      messageId,
+      toolCallId: "tool1",
+      toolName: "status_set",
+      args: { emoji: "🔍", message: "Analyzing code" },
+      tokens: 10,
+      timestamp: Date.now(),
+    });
+
+    // Complete successfully
+    aggregator.handleToolCallEnd({
+      type: "tool-call-end",
+      workspaceId: "workspace1",
+      messageId,
+      toolCallId: "tool1",
+      toolName: "status_set",
+      result: { success: true, emoji: "🔍", message: "Analyzing code" },
+    });
+
+    // End the stream to finalize message
+    aggregator.handleStreamEnd({
+      type: "stream-end",
+      workspaceId: "workspace1",
+      messageId,
+      metadata: { model: "test-model" },
+      parts: [],
+    });
+
+    // Check that the tool message shows 'completed' status in the UI
+    const displayedMessages = aggregator.getDisplayedMessages();
+    const toolMessage = displayedMessages.find((m) => m.type === "tool");
+    expect(toolMessage).toBeDefined();
+    expect(toolMessage?.type).toBe("tool");
+    if (toolMessage?.type === "tool") {
+      expect(toolMessage.status).toBe("completed");
+      expect(toolMessage.toolName).toBe("status_set");
+    }
+
+    // And status SHOULD be updated in aggregator
+    const status = aggregator.getAgentStatus();
+    expect(status).toBeDefined();
+    expect(status?.emoji).toBe("🔍");
+    expect(status?.message).toBe("Analyzing code");
+  });
+
 });

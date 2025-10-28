@@ -12,10 +12,16 @@ interface StatusSetToolCallProps {
 
 export const StatusSetToolCall: React.FC<StatusSetToolCallProps> = ({
   args,
-  result: _result,
+  result,
   status = "pending",
 }) => {
   const statusDisplay = getStatusDisplay(status);
+
+  // Show error message if validation failed
+  const errorMessage =
+    status === "failed" && result && typeof result === "object" && "error" in result
+      ? String(result.error)
+      : undefined;
 
   return (
     <ToolContainer expanded={false}>
@@ -25,6 +31,7 @@ export const StatusSetToolCall: React.FC<StatusSetToolCallProps> = ({
           <Tooltip>status_set</Tooltip>
         </TooltipWrapper>
         <span className="text-muted-foreground italic">{args.message}</span>
+        {errorMessage && <span className="text-error-foreground text-sm">({errorMessage})</span>}
         <StatusIndicator status={status}>{statusDisplay}</StatusIndicator>
       </ToolHeader>
     </ToolContainer>
