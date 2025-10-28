@@ -243,15 +243,29 @@ export class LocalRuntime implements Runtime {
     // Note: _abortSignal ignored for local operations (fast, no need for cancellation)
     let tempPath: string;
     let writer: WritableStreamDefaultWriter<Uint8Array>;
+    let resolvedPath: string;
+    let originalMode: number | undefined;
 
     return new WritableStream<Uint8Array>({
       async start() {
+        // Resolve symlinks to write through them (preserves the symlink)
+        try {
+          resolvedPath = await fsPromises.realpath(filePath);
+          // Save original permissions to restore after write
+          const stat = await fsPromises.stat(resolvedPath);
+          originalMode = stat.mode;
+        } catch {
+          // If file doesn't exist, use the original path and default permissions
+          resolvedPath = filePath;
+          originalMode = undefined;
+        }
+
         // Create parent directories if they don't exist
-        const parentDir = path.dirname(filePath);
+        const parentDir = path.dirname(resolvedPath);
         await fsPromises.mkdir(parentDir, { recursive: true });
 
         // Create temp file for atomic write
-        tempPath = `${filePath}.tmp.${Date.now()}`;
+        tempPath = `${resolvedPath}.tmp.${Date.now()}`;
         const nodeStream = fs.createWriteStream(tempPath);
         const webStream = Writable.toWeb(nodeStream) as WritableStream<Uint8Array>;
         writer = webStream.getWriter();
@@ -263,7 +277,11 @@ export class LocalRuntime implements Runtime {
         // Close the writer and rename to final location
         await writer.close();
         try {
-          await fsPromises.rename(tempPath, filePath);
+          // If we have original permissions, apply them to temp file before rename
+          if (originalMode !== undefined) {
+            await fsPromises.chmod(tempPath, originalMode);
+          }
+          await fsPromises.rename(tempPath, resolvedPath);
         } catch (err) {
           throw new RuntimeErrorClass(
             `Failed to write file ${filePath}: ${err instanceof Error ? err.message : String(err)}`,
