@@ -372,6 +372,51 @@ describeIntegration("Runtime integration tests", () => {
           const targetContent = await readFileString(runtime, targetPath);
           expect(targetContent).toBe("new content");
         });
+
+        test.concurrent("preserves file permissions when editing through symlink", async () => {
+          const runtime = createRuntime();
+          await using workspace = await TestWorkspace.create(runtime, type);
+
+          // Create a target file with specific permissions (755)
+          const targetPath = `${workspace.path}/target.txt`;
+          await writeFileString(runtime, targetPath, "original content");
+          
+          // Set permissions to 755
+          const chmodResult = await execBuffered(runtime, "chmod 755 target.txt", {
+            cwd: workspace.path,
+            timeout: 30,
+          });
+          expect(chmodResult.exitCode).toBe(0);
+
+          // Verify initial permissions
+          const statBefore = await execBuffered(runtime, "stat -c '%a' target.txt", {
+            cwd: workspace.path,
+            timeout: 30,
+          });
+          expect(statBefore.stdout.trim()).toBe("755");
+
+          // Create a symlink to the target
+          const linkPath = `${workspace.path}/link.txt`;
+          const lnResult = await execBuffered(runtime, "ln -s target.txt link.txt", {
+            cwd: workspace.path,
+            timeout: 30,
+          });
+          expect(lnResult.exitCode).toBe(0);
+
+          // Edit the file via the symlink
+          await writeFileString(runtime, linkPath, "new content");
+
+          // Verify permissions are preserved
+          const statAfter = await execBuffered(runtime, "stat -c '%a' target.txt", {
+            cwd: workspace.path,
+            timeout: 30,
+          });
+          expect(statAfter.stdout.trim()).toBe("755");
+
+          // Verify content was updated
+          const content = await readFileString(runtime, targetPath);
+          expect(content).toBe("new content");
+        });
       });
 
       describe("stat() - File metadata", () => {
