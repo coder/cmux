@@ -198,5 +198,64 @@ describe("StreamingMessageAggregator - Agent Status", () => {
     // Status should remain undefined
     expect(aggregator.getAgentStatus()).toBeUndefined();
   });
+
+  it("should clear agent status on stream-start (different from TODO behavior)", () => {
+    const aggregator = new StreamingMessageAggregator("2024-01-01T00:00:00.000Z");
+
+    // Start first stream and set status
+    aggregator.handleStreamStart({
+      type: "stream-start",
+      workspaceId: "workspace1",
+      messageId: "msg1",
+      model: "test-model",
+      historySequence: 1,
+    });
+
+    aggregator.handleToolCallStart({
+      type: "tool-call-start",
+      workspaceId: "workspace1",
+      messageId: "msg1",
+      toolCallId: "tool1",
+      toolName: "status_set",
+      args: { emoji: "🔍", message: "First task" },
+      tokens: 10,
+      timestamp: Date.now(),
+    });
+
+    aggregator.handleToolCallEnd({
+      type: "tool-call-end",
+      workspaceId: "workspace1",
+      messageId: "msg1",
+      toolCallId: "tool1",
+      toolName: "status_set",
+      result: { success: true, emoji: "🔍", message: "First task" },
+    });
+
+    expect(aggregator.getAgentStatus()?.message).toBe("First task");
+
+    // End first stream
+    aggregator.handleStreamEnd({
+      type: "stream-end",
+      workspaceId: "workspace1",
+      messageId: "msg1",
+      metadata: { model: "test-model" },
+      parts: [],
+    });
+
+    // Status persists after stream ends
+    expect(aggregator.getAgentStatus()?.message).toBe("First task");
+
+    // Start a NEW stream - status should be cleared
+    aggregator.handleStreamStart({
+      type: "stream-start",
+      workspaceId: "workspace1",
+      messageId: "msg2",
+      model: "test-model",
+      historySequence: 2,
+    });
+
+    // Status should be cleared on new stream start
+    expect(aggregator.getAgentStatus()).toBeUndefined();
+  });
 });
 
