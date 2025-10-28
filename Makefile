@@ -46,6 +46,23 @@ include fmt.mk
 # Build tools
 TSGO := bun run node_modules/@typescript/native-preview/bin/tsgo.js
 
+# Node.js version check
+REQUIRED_NODE_VERSION := 20
+NODE_VERSION := $(shell node --version | sed 's/v\([0-9]*\).*/\1/')
+
+define check_node_version
+	@if [ "$(NODE_VERSION)" -lt "$(REQUIRED_NODE_VERSION)" ]; then \
+		echo "Error: Node.js v$(REQUIRED_NODE_VERSION) or higher is required"; \
+		echo "Current version: v$(NODE_VERSION)"; \
+		echo ""; \
+		echo "To upgrade Node.js:"; \
+		echo "  1. Install 'n' version manager: curl -L https://raw.githubusercontent.com/tj/n/master/bin/n | sudo bash -s -- lts"; \
+		echo "  2. Or use 'n' if already installed: sudo n $(REQUIRED_NODE_VERSION)"; \
+		echo ""; \
+		exit 1; \
+	fi
+endef
+
 TS_SOURCES := $(shell find src -type f \( -name '*.ts' -o -name '*.tsx' \))
 
 # Default target
@@ -244,15 +261,19 @@ docs-watch: ## Watch and rebuild documentation
 
 ## Storybook
 storybook: node_modules/.installed ## Start Storybook development server
-	@bun x storybook dev -p 6006
+	$(check_node_version)
+	@bun x storybook dev -p 6006 --no-open
 
 storybook-build: node_modules/.installed src/version.ts ## Build static Storybook
+	$(check_node_version)
 	@bun x storybook build
 
 test-storybook: node_modules/.installed ## Run Storybook interaction tests (requires Storybook to be running or built)
+	$(check_node_version)
 	@bun x test-storybook
 
 chromatic: node_modules/.installed ## Run Chromatic for visual regression testing
+	$(check_node_version)
 	@bun x chromatic --exit-zero-on-changes
 
 ## Benchmarks
