@@ -157,3 +157,21 @@ export interface TodoWriteToolResult {
   success: true;
   count: number;
 }
+
+// Status Set Tool Types
+export interface StatusSetToolArgs {
+  emoji: string;
+  message: string;
+}
+
+export type StatusSetToolResult =
+  | {
+      success: true;
+      emoji: string;
+      message: string;
+    }
+  | {
+      success: false;
+      error: string;
+    };
+
