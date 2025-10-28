@@ -81,6 +81,11 @@ export class SSHRuntime implements Runtime {
   async exec(command: string, options: ExecOptions): Promise<ExecStream> {
     const startTime = performance.now();
 
+    // Short-circuit if already aborted
+    if (options.abortSignal?.aborted) {
+      throw new RuntimeErrorClass("Operation aborted before execution", "exec");
+    }
+
     // Build command parts
     const parts: string[] = [];
 
@@ -516,6 +521,11 @@ export class SSHRuntime implements Runtime {
     initLogger: InitLogger,
     abortSignal?: AbortSignal
   ): Promise<void> {
+    // Short-circuit if already aborted
+    if (abortSignal?.aborted) {
+      throw new Error("Sync operation aborted before starting");
+    }
+
     // Use timestamp-based bundle path to avoid conflicts (simpler than $$)
     const timestamp = Date.now();
     const bundleTempPath = `~/.cmux-bundle-${timestamp}.bundle`;
@@ -541,6 +551,12 @@ export class SSHRuntime implements Runtime {
       // Step 2: Create bundle locally and pipe to remote file via SSH
       initLogger.logStep(`Creating git bundle...`);
       await new Promise<void>((resolve, reject) => {
+        // Check if aborted before spawning
+        if (abortSignal?.aborted) {
+          reject(new Error("Bundle creation aborted"));
+          return;
+        }
+
         const sshArgs = this.buildSSHArgs(true);
         const command = `cd ${shescape.quote(projectPath)} && git bundle create - --all | ssh ${sshArgs.join(" ")} "cat > ${bundleTempPath}"`;
 
