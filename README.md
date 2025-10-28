@@ -34,8 +34,8 @@ Here are some specific use cases we enable:
 ## Features
 
 - Isolated workspaces with central view on git divergence
-  - **Local**: git worktrees on your local machine
-  - **SSH**: regular git clones on a remote server access over SSH
+  - **Local**: git worktrees on your local machine ([docs](https://cmux.io/local.html))
+  - **SSH**: regular git clones on a remote server ([docs](https://cmux.io/ssh.html))
 - Multi-model (`sonnet-4-*`, `gpt-5-*`, `opus-4-*`)
 - Supporting UI and keybinds for efficiently managing a suite of agents
 - Rich markdown outputs (mermaid diagrams, LaTeX, etc.)
