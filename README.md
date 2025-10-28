@@ -66,6 +66,11 @@ Download pre-built binaries from [the releases page](https://github.com/coder/cm
 </div>
 
 <div align="center">
+  <p><em>Agents report their status through the sidebar:</em></p>
+  <img src="./docs/img/agent-status.webp" alt="Screenshot of agent status" />
+</div>
+
+<div align="center">
   <p><em>Git divergence UI keeps you looped in on changes and potential conflicts:</em></p>
   <img src="./docs/img/git-status.webp" alt="Screenshot of git status" />
 </div>
