@@ -320,13 +320,13 @@ export class SSHRuntime implements Runtime {
   /**
    * Get file statistics over SSH
    */
-  async stat(path: string, _abortSignal?: AbortSignal): Promise<FileStat> {
+  async stat(path: string, abortSignal?: AbortSignal): Promise<FileStat> {
     // Use stat with format string to get: size, mtime, type
     // %s = size, %Y = mtime (seconds since epoch), %F = file type
-    // Note: timeout is <10s so no abort signal needed per requirement
     const stream = await this.exec(`stat -c '%s %Y %F' ${shescape.quote(path)}`, {
       cwd: this.config.srcBaseDir,
-      timeout: 10, // 10 seconds - stat should be fast (no abort needed per requirement)
+      timeout: 10, // 10 seconds - stat should be fast
+      abortSignal,
     });
 
     const [stdout, stderr, exitCode] = await Promise.all([
@@ -547,6 +547,13 @@ export class SSHRuntime implements Runtime {
         log.debug(`Creating bundle: ${command}`);
         const proc = spawn("bash", ["-c", command]);
 
+        // Handle abort signal
+        const abortHandler = () => {
+          proc.kill();
+          reject(new Error("Bundle creation aborted"));
+        };
+        abortSignal?.addEventListener("abort", abortHandler);
+
         streamProcessToLogger(proc, initLogger, {
           logStdout: false,
           logStderr: true,
@@ -558,7 +565,10 @@ export class SSHRuntime implements Runtime {
         });
 
         proc.on("close", (code) => {
-          if (code === 0) {
+          abortSignal?.removeEventListener("abort", abortHandler);
+          if (abortSignal?.aborted) {
+            reject(new Error("Bundle creation aborted"));
+          } else if (code === 0) {
             resolve();
           } else {
             reject(new Error(`Failed to create bundle: ${stderr}`));
@@ -566,6 +576,7 @@ export class SSHRuntime implements Runtime {
         });
 
         proc.on("error", (err) => {
+          abortSignal?.removeEventListener("abort", abortHandler);
           reject(err);
         });
       });
@@ -616,6 +627,7 @@ export class SSHRuntime implements Runtime {
           {
             cwd: "~",
             timeout: 10,
+            abortSignal,
           }
         );
 
@@ -633,6 +645,7 @@ export class SSHRuntime implements Runtime {
           {
             cwd: "~",
             timeout: 10,
+            abortSignal,
           }
         );
         await removeOriginStream.exitCode;
@@ -643,6 +656,7 @@ export class SSHRuntime implements Runtime {
       const rmStream = await this.exec(`rm ${bundleTempPath}`, {
         cwd: "~",
         timeout: 10,
+        abortSignal,
       });
 
       const rmExitCode = await rmStream.exitCode;
@@ -657,6 +671,7 @@ export class SSHRuntime implements Runtime {
         const rmStream = await this.exec(`rm -f ${bundleTempPath}`, {
           cwd: "~",
           timeout: 10,
+          abortSignal,
         });
         await rmStream.exitCode;
       } catch {
@@ -747,7 +762,7 @@ export class SSHRuntime implements Runtime {
 
   async createWorkspace(params: WorkspaceCreationParams): Promise<WorkspaceCreationResult> {
     try {
-      const { projectPath, branchName, initLogger } = params;
+      const { projectPath, branchName, initLogger, abortSignal } = params;
       // Compute workspace path using canonical method
       const workspacePath = this.getWorkspacePath(projectPath, branchName);
 
@@ -768,6 +783,7 @@ export class SSHRuntime implements Runtime {
         const mkdirStream = await this.exec(parentDirCommand, {
           cwd: "/tmp",
           timeout: 10,
+          abortSignal,
         });
         const mkdirExitCode = await mkdirStream.exitCode;
         if (mkdirExitCode !== 0) {
@@ -966,6 +982,7 @@ export class SSHRuntime implements Runtime {
       const checkStream = await this.exec(checkScript, {
         cwd: this.config.srcBaseDir,
         timeout: 10,
+        abortSignal,
       });
 
       await checkStream.stdin.close();
