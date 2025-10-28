@@ -773,12 +773,11 @@ export class StreamingMessageAggregator {
               let status: "pending" | "executing" | "completed" | "failed" | "interrupted";
               if (part.state === "output-available") {
                 // Check if result indicates failure (for tools that return { success: boolean })
-                const output = part.output as unknown;
                 const isFailed =
-                  typeof output === "object" &&
-                  output !== null &&
-                  "success" in output &&
-                  output.success === false;
+                  typeof part.output === "object" &&
+                  part.output !== null &&
+                  "success" in part.output &&
+                  part.output.success === false;
                 status = isFailed ? "failed" : "completed";
               } else if (part.state === "input-available" && message.metadata?.partial) {
                 status = "interrupted";

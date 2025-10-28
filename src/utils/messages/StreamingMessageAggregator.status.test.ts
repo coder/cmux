@@ -376,5 +376,4 @@ describe("StreamingMessageAggregator - Agent Status", () => {
     expect(status?.emoji).toBe("🔍");
     expect(status?.message).toBe("Analyzing code");
   });
-
 });
