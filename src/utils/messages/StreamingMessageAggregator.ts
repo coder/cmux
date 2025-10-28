@@ -35,6 +35,31 @@ interface StreamingContext {
   model: string;
 }
 
+/**
+ * Check if a tool result indicates success (for tools that return { success: boolean })
+ */
+function hasSuccessResult(result: unknown): boolean {
+  return (
+    typeof result === "object" &&
+    result !== null &&
+    "success" in result &&
+    result.success === true
+  );
+}
+
+/**
+ * Check if a tool result indicates failure (for tools that return { success: boolean })
+ */
+function hasFailureResult(result: unknown): boolean {
+  return (
+    typeof result === "object" &&
+    result !== null &&
+    "success" in result &&
+    result.success === false
+  );
+}
+
+
 export class StreamingMessageAggregator {
   private messages = new Map<string, CmuxMessage>();
   private activeStreams = new Map<string, StreamingContext>();
@@ -488,13 +513,7 @@ export class StreamingMessageAggregator {
         (toolPart as DynamicToolPartAvailable).output = data.result;
 
         // Update TODO state if this was a successful todo_write
-        if (
-          data.toolName === "todo_write" &&
-          typeof data.result === "object" &&
-          data.result !== null &&
-          "success" in data.result &&
-          data.result.success
-        ) {
+        if (data.toolName === "todo_write" && hasSuccessResult(data.result)) {
           const args = toolPart.input as { todos: TodoItem[] };
           // Only update if todos actually changed (prevents flickering from reference changes)
           if (!this.todosEqual(this.currentTodos, args.todos)) {
@@ -503,13 +522,7 @@ export class StreamingMessageAggregator {
         }
 
         // Update agent status if this was a successful status_set
-        if (
-          data.toolName === "status_set" &&
-          typeof data.result === "object" &&
-          data.result !== null &&
-          "success" in data.result &&
-          data.result.success
-        ) {
+        if (data.toolName === "status_set" && hasSuccessResult(data.result)) {
           const args = toolPart.input as { emoji: string; message: string };
           this.agentStatus = { emoji: args.emoji, message: args.message };
         }
@@ -773,12 +786,7 @@ export class StreamingMessageAggregator {
               let status: "pending" | "executing" | "completed" | "failed" | "interrupted";
               if (part.state === "output-available") {
                 // Check if result indicates failure (for tools that return { success: boolean })
-                const isFailed =
-                  typeof part.output === "object" &&
-                  part.output !== null &&
-                  "success" in part.output &&
-                  part.output.success === false;
-                status = isFailed ? "failed" : "completed";
+                status = hasFailureResult(part.output) ? "failed" : "completed";
               } else if (part.state === "input-available" && message.metadata?.partial) {
                 status = "interrupted";
               } else if (part.state === "input-available") {
