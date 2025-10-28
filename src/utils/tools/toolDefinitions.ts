@@ -185,6 +185,7 @@ export const TOOL_DEFINITIONS = {
     description:
       "Set a status indicator to show what the agent is currently doing. " +
       "The emoji appears left of the streaming indicator, and the message shows on hover. " +
+      "The status is set IMMEDIATELY when this tool is called, even before other tool calls complete. " +
       "IMPORTANT: Always set a status at the start of each response and update it as your work progresses. " +
       "The status is cleared when a new user message comes in, so you must set it again for each response. " +
       "Use this to communicate ongoing activities and set a final status before completing that reflects the outcome.",

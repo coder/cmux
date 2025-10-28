@@ -41,6 +41,12 @@ function isValidEmoji(str: string): boolean {
 /**
  * Status set tool factory for AI assistant
  * Creates a tool that allows the AI to set status indicator showing current activity
+ *
+ * The status is displayed IMMEDIATELY when this tool is called, even before other
+ * tool calls complete. This prevents agents from prematurely declaring success
+ * (e.g., "PR checks passed") when operations are still pending. Agents should only
+ * set success status after confirming the outcome of long-running operations.
+ *
  * @param config Required configuration (not used for this tool, but required by interface)
  */
 export const createStatusSetTool: ToolFactory = () => {
