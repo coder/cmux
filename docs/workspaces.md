@@ -1,59 +1,27 @@
 # Workspaces
 
-cmux supports multiple workspace backends for different use cases:
+Workspaces in cmux provide isolated development environments for parallel agent work. Each workspace maintains its own Git state, allowing you to explore different approaches, run multiple tasks simultaneously, or test changes without affecting your main repository.
 
-- **Local workspaces**: [git worktrees](https://git-scm.com/docs/git-worktree) on your local machine
-- **SSH workspaces**: Regular git clones on a remote server accessed via SSH
+## Workspace Types
 
-The backend is selected based on your runtime configuration. Local workspaces use git worktrees which share the `.git` directory with your main repository, while SSH workspaces are independent git clones on the remote machine.
+cmux supports two workspace backends:
 
-## Basics of worktrees
+- **[Local Workspaces](./local.md)**: Use [git worktrees](https://git-scm.com/docs/git-worktree) on your local machine. Worktrees share the `.git` directory with your main repository while maintaining independent working changes.
 
-A worktree is a seperate directory on the same filesystem as the main repository that shares a `.git`
-but has independent working changes and checkout state. **All committed changes from any worktree are
-visible to all other worktrees including the main repository.**
+- **[SSH Workspaces](./ssh.md)**: Regular git clones on a remote server accessed via SSH. These are completely independent repositories stored on the remote machine.
 
-It's important to note that a **worktree is not locked to a branch**. The agent can switch to new
-branches, enter a detached HEAD state, etc. When you create a workspace, the agent will
-begin at the selected branch but may switch freely in the course of the session. **We empower users to define their agent's branching strategy in AGENTS.md**
+## Choosing a Backend
 
-## Reviewing code
+The workspace backend is selected when you create a workspace:
 
-Here are a few practical approaches to reviewing changes from workspaces,
-depending on how much you want your agent to interact with `git`:
+- **Local**: Best for fast iteration, local testing, and when you want to leverage your local machine's resources
+- **SSH**: Ideal for heavy workloads, long-running tasks, or when you need access to remote infrastructure
 
-- **Agent codes, commits, and pushes**: Ask agent to submit a PR and review changes in your git Web UI (GitHub, GitLab, etc.)
-  - Also see: [Agentic Git Identity](./agentic-git-identity.md)
-  - This is the preferred approach for `cmux` development but requires additional care with repository security.
-- **Agent codes and commits**: Review changes from the main repository via `git diff <workspace-branch>`, push changes when deemed acceptable.
-- **Agent codes**: enter worktree (click Terminal icon in workspace top bar), run `git add -p` and progressively accept changes into a commit.
+## Key Concepts
 
-## Reviewing functionality
+- **Isolation**: Each workspace has independent working changes and Git state
+- **Branch flexibility**: Workspaces can switch branches, enter detached HEAD state, or create new branches as needed
+- **Parallel execution**: Run multiple workspaces simultaneously on different tasks
+- **Shared commits**: Local workspaces (using worktrees) share commits with the main repository immediately
 
-Some changes (esp. UI ones) require the Human to determine acceptability. An effective approach
-for this is:
-
-1. Ask agent to commit WIP when its ready for Human review
-1. Human, in main repository, checks out the workspace branch in a detached HEAD state: `git checkout --detach <workspace-branch>`
-
-Note: this workflow uses the detached HEAD state because the branch is already
-checked out in the workspace and you cannot check out the same branch multiple times
-across worktrees.
-
-If you want faster iteration in between commits, you can hop into the worktree directory and run a
-dev server (e.g. `bun dev`) there directly and observe the agent's work in real-time.
-
-## Filesystem Layout
-
-Local workspaces are stored in `~/.cmux/src/<project-name>/<workspace-name>`.
-
-SSH workspaces are stored on the remote machine at `~/workspace/<project-name>/<workspace-name>` (or your configured remote path).
-
-Example layout:
-
-```
-~/.cmux/src/
-  cmux-main/
-    improved-auth-ux/
-    fix-ci-flakes/
-```
+See the specific workspace type pages for detailed setup and usage instructions.
