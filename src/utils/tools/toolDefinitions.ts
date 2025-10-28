@@ -186,11 +186,8 @@ export const TOOL_DEFINITIONS = {
       "Set a status indicator to show what the agent is currently doing. " +
       "The emoji appears left of the streaming indicator, and the message shows on hover. " +
       "IMPORTANT: Always set a status at the start of each response and update it as your work progresses. " +
-      "Set a final status before finishing your response that reflects the outcome: " +
-      "Success: 'PR checks pass and ready to merge', " +
-      "Failure: 'CreateWorkspace Tests failed', " +
-      "Warning: 'Encountered serious issue with design'. " +
-      "The status is cleared at the start of each new response, so you must set it again.",
+      "The status is cleared when a new user message comes in, so you must set it again for each response. " +
+      "Use this to communicate ongoing activities and set a final status before completing that reflects the outcome.",
     schema: z
       .object({
         emoji: z.string().describe("A single emoji character representing the current activity"),
