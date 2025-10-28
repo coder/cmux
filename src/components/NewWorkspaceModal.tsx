@@ -267,16 +267,18 @@ const NewWorkspaceModal: React.FC<NewWorkspaceModalProps> = ({
           </div>
         )}
 
-        <div className="[&_label]:text-foreground [&_textarea]:bg-modal-bg [&_textarea]:border-border-medium [&_textarea]:focus:border-accent mb-5 [&_label]:mb-2 [&_label]:block [&_label]:text-sm [&_textarea]:w-full [&_textarea]:rounded [&_textarea]:border [&_textarea]:px-3 [&_textarea]:py-2 [&_textarea]:text-sm [&_textarea]:text-white [&_textarea]:focus:outline-none [&_textarea]:disabled:cursor-not-allowed [&_textarea]:disabled:opacity-60 [&_textarea]:resize-y [&_textarea]:min-h-[80px]">
-          <label htmlFor="startMessage">Start Message (optional):</label>
-          <textarea
-            id="startMessage"
-            value={startMessage}
-            onChange={(event) => setStartMessage(event.target.value)}
-            disabled={isLoading}
-            placeholder="Enter a message to send after creating the workspace..."
-          />
-        </div>
+        {initialStartMessage && (
+          <div className="[&_label]:text-foreground [&_textarea]:bg-modal-bg [&_textarea]:border-border-medium [&_textarea]:focus:border-accent mb-5 [&_label]:mb-2 [&_label]:block [&_label]:text-sm [&_textarea]:w-full [&_textarea]:rounded [&_textarea]:border [&_textarea]:px-3 [&_textarea]:py-2 [&_textarea]:text-sm [&_textarea]:text-white [&_textarea]:focus:outline-none [&_textarea]:disabled:cursor-not-allowed [&_textarea]:disabled:opacity-60 [&_textarea]:resize-y [&_textarea]:min-h-[80px]">
+            <label htmlFor="startMessage">Start Message (optional):</label>
+            <textarea
+              id="startMessage"
+              value={startMessage}
+              onChange={(event) => setStartMessage(event.target.value)}
+              disabled={isLoading}
+              placeholder="Enter a message to send after creating the workspace..."
+            />
+          </div>
+        )}
 
         <ModalInfo id={infoId}>
           <p>This will create a workspace at:</p>
