@@ -502,7 +502,6 @@ export class StreamingMessageAggregator {
     // Tool deltas are for display - args are in dynamic-tool part
   }
 
-
   /**
    * Process a completed tool call's result to update derived state.
    * Called for both live tool-call-end events and historical tool parts.
