@@ -18,23 +18,35 @@ export type StatusSetToolResult =
 
 /**
  * Validates that a string is a single emoji character
- * Uses Unicode property escapes to match emoji characters
+ * Uses Intl.Segmenter to count grapheme clusters (handles variation selectors, skin tones, etc.)
  */
 function isValidEmoji(str: string): boolean {
-  // Check if string contains exactly one character (handles multi-byte emojis)
-  const chars = [...str];
-  if (chars.length !== 1) {
+  if (!str) return false;
+
+  // Use Intl.Segmenter to count grapheme clusters (what users perceive as single characters)
+  // This properly handles emojis with variation selectors (like ✏️), skin tones, flags, etc.
+  const segmenter = new Intl.Segmenter("en", { granularity: "grapheme" });
+  const segments = [...segmenter.segment(str)];
+
+  // Must be exactly one grapheme cluster
+  if (segments.length !== 1) {
     return false;
   }
 
   // Check if it's an emoji using Unicode properties
-  const emojiRegex = /^[\p{Emoji_Presentation}\p{Extended_Pictographic}]$/u;
-  return emojiRegex.test(str);
+  const emojiRegex = /^[\p{Emoji_Presentation}\p{Extended_Pictographic}]/u;
+  return emojiRegex.test(segments[0].segment);
 }
 
 /**
  * Status set tool factory for AI assistant
  * Creates a tool that allows the AI to set status indicator showing current activity
+ *
+ * The status is displayed IMMEDIATELY when this tool is called, even before other
+ * tool calls complete. This prevents agents from prematurely declaring success
+ * (e.g., "PR checks passed") when operations are still pending. Agents should only
+ * set success status after confirming the outcome of long-running operations.
+ *
  * @param config Required configuration (not used for this tool, but required by interface)
  */
 export const createStatusSetTool: ToolFactory = () => {

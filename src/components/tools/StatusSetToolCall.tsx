@@ -31,7 +31,7 @@ export const StatusSetToolCall: React.FC<StatusSetToolCallProps> = ({
           <Tooltip>status_set</Tooltip>
         </TooltipWrapper>
         <span className="text-muted-foreground italic">{args.message}</span>
-        {errorMessage && <span className="text-error-foreground text-sm">({errorMessage})</span>}
+        {errorMessage && <span className="text-error-foreground">({errorMessage})</span>}
         <StatusIndicator status={status}>{statusDisplay}</StatusIndicator>
       </ToolHeader>
     </ToolContainer>
