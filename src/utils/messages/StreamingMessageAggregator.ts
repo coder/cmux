@@ -40,10 +40,7 @@ interface StreamingContext {
  */
 function hasSuccessResult(result: unknown): boolean {
   return (
-    typeof result === "object" &&
-    result !== null &&
-    "success" in result &&
-    result.success === true
+    typeof result === "object" && result !== null && "success" in result && result.success === true
   );
 }
 
@@ -52,13 +49,9 @@ function hasSuccessResult(result: unknown): boolean {
  */
 function hasFailureResult(result: unknown): boolean {
   return (
-    typeof result === "object" &&
-    result !== null &&
-    "success" in result &&
-    result.success === false
+    typeof result === "object" && result !== null && "success" in result && result.success === false
   );
 }
-
 
 export class StreamingMessageAggregator {
   private messages = new Map<string, CmuxMessage>();
