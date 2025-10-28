@@ -29,6 +29,7 @@ export interface WorkspaceState {
   currentModel: string | null;
   recencyTimestamp: number | null;
   todos: TodoItem[];
+  agentStatus: { emoji: string; message: string } | undefined;
   pendingStreamStartTime: number | null;
 }
 
@@ -40,6 +41,7 @@ export interface WorkspaceSidebarState {
   canInterrupt: boolean;
   currentModel: string | null;
   recencyTimestamp: number | null;
+  agentStatus: { emoji: string; message: string } | undefined;
 }
 
 /**
@@ -50,6 +52,7 @@ function extractSidebarState(aggregator: StreamingMessageAggregator): WorkspaceS
     canInterrupt: aggregator.getActiveStreams().length > 0,
     currentModel: aggregator.getCurrentModel() ?? null,
     recencyTimestamp: aggregator.getRecencyTimestamp(),
+    agentStatus: aggregator.getAgentStatus(),
   };
 }
 
@@ -306,7 +309,8 @@ export class WorkspaceStore {
       !previous ||
       previous.canInterrupt !== current.canInterrupt ||
       previous.currentModel !== current.currentModel ||
-      previous.recencyTimestamp !== current.recencyTimestamp
+      previous.recencyTimestamp !== current.recencyTimestamp ||
+      previous.agentStatus !== current.agentStatus
     ) {
       this.previousSidebarValues.set(workspaceId, current);
       this.states.bump(workspaceId);
@@ -363,6 +367,7 @@ export class WorkspaceStore {
         currentModel: aggregator.getCurrentModel() ?? null,
         recencyTimestamp: aggregator.getRecencyTimestamp(),
         todos: aggregator.getCurrentTodos(),
+        agentStatus: aggregator.getAgentStatus(),
         pendingStreamStartTime: aggregator.getPendingStreamStartTime(),
       };
     });
@@ -385,7 +390,8 @@ export class WorkspaceStore {
       cached &&
       cached.canInterrupt === fullState.canInterrupt &&
       cached.currentModel === fullState.currentModel &&
-      cached.recencyTimestamp === fullState.recencyTimestamp
+      cached.recencyTimestamp === fullState.recencyTimestamp &&
+      cached.agentStatus === fullState.agentStatus
     ) {
       return cached;
     }
@@ -395,6 +401,7 @@ export class WorkspaceStore {
       canInterrupt: fullState.canInterrupt,
       currentModel: fullState.currentModel,
       recencyTimestamp: fullState.recencyTimestamp,
+      agentStatus: fullState.agentStatus,
     };
     this.sidebarStateCache.set(workspaceId, newState);
     return newState;

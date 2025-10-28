@@ -6,6 +6,7 @@ import { createFileEditReplaceStringTool } from "@/services/tools/file_edit_repl
 import { createFileEditInsertTool } from "@/services/tools/file_edit_insert";
 import { createProposePlanTool } from "@/services/tools/propose_plan";
 import { createTodoWriteTool, createTodoReadTool } from "@/services/tools/todo";
+import { createStatusSetTool } from "@/services/tools/status_set";
 import { wrapWithInitWait } from "@/services/tools/wrapWithInitWait";
 import { log } from "@/services/log";
 
@@ -77,6 +78,7 @@ export async function getToolsForModel(
     propose_plan: createProposePlanTool(config),
     todo_write: createTodoWriteTool(config),
     todo_read: createTodoReadTool(config),
+    status_set: createStatusSetTool(config),
   };
 
   // Base tools available for all models
