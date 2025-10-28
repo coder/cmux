@@ -63,6 +63,11 @@ define check_node_version
 	fi
 endef
 
+# Detect if browser opener is available that Storybook can use
+# Storybook uses 'open' package which tries xdg-open on Linux, open on macOS, start on Windows
+HAS_BROWSER_OPENER := $(shell command -v xdg-open >/dev/null 2>&1 && echo "yes" || echo "no")
+STORYBOOK_OPEN_FLAG := $(if $(filter yes,$(HAS_BROWSER_OPENER)),,--no-open)
+
 TS_SOURCES := $(shell find src -type f \( -name '*.ts' -o -name '*.tsx' \))
 
 # Default target
@@ -262,7 +267,7 @@ docs-watch: ## Watch and rebuild documentation
 ## Storybook
 storybook: node_modules/.installed ## Start Storybook development server
 	$(check_node_version)
-	@bun x storybook dev -p 6006 --no-open
+	@bun x storybook dev -p 6006 $(STORYBOOK_OPEN_FLAG)
 
 storybook-build: node_modules/.installed src/version.ts ## Build static Storybook
 	$(check_node_version)
