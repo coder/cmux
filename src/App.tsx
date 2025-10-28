@@ -46,7 +46,8 @@ function AppInner() {
     selectedWorkspace,
     setSelectedWorkspace,
   } = useApp();
-  const [workspaceModalState, setWorkspaceModalState] = useState({
+
+  const INITIAL_WORKSPACE_MODAL_STATE = {
     isOpen: false,
     projectPath: null as string | null,
     projectName: "",
@@ -55,7 +56,9 @@ function AppInner() {
     loadError: null as string | null,
     startMessage: undefined as string | undefined,
     model: undefined as string | undefined,
-  });
+  };
+
+  const [workspaceModalState, setWorkspaceModalState] = useState(INITIAL_WORKSPACE_MODAL_STATE);
   const workspaceModalProjectRef = useRef<string | null>(null);
 
   // Auto-collapse sidebar on mobile by default
@@ -749,16 +752,7 @@ function AppInner() {
             initialModel={workspaceModalState.model}
             onClose={() => {
               workspaceModalProjectRef.current = null;
-              setWorkspaceModalState({
-                isOpen: false,
-                projectPath: null,
-                projectName: "",
-                branches: [],
-                defaultTrunk: undefined,
-                loadError: null,
-                startMessage: undefined,
-                model: undefined,
-              });
+              setWorkspaceModalState(INITIAL_WORKSPACE_MODAL_STATE);
             }}
             onAdd={handleCreateWorkspace}
           />

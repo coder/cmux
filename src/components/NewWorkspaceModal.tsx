@@ -52,6 +52,14 @@ const NewWorkspaceModal: React.FC<NewWorkspaceModalProps> = ({
   const [runtimeOptions, setRuntimeOptions] = useNewWorkspaceOptions(projectPath);
   const { runtimeMode, sshHost, getRuntimeString } = runtimeOptions;
 
+  // Reset form to initial state
+  const resetForm = () => {
+    setBranchName("");
+    setTrunkBranch(defaultTrunkBranch ?? branches[0] ?? "");
+    setRuntimeOptions(RUNTIME_MODE.LOCAL, "");
+    setStartMessage("");
+  };
+
   useEffect(() => {
     setError(loadErrorMessage ?? null);
   }, [loadErrorMessage]);
@@ -78,10 +86,7 @@ const NewWorkspaceModal: React.FC<NewWorkspaceModalProps> = ({
   }, [branches, defaultTrunkBranch, hasBranches]);
 
   const handleCancel = () => {
-    setBranchName("");
-    setTrunkBranch(defaultTrunkBranch ?? branches[0] ?? "");
-    setRuntimeOptions(RUNTIME_MODE.LOCAL, "");
-    setStartMessage("");
+    resetForm();
     setError(loadErrorMessage ?? null);
     onClose();
   };
@@ -129,10 +134,7 @@ const NewWorkspaceModal: React.FC<NewWorkspaceModalProps> = ({
         trimmedStartMessage || undefined,
         initialModel
       );
-      setBranchName("");
-      setTrunkBranch(defaultTrunkBranch ?? branches[0] ?? "");
-      setRuntimeOptions(RUNTIME_MODE.LOCAL, "");
-      setStartMessage("");
+      resetForm();
       onClose();
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to create workspace";
