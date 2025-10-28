@@ -27,6 +27,7 @@ interface ExecuteFileEditOperationOptions<TMetadata> {
   operation: (
     originalContent: string
   ) => FileEditOperationResult<TMetadata> | Promise<FileEditOperationResult<TMetadata>>;
+  abortSignal?: AbortSignal;
 }
 
 /**
@@ -37,6 +38,7 @@ export async function executeFileEditOperation<TMetadata>({
   config,
   filePath,
   operation,
+  abortSignal,
 }: ExecuteFileEditOperationOptions<TMetadata>): Promise<
   FileEditErrorResult | (FileEditDiffSuccessBase & TMetadata)
 > {
@@ -69,7 +71,7 @@ export async function executeFileEditOperation<TMetadata>({
     // Check if file exists and get stats using runtime
     let fileStat;
     try {
-      fileStat = await config.runtime.stat(resolvedPath);
+      fileStat = await config.runtime.stat(resolvedPath, abortSignal);
     } catch (err) {
       if (err instanceof RuntimeError) {
         return {
@@ -98,7 +100,7 @@ export async function executeFileEditOperation<TMetadata>({
     // Read file content using runtime helper
     let originalContent: string;
     try {
-      originalContent = await readFileString(config.runtime, resolvedPath);
+      originalContent = await readFileString(config.runtime, resolvedPath, abortSignal);
     } catch (err) {
       if (err instanceof RuntimeError) {
         return {
@@ -119,7 +121,7 @@ export async function executeFileEditOperation<TMetadata>({
 
     // Write file using runtime helper
     try {
-      await writeFileString(config.runtime, resolvedPath, operationResult.newContent);
+      await writeFileString(config.runtime, resolvedPath, operationResult.newContent, abortSignal);
     } catch (err) {
       if (err instanceof RuntimeError) {
         return {
