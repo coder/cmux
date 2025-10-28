@@ -563,16 +563,10 @@ export class SSHRuntime implements Runtime {
         log.debug(`Creating bundle: ${command}`);
         const proc = spawn("bash", ["-c", command]);
 
-        // Handle abort signal
-        const abortHandler = () => {
-          proc.kill();
-          reject(new Error("Bundle creation aborted"));
-        };
-        abortSignal?.addEventListener("abort", abortHandler);
-
-        streamProcessToLogger(proc, initLogger, {
+        const cleanup = streamProcessToLogger(proc, initLogger, {
           logStdout: false,
           logStderr: true,
+          abortSignal,
         });
 
         let stderr = "";
@@ -581,7 +575,7 @@ export class SSHRuntime implements Runtime {
         });
 
         proc.on("close", (code) => {
-          abortSignal?.removeEventListener("abort", abortHandler);
+          cleanup();
           if (abortSignal?.aborted) {
             reject(new Error("Bundle creation aborted"));
           } else if (code === 0) {
@@ -592,7 +586,7 @@ export class SSHRuntime implements Runtime {
         });
 
         proc.on("error", (err) => {
-          abortSignal?.removeEventListener("abort", abortHandler);
+          cleanup();
           reject(err);
         });
       });
