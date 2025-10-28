@@ -18,18 +18,24 @@ export type StatusSetToolResult =
 
 /**
  * Validates that a string is a single emoji character
- * Uses Unicode property escapes to match emoji characters
+ * Uses Intl.Segmenter to count grapheme clusters (handles variation selectors, skin tones, etc.)
  */
 function isValidEmoji(str: string): boolean {
-  // Check if string contains exactly one character (handles multi-byte emojis)
-  const chars = [...str];
-  if (chars.length !== 1) {
+  if (!str) return false;
+
+  // Use Intl.Segmenter to count grapheme clusters (what users perceive as single characters)
+  // This properly handles emojis with variation selectors (like ✏️), skin tones, flags, etc.
+  const segmenter = new Intl.Segmenter("en", { granularity: "grapheme" });
+  const segments = [...segmenter.segment(str)];
+
+  // Must be exactly one grapheme cluster
+  if (segments.length !== 1) {
     return false;
   }
 
   // Check if it's an emoji using Unicode properties
-  const emojiRegex = /^[\p{Emoji_Presentation}\p{Extended_Pictographic}]$/u;
-  return emojiRegex.test(str);
+  const emojiRegex = /^[\p{Emoji_Presentation}\p{Extended_Pictographic}]/u;
+  return emojiRegex.test(segments[0].segment);
 }
 
 /**

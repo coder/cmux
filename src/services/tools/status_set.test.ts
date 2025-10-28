@@ -31,6 +31,35 @@ describe("status_set tool validation", () => {
       }
     });
 
+    it("should accept emojis with variation selectors", async () => {
+      const tool = createStatusSetTool(mockConfig);
+
+      // Emojis with variation selectors (U+FE0F)
+      const emojis = ["✏️", "✅", "➡️", "☀️"];
+      for (const emoji of emojis) {
+        const result = (await tool.execute!({ emoji, message: "Test" }, mockToolCallOptions)) as {
+          success: boolean;
+          emoji: string;
+          message: string;
+        };
+        expect(result).toEqual({ success: true, emoji, message: "Test" });
+      }
+    });
+
+    it("should accept emojis with skin tone modifiers", async () => {
+      const tool = createStatusSetTool(mockConfig);
+
+      const emojis = ["👋🏻", "👋🏽", "👋🏿"];
+      for (const emoji of emojis) {
+        const result = (await tool.execute!({ emoji, message: "Test" }, mockToolCallOptions)) as {
+          success: boolean;
+          emoji: string;
+          message: string;
+        };
+        expect(result).toEqual({ success: true, emoji, message: "Test" });
+      }
+    });
+
     it("should reject multiple emojis", async () => {
       const tool = createStatusSetTool(mockConfig);
 
