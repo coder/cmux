@@ -261,22 +261,51 @@ pre > code {
 
 /* Tables */
 table {
-  border-collapse: collapse;
+  border-collapse: separate;
+  border-spacing: 0;
   width: 100%;
   margin: 1.1em 0;
   background: var(--color-background-secondary) !important;
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
+  overflow: hidden;
 }
 table thead {
   background: color-mix(in srgb, var(--color-background-secondary), white 8%);
-  border-bottom: 2px solid var(--color-border) !important;
+}
+table thead tr:first-child th:first-child {
+  border-top-left-radius: var(--radius-md);
+}
+table thead tr:first-child th:last-child {
+  border-top-right-radius: var(--radius-md);
+}
+table tbody tr:last-child td:first-child {
+  border-bottom-left-radius: var(--radius-md);
+}
+table tbody tr:last-child td:last-child {
+  border-bottom-right-radius: var(--radius-md);
 }
 table th,
 table td {
   padding: 0.75em 1em;
-  border: 1px solid var(--color-border) !important;
+  border-right: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--color-border);
   text-align: left !important;
   color: var(--color-text) !important;
+}
+table th:first-child,
+table td:first-child {
+  border-left: none;
+}
+table th:last-child,
+table td:last-child {
+  border-right: none;
+}
+table thead th {
+  border-bottom: 2px solid var(--color-border) !important;
+}
+table tbody tr:last-child td {
+  border-bottom: none;
 }
 table th {
   font-weight: 700;
