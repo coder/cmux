@@ -46,18 +46,16 @@ function AppInner() {
     selectedWorkspace,
     setSelectedWorkspace,
   } = useApp();
-  const [workspaceModalOpen, setWorkspaceModalOpen] = useState(false);
-  const [workspaceModalProject, setWorkspaceModalProject] = useState<string | null>(null);
-  const [workspaceModalProjectName, setWorkspaceModalProjectName] = useState<string>("");
-  const [workspaceModalBranches, setWorkspaceModalBranches] = useState<string[]>([]);
-  const [workspaceModalDefaultTrunk, setWorkspaceModalDefaultTrunk] = useState<string | undefined>(
-    undefined
-  );
-  const [workspaceModalLoadError, setWorkspaceModalLoadError] = useState<string | null>(null);
-  const [workspaceModalStartMessage, setWorkspaceModalStartMessage] = useState<string | undefined>(
-    undefined
-  );
-  const [workspaceModalModel, setWorkspaceModalModel] = useState<string | undefined>(undefined);
+  const [workspaceModalState, setWorkspaceModalState] = useState({
+    isOpen: false,
+    projectPath: null as string | null,
+    projectName: "",
+    branches: [] as string[],
+    defaultTrunk: undefined as string | undefined,
+    loadError: null as string | null,
+    startMessage: undefined as string | undefined,
+    model: undefined as string | undefined,
+  });
   const workspaceModalProjectRef = useRef<string | null>(null);
 
   // Auto-collapse sidebar on mobile by default
@@ -188,14 +186,16 @@ function AppInner() {
         projectPath.split("/").pop() ?? projectPath.split("\\").pop() ?? "project";
 
       workspaceModalProjectRef.current = projectPath;
-      setWorkspaceModalProject(projectPath);
-      setWorkspaceModalProjectName(projectName);
-      setWorkspaceModalBranches([]);
-      setWorkspaceModalDefaultTrunk(undefined);
-      setWorkspaceModalLoadError(initialData?.error ?? null);
-      setWorkspaceModalStartMessage(initialData?.startMessage);
-      setWorkspaceModalModel(initialData?.model);
-      setWorkspaceModalOpen(true);
+      setWorkspaceModalState({
+        isOpen: true,
+        projectPath,
+        projectName,
+        branches: [],
+        defaultTrunk: undefined,
+        loadError: initialData?.error ?? null,
+        startMessage: initialData?.startMessage,
+        model: initialData?.model,
+      });
 
       try {
         const branchResult = await window.api.projects.listBranches(projectPath);
@@ -215,15 +215,19 @@ function AppInner() {
             ? branchResult.recommendedTrunk
             : sanitizedBranches[0];
 
-        setWorkspaceModalBranches(sanitizedBranches);
-        setWorkspaceModalDefaultTrunk(recommended);
-        setWorkspaceModalLoadError(null);
+        setWorkspaceModalState((prev) => ({
+          ...prev,
+          branches: sanitizedBranches,
+          defaultTrunk: recommended,
+          loadError: null,
+        }));
       } catch (err) {
         console.error("Failed to load branches for modal:", err);
         const message = err instanceof Error ? err.message : "Unknown error";
-        setWorkspaceModalLoadError(
-          `Unable to load branches automatically: ${message}. You can still enter the trunk branch manually.`
-        );
+        setWorkspaceModalState((prev) => ({
+          ...prev,
+          loadError: `Unable to load branches automatically: ${message}. You can still enter the trunk branch manually.`,
+        }));
       }
     },
     []
@@ -255,7 +259,7 @@ function AppInner() {
     startMessage?: string,
     model?: string
   ) => {
-    if (!workspaceModalProject) return;
+    if (!workspaceModalState.projectPath) return;
 
     console.assert(
       typeof trunkBranch === "string" && trunkBranch.trim().length > 0,
@@ -274,7 +278,7 @@ function AppInner() {
     }
 
     const newWorkspace = await createWorkspace(
-      workspaceModalProject,
+      workspaceModalState.projectPath,
       branchName,
       trunkBranch,
       runtimeConfig
@@ -286,7 +290,7 @@ function AppInner() {
 
       // Save runtime preference for this project if provided
       if (runtime) {
-        const runtimeKey = getRuntimeKey(workspaceModalProject);
+        const runtimeKey = getRuntimeKey(workspaceModalState.projectPath);
         localStorage.setItem(runtimeKey, runtime);
       }
 
@@ -733,26 +737,28 @@ function AppInner() {
             workspaceId: selectedWorkspace?.workspaceId,
           })}
         />
-        {workspaceModalOpen && workspaceModalProject && (
+        {workspaceModalState.isOpen && workspaceModalState.projectPath && (
           <NewWorkspaceModal
-            isOpen={workspaceModalOpen}
-            projectName={workspaceModalProjectName}
-            projectPath={workspaceModalProject}
-            branches={workspaceModalBranches}
-            defaultTrunkBranch={workspaceModalDefaultTrunk}
-            loadErrorMessage={workspaceModalLoadError}
-            initialStartMessage={workspaceModalStartMessage}
-            initialModel={workspaceModalModel}
+            isOpen={workspaceModalState.isOpen}
+            projectName={workspaceModalState.projectName}
+            projectPath={workspaceModalState.projectPath}
+            branches={workspaceModalState.branches}
+            defaultTrunkBranch={workspaceModalState.defaultTrunk}
+            loadErrorMessage={workspaceModalState.loadError}
+            initialStartMessage={workspaceModalState.startMessage}
+            initialModel={workspaceModalState.model}
             onClose={() => {
               workspaceModalProjectRef.current = null;
-              setWorkspaceModalOpen(false);
-              setWorkspaceModalProject(null);
-              setWorkspaceModalProjectName("");
-              setWorkspaceModalBranches([]);
-              setWorkspaceModalDefaultTrunk(undefined);
-              setWorkspaceModalLoadError(null);
-              setWorkspaceModalStartMessage(undefined);
-              setWorkspaceModalModel(undefined);
+              setWorkspaceModalState({
+                isOpen: false,
+                projectPath: null,
+                projectName: "",
+                branches: [],
+                defaultTrunk: undefined,
+                loadError: null,
+                startMessage: undefined,
+                model: undefined,
+              });
             }}
             onAdd={handleCreateWorkspace}
           />
