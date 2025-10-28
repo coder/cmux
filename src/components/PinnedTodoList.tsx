@@ -27,7 +27,17 @@ export const PinnedTodoList: React.FC<PinnedTodoListProps> = ({ workspaceId }) =
     () => workspaceStore.getWorkspaceState(workspaceId).todos
   );
 
-  if (todos.length === 0) {
+  // Get streaming state
+  const canInterrupt = useSyncExternalStore(
+    (callback) => workspaceStore.subscribeKey(workspaceId, callback),
+    () => workspaceStore.getWorkspaceState(workspaceId).canInterrupt
+  );
+
+  // When idle (not streaming), only show completed todos for clean summary
+  // When streaming, show all todos so user can see active work
+  const displayTodos = canInterrupt ? todos : todos.filter((todo) => todo.status === "completed");
+
+  if (displayTodos.length === 0) {
     return null;
   }
 
@@ -47,7 +57,7 @@ export const PinnedTodoList: React.FC<PinnedTodoListProps> = ({ workspaceId }) =
         </span>
         TODO{expanded ? ":" : ""}
       </div>
-      {expanded && <TodoList todos={todos} />}
+      {expanded && <TodoList todos={displayTodos} />}
     </div>
   );
 };
