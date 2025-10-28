@@ -922,41 +922,68 @@ export class SSHRuntime implements Runtime {
     const deletedPath = this.getWorkspacePath(projectPath, workspaceName);
 
     try {
-      // Check if workspace exists first
-      const checkExistStream = await this.exec(`test -d ${shescape.quote(deletedPath)}`, {
+      // Combine all pre-deletion checks into a single bash script to minimize round trips
+      // Exit codes: 0=ok to delete, 1=uncommitted changes, 2=unpushed commits, 3=doesn't exist
+      const checkScript = force
+        ? // When force=true, only check existence
+          `test -d ${shescape.quote(deletedPath)} || exit 3`
+        : // When force=false, perform all safety checks
+          `
+            test -d ${shescape.quote(deletedPath)} || exit 3
+            cd ${shescape.quote(deletedPath)} || exit 1
+            git diff --quiet --exit-code && git diff --quiet --cached --exit-code || exit 1
+            if git remote | grep -q .; then
+              git log --branches --not --remotes --oneline | head -1 | grep -q . && exit 2
+            fi
+            exit 0
+          `;
+
+      const checkStream = await this.exec(checkScript, {
         cwd: this.config.srcBaseDir,
         timeout: 10,
       });
 
-      await checkExistStream.stdin.close();
-      const existsExitCode = await checkExistStream.exitCode;
+      await checkStream.stdin.close();
+      const checkExitCode = await checkStream.exitCode;
 
-      // If directory doesn't exist, deletion is a no-op (success)
-      if (existsExitCode !== 0) {
+      // Handle check results
+      if (checkExitCode === 3) {
+        // Directory doesn't exist - deletion is idempotent (success)
         return { success: true, deletedPath };
       }
 
-      // Check if workspace has uncommitted changes (unless force is true)
-      if (!force) {
-        // Check for uncommitted changes using git diff
-        const checkStream = await this.exec(
-          `cd ${shescape.quote(deletedPath)} && git diff --quiet --exit-code && git diff --quiet --cached --exit-code`,
-          {
-            cwd: this.config.srcBaseDir,
-            timeout: 10,
+      if (checkExitCode === 1) {
+        return {
+          success: false,
+          error: `Workspace contains uncommitted changes. Use force flag to delete anyway.`,
+        };
+      }
+
+      if (checkExitCode === 2) {
+        return {
+          success: false,
+          error: `Workspace contains unpushed commits. Use force flag to delete anyway.`,
+        };
+      }
+
+      if (checkExitCode !== 0) {
+        // Unexpected error
+        const stderrReader = checkStream.stderr.getReader();
+        const decoder = new TextDecoder();
+        let stderr = "";
+        try {
+          while (true) {
+            const { done, value } = await stderrReader.read();
+            if (done) break;
+            stderr += decoder.decode(value, { stream: true });
           }
-        );
-
-        await checkStream.stdin.close();
-        const checkExitCode = await checkStream.exitCode;
-
-        if (checkExitCode !== 0) {
-          // Workspace has uncommitted changes
-          return {
-            success: false,
-            error: `Workspace contains uncommitted changes. Use force flag to delete anyway.`,
-          };
+        } finally {
+          stderrReader.releaseLock();
         }
+        return {
+          success: false,
+          error: `Failed to check workspace state: ${stderr || `exit code ${checkExitCode}`}`,
+        };
       }
 
       // SSH runtimes use plain directories, not git worktrees
