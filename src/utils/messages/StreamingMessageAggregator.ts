@@ -282,6 +282,11 @@ export class StreamingMessageAggregator {
     // Clear pending stream start timestamp - stream has started
     this.setPendingStreamStartTime(null);
 
+    // Clear agent status on stream start (unlike todos which persist across streams).
+    // Rationale: Status represents current activity, so it should be cleared and reset
+    // for each new stream. Todos represent pending work, so they persist until completion.
+    this.agentStatus = undefined;
+
     // Detect if this stream is compacting by checking if last user message is a compaction-request
     const messages = this.getAllMessages();
     const lastUserMsg = [...messages].reverse().find((m) => m.role === "user");
