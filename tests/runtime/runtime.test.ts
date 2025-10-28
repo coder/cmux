@@ -329,6 +329,49 @@ describeIntegration("Runtime integration tests", () => {
           const content = await readFileString(runtime, `${workspace.path}/special.txt`);
           expect(content).toBe(specialContent);
         });
+
+        test.concurrent("preserves symlinks when editing target file", async () => {
+          const runtime = createRuntime();
+          await using workspace = await TestWorkspace.create(runtime, type);
+
+          // Create a target file
+          const targetPath = `${workspace.path}/target.txt`;
+          await writeFileString(runtime, targetPath, "original content");
+
+          // Create a symlink to the target
+          const linkPath = `${workspace.path}/link.txt`;
+          const result = await execBuffered(runtime, `ln -s target.txt link.txt`, {
+            cwd: workspace.path,
+            timeout: 30,
+          });
+          expect(result.exitCode).toBe(0);
+
+          // Verify symlink was created
+          const lsResult = await execBuffered(runtime, "ls -la link.txt", {
+            cwd: workspace.path,
+            timeout: 30,
+          });
+          expect(lsResult.stdout).toContain("->");
+          expect(lsResult.stdout).toContain("target.txt");
+
+          // Edit the file via the symlink
+          await writeFileString(runtime, linkPath, "new content");
+
+          // Verify the symlink is still a symlink (not replaced with a file)
+          const lsAfter = await execBuffered(runtime, "ls -la link.txt", {
+            cwd: workspace.path,
+            timeout: 30,
+          });
+          expect(lsAfter.stdout).toContain("->");
+          expect(lsAfter.stdout).toContain("target.txt");
+
+          // Verify both the symlink and target have the new content
+          const linkContent = await readFileString(runtime, linkPath);
+          expect(linkContent).toBe("new content");
+
+          const targetContent = await readFileString(runtime, targetPath);
+          expect(targetContent).toBe("new content");
+        });
       });
 
       describe("stat() - File metadata", () => {

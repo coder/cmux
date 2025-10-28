@@ -263,12 +263,14 @@ export class SSHRuntime implements Runtime {
 
   /**
    * Write file contents over SSH atomically from a stream
+   * Preserves symlinks by writing through them to the target file
    */
   writeFile(path: string): WritableStream<Uint8Array> {
     const tempPath = `${path}.tmp.${Date.now()}`;
     // Create parent directory if needed, then write file atomically
+    // Use cat to copy through symlinks (preserves them), then chmod and mv
     // Use shescape.quote for safe path escaping
-    const writeCommand = `mkdir -p $(dirname ${shescape.quote(path)}) && cat > ${shescape.quote(tempPath)} && chmod 600 ${shescape.quote(tempPath)} && mv ${shescape.quote(tempPath)} ${shescape.quote(path)}`;
+    const writeCommand = `mkdir -p $(dirname ${shescape.quote(path)}) && cat > ${shescape.quote(tempPath)} && chmod 600 ${shescape.quote(tempPath)} && cat ${shescape.quote(tempPath)} > ${shescape.quote(path)} && rm ${shescape.quote(tempPath)}`;
 
     // Need to get the exec stream in async callbacks
     let execPromise: Promise<ExecStream> | null = null;
