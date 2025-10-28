@@ -47,7 +47,7 @@ export const PinnedTodoList: React.FC<PinnedTodoListProps> = ({ workspaceId }) =
         </span>
         TODO{expanded ? ":" : ""}
       </div>
-      {expanded && <TodoList todos={todos} />}
+      {expanded && <TodoList todos={displayTodos} />}
     </div>
   );
 };
