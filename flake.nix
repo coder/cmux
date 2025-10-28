@@ -130,6 +130,11 @@
             bash
             nixfmt-rfc-style
 
+            # Documentation
+            mdbook
+            mdbook-mermaid
+            mdbook-linkcheck
+
             # Terminal bench
             uv
             asciinema
