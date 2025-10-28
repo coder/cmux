@@ -18,12 +18,10 @@ export const createFileEditInsertTool: ToolFactory = (config: ToolConfiguration)
   return tool({
     description: TOOL_DEFINITIONS.file_edit_insert.description,
     inputSchema: TOOL_DEFINITIONS.file_edit_insert.schema,
-    execute: async ({
-      file_path,
-      line_offset,
-      content,
-      create,
-    }): Promise<FileEditInsertToolResult> => {
+    execute: async (
+      { file_path, line_offset, content, create },
+      { abortSignal }
+    ): Promise<FileEditInsertToolResult> => {
       try {
         // Validate no redundant path prefix (must come first to catch absolute paths)
         const redundantPrefixValidation = validateNoRedundantPrefix(
@@ -57,7 +55,7 @@ export const createFileEditInsertTool: ToolFactory = (config: ToolConfiguration)
         const resolvedPath = config.runtime.normalizePath(file_path, config.cwd);
 
         // Check if file exists using runtime
-        const exists = await fileExists(config.runtime, resolvedPath);
+        const exists = await fileExists(config.runtime, resolvedPath, abortSignal);
 
         if (!exists) {
           if (!create) {
@@ -69,7 +67,7 @@ export const createFileEditInsertTool: ToolFactory = (config: ToolConfiguration)
 
           // Create empty file using runtime helper
           try {
-            await writeFileString(config.runtime, resolvedPath, "");
+            await writeFileString(config.runtime, resolvedPath, "", abortSignal);
           } catch (err) {
             if (err instanceof RuntimeError) {
               return {
@@ -84,6 +82,7 @@ export const createFileEditInsertTool: ToolFactory = (config: ToolConfiguration)
         return executeFileEditOperation({
           config,
           filePath: file_path,
+          abortSignal,
           operation: (originalContent) => {
             const lines = originalContent.split("\n");
 

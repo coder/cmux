@@ -209,7 +209,8 @@ export class LocalRuntime implements Runtime {
     return { stdout, stderr, stdin, exitCode, duration };
   }
 
-  readFile(filePath: string): ReadableStream<Uint8Array> {
+  readFile(filePath: string, _abortSignal?: AbortSignal): ReadableStream<Uint8Array> {
+    // Note: _abortSignal ignored for local operations (fast, no need for cancellation)
     const nodeStream = fs.createReadStream(filePath);
 
     // Handle errors by wrapping in a transform
@@ -238,7 +239,8 @@ export class LocalRuntime implements Runtime {
     });
   }
 
-  writeFile(filePath: string): WritableStream<Uint8Array> {
+  writeFile(filePath: string, _abortSignal?: AbortSignal): WritableStream<Uint8Array> {
+    // Note: _abortSignal ignored for local operations (fast, no need for cancellation)
     let tempPath: string;
     let writer: WritableStreamDefaultWriter<Uint8Array>;
     let resolvedPath: string;
@@ -304,7 +306,8 @@ export class LocalRuntime implements Runtime {
     });
   }
 
-  async stat(filePath: string): Promise<FileStat> {
+  async stat(filePath: string, _abortSignal?: AbortSignal): Promise<FileStat> {
+    // Note: _abortSignal ignored for local operations (fast, no need for cancellation)
     try {
       const stats = await fsPromises.stat(filePath);
       return {
@@ -480,10 +483,12 @@ export class LocalRuntime implements Runtime {
   async renameWorkspace(
     projectPath: string,
     oldName: string,
-    newName: string
+    newName: string,
+    _abortSignal?: AbortSignal
   ): Promise<
     { success: true; oldPath: string; newPath: string } | { success: false; error: string }
   > {
+    // Note: _abortSignal ignored for local operations (fast, no need for cancellation)
     // Compute workspace paths using canonical method
     const oldPath = this.getWorkspacePath(projectPath, oldName);
     const newPath = this.getWorkspacePath(projectPath, newName);
@@ -503,8 +508,10 @@ export class LocalRuntime implements Runtime {
   async deleteWorkspace(
     projectPath: string,
     workspaceName: string,
-    force: boolean
+    force: boolean,
+    _abortSignal?: AbortSignal
   ): Promise<{ success: true; deletedPath: string } | { success: false; error: string }> {
+    // Note: _abortSignal ignored for local operations (fast, no need for cancellation)
     // Compute workspace path using the canonical method
     const deletedPath = this.getWorkspacePath(projectPath, workspaceName);
 

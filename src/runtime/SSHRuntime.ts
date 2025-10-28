@@ -81,6 +81,11 @@ export class SSHRuntime implements Runtime {
   async exec(command: string, options: ExecOptions): Promise<ExecStream> {
     const startTime = performance.now();
 
+    // Short-circuit if already aborted
+    if (options.abortSignal?.aborted) {
+      throw new RuntimeErrorClass("Operation aborted before execution", "exec");
+    }
+
     // Build command parts
     const parts: string[] = [];
 
@@ -216,7 +221,7 @@ export class SSHRuntime implements Runtime {
   /**
    * Read file contents over SSH as a stream
    */
-  readFile(path: string): ReadableStream<Uint8Array> {
+  readFile(path: string, abortSignal?: AbortSignal): ReadableStream<Uint8Array> {
     // Return stdout, but wrap to handle errors from exec() and exit code
     return new ReadableStream<Uint8Array>({
       start: async (controller: ReadableStreamDefaultController<Uint8Array>) => {
@@ -224,6 +229,7 @@ export class SSHRuntime implements Runtime {
           const stream = await this.exec(`cat ${shescape.quote(path)}`, {
             cwd: this.config.srcBaseDir,
             timeout: 300, // 5 minutes - reasonable for large files
+            abortSignal,
           });
 
           const reader = stream.stdout.getReader();
@@ -265,7 +271,7 @@ export class SSHRuntime implements Runtime {
    * Write file contents over SSH atomically from a stream
    * Preserves symlinks and file permissions by resolving and copying metadata
    */
-  writeFile(path: string): WritableStream<Uint8Array> {
+  writeFile(path: string, abortSignal?: AbortSignal): WritableStream<Uint8Array> {
     const tempPath = `${path}.tmp.${Date.now()}`;
     // Resolve symlinks to get the actual target path, preserving the symlink itself
     // If target exists, save its permissions to restore after write
@@ -281,6 +287,7 @@ export class SSHRuntime implements Runtime {
       execPromise ??= this.exec(writeCommand, {
         cwd: this.config.srcBaseDir,
         timeout: 300, // 5 minutes - reasonable for large files
+        abortSignal,
       });
       return execPromise;
     };
@@ -318,12 +325,13 @@ export class SSHRuntime implements Runtime {
   /**
    * Get file statistics over SSH
    */
-  async stat(path: string): Promise<FileStat> {
+  async stat(path: string, abortSignal?: AbortSignal): Promise<FileStat> {
     // Use stat with format string to get: size, mtime, type
     // %s = size, %Y = mtime (seconds since epoch), %F = file type
     const stream = await this.exec(`stat -c '%s %Y %F' ${shescape.quote(path)}`, {
       cwd: this.config.srcBaseDir,
       timeout: 10, // 10 seconds - stat should be fast
+      abortSignal,
     });
 
     const [stdout, stderr, exitCode] = await Promise.all([
@@ -510,8 +518,14 @@ export class SSHRuntime implements Runtime {
   private async syncProjectToRemote(
     projectPath: string,
     workspacePath: string,
-    initLogger: InitLogger
+    initLogger: InitLogger,
+    abortSignal?: AbortSignal
   ): Promise<void> {
+    // Short-circuit if already aborted
+    if (abortSignal?.aborted) {
+      throw new Error("Sync operation aborted before starting");
+    }
+
     // Use timestamp-based bundle path to avoid conflicts (simpler than $$)
     const timestamp = Date.now();
     const bundleTempPath = `~/.cmux-bundle-${timestamp}.bundle`;
@@ -537,15 +551,22 @@ export class SSHRuntime implements Runtime {
       // Step 2: Create bundle locally and pipe to remote file via SSH
       initLogger.logStep(`Creating git bundle...`);
       await new Promise<void>((resolve, reject) => {
+        // Check if aborted before spawning
+        if (abortSignal?.aborted) {
+          reject(new Error("Bundle creation aborted"));
+          return;
+        }
+
         const sshArgs = this.buildSSHArgs(true);
         const command = `cd ${shescape.quote(projectPath)} && git bundle create - --all | ssh ${sshArgs.join(" ")} "cat > ${bundleTempPath}"`;
 
         log.debug(`Creating bundle: ${command}`);
         const proc = spawn("bash", ["-c", command]);
 
-        streamProcessToLogger(proc, initLogger, {
+        const cleanup = streamProcessToLogger(proc, initLogger, {
           logStdout: false,
           logStderr: true,
+          abortSignal,
         });
 
         let stderr = "";
@@ -554,7 +575,10 @@ export class SSHRuntime implements Runtime {
         });
 
         proc.on("close", (code) => {
-          if (code === 0) {
+          cleanup();
+          if (abortSignal?.aborted) {
+            reject(new Error("Bundle creation aborted"));
+          } else if (code === 0) {
             resolve();
           } else {
             reject(new Error(`Failed to create bundle: ${stderr}`));
@@ -562,6 +586,7 @@ export class SSHRuntime implements Runtime {
         });
 
         proc.on("error", (err) => {
+          cleanup();
           reject(err);
         });
       });
@@ -576,6 +601,7 @@ export class SSHRuntime implements Runtime {
       const cloneStream = await this.exec(`git clone --quiet ${bundleTempPath} ${cloneDestPath}`, {
         cwd: "~",
         timeout: 300, // 5 minutes for clone
+        abortSignal,
       });
 
       const [cloneStdout, cloneStderr, cloneExitCode] = await Promise.all([
@@ -597,6 +623,7 @@ export class SSHRuntime implements Runtime {
         {
           cwd: "~",
           timeout: 30,
+          abortSignal,
         }
       );
       await createTrackingBranchesStream.exitCode;
@@ -610,6 +637,7 @@ export class SSHRuntime implements Runtime {
           {
             cwd: "~",
             timeout: 10,
+            abortSignal,
           }
         );
 
@@ -627,6 +655,7 @@ export class SSHRuntime implements Runtime {
           {
             cwd: "~",
             timeout: 10,
+            abortSignal,
           }
         );
         await removeOriginStream.exitCode;
@@ -637,6 +666,7 @@ export class SSHRuntime implements Runtime {
       const rmStream = await this.exec(`rm ${bundleTempPath}`, {
         cwd: "~",
         timeout: 10,
+        abortSignal,
       });
 
       const rmExitCode = await rmStream.exitCode;
@@ -651,6 +681,7 @@ export class SSHRuntime implements Runtime {
         const rmStream = await this.exec(`rm -f ${bundleTempPath}`, {
           cwd: "~",
           timeout: 10,
+          abortSignal,
         });
         await rmStream.exitCode;
       } catch {
@@ -667,7 +698,8 @@ export class SSHRuntime implements Runtime {
   private async runInitHook(
     projectPath: string,
     workspacePath: string,
-    initLogger: InitLogger
+    initLogger: InitLogger,
+    abortSignal?: AbortSignal
   ): Promise<void> {
     // Check if hook exists locally (we synced the project, so local check is sufficient)
     const hookExists = await checkInitHookExists(projectPath);
@@ -688,6 +720,7 @@ export class SSHRuntime implements Runtime {
     const hookStream = await this.exec(hookCommand, {
       cwd: workspacePath, // Run in the workspace directory
       timeout: 3600, // 1 hour - generous timeout for init hooks
+      abortSignal,
     });
 
     // Create line-buffered loggers
@@ -739,7 +772,7 @@ export class SSHRuntime implements Runtime {
 
   async createWorkspace(params: WorkspaceCreationParams): Promise<WorkspaceCreationResult> {
     try {
-      const { projectPath, branchName, initLogger } = params;
+      const { projectPath, branchName, initLogger, abortSignal } = params;
       // Compute workspace path using canonical method
       const workspacePath = this.getWorkspacePath(projectPath, branchName);
 
@@ -760,6 +793,7 @@ export class SSHRuntime implements Runtime {
         const mkdirStream = await this.exec(parentDirCommand, {
           cwd: "/tmp",
           timeout: 10,
+          abortSignal,
         });
         const mkdirExitCode = await mkdirStream.exitCode;
         if (mkdirExitCode !== 0) {
@@ -791,13 +825,13 @@ export class SSHRuntime implements Runtime {
   }
 
   async initWorkspace(params: WorkspaceInitParams): Promise<WorkspaceInitResult> {
-    const { projectPath, branchName, trunkBranch, workspacePath, initLogger } = params;
+    const { projectPath, branchName, trunkBranch, workspacePath, initLogger, abortSignal } = params;
 
     try {
       // 1. Sync project to remote (opportunistic rsync with scp fallback)
       initLogger.logStep("Syncing project files to remote...");
       try {
-        await this.syncProjectToRemote(projectPath, workspacePath, initLogger);
+        await this.syncProjectToRemote(projectPath, workspacePath, initLogger, abortSignal);
       } catch (error) {
         const errorMsg = getErrorMessage(error);
         initLogger.logStderr(`Failed to sync project: ${errorMsg}`);
@@ -821,6 +855,7 @@ export class SSHRuntime implements Runtime {
       const checkoutStream = await this.exec(checkoutCmd, {
         cwd: workspacePath, // Use the full workspace path for git operations
         timeout: 300, // 5 minutes for git checkout (can be slow on large repos)
+        abortSignal,
       });
 
       const [stdout, stderr, exitCode] = await Promise.all([
@@ -844,7 +879,7 @@ export class SSHRuntime implements Runtime {
       // Note: runInitHook calls logComplete() internally if hook exists
       const hookExists = await checkInitHookExists(projectPath);
       if (hookExists) {
-        await this.runInitHook(projectPath, workspacePath, initLogger);
+        await this.runInitHook(projectPath, workspacePath, initLogger, abortSignal);
       } else {
         // No hook - signal completion immediately
         initLogger.logComplete(0);
@@ -865,10 +900,15 @@ export class SSHRuntime implements Runtime {
   async renameWorkspace(
     projectPath: string,
     oldName: string,
-    newName: string
+    newName: string,
+    abortSignal?: AbortSignal
   ): Promise<
     { success: true; oldPath: string; newPath: string } | { success: false; error: string }
   > {
+    // Check if already aborted
+    if (abortSignal?.aborted) {
+      return { success: false, error: "Rename operation aborted" };
+    }
     // Compute workspace paths using canonical method
     const oldPath = this.getWorkspacePath(projectPath, oldName);
     const newPath = this.getWorkspacePath(projectPath, newName);
@@ -886,6 +926,7 @@ export class SSHRuntime implements Runtime {
       const stream = await this.exec(moveCommand, {
         cwd: this.config.srcBaseDir,
         timeout: 30,
+        abortSignal,
       });
 
       await stream.stdin.close();
@@ -920,8 +961,14 @@ export class SSHRuntime implements Runtime {
   async deleteWorkspace(
     projectPath: string,
     workspaceName: string,
-    force: boolean
+    force: boolean,
+    abortSignal?: AbortSignal
   ): Promise<{ success: true; deletedPath: string } | { success: false; error: string }> {
+    // Check if already aborted
+    if (abortSignal?.aborted) {
+      return { success: false, error: "Delete operation aborted" };
+    }
+
     // Compute workspace path using canonical method
     const deletedPath = this.getWorkspacePath(projectPath, workspaceName);
 
@@ -945,6 +992,7 @@ export class SSHRuntime implements Runtime {
       const checkStream = await this.exec(checkScript, {
         cwd: this.config.srcBaseDir,
         timeout: 10,
+        abortSignal,
       });
 
       await checkStream.stdin.close();
@@ -998,6 +1046,7 @@ export class SSHRuntime implements Runtime {
       const stream = await this.exec(removeCommand, {
         cwd: this.config.srcBaseDir,
         timeout: 30,
+        abortSignal,
       });
 
       await stream.stdin.close();

@@ -425,7 +425,7 @@ export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
                   const fullOutput = lines.join("\n");
 
                   // Use runtime.writeFile() for SSH support
-                  const writer = config.runtime.writeFile(overflowPath);
+                  const writer = config.runtime.writeFile(overflowPath, abortSignal);
                   const encoder = new TextEncoder();
                   const writerInstance = writer.getWriter();
                   await writerInstance.write(encoder.encode(fullOutput));
