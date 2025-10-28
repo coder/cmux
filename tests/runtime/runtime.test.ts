@@ -380,7 +380,7 @@ describeIntegration("Runtime integration tests", () => {
           // Create a target file with specific permissions (755)
           const targetPath = `${workspace.path}/target.txt`;
           await writeFileString(runtime, targetPath, "original content");
-          
+
           // Set permissions to 755
           const chmodResult = await execBuffered(runtime, "chmod 755 target.txt", {
             cwd: workspace.path,
