@@ -87,11 +87,11 @@ export const AgentStatusIndicator: React.FC<AgentStatusIndicatorProps> = ({
     </div>
   ) : null;
 
-  // Container holds both dot and emoji
+  // Container holds both emoji and dot (emoji on left)
   const indicator = (
     <div className={cn("flex items-center gap-1.5", className)} onClick={handleClick}>
-      {dot}
       {emoji}
+      {dot}
     </div>
   );
 
