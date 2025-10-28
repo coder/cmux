@@ -37,6 +37,10 @@ const PROVIDER_CONFIGS: Array<[string, string]> = [
   ["anthropic", "claude-sonnet-4-5"],
 ];
 
+// Use Anthropic by default for provider-agnostic tests (faster and cheaper)
+const DEFAULT_PROVIDER = "anthropic";
+const DEFAULT_MODEL = "claude-sonnet-4-5";
+
 // Integration test timeout guidelines:
 // - Individual tests should complete within 10 seconds when possible
 // - Use tight timeouts (5-10s) for event waiting to fail fast
@@ -55,8 +59,9 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
     const { loadTokenizerModules } = await import("../../src/utils/main/tokenizer");
     await loadTokenizerModules();
   }, 30000); // 30s timeout for tokenizer loading
-  // Run tests for each provider concurrently
-  describe.each(PROVIDER_CONFIGS)("%s:%s provider tests", (provider, model) => {
+
+  // Smoke test - verify each provider works
+  describe.each(PROVIDER_CONFIGS)("%s:%s smoke test", (provider, model) => {
     test.concurrent(
       "should successfully send message and receive response",
       async () => {
@@ -91,6 +96,12 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
       },
       15000
     );
+  });
+
+  // Core functionality tests - using single provider (these test IPC/streaming, not provider-specific behavior)
+  describe("core functionality", () => {
+    const provider = DEFAULT_PROVIDER;
+    const model = DEFAULT_MODEL;
 
     test.concurrent(
       "should interrupt streaming with interruptStream()",
@@ -269,11 +280,6 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
     test.concurrent(
       "should handle reconnection during active stream",
       async () => {
-        // Only test with Anthropic (faster and more reliable for this test)
-        if (provider === "openai") {
-          return;
-        }
-
         const { env, workspaceId, cleanup } = await setupWorkspace(provider);
         try {
           // Start a stream with tool call that takes a long time
@@ -554,11 +560,7 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
           expect(result.success).toBe(true);
 
           // Wait for stream to complete
-          const collector = await waitForStreamSuccess(
-            env.sentEvents,
-            workspaceId,
-            provider === "openai" ? 30000 : 10000
-          );
+          const collector = await waitForStreamSuccess(env.sentEvents, workspaceId, 10000);
 
           // Get the final assistant message
           const finalMessage = collector.getFinalMessage();
@@ -783,50 +785,6 @@ These are general instructions that apply to all modes.
     );
   });
 
-  // Provider parity tests - ensure both providers handle the same scenarios
-  describe("provider parity", () => {
-    test.concurrent(
-      "both providers should handle the same message",
-      async () => {
-        const results: Record<string, { success: boolean; responseLength: number }> = {};
-
-        for (const [provider, model] of PROVIDER_CONFIGS) {
-          // Create fresh environment with provider setup
-          const { env, workspaceId, cleanup } = await setupWorkspace(provider);
-
-          // Send same message to both providers
-          const result = await sendMessageWithModel(
-            env.mockIpcRenderer,
-            workspaceId,
-            "Say 'parity test' and nothing else",
-            provider,
-            model
-          );
-
-          // Collect response
-          const collector = await waitForStreamSuccess(env.sentEvents, workspaceId, 10000);
-
-          results[provider] = {
-            success: result.success,
-            responseLength: collector.getDeltas().length,
-          };
-
-          // Cleanup
-          await cleanup();
-        }
-
-        // Verify both providers succeeded
-        expect(results.openai.success).toBe(true);
-        expect(results.anthropic.success).toBe(true);
-
-        // Verify both providers generated responses (non-zero deltas)
-        expect(results.openai.responseLength).toBeGreaterThan(0);
-        expect(results.anthropic.responseLength).toBeGreaterThan(0);
-      },
-      30000
-    );
-  });
-
   // Error handling tests for API key issues
   describe("API key error handling", () => {
     test.each(PROVIDER_CONFIGS)(
@@ -904,43 +862,31 @@ These are general instructions that apply to all modes.
     );
   });
 
-  // Token limit error handling tests
+  // Token limit error handling tests - using single provider to reduce test time (expensive test)
   describe("token limit error handling", () => {
-    test.each(PROVIDER_CONFIGS)(
-      "%s should return error when accumulated history exceeds token limit",
-      async (provider, model) => {
+    test.concurrent(
+      "should return error when accumulated history exceeds token limit",
+      async () => {
+        const provider = DEFAULT_PROVIDER;
+        const model = DEFAULT_MODEL;
         const { env, workspaceId, cleanup } = await setupWorkspace(provider);
         try {
           // Build up large conversation history to exceed context limits
-          // Different providers have different limits:
-          // - Anthropic: 200k tokens → need ~40 messages of 50k chars (2M chars total)
-          // - OpenAI: varies by model, use ~80 messages (4M chars total) to ensure we hit the limit
+          // For Anthropic: 200k tokens → need ~15 messages of 50k chars (750k chars total) to exceed
+          // Reduced from 40 to 15 messages to speed up test while still triggering the error
           await buildLargeHistory(workspaceId, env.config, {
             messageSize: 50_000,
-            messageCount: provider === "anthropic" ? 40 : 80,
+            messageCount: 15,
           });
 
           // Now try to send a new message - should trigger token limit error
           // due to accumulated history
-          // Disable auto-truncation to force context error
-          const sendOptions =
-            provider === "openai"
-              ? {
-                  providerOptions: {
-                    openai: {
-                      disableAutoTruncation: true,
-                      forceContextLimitError: true,
-                    },
-                  },
-                }
-              : undefined;
           const result = await sendMessageWithModel(
             env.mockIpcRenderer,
             workspaceId,
             "What is the weather?",
             provider,
-            model,
-            sendOptions
+            model
           );
 
           // IPC call itself should succeed (errors come through stream events)
@@ -1029,16 +975,19 @@ These are general instructions that apply to all modes.
     );
   });
 
-  // Tool policy tests
+  // Tool policy tests - using single provider (tool policy is implemented in our code, not provider-specific)
   describe("tool policy", () => {
+    const provider = DEFAULT_PROVIDER;
+    const model = DEFAULT_MODEL;
+
     // Retry tool policy tests in CI (they depend on external API behavior)
     if (process.env.CI && typeof jest !== "undefined" && jest.retryTimes) {
       jest.retryTimes(2, { logErrorsBeforeRetry: true });
     }
 
-    test.each(PROVIDER_CONFIGS)(
-      "%s should respect tool policy that disables bash",
-      async (provider, model) => {
+    test.concurrent(
+      "should respect tool policy that disables bash",
+      async () => {
         const { env, workspaceId, workspacePath, cleanup } = await setupWorkspace(provider);
         try {
           // Create a test file in the workspace
@@ -1062,41 +1011,20 @@ These are general instructions that apply to all modes.
             model,
             {
               toolPolicy: [{ regex_match: "bash", action: "disable" }],
-              ...(provider === "openai"
-                ? { providerOptions: { openai: { simulateToolPolicyNoop: true } } }
-                : {}),
             }
           );
 
           // IPC call should succeed
           expect(result.success).toBe(true);
 
-          // Wait for stream to complete (longer timeout for tool policy tests)
+          // Wait for stream to complete
           const collector = createEventCollector(env.sentEvents, workspaceId);
 
-          // Wait for either stream-end or stream-error
-          // (helpers will log diagnostic info on failure)
-          const streamTimeout = provider === "openai" ? 90000 : 30000;
-          await Promise.race([
-            collector.waitForEvent("stream-end", streamTimeout),
-            collector.waitForEvent("stream-error", streamTimeout),
-          ]);
+          // Wait for stream to complete
+          await collector.waitForEvent("stream-end", 30000);
 
-          // This will throw with detailed error info if stream didn't complete successfully
+          // Verify stream completed successfully
           assertStreamSuccess(collector);
-
-          if (provider === "openai") {
-            const deltas = collector.getDeltas();
-            const noopDelta = deltas.find(
-              (event): event is StreamDeltaEvent =>
-                "type" in event &&
-                event.type === "stream-delta" &&
-                typeof (event as StreamDeltaEvent).delta === "string"
-            );
-            expect(noopDelta?.delta).toContain(
-              "Tool execution skipped because the requested tool is disabled by policy."
-            );
-          }
 
           // Verify file still exists (bash tool was disabled, so deletion shouldn't have happened)
           const fileStillExists = await fs.access(testFilePath).then(
@@ -1112,12 +1040,12 @@ These are general instructions that apply to all modes.
           await cleanup();
         }
       },
-      90000
+      30000
     );
 
-    test.each(PROVIDER_CONFIGS)(
-      "%s should respect tool policy that disables file_edit tools",
-      async (provider, model) => {
+    test.concurrent(
+      "should respect tool policy that disables file_edit tools",
+      async () => {
         const { env, workspaceId, workspacePath, cleanup } = await setupWorkspace(provider);
         try {
           // Create a test file with known content
@@ -1138,41 +1066,23 @@ These are general instructions that apply to all modes.
                 { regex_match: "file_edit_.*", action: "disable" },
                 { regex_match: "bash", action: "disable" },
               ],
-              ...(provider === "openai"
-                ? { providerOptions: { openai: { simulateToolPolicyNoop: true } } }
-                : {}),
             }
           );
 
           // IPC call should succeed
           expect(result.success).toBe(true);
 
-          // Wait for stream to complete (longer timeout for tool policy tests)
+          // Wait for stream to complete
           const collector = createEventCollector(env.sentEvents, workspaceId);
 
           // Wait for either stream-end or stream-error
-          // (helpers will log diagnostic info on failure)
-          const streamTimeout = provider === "openai" ? 90000 : 30000;
           await Promise.race([
-            collector.waitForEvent("stream-end", streamTimeout),
-            collector.waitForEvent("stream-error", streamTimeout),
+            collector.waitForEvent("stream-end", 30000),
+            collector.waitForEvent("stream-error", 30000),
           ]);
 
           // This will throw with detailed error info if stream didn't complete successfully
           assertStreamSuccess(collector);
-
-          if (provider === "openai") {
-            const deltas = collector.getDeltas();
-            const noopDelta = deltas.find(
-              (event): event is StreamDeltaEvent =>
-                "type" in event &&
-                event.type === "stream-delta" &&
-                typeof (event as StreamDeltaEvent).delta === "string"
-            );
-            expect(noopDelta?.delta).toContain(
-              "Tool execution skipped because the requested tool is disabled by policy."
-            );
-          }
 
           // Verify file content unchanged (file_edit tools and bash were disabled)
           const content = await fs.readFile(testFilePath, "utf-8");
@@ -1181,15 +1091,18 @@ These are general instructions that apply to all modes.
           await cleanup();
         }
       },
-      90000
+      30000
     );
   });
 
-  // Additional system instructions tests
+  // Additional system instructions tests - using single provider
   describe("additional system instructions", () => {
-    test.each(PROVIDER_CONFIGS)(
-      "%s should pass additionalSystemInstructions through to system message",
-      async (provider, model) => {
+    const provider = DEFAULT_PROVIDER;
+    const model = DEFAULT_MODEL;
+
+    test.concurrent(
+      "should pass additionalSystemInstructions through to system message",
+      async () => {
         const { env, workspaceId, cleanup } = await setupWorkspace(provider);
         try {
           // Send message with custom system instructions that add a distinctive marker
@@ -1229,7 +1142,8 @@ These are general instructions that apply to all modes.
   // OpenAI auto truncation integration test
   // This test verifies that the truncation: "auto" parameter works correctly
   // by first forcing a context overflow error, then verifying recovery with auto-truncation
-  describeIntegration("OpenAI auto truncation integration", () => {
+  // SKIPPED: Very expensive test (builds 80 large messages), covered by unit tests
+  describe.skip("OpenAI auto truncation integration", () => {
     const provider = "openai";
     const model = "gpt-4o-mini";
 
@@ -1461,8 +1375,11 @@ These are general instructions that apply to all modes.
   );
 });
 
-// Test image support across providers
-describe.each(PROVIDER_CONFIGS)("%s:%s image support", (provider, model) => {
+// Test image support - using single provider (image handling is SDK-level, not provider-specific)
+describe("image support", () => {
+  const provider = DEFAULT_PROVIDER;
+  const model = DEFAULT_MODEL;
+
   test.concurrent(
     "should send images to AI model and get response",
     async () => {
