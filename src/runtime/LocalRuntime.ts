@@ -209,7 +209,7 @@ export class LocalRuntime implements Runtime {
     return { stdout, stderr, stdin, exitCode, duration };
   }
 
-  readFile(filePath: string): ReadableStream<Uint8Array> {
+  readFile(filePath: string, abortSignal?: AbortSignal): ReadableStream<Uint8Array> {
     const nodeStream = fs.createReadStream(filePath);
 
     // Handle errors by wrapping in a transform
@@ -217,6 +217,20 @@ export class LocalRuntime implements Runtime {
 
     return new ReadableStream<Uint8Array>({
       async start(controller: ReadableStreamDefaultController<Uint8Array>) {
+        // Check if already aborted
+        if (abortSignal?.aborted) {
+          controller.error(new Error("Read operation aborted"));
+          nodeStream.destroy();
+          return;
+        }
+
+        // Set up abort listener
+        const abortHandler = () => {
+          controller.error(new Error("Read operation aborted"));
+          nodeStream.destroy();
+        };
+        abortSignal?.addEventListener("abort", abortHandler);
+
         try {
           const reader = webStream.getReader();
           while (true) {
@@ -233,53 +247,53 @@ export class LocalRuntime implements Runtime {
               err instanceof Error ? err : undefined
             )
           );
+        } finally {
+          abortSignal?.removeEventListener("abort", abortHandler);
         }
       },
     });
   }
 
-  writeFile(filePath: string): WritableStream<Uint8Array> {
+  writeFile(filePath: string, abortSignal?: AbortSignal): WritableStream<Uint8Array> {
     let tempPath: string;
     let writer: WritableStreamDefaultWriter<Uint8Array>;
-    let resolvedPath: string;
-    let originalMode: number | undefined;
 
     return new WritableStream<Uint8Array>({
       async start() {
-        // Resolve symlinks to write through them (preserves the symlink)
-        try {
-          resolvedPath = await fsPromises.realpath(filePath);
-          // Save original permissions to restore after write
-          const stat = await fsPromises.stat(resolvedPath);
-          originalMode = stat.mode;
-        } catch {
-          // If file doesn't exist, use the original path and default permissions
-          resolvedPath = filePath;
-          originalMode = undefined;
+        // Check if already aborted
+        if (abortSignal?.aborted) {
+          throw new Error("Write operation aborted");
         }
 
         // Create parent directories if they don't exist
-        const parentDir = path.dirname(resolvedPath);
+        const parentDir = path.dirname(filePath);
         await fsPromises.mkdir(parentDir, { recursive: true });
 
         // Create temp file for atomic write
-        tempPath = `${resolvedPath}.tmp.${Date.now()}`;
+        tempPath = `${filePath}.tmp.${Date.now()}`;
         const nodeStream = fs.createWriteStream(tempPath);
         const webStream = Writable.toWeb(nodeStream) as WritableStream<Uint8Array>;
         writer = webStream.getWriter();
+
+        // Set up abort listener
+        const abortHandler = () => {
+          writer.abort("Write operation aborted").catch(() => {
+            // Ignore errors during abort
+          });
+        };
+        abortSignal?.addEventListener("abort", abortHandler);
       },
       async write(chunk: Uint8Array) {
+        if (abortSignal?.aborted) {
+          throw new Error("Write operation aborted");
+        }
         await writer.write(chunk);
       },
       async close() {
         // Close the writer and rename to final location
         await writer.close();
         try {
-          // If we have original permissions, apply them to temp file before rename
-          if (originalMode !== undefined) {
-            await fsPromises.chmod(tempPath, originalMode);
-          }
-          await fsPromises.rename(tempPath, resolvedPath);
+          await fsPromises.rename(tempPath, filePath);
         } catch (err) {
           throw new RuntimeErrorClass(
             `Failed to write file ${filePath}: ${err instanceof Error ? err.message : String(err)}`,
@@ -304,7 +318,12 @@ export class LocalRuntime implements Runtime {
     });
   }
 
-  async stat(filePath: string): Promise<FileStat> {
+  async stat(filePath: string, abortSignal?: AbortSignal): Promise<FileStat> {
+    // Check if already aborted
+    if (abortSignal?.aborted) {
+      throw new Error("Stat operation aborted");
+    }
+
     try {
       const stats = await fsPromises.stat(filePath);
       return {
@@ -480,10 +499,15 @@ export class LocalRuntime implements Runtime {
   async renameWorkspace(
     projectPath: string,
     oldName: string,
-    newName: string
+    newName: string,
+    abortSignal?: AbortSignal
   ): Promise<
     { success: true; oldPath: string; newPath: string } | { success: false; error: string }
   > {
+    // Check if already aborted
+    if (abortSignal?.aborted) {
+      return { success: false, error: "Rename operation aborted" };
+    }
     // Compute workspace paths using canonical method
     const oldPath = this.getWorkspacePath(projectPath, oldName);
     const newPath = this.getWorkspacePath(projectPath, newName);
@@ -503,8 +527,14 @@ export class LocalRuntime implements Runtime {
   async deleteWorkspace(
     projectPath: string,
     workspaceName: string,
-    force: boolean
+    force: boolean,
+    abortSignal?: AbortSignal
   ): Promise<{ success: true; deletedPath: string } | { success: false; error: string }> {
+    // Check if already aborted
+    if (abortSignal?.aborted) {
+      return { success: false, error: "Delete operation aborted" };
+    }
+
     // Compute workspace path using the canonical method
     const deletedPath = this.getWorkspacePath(projectPath, workspaceName);
 

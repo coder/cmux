@@ -119,6 +119,8 @@ export interface WorkspaceCreationParams {
   directoryName: string;
   /** Logger for streaming creation progress and init hook output */
   initLogger: InitLogger;
+  /** Optional abort signal for cancellation */
+  abortSignal?: AbortSignal;
 }
 
 /**
@@ -145,6 +147,8 @@ export interface WorkspaceInitParams {
   workspacePath: string;
   /** Logger for streaming initialization progress and output */
   initLogger: InitLogger;
+  /** Optional abort signal for cancellation */
+  abortSignal?: AbortSignal;
 }
 
 /**
@@ -208,26 +212,29 @@ export interface Runtime {
   /**
    * Read file contents as a stream
    * @param path Absolute or relative path to file
+   * @param abortSignal Optional abort signal for cancellation
    * @returns Readable stream of file contents
    * @throws RuntimeError if file cannot be read
    */
-  readFile(path: string): ReadableStream<Uint8Array>;
+  readFile(path: string, abortSignal?: AbortSignal): ReadableStream<Uint8Array>;
 
   /**
    * Write file contents atomically from a stream
    * @param path Absolute or relative path to file
+   * @param abortSignal Optional abort signal for cancellation
    * @returns Writable stream for file contents
    * @throws RuntimeError if file cannot be written
    */
-  writeFile(path: string): WritableStream<Uint8Array>;
+  writeFile(path: string, abortSignal?: AbortSignal): WritableStream<Uint8Array>;
 
   /**
    * Get file statistics
    * @param path Absolute or relative path to file/directory
+   * @param abortSignal Optional abort signal for cancellation
    * @returns File statistics
    * @throws RuntimeError if path does not exist or cannot be accessed
    */
-  stat(path: string): Promise<FileStat>;
+  stat(path: string, abortSignal?: AbortSignal): Promise<FileStat>;
 
   /**
    * Resolve a path to its absolute, canonical form (expanding tildes, resolving symlinks, etc.).
@@ -310,12 +317,14 @@ export interface Runtime {
    * @param projectPath Project root path (local path, used for git commands in LocalRuntime and to extract project name)
    * @param oldName Current workspace name
    * @param newName New workspace name
+   * @param abortSignal Optional abort signal for cancellation
    * @returns Promise resolving to Result with old/new paths on success, or error message
    */
   renameWorkspace(
     projectPath: string,
     oldName: string,
-    newName: string
+    newName: string,
+    abortSignal?: AbortSignal
   ): Promise<
     { success: true; oldPath: string; newPath: string } | { success: false; error: string }
   >;
@@ -333,12 +342,14 @@ export interface Runtime {
    * @param projectPath Project root path (local path, used for git commands in LocalRuntime and to extract project name)
    * @param workspaceName Workspace name to delete
    * @param force If true, force deletion even with uncommitted changes or special conditions (submodules, etc.)
+   * @param abortSignal Optional abort signal for cancellation
    * @returns Promise resolving to Result with deleted path on success, or error message
    */
   deleteWorkspace(
     projectPath: string,
     workspaceName: string,
-    force: boolean
+    force: boolean,
+    abortSignal?: AbortSignal
   ): Promise<{ success: true; deletedPath: string } | { success: false; error: string }>;
 
   /**
