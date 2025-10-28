@@ -14,7 +14,7 @@ interface AgentStatusIndicatorProps {
   className?: string;
 }
 
-const AgentStatusIndicatorInner: React.FC<AgentStatusIndicatorProps> = ({
+export const AgentStatusIndicator: React.FC<AgentStatusIndicatorProps> = ({
   workspaceId,
   lastReadTimestamp,
   onClick,
@@ -109,6 +109,3 @@ const AgentStatusIndicatorInner: React.FC<AgentStatusIndicatorProps> = ({
 
   return indicator;
 };
-
-// Memoize to prevent re-renders when props haven't changed
-export const AgentStatusIndicator = React.memo(AgentStatusIndicatorInner);
