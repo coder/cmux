@@ -199,7 +199,18 @@ export class StreamingMessageAggregator {
   loadHistoricalMessages(messages: CmuxMessage[]): void {
     for (const message of messages) {
       this.messages.set(message.id, message);
+
+      // Process completed tool calls to reconstruct derived state (todos, agentStatus)
+      // This ensures state persists across page reloads and workspace switches
+      if (message.role === "assistant") {
+        for (const part of message.parts) {
+          if (isDynamicToolPart(part) && part.state === "output-available") {
+            this.processToolResult(part.toolName, part.input, part.output);
+          }
+        }
+      }
     }
+
     this.invalidateCache();
   }
 
@@ -491,6 +502,31 @@ export class StreamingMessageAggregator {
     // Tool deltas are for display - args are in dynamic-tool part
   }
 
+
+  /**
+   * Process a completed tool call's result to update derived state.
+   * Called for both live tool-call-end events and historical tool parts.
+   *
+   * This is the single source of truth for updating state from tool results,
+   * ensuring consistency whether processing live events or historical messages.
+   */
+  private processToolResult(toolName: string, input: unknown, output: unknown): void {
+    // Update TODO state if this was a successful todo_write
+    if (toolName === "todo_write" && hasSuccessResult(output)) {
+      const args = input as { todos: TodoItem[] };
+      // Only update if todos actually changed (prevents flickering from reference changes)
+      if (!this.todosEqual(this.currentTodos, args.todos)) {
+        this.currentTodos = args.todos;
+      }
+    }
+
+    // Update agent status if this was a successful status_set
+    if (toolName === "status_set" && hasSuccessResult(output)) {
+      const args = input as { emoji: string; message: string };
+      this.agentStatus = { emoji: args.emoji, message: args.message };
+    }
+  }
+
   handleToolCallEnd(data: ToolCallEndEvent): void {
     const message = this.messages.get(data.messageId);
     if (message) {
@@ -505,20 +541,8 @@ export class StreamingMessageAggregator {
         (toolPart as DynamicToolPartAvailable).state = "output-available";
         (toolPart as DynamicToolPartAvailable).output = data.result;
 
-        // Update TODO state if this was a successful todo_write
-        if (data.toolName === "todo_write" && hasSuccessResult(data.result)) {
-          const args = toolPart.input as { todos: TodoItem[] };
-          // Only update if todos actually changed (prevents flickering from reference changes)
-          if (!this.todosEqual(this.currentTodos, args.todos)) {
-            this.currentTodos = args.todos;
-          }
-        }
-
-        // Update agent status if this was a successful status_set
-        if (data.toolName === "status_set" && hasSuccessResult(data.result)) {
-          const args = toolPart.input as { emoji: string; message: string };
-          this.agentStatus = { emoji: args.emoji, message: args.message };
-        }
+        // Process tool result to update derived state (todos, agentStatus, etc.)
+        this.processToolResult(data.toolName, toolPart.input, data.result);
       }
       this.invalidateCache();
     }

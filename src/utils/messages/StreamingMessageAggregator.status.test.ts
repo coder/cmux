@@ -376,4 +376,122 @@ describe("StreamingMessageAggregator - Agent Status", () => {
     expect(status?.emoji).toBe("🔍");
     expect(status?.message).toBe("Analyzing code");
   });
+
+  it("should reconstruct agentStatus when loading historical messages", () => {
+    const aggregator = new StreamingMessageAggregator("2024-01-01T00:00:00.000Z");
+
+    // Create historical messages with a completed status_set tool call
+    const historicalMessages = [
+      {
+        id: "msg1",
+        role: "user" as const,
+        parts: [{ type: "text" as const, text: "Hello" }],
+        metadata: { timestamp: Date.now(), historySequence: 1 },
+      },
+      {
+        id: "msg2",
+        role: "assistant" as const,
+        parts: [
+          { type: "text" as const, text: "Working on it..." },
+          {
+            type: "dynamic-tool" as const,
+            toolCallId: "tool1",
+            toolName: "status_set",
+            state: "output-available" as const,
+            input: { emoji: "🔍", message: "Analyzing code" },
+            output: { success: true, emoji: "🔍", message: "Analyzing code" },
+            timestamp: Date.now(),
+          },
+        ],
+        metadata: { timestamp: Date.now(), historySequence: 2 },
+      },
+    ];
+
+    // Load historical messages
+    aggregator.loadHistoricalMessages(historicalMessages);
+
+    // Status should be reconstructed from the historical tool call
+    const status = aggregator.getAgentStatus();
+    expect(status).toBeDefined();
+    expect(status?.emoji).toBe("🔍");
+    expect(status?.message).toBe("Analyzing code");
+  });
+
+  it("should use most recent status_set when loading multiple historical messages", () => {
+    const aggregator = new StreamingMessageAggregator("2024-01-01T00:00:00.000Z");
+
+    // Create historical messages with multiple status_set calls
+    const historicalMessages = [
+      {
+        id: "msg1",
+        role: "assistant" as const,
+        parts: [
+          {
+            type: "dynamic-tool" as const,
+            toolCallId: "tool1",
+            toolName: "status_set",
+            state: "output-available" as const,
+            input: { emoji: "🔍", message: "First status" },
+            output: { success: true, emoji: "🔍", message: "First status" },
+            timestamp: Date.now(),
+          },
+        ],
+        metadata: { timestamp: Date.now(), historySequence: 1 },
+      },
+      {
+        id: "msg2",
+        role: "assistant" as const,
+        parts: [
+          {
+            type: "dynamic-tool" as const,
+            toolCallId: "tool2",
+            toolName: "status_set",
+            state: "output-available" as const,
+            input: { emoji: "📝", message: "Second status" },
+            output: { success: true, emoji: "📝", message: "Second status" },
+            timestamp: Date.now(),
+          },
+        ],
+        metadata: { timestamp: Date.now(), historySequence: 2 },
+      },
+    ];
+
+    // Load historical messages
+    aggregator.loadHistoricalMessages(historicalMessages);
+
+    // Should use the most recent (last processed) status
+    const status = aggregator.getAgentStatus();
+    expect(status?.emoji).toBe("📝");
+    expect(status?.message).toBe("Second status");
+  });
+
+  it("should not reconstruct status from failed status_set in historical messages", () => {
+    const aggregator = new StreamingMessageAggregator("2024-01-01T00:00:00.000Z");
+
+    // Create historical message with failed status_set
+    const historicalMessages = [
+      {
+        id: "msg1",
+        role: "assistant" as const,
+        parts: [
+          {
+            type: "dynamic-tool" as const,
+            toolCallId: "tool1",
+            toolName: "status_set",
+            state: "output-available" as const,
+            input: { emoji: "not-emoji", message: "test" },
+            output: { success: false, error: "emoji must be a single emoji character" },
+            timestamp: Date.now(),
+          },
+        ],
+        metadata: { timestamp: Date.now(), historySequence: 1 },
+      },
+    ];
+
+    // Load historical messages
+    aggregator.loadHistoricalMessages(historicalMessages);
+
+    // Status should remain undefined (failed validation)
+    expect(aggregator.getAgentStatus()).toBeUndefined();
+  });
 });
