@@ -27,7 +27,16 @@ export const PinnedTodoList: React.FC<PinnedTodoListProps> = ({ workspaceId }) =
     () => workspaceStore.getWorkspaceState(workspaceId).todos
   );
 
-  if (todos.length === 0) {
+  // Get streaming state
+  const canInterrupt = useSyncExternalStore(
+    (callback) => workspaceStore.subscribeKey(workspaceId, callback),
+    () => workspaceStore.getWorkspaceState(workspaceId).canInterrupt
+  );
+
+  // Filter completed todos while streaming
+  const displayTodos = canInterrupt ? todos.filter((todo) => todo.status !== "completed") : todos;
+
+  if (displayTodos.length === 0) {
     return null;
   }
 
