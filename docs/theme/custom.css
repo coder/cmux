@@ -27,10 +27,10 @@
   --link-color: rgb(62, 140, 218);
   --link-hover: var(--color-plan-mode-hover);
   --content-max-width: 78ch;
-  --radius-lg: 10px;
-  --radius-md: 8px;
-  --radius-sm: 6px;
-  --radius-xs: 4px;
+  --radius-lg: 0;
+  --radius-md: 0;
+  --radius-sm: 0;
+  --radius-xs: 0;
   --shadow-1: 0 1px 1px hsl(0 0% 0% / 0.25);
   --shadow-2: 0 2px 10px hsl(0 0% 0% / 0.35);
 
