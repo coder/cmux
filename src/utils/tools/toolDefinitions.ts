@@ -188,11 +188,7 @@ export const TOOL_DEFINITIONS = {
       "Use this to communicate ongoing activities (e.g., '🔍 Analyzing code', '📝 Writing tests').",
     schema: z
       .object({
-        emoji: z
-          .string()
-          .regex(/^[\p{Emoji_Presentation}\p{Extended_Pictographic}]$/u, "Must be a single emoji")
-          .refine((val) => [...val].length === 1, { message: "Must be exactly one emoji character" })
-          .describe("A single emoji character representing the current activity"),
+        emoji: z.string().describe("A single emoji character representing the current activity"),
         message: z
           .string()
           .max(40)
