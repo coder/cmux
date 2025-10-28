@@ -291,17 +291,84 @@ table code {
   font-size: 0.9em;
 }
 
-/* Blockquotes (callout style) */
+/* Blockquotes with GitHub-style alerts support */
 blockquote {
-  border: 1px solid var(--color-border) !important;
-  border-left: 4px solid var(--color-plan-mode) !important;
-  background: color-mix(in srgb, var(--color-background-secondary), white 1.5%) !important;
-  padding: 0.5rem 0.6rem;
-  margin: 1.2rem 0;
-  color: color-mix(in srgb, var(--color-text), white 6%) !important;
+  border: 1px solid var(--color-border);
+  border-left: 4px solid var(--color-plan-mode);
+  background: color-mix(in srgb, var(--color-background-secondary), white 2%);
+  padding: 1rem 1.2rem;
+  margin: 1.5rem 0;
+  border-radius: var(--radius-md);
+  color: var(--color-text);
+  box-shadow: var(--shadow-1);
 }
+
+blockquote p {
+  margin: 0.5rem 0;
+}
+
+blockquote p:first-child {
+  margin-top: 0;
+}
+
+blockquote p:last-child {
+  margin-bottom: 0;
+}
+
+/* GitHub-style alert callouts */
+/* NOTE: blue */
+blockquote:has(p:first-child > strong:first-child:is([class*="Note"], [class*="note"])),
+blockquote > p:first-child:has(strong:first-child:is([class*="Note"], [class*="note"])) {
+  border-left-color: hsl(210 70% 50%);
+}
+blockquote:has(p:first-child > strong:first-child:is([class*="Note"], [class*="note"])) p:first-child strong:first-child,
+blockquote > p:first-child strong:first-child:is([class*="Note"], [class*="note"]) {
+  color: hsl(210 70% 60%) !important;
+}
+
+/* TIP: green */
+blockquote:has(p:first-child > strong:first-child:is([class*="Tip"], [class*="TIP"])),
+blockquote > p:first-child:has(strong:first-child:is([class*="Tip"], [class*="TIP"])) {
+  border-left-color: hsl(120 50% 45%);
+}
+blockquote:has(p:first-child > strong:first-child:is([class*="Tip"], [class*="TIP"])) p:first-child strong:first-child,
+blockquote > p:first-child strong:first-child:is([class*="Tip"], [class*="TIP"]) {
+  color: hsl(120 50% 55%) !important;
+}
+
+/* IMPORTANT: purple */
+blockquote:has(p:first-child > strong:first-child:is([class*="Important"], [class*="IMPORTANT"])),
+blockquote > p:first-child:has(strong:first-child:is([class*="Important"], [class*="IMPORTANT"])) {
+  border-left-color: hsl(268 94% 60%);
+}
+blockquote:has(p:first-child > strong:first-child:is([class*="Important"], [class*="IMPORTANT"])) p:first-child strong:first-child,
+blockquote > p:first-child strong:first-child:is([class*="Important"], [class*="IMPORTANT"]) {
+  color: hsl(268 94% 65%) !important;
+}
+
+/* WARNING: orange/yellow */
+blockquote:has(p:first-child > strong:first-child:is([class*="Warning"], [class*="WARNING"])),
+blockquote > p:first-child:has(strong:first-child:is([class*="Warning"], [class*="WARNING"])) {
+  border-left-color: hsl(38 92% 50%);
+}
+blockquote:has(p:first-child > strong:first-child:is([class*="Warning"], [class*="WARNING"])) p:first-child strong:first-child,
+blockquote > p:first-child strong:first-child:is([class*="Warning"], [class*="WARNING"]) {
+  color: hsl(38 92% 60%) !important;
+}
+
+/* CAUTION: red */
+blockquote:has(p:first-child > strong:first-child:is([class*="Caution"], [class*="CAUTION"])),
+blockquote > p:first-child:has(strong:first-child:is([class*="Caution"], [class*="CAUTION"])) {
+  border-left-color: hsl(0 70% 55%);
+}
+blockquote:has(p:first-child > strong:first-child:is([class*="Caution"], [class*="CAUTION"])) p:first-child strong:first-child,
+blockquote > p:first-child strong:first-child:is([class*="Caution"], [class*="CAUTION"]) {
+  color: hsl(0 70% 60%) !important;
+}
+
+/* Default strong styling in blockquotes */
 blockquote strong {
-  color: var(--color-plan-mode) !important;
+  color: var(--color-plan-mode);
 }
 
 /* kbd (for keybinds page) */
