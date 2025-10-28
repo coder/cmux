@@ -109,12 +109,12 @@ Use these prefixes based on what best describes the PR:
 - **ci:** (concerned with build process or CI)
 
 Examples:
+
 - `🤖 perf: cache markdown plugin arrays to avoid re-parsing`
 - `🤖 refactor: extract IPC handlers to separate module`
 - `🤖 fix: handle workspace rename edge cases`
 - `🤖 feat: add keyboard shortcuts for workspace navigation`
 - `🤖 ci: update wait_pr_checks script timeout`
-
 
 ## Project Structure
 
