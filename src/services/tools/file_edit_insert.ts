@@ -19,12 +19,7 @@ export const createFileEditInsertTool: ToolFactory = (config: ToolConfiguration)
     description: TOOL_DEFINITIONS.file_edit_insert.description,
     inputSchema: TOOL_DEFINITIONS.file_edit_insert.schema,
     execute: async (
-      {
-        file_path,
-        line_offset,
-        content,
-        create,
-      },
+      { file_path, line_offset, content, create },
       { abortSignal }
     ): Promise<FileEditInsertToolResult> => {
       try {
