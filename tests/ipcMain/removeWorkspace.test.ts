@@ -474,4 +474,145 @@ describeIntegration("Workspace deletion integration tests", () => {
       }
     }
   );
+
+  // SSH-specific tests (unpushed refs only matter for SSH, not local worktrees which share .git)
+  describe("SSH-only tests", () => {
+    const getRuntimeConfig = (branchName: string): RuntimeConfig | undefined => {
+      if (!sshConfig) {
+        throw new Error("SSH config not initialized");
+      }
+      return {
+        type: "ssh",
+        host: `testuser@localhost`,
+        srcBaseDir: sshConfig.workdir,
+        identityFile: sshConfig.privateKeyPath,
+        port: sshConfig.port,
+      };
+    };
+
+    test.concurrent(
+      "should fail to delete SSH workspace with unpushed refs without force flag",
+      async () => {
+        const env = await createTestEnvironment();
+        const tempGitRepo = await createTempGitRepo();
+
+        try {
+          const branchName = generateBranchName("delete-unpushed");
+          const runtimeConfig = getRuntimeConfig(branchName);
+          const { workspaceId } = await createWorkspaceWithInit(
+            env,
+            tempGitRepo,
+            branchName,
+            runtimeConfig,
+            true, // waitForInit
+            true // isSSH
+          );
+
+          // Configure git for committing (SSH environment needs this)
+          await executeBash(env, workspaceId, 'git config user.email "test@example.com"');
+          await executeBash(env, workspaceId, 'git config user.name "Test User"');
+
+          // Add a fake remote (needed for unpushed check to work)
+          // Without a remote, SSH workspaces have no concept of "unpushed" commits
+          await executeBash(
+            env,
+            workspaceId,
+            "git remote add origin https://github.com/fake/repo.git"
+          );
+
+          // Create a commit in the workspace (unpushed)
+          await executeBash(env, workspaceId, 'echo "new content" > newfile.txt');
+          await executeBash(env, workspaceId, "git add newfile.txt");
+          await executeBash(env, workspaceId, 'git commit -m "Unpushed commit"');
+
+          // Verify commit was created and working tree is clean
+          const statusResult = await executeBash(env, workspaceId, "git status --porcelain");
+          expect(statusResult.output.trim()).toBe(""); // Should be clean
+
+          // Attempt to delete without force should fail
+          const deleteResult = await env.mockIpcRenderer.invoke(
+            IPC_CHANNELS.WORKSPACE_REMOVE,
+            workspaceId
+          );
+          expect(deleteResult.success).toBe(false);
+          expect(deleteResult.error).toMatch(/unpushed.*commit|unpushed.*ref/i);
+
+          // Verify workspace still exists
+          const stillExists = await workspaceExists(env, workspaceId);
+          expect(stillExists).toBe(true);
+
+          // Cleanup: force delete for cleanup
+          await env.mockIpcRenderer.invoke(IPC_CHANNELS.WORKSPACE_REMOVE, workspaceId, {
+            force: true,
+          });
+        } finally {
+          await cleanupTestEnvironment(env);
+          await cleanupTempGitRepo(tempGitRepo);
+        }
+      },
+      TEST_TIMEOUT_SSH_MS
+    );
+
+    test.concurrent(
+      "should delete SSH workspace with unpushed refs when force flag is set",
+      async () => {
+        const env = await createTestEnvironment();
+        const tempGitRepo = await createTempGitRepo();
+
+        try {
+          const branchName = generateBranchName("delete-unpushed-force");
+          const runtimeConfig = getRuntimeConfig(branchName);
+          const { workspaceId } = await createWorkspaceWithInit(
+            env,
+            tempGitRepo,
+            branchName,
+            runtimeConfig,
+            true, // waitForInit
+            true // isSSH
+          );
+
+          // Configure git for committing (SSH environment needs this)
+          await executeBash(env, workspaceId, 'git config user.email "test@example.com"');
+          await executeBash(env, workspaceId, 'git config user.name "Test User"');
+
+          // Add a fake remote (needed for unpushed check to work)
+          // Without a remote, SSH workspaces have no concept of "unpushed" commits
+          await executeBash(
+            env,
+            workspaceId,
+            "git remote add origin https://github.com/fake/repo.git"
+          );
+
+          // Create a commit in the workspace (unpushed)
+          await executeBash(env, workspaceId, 'echo "new content" > newfile.txt');
+          await executeBash(env, workspaceId, "git add newfile.txt");
+          await executeBash(env, workspaceId, 'git commit -m "Unpushed commit"');
+
+          // Verify commit was created and working tree is clean
+          const statusResult = await executeBash(env, workspaceId, "git status --porcelain");
+          expect(statusResult.output.trim()).toBe(""); // Should be clean
+
+          // Delete with force should succeed
+          const deleteResult = await env.mockIpcRenderer.invoke(
+            IPC_CHANNELS.WORKSPACE_REMOVE,
+            workspaceId,
+            { force: true }
+          );
+          expect(deleteResult.success).toBe(true);
+
+          // Verify workspace was removed from config
+          const config = env.config.loadConfigOrDefault();
+          const project = config.projects.get(tempGitRepo);
+          if (project) {
+            const stillInConfig = project.workspaces.some((w) => w.id === workspaceId);
+            expect(stillInConfig).toBe(false);
+          }
+        } finally {
+          await cleanupTestEnvironment(env);
+          await cleanupTempGitRepo(tempGitRepo);
+        }
+      },
+      TEST_TIMEOUT_SSH_MS
+    );
+  });
 });
