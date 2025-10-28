@@ -199,7 +199,7 @@ describe("StreamingMessageAggregator - Agent Status", () => {
     expect(aggregator.getAgentStatus()).toBeUndefined();
   });
 
-  it("should clear agent status on stream-start (different from TODO behavior)", () => {
+  it("should clear agent status when new user message arrives", () => {
     const aggregator = new StreamingMessageAggregator("2024-01-01T00:00:00.000Z");
 
     // Start first stream and set status
@@ -245,16 +245,16 @@ describe("StreamingMessageAggregator - Agent Status", () => {
     // Status persists after stream ends
     expect(aggregator.getAgentStatus()?.message).toBe("First task");
 
-    // Start a NEW stream - status should be cleared
-    aggregator.handleStreamStart({
-      type: "stream-start",
-      workspaceId: "workspace1",
-      messageId: "msg2",
-      model: "test-model",
-      historySequence: 2,
-    });
+    // User sends a NEW message - status should be cleared
+    const newUserMessage = {
+      id: "msg2",
+      role: "user" as const,
+      parts: [{ type: "text" as const, text: "What's next?" }],
+      metadata: { timestamp: Date.now(), historySequence: 2 },
+    };
+    aggregator.handleMessage(newUserMessage);
 
-    // Status should be cleared on new stream start
+    // Status should be cleared on new user message
     expect(aggregator.getAgentStatus()).toBeUndefined();
   });
 

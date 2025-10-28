@@ -167,11 +167,12 @@ export class StreamingMessageAggregator {
   /**
    * Clean up stream-scoped state when stream ends (normally or abnormally).
    * Called by handleStreamEnd, handleStreamAbort, and handleStreamError.
+   *
+   * NOTE: Does NOT clear todos or agentStatus - those are cleared when a new
+   * user message arrives (see handleMessage), ensuring consistent behavior
+   * whether loading from history or processing live events.
    */
   private cleanupStreamState(messageId: string): void {
-    this.currentTodos = [];
-    // NOTE: agentStatus is NOT cleared here - it persists after stream completion
-    // to show the last activity. This is different from todos which are stream-scoped.
     this.activeStreams.delete(messageId);
   }
 
@@ -311,10 +312,9 @@ export class StreamingMessageAggregator {
     // Clear pending stream start timestamp - stream has started
     this.setPendingStreamStartTime(null);
 
-    // Clear agent status on stream start (unlike todos which persist across streams).
-    // Rationale: Status represents current activity, so it should be cleared and reset
-    // for each new stream. Todos represent pending work, so they persist until completion.
-    this.agentStatus = undefined;
+    // NOTE: We do NOT clear agentStatus or currentTodos here.
+    // They are cleared when a new user message arrives (see handleMessage),
+    // ensuring consistent behavior whether loading from history or processing live events.
 
     // Detect if this stream is compacting by checking if last user message is a compaction-request
     const messages = this.getAllMessages();
@@ -649,8 +649,14 @@ export class StreamingMessageAggregator {
       // Now add the new message
       this.addMessage(incomingMessage);
 
-      // If this is a user message, record timestamp for pending stream detection
+      // If this is a user message, clear derived state and record timestamp
       if (incomingMessage.role === "user") {
+        // Clear derived state (todos, agentStatus) for new conversation turn
+        // This ensures consistent behavior whether loading from history or processing live events
+        // since stream-start/stream-end events are not persisted in chat.jsonl
+        this.currentTodos = [];
+        this.agentStatus = undefined;
+
         this.setPendingStreamStartTime(Date.now());
       }
     }
