@@ -35,6 +35,24 @@ interface StreamingContext {
   model: string;
 }
 
+/**
+ * Check if a tool result indicates success (for tools that return { success: boolean })
+ */
+function hasSuccessResult(result: unknown): boolean {
+  return (
+    typeof result === "object" && result !== null && "success" in result && result.success === true
+  );
+}
+
+/**
+ * Check if a tool result indicates failure (for tools that return { success: boolean })
+ */
+function hasFailureResult(result: unknown): boolean {
+  return (
+    typeof result === "object" && result !== null && "success" in result && result.success === false
+  );
+}
+
 export class StreamingMessageAggregator {
   private messages = new Map<string, CmuxMessage>();
   private activeStreams = new Map<string, StreamingContext>();
@@ -149,11 +167,12 @@ export class StreamingMessageAggregator {
   /**
    * Clean up stream-scoped state when stream ends (normally or abnormally).
    * Called by handleStreamEnd, handleStreamAbort, and handleStreamError.
+   *
+   * NOTE: Does NOT clear todos or agentStatus - those are cleared when a new
+   * user message arrives (see handleMessage), ensuring consistent behavior
+   * whether loading from history or processing live events.
    */
   private cleanupStreamState(messageId: string): void {
-    this.currentTodos = [];
-    // NOTE: agentStatus is NOT cleared here - it persists after stream completion
-    // to show the last activity. This is different from todos which are stream-scoped.
     this.activeStreams.delete(messageId);
   }
 
@@ -181,7 +200,18 @@ export class StreamingMessageAggregator {
   loadHistoricalMessages(messages: CmuxMessage[]): void {
     for (const message of messages) {
       this.messages.set(message.id, message);
+
+      // Process completed tool calls to reconstruct derived state (todos, agentStatus)
+      // This ensures state persists across page reloads and workspace switches
+      if (message.role === "assistant") {
+        for (const part of message.parts) {
+          if (isDynamicToolPart(part) && part.state === "output-available") {
+            this.processToolResult(part.toolName, part.input, part.output);
+          }
+        }
+      }
     }
+
     this.invalidateCache();
   }
 
@@ -282,10 +312,9 @@ export class StreamingMessageAggregator {
     // Clear pending stream start timestamp - stream has started
     this.setPendingStreamStartTime(null);
 
-    // Clear agent status on stream start (unlike todos which persist across streams).
-    // Rationale: Status represents current activity, so it should be cleared and reset
-    // for each new stream. Todos represent pending work, so they persist until completion.
-    this.agentStatus = undefined;
+    // NOTE: We do NOT clear agentStatus or currentTodos here.
+    // They are cleared when a new user message arrives (see handleMessage),
+    // ensuring consistent behavior whether loading from history or processing live events.
 
     // Detect if this stream is compacting by checking if last user message is a compaction-request
     const messages = this.getAllMessages();
@@ -473,6 +502,30 @@ export class StreamingMessageAggregator {
     // Tool deltas are for display - args are in dynamic-tool part
   }
 
+  /**
+   * Process a completed tool call's result to update derived state.
+   * Called for both live tool-call-end events and historical tool parts.
+   *
+   * This is the single source of truth for updating state from tool results,
+   * ensuring consistency whether processing live events or historical messages.
+   */
+  private processToolResult(toolName: string, input: unknown, output: unknown): void {
+    // Update TODO state if this was a successful todo_write
+    if (toolName === "todo_write" && hasSuccessResult(output)) {
+      const args = input as { todos: TodoItem[] };
+      // Only update if todos actually changed (prevents flickering from reference changes)
+      if (!this.todosEqual(this.currentTodos, args.todos)) {
+        this.currentTodos = args.todos;
+      }
+    }
+
+    // Update agent status if this was a successful status_set
+    if (toolName === "status_set" && hasSuccessResult(output)) {
+      const args = input as { emoji: string; message: string };
+      this.agentStatus = { emoji: args.emoji, message: args.message };
+    }
+  }
+
   handleToolCallEnd(data: ToolCallEndEvent): void {
     const message = this.messages.get(data.messageId);
     if (message) {
@@ -487,32 +540,8 @@ export class StreamingMessageAggregator {
         (toolPart as DynamicToolPartAvailable).state = "output-available";
         (toolPart as DynamicToolPartAvailable).output = data.result;
 
-        // Update TODO state if this was a successful todo_write
-        if (
-          data.toolName === "todo_write" &&
-          typeof data.result === "object" &&
-          data.result !== null &&
-          "success" in data.result &&
-          data.result.success
-        ) {
-          const args = toolPart.input as { todos: TodoItem[] };
-          // Only update if todos actually changed (prevents flickering from reference changes)
-          if (!this.todosEqual(this.currentTodos, args.todos)) {
-            this.currentTodos = args.todos;
-          }
-        }
-
-        // Update agent status if this was a successful status_set
-        if (
-          data.toolName === "status_set" &&
-          typeof data.result === "object" &&
-          data.result !== null &&
-          "success" in data.result &&
-          data.result.success
-        ) {
-          const args = toolPart.input as { emoji: string; message: string };
-          this.agentStatus = { emoji: args.emoji, message: args.message };
-        }
+        // Process tool result to update derived state (todos, agentStatus, etc.)
+        this.processToolResult(data.toolName, toolPart.input, data.result);
       }
       this.invalidateCache();
     }
@@ -620,8 +649,14 @@ export class StreamingMessageAggregator {
       // Now add the new message
       this.addMessage(incomingMessage);
 
-      // If this is a user message, record timestamp for pending stream detection
+      // If this is a user message, clear derived state and record timestamp
       if (incomingMessage.role === "user") {
+        // Clear derived state (todos, agentStatus) for new conversation turn
+        // This ensures consistent behavior whether loading from history or processing live events
+        // since stream-start/stream-end events are not persisted in chat.jsonl
+        this.currentTodos = [];
+        this.agentStatus = undefined;
+
         this.setPendingStreamStartTime(Date.now());
       }
     }
@@ -769,14 +804,18 @@ export class StreamingMessageAggregator {
                 timestamp: part.timestamp ?? baseTimestamp,
               });
             } else if (isDynamicToolPart(part)) {
-              const status =
-                part.state === "output-available"
-                  ? "completed"
-                  : part.state === "input-available" && message.metadata?.partial
-                    ? "interrupted"
-                    : part.state === "input-available"
-                      ? "executing"
-                      : "pending";
+              // Determine status based on part state and result
+              let status: "pending" | "executing" | "completed" | "failed" | "interrupted";
+              if (part.state === "output-available") {
+                // Check if result indicates failure (for tools that return { success: boolean })
+                status = hasFailureResult(part.output) ? "failed" : "completed";
+              } else if (part.state === "input-available" && message.metadata?.partial) {
+                status = "interrupted";
+              } else if (part.state === "input-available") {
+                status = "executing";
+              } else {
+                status = "pending";
+              }
 
               displayedMessages.push({
                 type: "tool",
