@@ -263,12 +263,16 @@ export class SSHRuntime implements Runtime {
 
   /**
    * Write file contents over SSH atomically from a stream
+   * Preserves symlinks and file permissions by resolving and copying metadata
    */
   writeFile(path: string): WritableStream<Uint8Array> {
     const tempPath = `${path}.tmp.${Date.now()}`;
-    // Create parent directory if needed, then write file atomically
+    // Resolve symlinks to get the actual target path, preserving the symlink itself
+    // If target exists, save its permissions to restore after write
+    // If path doesn't exist, use 600 as default
+    // Then write atomically using mv (all-or-nothing for readers)
     // Use shescape.quote for safe path escaping
-    const writeCommand = `mkdir -p $(dirname ${shescape.quote(path)}) && cat > ${shescape.quote(tempPath)} && chmod 600 ${shescape.quote(tempPath)} && mv ${shescape.quote(tempPath)} ${shescape.quote(path)}`;
+    const writeCommand = `RESOLVED=$(readlink -f ${shescape.quote(path)} 2>/dev/null || echo ${shescape.quote(path)}) && PERMS=$(stat -c '%a' "$RESOLVED" 2>/dev/null || echo 600) && mkdir -p $(dirname "$RESOLVED") && cat > ${shescape.quote(tempPath)} && chmod "$PERMS" ${shescape.quote(tempPath)} && mv ${shescape.quote(tempPath)} "$RESOLVED"`;
 
     // Need to get the exec stream in async callbacks
     let execPromise: Promise<ExecStream> | null = null;
