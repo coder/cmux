@@ -21,10 +21,8 @@ import { useAutoScroll } from "@/hooks/useAutoScroll";
 import { usePersistedState } from "@/hooks/usePersistedState";
 import { useThinking } from "@/contexts/ThinkingContext";
 import { useWorkspaceState, useWorkspaceAggregator } from "@/stores/WorkspaceStore";
-import { StatusIndicator } from "./StatusIndicator";
+import { WorkspaceHeader } from "./WorkspaceHeader";
 import { getModelName } from "@/utils/ai/models";
-import { GitStatusIndicator } from "./GitStatusIndicator";
-import { RuntimeBadge } from "./RuntimeBadge";
 
 import { useGitStatus } from "@/stores/GitStatusStore";
 import { TooltipWrapper, Tooltip } from "./Tooltip";
@@ -74,9 +72,6 @@ const AIViewInner: React.FC<AIViewProps> = ({
   // Get workspace state from store (only re-renders when THIS workspace changes)
   const workspaceState = useWorkspaceState(workspaceId);
   const aggregator = useWorkspaceAggregator(workspaceId);
-
-  // Get git status for this workspace
-  const gitStatus = useGitStatus(workspaceId);
 
   const [editingMessage, setEditingMessage] = useState<{ id: string; content: string } | undefined>(
     undefined
@@ -270,7 +265,7 @@ const AIViewInner: React.FC<AIViewProps> = ({
   }
 
   // Extract state from workspace state
-  const { messages, canInterrupt, isCompacting, loading, currentModel } = workspaceState;
+  const { messages, canInterrupt, isCompacting, loading, currentModel, agentStatus } = workspaceState;
 
   // Get active stream message ID for token counting
   const activeStreamMessageId = aggregator.getActiveStreamMessageId();
@@ -339,41 +334,13 @@ const AIViewInner: React.FC<AIViewProps> = ({
         ref={chatAreaRef}
         className="flex min-w-96 flex-1 flex-col [@media(max-width:768px)]:max-h-full [@media(max-width:768px)]:w-full [@media(max-width:768px)]:min-w-0"
       >
-        <div className="bg-separator border-border-light flex items-center justify-between border-b px-[15px] py-1 [@media(max-width:768px)]:flex-wrap [@media(max-width:768px)]:gap-2 [@media(max-width:768px)]:py-2 [@media(max-width:768px)]:pl-[60px]">
-          <div className="text-foreground flex min-w-0 items-center gap-2 overflow-hidden font-semibold">
-            <StatusIndicator
-              streaming={canInterrupt}
-              title={
-                canInterrupt && currentModel ? `${getModelName(currentModel)} streaming` : "Idle"
-              }
-            />
-            <GitStatusIndicator
-              gitStatus={gitStatus}
-              workspaceId={workspaceId}
-              tooltipPosition="bottom"
-            />
-            <RuntimeBadge runtimeConfig={runtimeConfig} />
-            <span className="min-w-0 truncate font-mono text-xs">
-              {projectName} / {branch}
-            </span>
-            <span className="text-muted min-w-0 truncate font-mono text-[11px] font-normal">
-              {namedWorkspacePath}
-            </span>
-            <TooltipWrapper inline>
-              <button
-                onClick={handleOpenTerminal}
-                className="text-muted hover:text-foreground flex cursor-pointer items-center justify-center border-none bg-transparent p-1 transition-colors [&_svg]:h-4 [&_svg]:w-4"
-              >
-                <svg viewBox="0 0 16 16" fill="currentColor">
-                  <path d="M0 2.75C0 1.784.784 1 1.75 1h12.5c.966 0 1.75.784 1.75 1.75v10.5A1.75 1.75 0 0114.25 15H1.75A1.75 1.75 0 010 13.25V2.75zm1.75-.25a.25.25 0 00-.25.25v10.5c0 .138.112.25.25.25h12.5a.25.25 0 00.25-.25V2.75a.25.25 0 00-.25-.25H1.75zM7.25 8a.75.75 0 01-.22.53l-2.25 2.25a.75.75 0 01-1.06-1.06L5.44 8 3.72 6.28a.75.75 0 111.06-1.06l2.25 2.25c.141.14.22.331.22.53zm1.5 1.5a.75.75 0 000 1.5h3a.75.75 0 000-1.5h-3z" />
-                </svg>
-              </button>
-              <Tooltip className="tooltip" position="bottom" align="center">
-                Open in terminal ({formatKeybind(KEYBINDS.OPEN_TERMINAL)})
-              </Tooltip>
-            </TooltipWrapper>
-          </div>
-        </div>
+        <WorkspaceHeader
+          workspaceId={workspaceId}
+          projectName={projectName}
+          branch={branch}
+          namedWorkspacePath={namedWorkspacePath}
+          runtimeConfig={runtimeConfig}
+        />
 
         <div className="relative flex-1 overflow-hidden">
           <div

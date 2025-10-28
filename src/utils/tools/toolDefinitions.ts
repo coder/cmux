@@ -181,6 +181,25 @@ export const TOOL_DEFINITIONS = {
     description: "Read the current todo list",
     schema: z.object({}),
   },
+  status_set: {
+    description:
+      "Set a status indicator to show what the agent is currently doing. " +
+      "The emoji will appear left of the streaming indicator, and the message will show on hover. " +
+      "Use this to communicate ongoing activities (e.g., '🔍 Analyzing code', '📝 Writing tests').",
+    schema: z
+      .object({
+        emoji: z
+          .string()
+          .regex(/^[\p{Emoji_Presentation}\p{Extended_Pictographic}]$/u, "Must be a single emoji")
+          .refine((val) => [...val].length === 1, { message: "Must be exactly one emoji character" })
+          .describe("A single emoji character representing the current activity"),
+        message: z
+          .string()
+          .max(40)
+          .describe("A brief description of the current activity (max 40 characters)"),
+      })
+      .strict(),
+  },
 } as const;
 
 /**
@@ -220,6 +239,7 @@ export function getAvailableTools(modelString: string): string[] {
     "propose_plan",
     "todo_write",
     "todo_read",
+    "status_set",
   ];
 
   // Add provider-specific tools

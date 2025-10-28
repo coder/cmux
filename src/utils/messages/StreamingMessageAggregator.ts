@@ -51,6 +51,10 @@ export class StreamingMessageAggregator {
   // Current TODO list (updated when todo_write succeeds)
   private currentTodos: TodoItem[] = [];
 
+  // Current agent status (updated when status_set is called)
+  // Unlike todos, this persists after stream completion to show last activity
+  private agentStatus: { emoji: string; message: string } | undefined = undefined;
+
   // Workspace init hook state (ephemeral, not persisted to history)
   private initState: {
     status: "running" | "success" | "error";
@@ -117,6 +121,15 @@ export class StreamingMessageAggregator {
   }
 
   /**
+   * Get the current agent status.
+   * Updated whenever status_set is called.
+   * Persists after stream completion (unlike todos).
+   */
+  getAgentStatus(): { emoji: string; message: string } | undefined {
+    return this.agentStatus;
+  }
+
+  /**
    * Extract compaction summary text from a completed assistant message.
    * Used when a compaction stream completes to get the summary for history replacement.
    * @param messageId The ID of the assistant message to extract text from
@@ -139,6 +152,8 @@ export class StreamingMessageAggregator {
    */
   private cleanupStreamState(messageId: string): void {
     this.currentTodos = [];
+    // NOTE: agentStatus is NOT cleared here - it persists after stream completion
+    // to show the last activity. This is different from todos which are stream-scoped.
     this.activeStreams.delete(messageId);
   }
 
@@ -480,6 +495,18 @@ export class StreamingMessageAggregator {
           if (!this.todosEqual(this.currentTodos, args.todos)) {
             this.currentTodos = args.todos;
           }
+        }
+
+        // Update agent status if this was a successful status_set
+        if (
+          data.toolName === "status_set" &&
+          typeof data.result === "object" &&
+          data.result !== null &&
+          "success" in data.result &&
+          data.result.success
+        ) {
+          const args = toolPart.input as { emoji: string; message: string };
+          this.agentStatus = { emoji: args.emoji, message: args.message };
         }
       }
       this.invalidateCache();
