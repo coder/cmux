@@ -23,9 +23,6 @@ import { useThinking } from "@/contexts/ThinkingContext";
 import { useWorkspaceState, useWorkspaceAggregator } from "@/stores/WorkspaceStore";
 import { WorkspaceHeader } from "./WorkspaceHeader";
 import { getModelName } from "@/utils/ai/models";
-
-import { useGitStatus } from "@/stores/GitStatusStore";
-import { TooltipWrapper, Tooltip } from "./Tooltip";
 import type { DisplayedMessage } from "@/types/message";
 import type { RuntimeConfig } from "@/types/runtime";
 import { useAIViewKeybinds } from "@/hooks/useAIViewKeybinds";
@@ -265,7 +262,7 @@ const AIViewInner: React.FC<AIViewProps> = ({
   }
 
   // Extract state from workspace state
-  const { messages, canInterrupt, isCompacting, loading, currentModel, agentStatus } = workspaceState;
+  const { messages, canInterrupt, isCompacting, loading, currentModel } = workspaceState;
 
   // Get active stream message ID for token counting
   const activeStreamMessageId = aggregator.getActiveStreamMessageId();

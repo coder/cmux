@@ -258,4 +258,3 @@ describe("StreamingMessageAggregator - Agent Status", () => {
     expect(aggregator.getAgentStatus()).toBeUndefined();
   });
 });
-

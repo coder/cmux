@@ -45,4 +45,3 @@ export function getStatusTooltip(options: {
 
   return "Idle";
 }
-

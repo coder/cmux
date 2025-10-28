@@ -22,7 +22,11 @@ describe("status_set tool validation", () => {
 
       const emojis = ["🔍", "📝", "✅", "🚀", "⏳"];
       for (const emoji of emojis) {
-        const result = await tool.execute!({ emoji, message: "Test" }, mockToolCallOptions);
+        const result = (await tool.execute!({ emoji, message: "Test" }, mockToolCallOptions)) as {
+          success: boolean;
+          emoji: string;
+          message: string;
+        };
         expect(result).toEqual({ success: true, emoji, message: "Test" });
       }
     });
@@ -30,41 +34,79 @@ describe("status_set tool validation", () => {
     it("should reject multiple emojis", async () => {
       const tool = createStatusSetTool(mockConfig);
 
-      const result1 = await tool.execute!({ emoji: "🔍📝", message: "Test" }, mockToolCallOptions);
-      expect(result1).toEqual({ success: false, error: "emoji must be a single emoji character" });
+      const result1 = (await tool.execute!(
+        { emoji: "🔍📝", message: "Test" },
+        mockToolCallOptions
+      )) as { success: boolean; error: string };
+      expect(result1.success).toBe(false);
+      expect(result1.error).toBe("emoji must be a single emoji character");
 
-      const result2 = await tool.execute!({ emoji: "✅✅", message: "Test" }, mockToolCallOptions);
-      expect(result2).toEqual({ success: false, error: "emoji must be a single emoji character" });
+      const result2 = (await tool.execute!(
+        { emoji: "✅✅", message: "Test" },
+        mockToolCallOptions
+      )) as { success: boolean; error: string };
+      expect(result2.success).toBe(false);
+      expect(result2.error).toBe("emoji must be a single emoji character");
     });
 
     it("should reject text (non-emoji)", async () => {
       const tool = createStatusSetTool(mockConfig);
 
-      const result1 = await tool.execute!({ emoji: "a", message: "Test" }, mockToolCallOptions);
-      expect(result1).toEqual({ success: false, error: "emoji must be a single emoji character" });
+      const result1 = (await tool.execute!(
+        { emoji: "a", message: "Test" },
+        mockToolCallOptions
+      )) as {
+        success: boolean;
+        error: string;
+      };
+      expect(result1.success).toBe(false);
+      expect(result1.error).toBe("emoji must be a single emoji character");
 
-      const result2 = await tool.execute!({ emoji: "abc", message: "Test" }, mockToolCallOptions);
-      expect(result2).toEqual({ success: false, error: "emoji must be a single emoji character" });
+      const result2 = (await tool.execute!(
+        { emoji: "abc", message: "Test" },
+        mockToolCallOptions
+      )) as { success: boolean; error: string };
+      expect(result2.success).toBe(false);
+      expect(result2.error).toBe("emoji must be a single emoji character");
 
-      const result3 = await tool.execute!({ emoji: "!", message: "Test" }, mockToolCallOptions);
-      expect(result3).toEqual({ success: false, error: "emoji must be a single emoji character" });
+      const result3 = (await tool.execute!(
+        { emoji: "!", message: "Test" },
+        mockToolCallOptions
+      )) as {
+        success: boolean;
+        error: string;
+      };
+      expect(result3.success).toBe(false);
+      expect(result3.error).toBe("emoji must be a single emoji character");
     });
 
     it("should reject empty emoji", async () => {
       const tool = createStatusSetTool(mockConfig);
 
-      const result = await tool.execute!({ emoji: "", message: "Test" }, mockToolCallOptions);
-      expect(result).toEqual({ success: false, error: "emoji must be a single emoji character" });
+      const result = (await tool.execute!({ emoji: "", message: "Test" }, mockToolCallOptions)) as {
+        success: boolean;
+        error: string;
+      };
+      expect(result.success).toBe(false);
+      expect(result.error).toBe("emoji must be a single emoji character");
     });
 
     it("should reject emoji with text", async () => {
       const tool = createStatusSetTool(mockConfig);
 
-      const result1 = await tool.execute!({ emoji: "🔍a", message: "Test" }, mockToolCallOptions);
-      expect(result1).toEqual({ success: false, error: "emoji must be a single emoji character" });
+      const result1 = (await tool.execute!(
+        { emoji: "🔍a", message: "Test" },
+        mockToolCallOptions
+      )) as { success: boolean; error: string };
+      expect(result1.success).toBe(false);
+      expect(result1.error).toBe("emoji must be a single emoji character");
 
-      const result2 = await tool.execute!({ emoji: "x🔍", message: "Test" }, mockToolCallOptions);
-      expect(result2).toEqual({ success: false, error: "emoji must be a single emoji character" });
+      const result2 = (await tool.execute!(
+        { emoji: "x🔍", message: "Test" },
+        mockToolCallOptions
+      )) as { success: boolean; error: string };
+      expect(result2.success).toBe(false);
+      expect(result2.error).toBe("emoji must be a single emoji character");
     });
   });
 
@@ -72,25 +114,26 @@ describe("status_set tool validation", () => {
     it("should accept messages up to 40 characters", async () => {
       const tool = createStatusSetTool(mockConfig);
 
-      const result1 = await tool.execute!(
+      const result1 = (await tool.execute!(
         { emoji: "✅", message: "a".repeat(40) },
         mockToolCallOptions
-      );
+      )) as { success: boolean };
       expect(result1.success).toBe(true);
 
-      const result2 = await tool.execute!(
+      const result2 = (await tool.execute!(
         { emoji: "✅", message: "Analyzing code structure" },
         mockToolCallOptions
-      );
+      )) as { success: boolean };
       expect(result2.success).toBe(true);
     });
 
     it("should accept empty message", async () => {
       const tool = createStatusSetTool(mockConfig);
 
-      const result = await tool.execute!({ emoji: "✅", message: "" }, mockToolCallOptions);
+      const result = (await tool.execute!({ emoji: "✅", message: "" }, mockToolCallOptions)) as {
+        success: boolean;
+      };
       expect(result.success).toBe(true);
     });
   });
 });
-

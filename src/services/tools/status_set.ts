@@ -41,23 +41,22 @@ export const createStatusSetTool: ToolFactory = () => {
   return tool({
     description: TOOL_DEFINITIONS.status_set.description,
     inputSchema: TOOL_DEFINITIONS.status_set.schema,
-    execute: async ({ emoji, message }): Promise<StatusSetToolResult> => {
+    execute: ({ emoji, message }): Promise<StatusSetToolResult> => {
       // Validate emoji
       if (!isValidEmoji(emoji)) {
-        return {
+        return Promise.resolve({
           success: false,
           error: "emoji must be a single emoji character",
-        };
+        });
       }
 
       // Tool execution is a no-op on the backend
       // The status is tracked by StreamingMessageAggregator and displayed in the frontend
-      return {
+      return Promise.resolve({
         success: true,
         emoji,
         message,
-      };
+      });
     },
   });
 };
-

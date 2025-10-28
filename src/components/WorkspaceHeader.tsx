@@ -60,4 +60,3 @@ export const WorkspaceHeader: React.FC<WorkspaceHeaderProps> = ({
     </div>
   );
 };
-

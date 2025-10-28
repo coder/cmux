@@ -24,7 +24,7 @@ export const StatusSetToolCall: React.FC<StatusSetToolCallProps> = ({
           <span>{args.emoji}</span>
           <Tooltip>status_set</Tooltip>
         </TooltipWrapper>
-        <span className="text-muted-foreground">{args.message}</span>
+        <span className="italic text-muted-foreground">{args.message}</span>
         <StatusIndicator status={status}>{statusDisplay}</StatusIndicator>
       </ToolHeader>
     </ToolContainer>

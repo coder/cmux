@@ -174,4 +174,3 @@ export type StatusSetToolResult =
       success: false;
       error: string;
     };
-
