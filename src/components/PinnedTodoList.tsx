@@ -35,9 +35,7 @@ export const PinnedTodoList: React.FC<PinnedTodoListProps> = ({ workspaceId }) =
 
   // When idle (not streaming), only show completed todos for clean summary
   // When streaming, show all todos so user can see active work
-  const displayTodos = canInterrupt
-    ? todos
-    : todos.filter((todo) => todo.status === "completed");
+  const displayTodos = canInterrupt ? todos : todos.filter((todo) => todo.status === "completed");
 
   if (displayTodos.length === 0) {
     return null;
