@@ -186,6 +186,7 @@ export const TOOL_DEFINITIONS = {
       "Set a status indicator to show what the agent is currently doing. " +
       "The emoji appears left of the streaming indicator, and the message shows on hover. " +
       "IMPORTANT: Always set a status at the start of each response and update it as your work progresses. " +
+      "Set a final status before finishing your response (e.g., '✅ Complete', '🎉 Done', '✓ Finished'). " +
       "The status is cleared when a new stream starts, so you must set it again for each response. " +
       "Use this to communicate ongoing activities (e.g., '🔍 Analyzing code', '📝 Writing tests', '🔧 Refactoring logic').",
     schema: z
