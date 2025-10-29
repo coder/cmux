@@ -37,6 +37,12 @@ const PROVIDER_CONFIGS: Array<[string, string]> = [
   ["anthropic", "claude-sonnet-4-5"],
 ];
 
+// Vision-capable models for image support tests
+const VISION_MODEL_CONFIGS: Array<[string, string]> = [
+  ["openai", "gpt-4o"],
+  ["anthropic", "claude-sonnet-4-5"],
+];
+
 // Use Anthropic by default for provider-agnostic tests (faster and cheaper)
 const DEFAULT_PROVIDER = "anthropic";
 const DEFAULT_MODEL = "claude-sonnet-4-5";
@@ -949,28 +955,42 @@ These are general instructions that apply to all modes.
   });
 
   // Image support tests - test across both providers (vision models behave differently)
-  describe.each(PROVIDER_CONFIGS)("%s:%s image support", (provider, model) => {
+  describe.each(VISION_MODEL_CONFIGS)("%s:%s image support", (provider, model) => {
+    /**
+     * Helper to send a message with an image and return the stream collector
+     */
+    async function sendImageMessage(
+      provider: string,
+      model: string,
+      imageUrl: string,
+      prompt: string
+    ) {
+      const { env, workspaceId, cleanup } = await setupWorkspace(provider);
+
+      const result = await sendMessage(env.mockIpcRenderer, workspaceId, prompt, {
+        model: modelString(provider, model),
+        imageParts: [{ url: imageUrl, mediaType: "image/png" }],
+      });
+
+      expect(result.success).toBe(true);
+
+      // Wait for stream to complete
+      const collector = await waitForStreamSuccess(env.sentEvents, workspaceId, 30000);
+
+      return { env, workspaceId, cleanup, collector };
+    }
+
     test.concurrent(
       "should send images to AI model and get response",
       async () => {
-        const { env, workspaceId, cleanup } = await setupWorkspace(provider);
+        const { cleanup, collector } = await sendImageMessage(
+          provider,
+          model,
+          TEST_IMAGES.RED_PIXEL,
+          "What color is this?"
+        );
+
         try {
-          // Send message with image attachment
-          const result = await sendMessage(
-            env.mockIpcRenderer,
-            workspaceId,
-            "What color is this?",
-            {
-              model: modelString(provider, model),
-              imageParts: [{ url: TEST_IMAGES.RED_PIXEL, mediaType: "image/png" }],
-            }
-          );
-
-          expect(result.success).toBe(true);
-
-          // Wait for stream to complete
-          const collector = await waitForStreamSuccess(env.sentEvents, workspaceId, 30000);
-
           // Verify we got a response about the image
           const deltas = collector.getDeltas();
           expect(deltas.length).toBeGreaterThan(0);
@@ -995,19 +1015,14 @@ These are general instructions that apply to all modes.
     test.concurrent(
       "should preserve image parts through history",
       async () => {
-        const { env, workspaceId, cleanup } = await setupWorkspace(provider);
+        const { env, workspaceId, cleanup } = await sendImageMessage(
+          provider,
+          model,
+          TEST_IMAGES.BLUE_PIXEL,
+          "Describe this"
+        );
+
         try {
-          // Send message with image
-          const result = await sendMessage(env.mockIpcRenderer, workspaceId, "Describe this", {
-            model: modelString(provider, model),
-            imageParts: [{ url: TEST_IMAGES.BLUE_PIXEL, mediaType: "image/png" }],
-          });
-
-          expect(result.success).toBe(true);
-
-          // Wait for stream to complete
-          await waitForStreamSuccess(env.sentEvents, workspaceId, 30000);
-
           // Read history from disk
           const messages = await readChatHistory(env.tempDir, workspaceId);
 
@@ -1468,5 +1483,3 @@ These are general instructions that apply to all modes.
     5000
   );
 });
-
-// Test image support - using single provider (image handling is SDK-level, not provider-specific)
