@@ -1,6 +1,5 @@
 import { describe, test, expect, jest } from "@jest/globals";
 import { executeFileEditOperation } from "./file_edit_operation";
-import { WRITE_DENIED_PREFIX } from "@/types/tools";
 import type { Runtime } from "@/runtime/Runtime";
 
 import { createTestToolConfig, getTestDeps } from "./testHelpers";
@@ -25,7 +24,7 @@ describe("executeFileEditOperation", () => {
 
     expect(result.success).toBe(false);
     if (!result.success) {
-      expect(result.error.startsWith(WRITE_DENIED_PREFIX)).toBe(true);
+      expect(result.error).toContain("File operations are restricted to the workspace directory");
     }
   });
 

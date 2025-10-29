@@ -1,5 +1,4 @@
 import type { FileEditDiffSuccessBase, FileEditErrorResult } from "@/types/tools";
-import { WRITE_DENIED_PREFIX } from "@/types/tools";
 import type { ToolConfiguration } from "@/utils/tools/tools";
 import {
   generateDiff,
@@ -19,6 +18,7 @@ type FileEditOperationResult<TMetadata> =
   | {
       success: false;
       error: string;
+      note?: string; // Agent-only message (not displayed in UI)
     };
 
 interface ExecuteFileEditOperationOptions<TMetadata> {
@@ -52,7 +52,7 @@ export async function executeFileEditOperation<TMetadata>({
     if (redundantPrefixValidation) {
       return {
         success: false,
-        error: `${WRITE_DENIED_PREFIX} ${redundantPrefixValidation.error}`,
+        error: redundantPrefixValidation.error,
       };
     }
 
@@ -60,7 +60,7 @@ export async function executeFileEditOperation<TMetadata>({
     if (pathValidation) {
       return {
         success: false,
-        error: `${WRITE_DENIED_PREFIX} ${pathValidation.error}`,
+        error: pathValidation.error,
       };
     }
 
@@ -76,7 +76,7 @@ export async function executeFileEditOperation<TMetadata>({
       if (err instanceof RuntimeError) {
         return {
           success: false,
-          error: `${WRITE_DENIED_PREFIX} ${err.message}`,
+          error: err.message,
         };
       }
       throw err;
@@ -85,7 +85,7 @@ export async function executeFileEditOperation<TMetadata>({
     if (fileStat.isDirectory) {
       return {
         success: false,
-        error: `${WRITE_DENIED_PREFIX} Path is a directory, not a file: ${resolvedPath}`,
+        error: `Path is a directory, not a file: ${resolvedPath}`,
       };
     }
 
@@ -93,7 +93,7 @@ export async function executeFileEditOperation<TMetadata>({
     if (sizeValidation) {
       return {
         success: false,
-        error: `${WRITE_DENIED_PREFIX} ${sizeValidation.error}`,
+        error: sizeValidation.error,
       };
     }
 
@@ -105,7 +105,7 @@ export async function executeFileEditOperation<TMetadata>({
       if (err instanceof RuntimeError) {
         return {
           success: false,
-          error: `${WRITE_DENIED_PREFIX} ${err.message}`,
+          error: err.message,
         };
       }
       throw err;
@@ -115,7 +115,8 @@ export async function executeFileEditOperation<TMetadata>({
     if (!operationResult.success) {
       return {
         success: false,
-        error: `${WRITE_DENIED_PREFIX} ${operationResult.error}`,
+        error: operationResult.error,
+        note: operationResult.note, // Pass through agent-only message
       };
     }
 
@@ -126,7 +127,7 @@ export async function executeFileEditOperation<TMetadata>({
       if (err instanceof RuntimeError) {
         return {
           success: false,
-          error: `${WRITE_DENIED_PREFIX} ${err.message}`,
+          error: err.message,
         };
       }
       throw err;
@@ -145,14 +146,14 @@ export async function executeFileEditOperation<TMetadata>({
       if (nodeError.code === "ENOENT") {
         return {
           success: false,
-          error: `${WRITE_DENIED_PREFIX} File not found: ${filePath}`,
+          error: `File not found: ${filePath}`,
         };
       }
 
       if (nodeError.code === "EACCES") {
         return {
           success: false,
-          error: `${WRITE_DENIED_PREFIX} Permission denied: ${filePath}`,
+          error: `Permission denied: ${filePath}`,
         };
       }
     }
@@ -160,7 +161,7 @@ export async function executeFileEditOperation<TMetadata>({
     const message = error instanceof Error ? error.message : String(error);
     return {
       success: false,
-      error: `${WRITE_DENIED_PREFIX} Failed to edit file: ${message}`,
+      error: `Failed to edit file: ${message}`,
     };
   }
 }

@@ -3,8 +3,6 @@ import { createPatch } from "diff";
 import type { FileStat, Runtime } from "@/runtime/Runtime";
 import { SSHRuntime } from "@/runtime/SSHRuntime";
 
-// WRITE_DENIED_PREFIX moved to @/types/tools for frontend/backend sharing
-
 /**
  * Maximum file size for file operations (1MB)
  * Files larger than this should be processed with system tools like grep, sed, etc.

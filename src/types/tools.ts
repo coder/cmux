@@ -66,6 +66,7 @@ export interface FileEditDiffSuccessBase {
 export interface FileEditErrorResult {
   success: false;
   error: string;
+  note?: string; // Agent-only message (not displayed in UI)
 }
 
 export interface FileEditReplaceStringToolArgs {
@@ -124,6 +125,12 @@ export type FileEditInsertToolResult = FileEditDiffSuccessBase | FileEditErrorRe
  * This consistent prefix helps both the UI and models detect when writes fail.
  */
 export const WRITE_DENIED_PREFIX = "WRITE DENIED, FILE UNMODIFIED:";
+
+/**
+ * Prefix for edit failure notes (agent-only messages).
+ * This prefix signals to the agent that the file was not modified.
+ */
+export const EDIT_FAILED_NOTE_PREFIX = "EDIT FAILED - file was NOT modified.";
 
 export type FileEditToolArgs =
   | FileEditReplaceStringToolArgs
