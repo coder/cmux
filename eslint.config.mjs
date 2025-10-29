@@ -447,4 +447,15 @@ export default defineConfig([
       },
     },
   },
+  {
+    // Storybook story files - disable type-aware rules for Storybook 10 barrel exports
+    files: ["**/*.stories.ts", "**/*.stories.tsx", ".storybook/**/*.ts", ".storybook/**/*.tsx"],
+    rules: {
+      "@typescript-eslint/no-unsafe-assignment": "off",
+      "@typescript-eslint/no-unsafe-call": "off",
+      "@typescript-eslint/no-unsafe-member-access": "off",
+      "@typescript-eslint/no-unsafe-return": "off",
+    },
+  },
+  ...storybook.configs["flat/recommended"],
 ]);
