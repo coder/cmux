@@ -4,7 +4,7 @@ import { CUSTOM_EVENTS } from "@/constants/events";
 import { getAutoRetryKey, getRetryStateKey } from "@/constants/storage";
 import { getSendOptionsFromStorage } from "@/utils/messages/sendOptions";
 import { readPersistedState } from "./usePersistedState";
-import { hasInterruptedStream } from "@/utils/messages/retryEligibility";
+import { isEligibleForAutoRetry } from "@/utils/messages/retryEligibility";
 import { applyCompactionOverrides } from "@/utils/messages/compactionOptions";
 
 interface RetryState {
@@ -92,10 +92,10 @@ export function useResumeManager() {
       return false;
     }
 
-    // 1. Must have interrupted stream (not currently streaming)
+    // 1. Must have interrupted stream that's eligible for auto-retry (not currently streaming)
     if (state.canInterrupt) return false; // Currently streaming
 
-    if (!hasInterruptedStream(state.messages, state.pendingStreamStartTime)) {
+    if (!isEligibleForAutoRetry(state.messages, state.pendingStreamStartTime)) {
       return false;
     }
 

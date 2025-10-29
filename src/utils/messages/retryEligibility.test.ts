@@ -1,5 +1,5 @@
 import { describe, it, expect } from "@jest/globals";
-import { hasInterruptedStream } from "./retryEligibility";
+import { hasInterruptedStream, isEligibleForAutoRetry } from "./retryEligibility";
 import type { DisplayedMessage } from "@/types/message";
 
 describe("hasInterruptedStream", () => {
@@ -233,5 +233,325 @@ describe("hasInterruptedStream", () => {
     ];
     const longAgo = Date.now() - 4000; // 4s ago - past 3s threshold
     expect(hasInterruptedStream(messages, longAgo)).toBe(true);
+  });
+
+  describe("stream error types (all show manual retry UI)", () => {
+    it("returns true for authentication errors (shows manual retry)", () => {
+      const messages: DisplayedMessage[] = [
+        {
+          type: "user",
+          id: "user-1",
+          historyId: "user-1",
+          content: "Hello",
+          historySequence: 1,
+        },
+        {
+          type: "stream-error",
+          id: "error-1",
+          historyId: "assistant-1",
+          error: "Invalid API key",
+          errorType: "authentication",
+          historySequence: 2,
+        },
+      ];
+      expect(hasInterruptedStream(messages)).toBe(true);
+    });
+
+    it("returns true for network errors", () => {
+      const messages: DisplayedMessage[] = [
+        {
+          type: "user",
+          id: "user-1",
+          historyId: "user-1",
+          content: "Hello",
+          historySequence: 1,
+        },
+        {
+          type: "stream-error",
+          id: "error-1",
+          historyId: "assistant-1",
+          error: "Network connection failed",
+          errorType: "network",
+          historySequence: 2,
+        },
+      ];
+      expect(hasInterruptedStream(messages)).toBe(true);
+    });
+  });
+});
+
+describe("isEligibleForAutoRetry", () => {
+  it("returns false for empty messages", () => {
+    expect(isEligibleForAutoRetry([])).toBe(false);
+  });
+
+  it("returns false for completed messages", () => {
+    const messages: DisplayedMessage[] = [
+      {
+        type: "user",
+        id: "user-1",
+        historyId: "user-1",
+        content: "Hello",
+        historySequence: 1,
+      },
+      {
+        type: "assistant",
+        id: "assistant-1",
+        historyId: "assistant-1",
+        content: "Complete response",
+        historySequence: 2,
+        streamSequence: 0,
+        isStreaming: false,
+        isPartial: false,
+        isLastPartOfMessage: true,
+        isCompacted: false,
+      },
+    ];
+    expect(isEligibleForAutoRetry(messages)).toBe(false);
+  });
+
+  describe("non-retryable error types", () => {
+    it("returns false for authentication errors (requires user to fix API key)", () => {
+      const messages: DisplayedMessage[] = [
+        {
+          type: "user",
+          id: "user-1",
+          historyId: "user-1",
+          content: "Hello",
+          historySequence: 1,
+        },
+        {
+          type: "stream-error",
+          id: "error-1",
+          historyId: "assistant-1",
+          error: "Invalid API key",
+          errorType: "authentication",
+          historySequence: 2,
+        },
+      ];
+      expect(isEligibleForAutoRetry(messages)).toBe(false);
+    });
+
+    it("returns false for quota errors (requires user to upgrade/wait)", () => {
+      const messages: DisplayedMessage[] = [
+        {
+          type: "user",
+          id: "user-1",
+          historyId: "user-1",
+          content: "Hello",
+          historySequence: 1,
+        },
+        {
+          type: "stream-error",
+          id: "error-1",
+          historyId: "assistant-1",
+          error: "Usage quota exceeded",
+          errorType: "quota",
+          historySequence: 2,
+        },
+      ];
+      expect(isEligibleForAutoRetry(messages)).toBe(false);
+    });
+
+    it("returns false for model_not_found errors (requires user to select different model)", () => {
+      const messages: DisplayedMessage[] = [
+        {
+          type: "user",
+          id: "user-1",
+          historyId: "user-1",
+          content: "Hello",
+          historySequence: 1,
+        },
+        {
+          type: "stream-error",
+          id: "error-1",
+          historyId: "assistant-1",
+          error: "Model not found",
+          errorType: "model_not_found",
+          historySequence: 2,
+        },
+      ];
+      expect(isEligibleForAutoRetry(messages)).toBe(false);
+    });
+
+    it("returns false for context_exceeded errors (requires user to reduce context)", () => {
+      const messages: DisplayedMessage[] = [
+        {
+          type: "user",
+          id: "user-1",
+          historyId: "user-1",
+          content: "Hello",
+          historySequence: 1,
+        },
+        {
+          type: "stream-error",
+          id: "error-1",
+          historyId: "assistant-1",
+          error: "Context length exceeded",
+          errorType: "context_exceeded",
+          historySequence: 2,
+        },
+      ];
+      expect(isEligibleForAutoRetry(messages)).toBe(false);
+    });
+
+    it("returns false for aborted errors (user cancelled)", () => {
+      const messages: DisplayedMessage[] = [
+        {
+          type: "user",
+          id: "user-1",
+          historyId: "user-1",
+          content: "Hello",
+          historySequence: 1,
+        },
+        {
+          type: "stream-error",
+          id: "error-1",
+          historyId: "assistant-1",
+          error: "Request aborted",
+          errorType: "aborted",
+          historySequence: 2,
+        },
+      ];
+      expect(isEligibleForAutoRetry(messages)).toBe(false);
+    });
+  });
+
+  describe("retryable error types", () => {
+    it("returns true for network errors", () => {
+      const messages: DisplayedMessage[] = [
+        {
+          type: "user",
+          id: "user-1",
+          historyId: "user-1",
+          content: "Hello",
+          historySequence: 1,
+        },
+        {
+          type: "stream-error",
+          id: "error-1",
+          historyId: "assistant-1",
+          error: "Network connection failed",
+          errorType: "network",
+          historySequence: 2,
+        },
+      ];
+      expect(isEligibleForAutoRetry(messages)).toBe(true);
+    });
+
+    it("returns true for server errors", () => {
+      const messages: DisplayedMessage[] = [
+        {
+          type: "user",
+          id: "user-1",
+          historyId: "user-1",
+          content: "Hello",
+          historySequence: 1,
+        },
+        {
+          type: "stream-error",
+          id: "error-1",
+          historyId: "assistant-1",
+          error: "Internal server error",
+          errorType: "server_error",
+          historySequence: 2,
+        },
+      ];
+      expect(isEligibleForAutoRetry(messages)).toBe(true);
+    });
+
+    it("returns true for rate limit errors", () => {
+      const messages: DisplayedMessage[] = [
+        {
+          type: "user",
+          id: "user-1",
+          historyId: "user-1",
+          content: "Hello",
+          historySequence: 1,
+        },
+        {
+          type: "stream-error",
+          id: "error-1",
+          historyId: "assistant-1",
+          error: "Rate limit exceeded",
+          errorType: "rate_limit",
+          historySequence: 2,
+        },
+      ];
+      expect(isEligibleForAutoRetry(messages)).toBe(true);
+    });
+  });
+
+  describe("partial messages and user messages", () => {
+    it("returns true for partial assistant messages", () => {
+      const messages: DisplayedMessage[] = [
+        {
+          type: "user",
+          id: "user-1",
+          historyId: "user-1",
+          content: "Hello",
+          historySequence: 1,
+        },
+        {
+          type: "assistant",
+          id: "assistant-1",
+          historyId: "assistant-1",
+          content: "Incomplete response",
+          historySequence: 2,
+          streamSequence: 0,
+          isStreaming: false,
+          isPartial: true,
+          isLastPartOfMessage: true,
+          isCompacted: false,
+        },
+      ];
+      expect(isEligibleForAutoRetry(messages)).toBe(true);
+    });
+
+    it("returns true for trailing user messages (app restart scenario)", () => {
+      const messages: DisplayedMessage[] = [
+        {
+          type: "user",
+          id: "user-1",
+          historyId: "user-1",
+          content: "Hello",
+          historySequence: 1,
+        },
+        {
+          type: "assistant",
+          id: "assistant-1",
+          historyId: "assistant-1",
+          content: "Complete response",
+          historySequence: 2,
+          streamSequence: 0,
+          isStreaming: false,
+          isPartial: false,
+          isLastPartOfMessage: true,
+          isCompacted: false,
+        },
+        {
+          type: "user",
+          id: "user-2",
+          historyId: "user-2",
+          content: "Another question",
+          historySequence: 3,
+        },
+      ];
+      expect(isEligibleForAutoRetry(messages, null)).toBe(true);
+    });
+
+    it("returns false when user message sent very recently (< 3s)", () => {
+      const messages: DisplayedMessage[] = [
+        {
+          type: "user",
+          id: "user-1",
+          historyId: "user-1",
+          content: "Hello",
+          historySequence: 1,
+        },
+      ];
+      const justSent = Date.now() - 500; // 0.5s ago
+      expect(isEligibleForAutoRetry(messages, justSent)).toBe(false);
+    });
   });
 });
