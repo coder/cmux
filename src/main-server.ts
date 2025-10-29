@@ -1,6 +1,11 @@
 /**
  * HTTP/WebSocket Server for cmux
  * Allows accessing cmux backend from mobile devices
+ *
+ * Usage: node dist/main.js server [-h HOST] [-p PORT]
+ * Options:
+ *   -h HOST    Bind to specific host (default: 0.0.0.0)
+ *   -p PORT    Bind to specific port (default: 3000)
  */
 import { Config } from "./config";
 import { IPC_CHANNELS } from "@/constants/ipc-constants";
@@ -12,6 +17,22 @@ import * as http from "http";
 import * as path from "path";
 import type { RawData } from "ws";
 import { WebSocket, WebSocketServer } from "ws";
+
+// Parse command line arguments
+const args = process.argv.slice(3); // Skip node, script, and "server"
+let HOST = "0.0.0.0";
+let PORT = 3000;
+
+for (let i = 0; i < args.length; i++) {
+  const arg = args[i];
+  if (arg === "-h" && i + 1 < args.length) {
+    HOST = args[i + 1];
+    i++; // Skip next arg since we consumed it
+  } else if (arg === "-p" && i + 1 < args.length) {
+    PORT = parseInt(args[i + 1], 10);
+    i++;
+  }
+}
 
 // Mock Electron's ipcMain for HTTP
 class HttpIpcMainAdapter {
@@ -232,6 +253,6 @@ wss.on("connection", (ws) => {
   });
 });
 
-server.listen(3000, () => {
-  console.log("Server is running on port 3000");
+server.listen(PORT, HOST, () => {
+  console.log(`Server is running on http://${HOST}:${PORT}`);
 });
