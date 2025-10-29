@@ -201,6 +201,10 @@ This project uses **Make** as the primary build orchestrator. See `Makefile` for
 
 ## Testing
 
+### Storybook
+
+**Prefer full application stories over component-level stories** - Use `App.stories.tsx` to demonstrate features in realistic contexts rather than creating isolated component stories.
+
 ### Test-Driven Development (TDD)
 
 **TDD is the preferred development style for agents.**
