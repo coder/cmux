@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from "@storybook/react";
+import type { Meta, StoryObj } from "@storybook/react-vite";
 import { HistoryHiddenMessage } from "./HistoryHiddenMessage";
 import type { DisplayedMessage } from "@/types/message";
 

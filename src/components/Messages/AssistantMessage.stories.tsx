@@ -1,7 +1,7 @@
-import type { Meta, StoryObj } from "@storybook/react";
+import type { Meta, StoryObj } from "@storybook/react-vite";
 import { AssistantMessage } from "./AssistantMessage";
 import type { DisplayedMessage } from "@/types/message";
-import { action } from "@storybook/addon-actions";
+import { action } from "storybook/actions";
 
 // Stable timestamp for visual testing (Apple demo time: Jan 24, 2024, 9:41 AM PST)
 const STABLE_TIMESTAMP = new Date("2024-01-24T09:41:00-08:00").getTime();

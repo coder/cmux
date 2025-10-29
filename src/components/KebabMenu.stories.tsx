@@ -1,6 +1,6 @@
-import type { Meta, StoryObj } from "@storybook/react";
+import type { Meta, StoryObj } from "@storybook/react-vite";
 import { KebabMenu } from "./KebabMenu";
-import { action } from "@storybook/addon-actions";
+import { action } from "storybook/actions";
 
 const meta = {
   title: "Components/KebabMenu",

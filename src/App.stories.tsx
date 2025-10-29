@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from "@storybook/react";
+import type { Meta, StoryObj } from "@storybook/react-vite";
 import { useRef } from "react";
 import { AppLoader } from "./components/AppLoader";
 import type { ProjectConfig } from "./config";
