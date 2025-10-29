@@ -24,7 +24,6 @@ import { TooltipWrapper, Tooltip } from "../Tooltip";
 import { DiffContainer, DiffRenderer, SelectableDiffRenderer } from "../shared/DiffRenderer";
 import { KebabMenu, type KebabMenuItem } from "../KebabMenu";
 
-
 type FileEditOperationArgs =
   | FileEditReplaceStringToolArgs
   | FileEditReplaceLinesToolArgs
