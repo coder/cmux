@@ -1,10 +1,44 @@
 name: Terminal-Bench
 
 on:
-  schedule:
-    # Run full benchmark suite (~80 tasks) every night at midnight UTC
-    # Uses terminal-bench-core==0.1.1 which is the stable, full benchmark suite
-    - cron: '0 0 * * *'
+  workflow_call:
+    inputs:
+      model_name:
+        description: 'Model to use (e.g., anthropic:claude-sonnet-4-5)'
+        required: false
+        type: string
+      thinking_level:
+        description: 'Thinking level (off, low, medium, high)'
+        required: false
+        type: string
+      dataset:
+        description: 'Terminal-Bench dataset to use'
+        required: false
+        type: string
+        default: 'terminal-bench-core==0.1.1'
+      concurrency:
+        description: 'Number of concurrent tasks (--n-concurrent)'
+        required: false
+        type: string
+        default: '4'
+      livestream:
+        description: 'Enable livestream mode'
+        required: false
+        type: boolean
+        default: true
+      sample_size:
+        description: 'Number of random tasks to run (empty = all tasks)'
+        required: false
+        type: string
+      extra_args:
+        description: 'Additional arguments to pass to terminal-bench'
+        required: false
+        type: string
+    secrets:
+      ANTHROPIC_API_KEY:
+        required: true
+      OPENAI_API_KEY:
+        required: true
   workflow_dispatch:
     inputs:
       dataset:
@@ -26,6 +60,14 @@ on:
         description: 'Number of random tasks to run (empty = all tasks)'
         required: false
         type: string
+      model_name:
+        description: 'Model to use (e.g., anthropic:claude-sonnet-4-5, openai:gpt-5-codex)'
+        required: false
+        type: string
+      thinking_level:
+        description: 'Thinking level (off, low, medium, high)'
+        required: false
+        type: string
       extra_args:
         description: 'Additional arguments to pass to terminal-bench'
         required: false
@@ -33,17 +75,11 @@ on:
 
 jobs:
   benchmark:
-    name: Run Terminal-Bench (${{ matrix.model_name }})
+    name: Run Terminal-Bench${{ inputs.model_name && format(' ({0})', inputs.model_name) || '' }}
     runs-on: ${{ github.repository_owner == 'coder' && 'depot-ubuntu-22.04-16' || 'ubuntu-latest' }}
     # Full suite (~80 tasks) at concurrency=4 takes ~60-90 minutes
     # Allow 3 hours for safety margin and slower tasks
     timeout-minutes: 180
-    strategy:
-      # Run scheduled benchmarks for both models
-      matrix:
-        model_name: ${{ github.event_name == 'schedule' && fromJSON('["anthropic:claude-sonnet-4-5", "openai:gpt-5-codex"]') || fromJSON('[""]') }}
-        thinking_level: ${{ github.event_name == 'schedule' && fromJSON('["high"]') || fromJSON('[""]') }}
-      fail-fast: false
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -64,11 +100,11 @@ jobs:
       - name: Run Terminal-Bench
         run: make benchmark-terminal
         env:
-          TB_DATASET: ${{ inputs.dataset || 'terminal-bench-core==0.1.1' }}
-          TB_CONCURRENCY: ${{ inputs.concurrency || '4' }}
+          TB_DATASET: ${{ inputs.dataset }}
+          TB_CONCURRENCY: ${{ inputs.concurrency }}
           TB_LIVESTREAM: ${{ inputs.livestream && '1' || '' }}
-          TB_SAMPLE_SIZE: ${{ inputs.sample_size || '' }}
-          TB_ARGS: ${{ matrix.model_name && format('--agent-kwarg model_name={0} --agent-kwarg thinking_level={1} {2}', matrix.model_name, matrix.thinking_level, inputs.extra_args || '') || inputs.extra_args || '' }}
+          TB_SAMPLE_SIZE: ${{ inputs.sample_size }}
+          TB_ARGS: ${{ inputs.model_name && format('--agent-kwarg model_name={0} --agent-kwarg thinking_level={1} {2}', inputs.model_name, inputs.thinking_level, inputs.extra_args) || inputs.extra_args }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
 
@@ -76,7 +112,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: terminal-bench-results-${{ matrix.model_name && format('{0}-{1}', matrix.model_name, github.run_id) || github.run_id }}
+          name: terminal-bench-results-${{ inputs.model_name && format('{0}-{1}', inputs.model_name, github.run_id) || format('{0}', github.run_id) }}
           path: |
             runs/
           if-no-files-found: warn
