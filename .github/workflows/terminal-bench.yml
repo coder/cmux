@@ -1,6 +1,9 @@
 name: Terminal-Bench
 
 on:
+  schedule:
+    # Run full benchmark suite every night at midnight UTC
+    - cron: '0 0 * * *'
   workflow_dispatch:
     inputs:
       dataset:
@@ -31,7 +34,9 @@ jobs:
   benchmark:
     name: Run Terminal-Bench
     runs-on: ${{ github.repository_owner == 'coder' && 'depot-ubuntu-22.04-16' || 'ubuntu-latest' }}
-    timeout-minutes: 180 # 3 hours - terminal-bench can take a long time
+    # Full suite (~80 tasks) at concurrency=4 takes ~60-90 minutes
+    # Allow 3 hours for safety margin and slower tasks
+    timeout-minutes: 180
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -52,11 +57,11 @@ jobs:
       - name: Run Terminal-Bench
         run: make benchmark-terminal
         env:
-          TB_DATASET: ${{ inputs.dataset }}
-          TB_CONCURRENCY: ${{ inputs.concurrency }}
+          TB_DATASET: ${{ inputs.dataset || 'terminal-bench-core==0.1.1' }}
+          TB_CONCURRENCY: ${{ inputs.concurrency || '4' }}
           TB_LIVESTREAM: ${{ inputs.livestream && '1' || '' }}
-          TB_SAMPLE_SIZE: ${{ inputs.sample_size }}
-          TB_ARGS: ${{ inputs.extra_args }}
+          TB_SAMPLE_SIZE: ${{ inputs.sample_size || '' }}
+          TB_ARGS: ${{ inputs.extra_args || '' }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
 
@@ -64,8 +69,9 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: terminal-bench-results
+          name: terminal-bench-results-${{ github.run_id }}
           path: |
             runs/
           if-no-files-found: warn
+          retention-days: 30
 
