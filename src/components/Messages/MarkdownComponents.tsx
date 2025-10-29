@@ -6,6 +6,7 @@ import {
   mapToShikiLang,
   SHIKI_THEME,
 } from "@/utils/highlighting/shikiHighlighter";
+import { CopyButton } from "@/components/ui/CopyButton";
 
 interface CodeProps {
   node?: unknown;
@@ -38,11 +39,33 @@ interface CodeBlockProps {
 }
 
 /**
+ * Extract line contents from Shiki HTML output
+ * Shiki wraps code in <pre><code>...</code></pre> with <span class="line">...</span> per line
+ */
+function extractShikiLines(html: string): string[] {
+  const codeMatch = /<code[^>]*>(.*?)<\/code>/s.exec(html);
+  if (!codeMatch) return [];
+
+  return codeMatch[1].split("\n").map((chunk) => {
+    const start = chunk.indexOf('<span class="line">');
+    if (start === -1) return "";
+    
+    const contentStart = start + '<span class="line">'.length;
+    const end = chunk.lastIndexOf("</span>");
+    
+    return end > contentStart ? chunk.substring(contentStart, end) : "";
+  });
+}
+
+/**
  * CodeBlock component with async Shiki highlighting
- * Reuses shared highlighter instance from diff rendering
+ * Displays code with line numbers in a CSS grid
  */
 const CodeBlock: React.FC<CodeBlockProps> = ({ code, language }) => {
-  const [html, setHtml] = useState<string | null>(null);
+  const [highlightedLines, setHighlightedLines] = useState<string[] | null>(null);
+
+  // Split code into lines, removing trailing empty line
+  const plainLines = code.split("\n").filter((line, idx, arr) => idx < arr.length - 1 || line !== "");
 
   useEffect(() => {
     let cancelled = false;
@@ -52,41 +75,55 @@ const CodeBlock: React.FC<CodeBlockProps> = ({ code, language }) => {
         const highlighter = await getShikiHighlighter();
         const shikiLang = mapToShikiLang(language);
 
-        // codeToHtml lazy-loads languages automatically
-        const result = highlighter.codeToHtml(code, {
+        // Load language on-demand
+        const loadedLangs = highlighter.getLoadedLanguages();
+        if (!loadedLangs.includes(shikiLang)) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-argument
+          await highlighter.loadLanguage(shikiLang as any);
+        }
+
+        const html = highlighter.codeToHtml(code, {
           lang: shikiLang,
           theme: SHIKI_THEME,
         });
 
         if (!cancelled) {
-          setHtml(result);
+          const lines = extractShikiLines(html);
+          // Remove trailing empty line if present
+          const filteredLines = lines.filter((line, idx, arr) => idx < arr.length - 1 || line.trim() !== "");
+          setHighlightedLines(filteredLines.length > 0 ? filteredLines : null);
         }
       } catch (error) {
         console.warn(`Failed to highlight code block (${language}):`, error);
-        if (!cancelled) {
-          setHtml(null);
-        }
+        if (!cancelled) setHighlightedLines(null);
       }
     }
 
     void highlight();
-
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, [code, language]);
 
-  // Show loading state or fall back to plain code
-  if (html === null) {
-    return (
-      <pre>
-        <code>{code}</code>
-      </pre>
-    );
-  }
+  const lines = highlightedLines || plainLines;
 
-  // Render highlighted HTML
-  return <div dangerouslySetInnerHTML={{ __html: html }} />;
+  return (
+    <div className="code-block-wrapper">
+      <div className="code-block-container">
+        {lines.map((content, idx) => (
+          <React.Fragment key={idx}>
+            <div className="line-number">{idx + 1}</div>
+            <div 
+              className="code-line" 
+              {...(highlightedLines 
+                ? { dangerouslySetInnerHTML: { __html: content } }
+                : { children: <code>{content}</code> }
+              )}
+            />
+          </React.Fragment>
+        ))}
+      </div>
+      <CopyButton text={code} className="code-copy-button" />
+    </div>
+  );
 };
 
 // Custom components for markdown rendering
