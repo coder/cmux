@@ -614,5 +614,67 @@ describeIntegration("Workspace deletion integration tests", () => {
       },
       TEST_TIMEOUT_SSH_MS
     );
+
+    test.concurrent(
+      "should include commit list in error for unpushed refs",
+      async () => {
+        const env = await createTestEnvironment();
+        const tempGitRepo = await createTempGitRepo();
+
+        try {
+          const branchName = generateBranchName("delete-unpushed-details");
+          const runtimeConfig = getRuntimeConfig(branchName);
+          const { workspaceId } = await createWorkspaceWithInit(
+            env,
+            tempGitRepo,
+            branchName,
+            runtimeConfig,
+            true, // waitForInit
+            true // isSSH
+          );
+
+          // Configure git for committing (SSH environment needs this)
+          await executeBash(env, workspaceId, 'git config user.email "test@example.com"');
+          await executeBash(env, workspaceId, 'git config user.name "Test User"');
+
+          // Add a fake remote (needed for unpushed check to work)
+          await executeBash(
+            env,
+            workspaceId,
+            "git remote add origin https://github.com/fake/repo.git"
+          );
+
+          // Create multiple commits with descriptive messages
+          await executeBash(env, workspaceId, 'echo "1" > file1.txt');
+          await executeBash(env, workspaceId, "git add file1.txt");
+          await executeBash(env, workspaceId, 'git commit -m "First commit"');
+
+          await executeBash(env, workspaceId, 'echo "2" > file2.txt');
+          await executeBash(env, workspaceId, "git add file2.txt");
+          await executeBash(env, workspaceId, 'git commit -m "Second commit"');
+
+          // Attempt to delete
+          const deleteResult = await env.mockIpcRenderer.invoke(
+            IPC_CHANNELS.WORKSPACE_REMOVE,
+            workspaceId
+          );
+
+          // Should fail with error containing commit details
+          expect(deleteResult.success).toBe(false);
+          expect(deleteResult.error).toContain("unpushed commits:");
+          expect(deleteResult.error).toContain("First commit");
+          expect(deleteResult.error).toContain("Second commit");
+
+          // Cleanup: force delete for cleanup
+          await env.mockIpcRenderer.invoke(IPC_CHANNELS.WORKSPACE_REMOVE, workspaceId, {
+            force: true,
+          });
+        } finally {
+          await cleanupTestEnvironment(env);
+          await cleanupTempGitRepo(tempGitRepo);
+        }
+      },
+      TEST_TIMEOUT_SSH_MS
+    );
   });
 });
