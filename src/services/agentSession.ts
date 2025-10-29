@@ -180,11 +180,17 @@ export class AgentSession {
     if (existing.success) {
       // Metadata already exists, verify workspace path matches
       const metadata = existing.data;
-      // Directory name uses workspace name (not stable ID)
-      const runtime = createRuntime(
-        metadata.runtimeConfig ?? { type: "local", srcBaseDir: this.config.srcDir }
-      );
-      const expectedPath = runtime.getWorkspacePath(metadata.projectPath, metadata.name);
+      // For in-place workspaces (projectPath === name), use path directly
+      // Otherwise reconstruct using runtime's worktree pattern
+      const isInPlace = metadata.projectPath === metadata.name;
+      const expectedPath = isInPlace
+        ? metadata.projectPath
+        : (() => {
+            const runtime = createRuntime(
+              metadata.runtimeConfig ?? { type: "local", srcBaseDir: this.config.srcDir }
+            );
+            return runtime.getWorkspacePath(metadata.projectPath, metadata.name);
+          })();
       assert(
         expectedPath === normalizedWorkspacePath,
         `Existing metadata workspace path mismatch for ${this.workspaceId}: expected ${expectedPath}, got ${normalizedWorkspacePath}`
@@ -192,16 +198,34 @@ export class AgentSession {
       return;
     }
 
-    // Derive project path from workspace path (parent directory)
-    const derivedProjectPath = path.dirname(normalizedWorkspacePath);
+    // Detect in-place workspace: if workspacePath is not under srcBaseDir,
+    // it's a direct workspace (e.g., for CLI/benchmarks) rather than a worktree
+    const srcBaseDir = this.config.srcDir;
+    const normalizedSrcBaseDir = path.resolve(srcBaseDir);
+    const isUnderSrcBaseDir = normalizedWorkspacePath.startsWith(normalizedSrcBaseDir + path.sep);
 
-    const derivedProjectName =
-      projectName && projectName.trim().length > 0
-        ? projectName.trim()
-        : path.basename(derivedProjectPath) || "unknown";
+    let derivedProjectPath: string;
+    let workspaceName: string;
+    let derivedProjectName: string;
 
-    // Extract name from workspace path (last component)
-    const workspaceName = path.basename(normalizedWorkspacePath);
+    if (isUnderSrcBaseDir) {
+      // Standard worktree mode: workspace is under ~/.cmux/src/project/branch
+      derivedProjectPath = path.dirname(normalizedWorkspacePath);
+      workspaceName = path.basename(normalizedWorkspacePath);
+      derivedProjectName =
+        projectName && projectName.trim().length > 0
+          ? projectName.trim()
+          : path.basename(derivedProjectPath) || "unknown";
+    } else {
+      // In-place mode: workspace is a standalone directory
+      // Store the workspace path directly by setting projectPath === name
+      derivedProjectPath = normalizedWorkspacePath;
+      workspaceName = normalizedWorkspacePath;
+      derivedProjectName =
+        projectName && projectName.trim().length > 0
+          ? projectName.trim()
+          : path.basename(normalizedWorkspacePath) || "unknown";
+    }
 
     const metadata: WorkspaceMetadata = {
       id: this.workspaceId,

@@ -519,11 +519,16 @@ export class AIService extends EventEmitter {
         return Err({ type: "unknown", raw: `Workspace ${workspaceId} not found in config` });
       }
 
-      // Get workspace path (directory name uses workspace name)
+      // Get workspace path - handle both worktree and in-place modes
       const runtime = createRuntime(
         metadata.runtimeConfig ?? { type: "local", srcBaseDir: this.config.srcDir }
       );
-      const workspacePath = runtime.getWorkspacePath(metadata.projectPath, metadata.name);
+      // In-place workspaces (CLI/benchmarks) have projectPath === name
+      // Use path directly instead of reconstructing via getWorkspacePath
+      const isInPlace = metadata.projectPath === metadata.name;
+      const workspacePath = isInPlace
+        ? metadata.projectPath
+        : runtime.getWorkspacePath(metadata.projectPath, metadata.name);
 
       // Build system message from workspace metadata
       const systemMessage = await buildSystemMessage(
