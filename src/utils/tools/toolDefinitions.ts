@@ -144,26 +144,20 @@ export const TOOL_DEFINITIONS = {
   todo_write: {
     description:
       "Create or update the todo list for tracking multi-step tasks (limit: 7 items). " +
-      "Use this for ALL complex, multi-step plans to keep the user informed of progress. " +
-      "Replace the entire list on each call - the AI should track which tasks are completed. " +
-      "\n\n" +
-      "Structure the list with high precision at the center:\n" +
-      "- Old completed work: Summarize into 1 overview item (e.g., 'Set up project infrastructure (4 tasks)')\n" +
-      "- Recent completions: Keep detailed (last 1-2 items)\n" +
-      "- Current work: One in_progress item with clear description\n" +
-      "- Immediate next steps: Detailed pending items (next 2-3 actions)\n" +
-      "- Far future work: Summarize into phase items (e.g., 'Testing and polish (3 items)')\n" +
+      "The TODO list is displayed to the user at all times. " +
+      "Replace the entire list on each call - the AI tracks which tasks are completed.\n" +
       "\n" +
-      "Update frequently as work progresses. As tasks complete, older completions should be " +
-      "condensed to make room. Similarly, summarized future work expands into detailed items " +
-      "as it becomes immediate. " +
-      "\n\n" +
       "Mark ONE task as in_progress at a time. " +
       "Order tasks as: completed first, then in_progress (max 1), then pending last. " +
-      "Before finishing your response, ensure all todos are marked as completed. " +
       "Use appropriate tense in content: past tense for completed (e.g., 'Added tests'), " +
       "present progressive for in_progress (e.g., 'Adding tests'), " +
-      "and imperative/infinitive for pending (e.g., 'Add tests').",
+      "and imperative/infinitive for pending (e.g., 'Add tests').\n" +
+      "\n" +
+      "If you hit the 7-item limit, summarize older completed items into one line " +
+      "(e.g., 'Completed initial setup (3 tasks)').\n" +
+      "\n" +
+      "Update the list as work progresses. If work fails or the approach changes, update " +
+      "the list to reflect reality - only mark tasks complete when they actually succeed.",
     schema: z.object({
       todos: z.array(
         z.object({
@@ -189,7 +183,7 @@ export const TOOL_DEFINITIONS = {
       "WHEN TO SET STATUS:\n" +
       "- Set status when beginning concrete work (file edits, running tests, executing commands)\n" +
       "- Update status as work progresses through distinct phases\n" +
-      "- Set a final status before completing that reflects the outcome\n" +
+      "- Set a final status after completion, only claim success when certain (e.g., after confirming checks passed)\n" +
       "- DO NOT set status during initial exploration, file reading, or planning phases\n" +
       "\n" +
       "The status is cleared when a new user message comes in. Validate your approach is feasible \n" +
