@@ -536,10 +536,6 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
       30000
     );
 
-
-
-
-
     test.concurrent("should return error when model is not provided", async () => {
       const { env, workspaceId, cleanup } = await setupWorkspace(provider);
       try {
@@ -575,8 +571,6 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
         await cleanup();
       }
     });
-
-
   });
 
   // Matrix tests - test across both providers for features that may have provider-specific behavior
@@ -949,10 +943,15 @@ These are general instructions that apply to all modes.
         const { env, workspaceId, cleanup } = await setupWorkspace(provider);
         try {
           // Send message with image attachment
-          const result = await sendMessage(env.mockIpcRenderer, workspaceId, "What color is this?", {
-            model: modelString(provider, model),
-            imageParts: [{ url: TEST_IMAGES.RED_PIXEL, mediaType: "image/png" }],
-          });
+          const result = await sendMessage(
+            env.mockIpcRenderer,
+            workspaceId,
+            "What color is this?",
+            {
+              model: modelString(provider, model),
+              imageParts: [{ url: TEST_IMAGES.RED_PIXEL, mediaType: "image/png" }],
+            }
+          );
 
           expect(result.success).toBe(true);
 
@@ -1019,8 +1018,6 @@ These are general instructions that apply to all modes.
       40000
     );
   });
-
-
 
   // Error handling tests for API key issues
   describe("API key error handling", () => {
@@ -1100,7 +1097,6 @@ These are general instructions that apply to all modes.
   });
 
   // Token limit error handling tests - using single provider to reduce test time (expensive test)
-
 
   // Tool policy tests - using single provider (tool policy is implemented in our code, not provider-specific)
   describe("tool policy", () => {
@@ -1223,7 +1219,6 @@ These are general instructions that apply to all modes.
   });
 
   // Additional system instructions tests - using single provider
-
 
   // OpenAI auto truncation integration test
   // This test verifies that the truncation: "auto" parameter works correctly
@@ -1462,4 +1457,3 @@ These are general instructions that apply to all modes.
 });
 
 // Test image support - using single provider (image handling is SDK-level, not provider-specific)
-
