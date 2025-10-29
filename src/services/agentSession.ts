@@ -360,19 +360,25 @@ export class AgentSession {
       await loadTokenizerForModel(modelString);
     } catch (error) {
       const reason = error instanceof Error ? error.message : String(error);
-      return Err(
-        createUnknownSendMessageError(`Failed to preload tokenizer for ${modelString}: ${reason}`)
+      const sendError = createUnknownSendMessageError(
+        `Failed to preload tokenizer for ${modelString}: ${reason}`
       );
+      this.emitSendMessageError(sendError);
+      return Err(sendError);
     }
 
     const commitResult = await this.partialService.commitToHistory(this.workspaceId);
     if (!commitResult.success) {
-      return Err(createUnknownSendMessageError(commitResult.error));
+      const sendError = createUnknownSendMessageError(commitResult.error);
+      this.emitSendMessageError(sendError);
+      return Err(sendError);
     }
 
     const historyResult = await this.historyService.getHistory(this.workspaceId);
     if (!historyResult.success) {
-      return Err(createUnknownSendMessageError(historyResult.error));
+      const sendError = createUnknownSendMessageError(historyResult.error);
+      this.emitSendMessageError(sendError);
+      return Err(sendError);
     }
 
     // Enforce thinking policy for the specified model (single source of truth)
@@ -394,7 +400,49 @@ export class AgentSession {
       options?.mode
     );
 
+    // If streamMessage returns a SendMessageError (pre-stream validation failure),
+    // emit it as a stream-error event so it's visible in the UI
+    if (!streamResult.success) {
+      this.emitSendMessageError(streamResult.error);
+    }
+
     return streamResult;
+  }
+
+  /**
+   * Convert SendMessageError to StreamErrorMessage and emit it
+   * This ensures validation errors are visible in the chat UI and persist across reloads
+   */
+  private emitSendMessageError(error: SendMessageError): void {
+    let errorMessage: string;
+    let errorType: StreamErrorMessage["errorType"];
+
+    switch (error.type) {
+      case "api_key_not_found":
+        errorMessage = `API key not found for ${error.provider}. Please configure your API key.`;
+        errorType = "authentication";
+        break;
+      case "provider_not_supported":
+        errorMessage = `Provider ${error.provider} is not supported.`;
+        errorType = "unknown";
+        break;
+      case "invalid_model_string":
+        errorMessage = error.message;
+        errorType = "unknown";
+        break;
+      case "unknown":
+        errorMessage = error.raw;
+        errorType = "unknown";
+        break;
+    }
+
+    const streamError: StreamErrorMessage = {
+      type: "stream-error",
+      messageId: `error-${Date.now()}`,
+      error: errorMessage,
+      errorType,
+    };
+    this.emitChatEvent(streamError);
   }
 
   private attachAiListeners(): void {
