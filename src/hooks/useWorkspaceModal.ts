@@ -1,8 +1,8 @@
 import { useState, useCallback, useRef } from "react";
 import type { RuntimeConfig } from "@/types/runtime";
-import { CUSTOM_EVENTS } from "@/constants/events";
 import { getRuntimeKey } from "@/constants/storage";
 import { parseRuntimeString } from "@/utils/chatCommands";
+import type { WorkspaceSelection } from "@/components/ProjectSidebar";
 
 interface WorkspaceModalState {
   isOpen: boolean;
@@ -32,8 +32,8 @@ interface UseWorkspaceModalOptions {
     branchName: string,
     trunkBranch: string,
     runtimeConfig?: RuntimeConfig
-  ) => Promise<any>;
-  setSelectedWorkspace: (workspace: any) => void;
+  ) => Promise<WorkspaceSelection>;
+  setSelectedWorkspace: (workspace: WorkspaceSelection) => void;
   telemetry: {
     workspaceCreated: (workspaceId: string) => void;
   };

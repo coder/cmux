@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useEffect, useCallback, useRef } from "react";
 import "./styles/globals.css";
 import { useApp } from "./contexts/AppContext";
 import type { WorkspaceSelection } from "./components/ProjectSidebar";
@@ -22,10 +22,9 @@ import { CommandPalette } from "./components/CommandPalette";
 import { buildCoreSources, type BuildSourcesParams } from "./utils/commands/sources";
 
 import type { ThinkingLevel } from "./types/thinking";
-import type { RuntimeConfig } from "./types/runtime";
 import { CUSTOM_EVENTS } from "./constants/events";
 import { isWorkspaceForkSwitchEvent } from "./utils/workspaceFork";
-import { getThinkingLevelKey, getRuntimeKey } from "./constants/storage";
+import { getThinkingLevelKey } from "./constants/storage";
 import type { BranchListResult } from "./types/ipc";
 import { useTelemetry } from "./hooks/useTelemetry";
 import { useWorkspaceModal } from "./hooks/useWorkspaceModal";
@@ -321,13 +320,13 @@ function AppInner() {
     }
   }, []);
 
-  const registerParamsRef = useRef<BuildSourcesParams | null>(null);
+  const registerParamsRef = useRef<BuildSourcesParams>({} as BuildSourcesParams);
 
   const openNewWorkspaceFromPalette = useCallback(
     (projectPath: string) => {
       void workspaceModal.openModal(projectPath);
     },
-    [workspaceModal.openModal]
+    [workspaceModal]
   );
 
   const getBranchesForProject = useCallback(
@@ -410,8 +409,7 @@ function AppInner() {
 
   useEffect(() => {
     const unregister = registerSource(() => {
-      const params = registerParamsRef.current;
-      if (!params) return [];
+      const params: BuildSourcesParams = registerParamsRef.current;
 
       // Compute streaming models here (only when command palette opens)
       const allStates = workspaceStore.getAllStates();
@@ -533,16 +531,16 @@ function AppInner() {
         CUSTOM_EVENTS.OPEN_NEW_WORKSPACE_MODAL,
         handleOpenNewWorkspaceModal as EventListener
       );
-  }, [workspaceModal.openModal]);
+  }, [workspaceModal]);
 
   return (
     <>
       <div className="bg-bg-dark flex h-screen overflow-hidden [@media(max-width:768px)]:flex-col">
         <LeftSidebar
           onSelectWorkspace={handleWorkspaceSwitch}
-          onAddProject={addProject}
-          onAddWorkspace={workspaceModal.openModal}
-          onRemoveProject={handleRemoveProject}
+          onAddProject={() => void addProject()}
+          onAddWorkspace={(path) => void workspaceModal.openModal(path)}
+          onRemoveProject={(path) => void handleRemoveProject(path)}
           lastReadTimestamps={lastReadTimestamps}
           onToggleUnread={onToggleUnread}
           collapsed={sidebarCollapsed}

@@ -270,7 +270,7 @@ const NewWorkspaceModal: React.FC<NewWorkspaceModalProps> = ({
         )}
 
         {initialStartMessage && (
-          <div className="[&_label]:text-foreground [&_textarea]:bg-modal-bg [&_textarea]:border-border-medium [&_textarea]:focus:border-accent mb-5 [&_label]:mb-2 [&_label]:block [&_label]:text-sm [&_textarea]:w-full [&_textarea]:rounded [&_textarea]:border [&_textarea]:px-3 [&_textarea]:py-2 [&_textarea]:text-sm [&_textarea]:text-white [&_textarea]:focus:outline-none [&_textarea]:disabled:cursor-not-allowed [&_textarea]:disabled:opacity-60 [&_textarea]:resize-y [&_textarea]:min-h-[80px]">
+          <div className="[&_label]:text-foreground [&_textarea]:bg-modal-bg [&_textarea]:border-border-medium [&_textarea]:focus:border-accent mb-5 [&_label]:mb-2 [&_label]:block [&_label]:text-sm [&_textarea]:min-h-[80px] [&_textarea]:w-full [&_textarea]:resize-y [&_textarea]:rounded [&_textarea]:border [&_textarea]:px-3 [&_textarea]:py-2 [&_textarea]:text-sm [&_textarea]:text-white [&_textarea]:focus:outline-none [&_textarea]:disabled:cursor-not-allowed [&_textarea]:disabled:opacity-60">
             <label htmlFor="startMessage">Start Message (optional):</label>
             <textarea
               id="startMessage"
