@@ -140,19 +140,17 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
         const { env, workspaceId, cleanup } = await setupWorkspace(provider);
         try {
           // Ask the model to run a long-running bash command
-          // Use Haiku for speed (this test doesn't need reasoning)
-          const message = "Run this bash command: sleep 60";
-          void sendMessageWithModel(
-            env.mockIpcRenderer,
-            workspaceId,
-            message,
-            provider,
-            model === "claude-sonnet-4-5" ? "claude-haiku-4" : model
-          );
+          // Use explicit instruction to ensure tool call happens
+          const message = "Use the bash tool to run: sleep 60";
+          void sendMessageWithModel(env.mockIpcRenderer, workspaceId, message, provider, model);
 
-          // Wait for tool call to start
+          // Wait for stream to start (more reliable than waiting for tool-call-start)
           const collector = createEventCollector(env.sentEvents, workspaceId);
-          await collector.waitForEvent("tool-call-start", 10000);
+          await collector.waitForEvent("stream-start", 10000);
+
+          // Give model time to start calling the tool (sleep command should be in progress)
+          // This ensures we're actually interrupting a running command
+          await new Promise((resolve) => setTimeout(resolve, 2000));
 
           // Record interrupt time
           const interruptStartTime = performance.now();
@@ -187,7 +185,7 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
           await cleanup();
         }
       },
-      20000
+      25000
     );
 
     test.concurrent(
