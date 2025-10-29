@@ -30,6 +30,7 @@ export type ParsedCommand =
       runtime?: string;
       startMessage?: string;
     }
+  | { type: "vim-toggle" }
   | { type: "unknown-command"; command: string; subcommand?: string }
   | null;
 

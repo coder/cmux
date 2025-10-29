@@ -10,7 +10,7 @@ import { useMode } from "@/contexts/ModeContext";
 import { ThinkingSliderComponent } from "./ThinkingSlider";
 import { Context1MCheckbox } from "./Context1MCheckbox";
 import { useSendMessageOptions } from "@/hooks/useSendMessageOptions";
-import { getModelKey, getInputKey } from "@/constants/storage";
+import { getModelKey, getInputKey, VIM_ENABLED_KEY } from "@/constants/storage";
 import {
   handleNewCommand,
   handleCompactCommand,
@@ -95,6 +95,9 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   const { recentModels, addModel } = useModelLRU();
   const commandListId = useId();
   const telemetry = useTelemetry();
+  const [vimEnabled, setVimEnabled] = usePersistedState<boolean>(VIM_ENABLED_KEY, false, {
+    listener: true,
+  });
 
   // Get current send message options from shared hook (must be at component top level)
   const sendMessageOptions = useSendMessageOptions(workspaceId);
@@ -423,6 +426,13 @@ export const ChatInput: React.FC<ChatInputProps> = ({
           return;
         }
 
+        // Handle /vim command
+        if (parsed.type === "vim-toggle") {
+          setInput(""); // Clear input immediately
+          setVimEnabled((prev) => !prev);
+          return;
+        }
+
         // Handle /telemetry command
         if (parsed.type === "telemetry-set") {
           setInput(""); // Clear input immediately
@@ -706,6 +716,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     }
     hints.push(`${formatKeybind(KEYBINDS.SEND_MESSAGE)} to send`);
     hints.push(`${formatKeybind(KEYBINDS.OPEN_MODEL_SELECTOR)} to change model`);
+    hints.push(`/vim to toggle Vim mode (${vimEnabled ? "on" : "off"})`);
 
     return `Type a message... (${hints.join(", ")})`;
   })();

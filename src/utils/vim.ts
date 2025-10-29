@@ -810,6 +810,33 @@ function tryHandleEdit(state: VimState, key: string): VimKeyResult | null {
         desiredColumn: null,
       });
     }
+
+    case "s": {
+      if (cursor >= text.length) return null;
+      const result = deleteCharUnderCursor(text, cursor, yankBuffer);
+      return handleKey(state, {
+        text: result.text,
+        cursor: result.cursor,
+        yankBuffer: result.yankBuffer,
+        mode: "insert",
+        desiredColumn: null,
+        pendingOp: null,
+      });
+    }
+
+    case "~": {
+      if (cursor >= text.length) return null;
+      const char = text[cursor];
+      const toggled = char === char.toUpperCase() ? char.toLowerCase() : char.toUpperCase();
+      const newText = text.slice(0, cursor) + toggled + text.slice(cursor + 1);
+      const newCursor = Math.min(cursor + 1, Math.max(0, newText.length - 1));
+      return handleKey(state, {
+        text: newText,
+        cursor: newCursor,
+        desiredColumn: null,
+        pendingOp: null,
+      });
+    }
   }
 
   return null;

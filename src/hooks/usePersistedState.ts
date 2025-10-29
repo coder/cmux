@@ -33,25 +33,37 @@ export function readPersistedState<T>(key: string, defaultValue: T): T {
  * This is useful when you need to update state from a different component/context
  * that doesn't have access to the setter (e.g., command palette updating workspace state).
  *
+ * Supports functional updates to avoid races when toggling values.
+ *
  * @param key - The same localStorage key used in usePersistedState
- * @param value - The new value to set
+ * @param value - The new value to set, or a functional updater
+ * @param defaultValue - Optional default value when reading existing state for functional updates
  */
-export function updatePersistedState<T>(key: string, value: T): void {
+export function updatePersistedState<T>(
+  key: string,
+  value: T | ((prev: T) => T),
+  defaultValue?: T
+): void {
   if (typeof window === "undefined" || !window.localStorage) {
     return;
   }
 
   try {
-    if (value === undefined || value === null) {
+    const newValue: T | null | undefined =
+      typeof value === "function"
+        ? (value as (prev: T) => T)(readPersistedState(key, defaultValue as T))
+        : value;
+
+    if (newValue === undefined || newValue === null) {
       window.localStorage.removeItem(key);
     } else {
-      window.localStorage.setItem(key, JSON.stringify(value));
+      window.localStorage.setItem(key, JSON.stringify(newValue));
     }
 
     // Dispatch custom event for same-tab synchronization
     // No origin since this is an external update - all listeners should receive it
     const customEvent = new CustomEvent(getStorageChangeEvent(key), {
-      detail: { key, newValue: value },
+      detail: { key, newValue },
     });
     window.dispatchEvent(customEvent);
   } catch (error) {
