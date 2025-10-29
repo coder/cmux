@@ -377,5 +377,4 @@ describe("file_edit_insert tool", () => {
     // Should respect the trailing newline in content
     expect(updatedContent).toBe("line1\nINSERTED1\nINSERTED2\nline2");
   });
-
 });
