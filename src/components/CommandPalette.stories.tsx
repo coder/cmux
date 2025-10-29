@@ -12,7 +12,7 @@ const mockCommands: CommandAction[] = [
     id: "workspace.create",
     title: "Create New Workspace",
     subtitle: "Start a new workspace in this project",
-    section: "Workspace",
+    section: "Workspaces",
     keywords: ["new", "add", "workspace"],
     shortcutHint: "⌘N",
     run: () => action("command-executed")("workspace.create"),
@@ -21,7 +21,7 @@ const mockCommands: CommandAction[] = [
     id: "workspace.switch",
     title: "Switch Workspace",
     subtitle: "Navigate to a different workspace",
-    section: "Workspace",
+    section: "Workspaces",
     keywords: ["change", "go to", "workspace"],
     shortcutHint: "⌘P",
     run: () => action("command-executed")("workspace.switch"),
@@ -30,7 +30,7 @@ const mockCommands: CommandAction[] = [
     id: "workspace.delete",
     title: "Delete Workspace",
     subtitle: "Remove the current workspace",
-    section: "Workspace",
+    section: "Workspaces",
     keywords: ["remove", "delete", "workspace"],
     run: () => action("command-executed")("workspace.delete"),
   },
@@ -185,15 +185,14 @@ export const Default: Story = {
         <br />
         <strong>Features:</strong>
         <br />
-        • Type to filter commands by title, subtitle, or keywords
+        • By default, shows workspace switching commands
+        <br />• Type <kbd>&gt;</kbd> to see all commands across all sections
+        <br />• Type <kbd>/</kbd> to see slash commands for chat input
         <br />
-        • Use ↑↓ arrow keys to navigate
-        <br />
-        • Press Enter to execute a command
+        • Use ↑↓ arrow keys to navigate, Enter to execute
         <br />
         • Press Escape to close
-        <br />• Start with <kbd>/</kbd> to see slash commands
-        <br />• Commands are organized into sections (Workspace, Chat, Mode, Settings, Project,
+        <br />• Commands are organized into sections (Workspaces, Chat, Mode, Settings, Project,
         Help)
       </div>
       <PaletteDemo />

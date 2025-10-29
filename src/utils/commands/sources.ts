@@ -44,13 +44,26 @@ export interface BuildSourcesParams {
 
 const THINKING_LEVELS: ThinkingLevel[] = ["off", "low", "medium", "high"];
 
+/**
+ * Command palette section names
+ * Exported for use in filtering and command organization
+ */
+export const COMMAND_SECTIONS = {
+  WORKSPACES: "Workspaces",
+  NAVIGATION: "Navigation",
+  CHAT: "Chat",
+  MODE: "Modes & Model",
+  HELP: "Help",
+  PROJECTS: "Projects",
+} as const;
+
 const section = {
-  workspaces: "Workspaces",
-  navigation: "Navigation",
-  chat: "Chat",
-  mode: "Modes & Model",
-  help: "Help",
-  projects: "Projects",
+  workspaces: COMMAND_SECTIONS.WORKSPACES,
+  navigation: COMMAND_SECTIONS.NAVIGATION,
+  chat: COMMAND_SECTIONS.CHAT,
+  mode: COMMAND_SECTIONS.MODE,
+  help: COMMAND_SECTIONS.HELP,
+  projects: COMMAND_SECTIONS.PROJECTS,
 };
 
 export function buildCoreSources(p: BuildSourcesParams): Array<() => CommandAction[]> {
