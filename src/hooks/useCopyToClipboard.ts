@@ -1,17 +1,17 @@
 import { useState, useCallback } from "react";
 import { COPY_FEEDBACK_DURATION_MS } from "@/constants/ui";
+import { copyToClipboard as copyToClipboardUtil } from "@/utils/clipboard";
 
 /**
  * Hook for copy-to-clipboard functionality with temporary "copied" feedback state.
  *
- * @param clipboardWriteText - Optional custom clipboard write function (defaults to navigator.clipboard.writeText)
+ * @param clipboardWriteText - Optional custom clipboard write function (defaults to copyToClipboard utility)
  * @returns Object with:
  *   - copied: boolean indicating if content was just copied (resets after COPY_FEEDBACK_DURATION_MS)
  *   - copyToClipboard: async function to copy text and trigger feedback
  */
 export function useCopyToClipboard(
-  clipboardWriteText: (text: string) => Promise<void> = (text: string) =>
-    navigator.clipboard.writeText(text)
+  clipboardWriteText: (text: string) => Promise<void> = copyToClipboardUtil
 ) {
   const [copied, setCopied] = useState(false);
 

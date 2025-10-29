@@ -6,6 +6,7 @@ import { TerminalOutput } from "./TerminalOutput";
 import { formatKeybind, KEYBINDS } from "@/utils/ui/keybinds";
 import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
 import type { KebabMenuItem } from "@/components/KebabMenu";
+import { copyToClipboard } from "@/utils/clipboard";
 
 interface UserMessageProps {
   message: DisplayedMessage & { type: "user" };
@@ -15,21 +16,12 @@ interface UserMessageProps {
   clipboardWriteText?: (data: string) => Promise<void>;
 }
 
-async function defaultClipboardWriteText(data: string): Promise<void> {
-  if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
-    await navigator.clipboard.writeText(data);
-    return;
-  }
-
-  console.warn("Clipboard API is not available; skipping copy action.");
-}
-
 export const UserMessage: React.FC<UserMessageProps> = ({
   message,
   className,
   onEdit,
   isCompacting,
-  clipboardWriteText = defaultClipboardWriteText,
+  clipboardWriteText = copyToClipboard,
 }) => {
   const content = message.content;
 
