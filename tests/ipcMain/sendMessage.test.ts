@@ -134,6 +134,65 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
     );
 
     test.concurrent(
+      "should interrupt stream with pending bash tool call near-instantly",
+      async () => {
+        // Setup test environment
+        const { env, workspaceId, cleanup } = await setupWorkspace(provider);
+        try {
+          // Ask the model to run a long-running bash command
+          // Use Haiku for speed (this test doesn't need reasoning)
+          const message = "Run this bash command: sleep 60";
+          void sendMessageWithModel(
+            env.mockIpcRenderer,
+            workspaceId,
+            message,
+            provider,
+            model === "claude-sonnet-4-5" ? "claude-haiku-4" : model
+          );
+
+          // Wait for tool call to start
+          const collector = createEventCollector(env.sentEvents, workspaceId);
+          await collector.waitForEvent("tool-call-start", 10000);
+
+          // Record interrupt time
+          const interruptStartTime = performance.now();
+
+          // Interrupt the stream
+          const interruptResult = await env.mockIpcRenderer.invoke(
+            IPC_CHANNELS.WORKSPACE_INTERRUPT_STREAM,
+            workspaceId
+          );
+
+          const interruptDuration = performance.now() - interruptStartTime;
+
+          // Should succeed
+          expect(interruptResult.success).toBe(true);
+
+          // Interrupt should complete near-instantly (< 2 seconds)
+          // This validates that we don't wait for the sleep 60 command to finish
+          expect(interruptDuration).toBeLessThan(2000);
+
+          // Wait for abort event
+          const abortOrEndReceived = await waitFor(() => {
+            collector.collect();
+            const hasAbort = collector
+              .getEvents()
+              .some((e) => "type" in e && e.type === "stream-abort");
+            const hasEnd = collector.hasStreamEnd();
+            return hasAbort || hasEnd;
+          }, 5000);
+
+          expect(abortOrEndReceived).toBe(true);
+        } finally {
+          await cleanup();
+        }
+      },
+      20000
+    );
+
+
+
+    test.concurrent(
       "should include tokens and timestamp in delta events",
       async () => {
         // Setup test environment
