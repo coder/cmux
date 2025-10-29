@@ -1,7 +1,7 @@
 /**
  * Custom Event Constants & Types
  * These are window-level custom events used for cross-component communication
- * 
+ *
  * Each event has a corresponding type in CustomEventPayloads for type safety
  */
 
@@ -91,7 +91,7 @@ export type CustomEventType<K extends keyof CustomEventPayloads> = CustomEvent<
 
 /**
  * Helper to create a typed custom event
- * 
+ *
  * @example
  * ```typescript
  * const event = createCustomEvent(CUSTOM_EVENTS.RESUME_CHECK_REQUESTED, {

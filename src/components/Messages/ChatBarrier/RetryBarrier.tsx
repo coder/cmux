@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
-import { usePersistedState, updatePersistedState, readPersistedState } from "@/hooks/usePersistedState";
+import { usePersistedState, updatePersistedState } from "@/hooks/usePersistedState";
 import { getRetryStateKey, getAutoRetryKey } from "@/constants/storage";
 import { CUSTOM_EVENTS, createCustomEvent } from "@/constants/events";
 import { cn } from "@/lib/utils";
@@ -137,7 +137,7 @@ export const RetryBarrier: React.FC<RetryBarrierProps> = ({ workspaceId, classNa
           className
         )}
       >
-        <div className="flex justify-between items-center gap-4">
+        <div className="flex items-center justify-between gap-4">
           <div className="flex flex-1 items-center gap-3">
             <span className="text-lg leading-none">🔄</span>
             <div className="font-primary text-foreground text-[13px] font-medium">
@@ -160,8 +160,8 @@ export const RetryBarrier: React.FC<RetryBarrierProps> = ({ workspaceId, classNa
           </button>
         </div>
         {lastError && (
-          <div className="font-primary text-foreground/80 text-[12px] pl-8">
-            <span className="font-semibold text-warning">Error:</span> {getErrorMessage(lastError)}
+          <div className="font-primary text-foreground/80 pl-8 text-[12px]">
+            <span className="text-warning font-semibold">Error:</span> {getErrorMessage(lastError)}
           </div>
         )}
       </div>
@@ -175,7 +175,7 @@ export const RetryBarrier: React.FC<RetryBarrierProps> = ({ workspaceId, classNa
           className
         )}
       >
-        <div className="flex justify-between items-center gap-4">
+        <div className="flex items-center justify-between gap-4">
           <div className="flex flex-1 items-center gap-3">
             <span className="text-lg leading-none">⚠️</span>
             <div className="font-primary text-foreground text-[13px] font-medium">
@@ -190,8 +190,8 @@ export const RetryBarrier: React.FC<RetryBarrierProps> = ({ workspaceId, classNa
           </button>
         </div>
         {lastError && (
-          <div className="font-primary text-foreground/80 text-[12px] pl-8">
-            <span className="font-semibold text-warning">Error:</span> {getErrorMessage(lastError)}
+          <div className="font-primary text-foreground/80 pl-8 text-[12px]">
+            <span className="text-warning font-semibold">Error:</span> {getErrorMessage(lastError)}
           </div>
         )}
       </div>

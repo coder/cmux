@@ -133,7 +133,7 @@ export function useResumeManager() {
   /**
    * Attempt to resume a workspace stream
    * Polling will check eligibility every 1 second
-   * 
+   *
    * @param workspaceId - The workspace to resume
    * @param isManual - If true, bypass eligibility checks (user explicitly clicked retry)
    */

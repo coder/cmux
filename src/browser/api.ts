@@ -6,7 +6,7 @@ import type { IPCApi } from "@/types/ipc";
 
 // Backend URL - defaults to same origin, but can be overridden via VITE_BACKEND_URL
 // This allows frontend (Vite :8080) to connect to backend (:3000) in dev mode
-const API_BASE = import.meta.env.VITE_BACKEND_URL || window.location.origin;
+const API_BASE = import.meta.env.VITE_BACKEND_URL ?? window.location.origin;
 const WS_BASE = API_BASE.replace("http://", "ws://").replace("https://", "wss://");
 
 interface InvokeResponse<T> {

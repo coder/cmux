@@ -245,7 +245,7 @@ wss.on("connection", (ws) => {
   ws.on("error", (error) => {
     console.error("WebSocket error:", error);
   });
-  });
+});
 
 server.listen(PORT, HOST, () => {
   console.log(`Server is running on http://${HOST}:${PORT}`);

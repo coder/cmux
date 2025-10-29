@@ -76,11 +76,9 @@ const AIViewInner: React.FC<AIViewProps> = ({
 
   // Auto-retry state - minimal setter for keybinds and message sent handler
   // RetryBarrier manages its own state, but we need this for Ctrl+C keybind
-  const [, setAutoRetry] = usePersistedState<boolean>(
-    getAutoRetryKey(workspaceId),
-    true,
-    { listener: true }
-  );
+  const [, setAutoRetry] = usePersistedState<boolean>(getAutoRetryKey(workspaceId), true, {
+    listener: true,
+  });
 
   // Use auto-scroll hook for scroll management
   const {

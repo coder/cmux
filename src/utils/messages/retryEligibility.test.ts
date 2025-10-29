@@ -1,5 +1,9 @@
 import { describe, it, expect } from "@jest/globals";
-import { hasInterruptedStream, isEligibleForAutoRetry, isNonRetryableSendError } from "./retryEligibility";
+import {
+  hasInterruptedStream,
+  isEligibleForAutoRetry,
+  isNonRetryableSendError,
+} from "./retryEligibility";
 import type { DisplayedMessage } from "@/types/message";
 import type { SendMessageError } from "@/types/errors";
 
