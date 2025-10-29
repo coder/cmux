@@ -494,4 +494,49 @@ describe("StreamingMessageAggregator - Agent Status", () => {
     // Status should remain undefined (failed validation)
     expect(aggregator.getAgentStatus()).toBeUndefined();
   });
+
+  it("should use truncated message from output, not original input", () => {
+    const aggregator = new StreamingMessageAggregator(new Date().toISOString());
+
+    const messageId = "msg1";
+    const toolCallId = "tool1";
+
+    // Start stream
+    aggregator.handleStreamStart({
+      type: "stream-start",
+      workspaceId: "workspace1",
+      messageId,
+      model: "test-model",
+      historySequence: 1,
+    });
+
+    // Status_set with long message (would be truncated by backend)
+    const longMessage = "a".repeat(100); // 100 chars, exceeds 60 char limit
+    const truncatedMessage = "a".repeat(59) + "…"; // What backend returns
+
+    aggregator.handleToolCallStart({
+      type: "tool-call-start",
+      workspaceId: "workspace1",
+      messageId,
+      toolCallId,
+      toolName: "status_set",
+      args: { emoji: "✅", message: longMessage },
+      tokens: 10,
+      timestamp: Date.now(),
+    });
+
+    aggregator.handleToolCallEnd({
+      type: "tool-call-end",
+      workspaceId: "workspace1",
+      messageId,
+      toolCallId,
+      toolName: "status_set",
+      result: { success: true, emoji: "✅", message: truncatedMessage },
+    });
+
+    // Should use truncated message from output, not the original input
+    const status = aggregator.getAgentStatus();
+    expect(status).toEqual({ emoji: "✅", message: truncatedMessage });
+    expect(status?.message.length).toBe(60);
+  });
 });

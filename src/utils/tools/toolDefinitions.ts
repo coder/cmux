@@ -11,6 +11,7 @@ import {
   BASH_HARD_MAX_LINES,
   BASH_MAX_LINE_BYTES,
   BASH_MAX_TOTAL_BYTES,
+  STATUS_MESSAGE_MAX_LENGTH,
 } from "@/constants/toolLimits";
 
 import { zodToJsonSchema } from "zod-to-json-schema";
@@ -193,8 +194,9 @@ export const TOOL_DEFINITIONS = {
         emoji: z.string().describe("A single emoji character representing the current activity"),
         message: z
           .string()
-          .max(40)
-          .describe("A brief description of the current activity (max 40 characters)"),
+          .describe(
+            `A brief description of the current activity (auto-truncated to ${STATUS_MESSAGE_MAX_LENGTH} chars with ellipsis if needed)`
+          ),
       })
       .strict(),
   },

@@ -1,6 +1,7 @@
 import { tool } from "ai";
 import type { ToolFactory } from "@/utils/tools/tools";
 import { TOOL_DEFINITIONS } from "@/utils/tools/toolDefinitions";
+import { STATUS_MESSAGE_MAX_LENGTH } from "@/constants/toolLimits";
 
 /**
  * Result type for status_set tool
@@ -39,6 +40,17 @@ function isValidEmoji(str: string): boolean {
 }
 
 /**
+ * Truncates a message to a maximum length, adding an ellipsis if truncated
+ */
+function truncateMessage(message: string, maxLength: number): string {
+  if (message.length <= maxLength) {
+    return message;
+  }
+  // Truncate to maxLength-1 and add ellipsis (total = maxLength)
+  return message.slice(0, maxLength - 1) + "…";
+}
+
+/**
  * Status set tool factory for AI assistant
  * Creates a tool that allows the AI to set status indicator showing current activity
  *
@@ -62,12 +74,15 @@ export const createStatusSetTool: ToolFactory = () => {
         });
       }
 
+      // Truncate message if necessary
+      const truncatedMessage = truncateMessage(message, STATUS_MESSAGE_MAX_LENGTH);
+
       // Tool execution is a no-op on the backend
       // The status is tracked by StreamingMessageAggregator and displayed in the frontend
       return Promise.resolve({
         success: true,
         emoji,
-        message,
+        message: truncatedMessage,
       });
     },
   });

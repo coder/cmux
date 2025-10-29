@@ -520,9 +520,10 @@ export class StreamingMessageAggregator {
     }
 
     // Update agent status if this was a successful status_set
+    // Use output instead of input to get the truncated message
     if (toolName === "status_set" && hasSuccessResult(output)) {
-      const args = input as { emoji: string; message: string };
-      this.agentStatus = { emoji: args.emoji, message: args.message };
+      const result = output as { success: true; emoji: string; message: string };
+      this.agentStatus = { emoji: result.emoji, message: result.message };
     }
   }
 
