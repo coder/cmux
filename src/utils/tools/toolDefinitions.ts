@@ -183,7 +183,7 @@ export const TOOL_DEFINITIONS = {
       "WHEN TO SET STATUS:\n" +
       "- Set status when beginning concrete work (file edits, running tests, executing commands)\n" +
       "- Update status as work progresses through distinct phases\n" +
-      "- Set a final status before completing that reflects the outcome\n" +
+      "- Set a final status before completing, but only claim success when certain (e.g., after confirming checks passed)\n" +
       "- DO NOT set status during initial exploration, file reading, or planning phases\n" +
       "\n" +
       "The status is cleared when a new user message comes in. Validate your approach is feasible \n" +
