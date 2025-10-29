@@ -512,11 +512,11 @@ export class LocalRuntime implements Runtime {
     _abortSignal?: AbortSignal
   ): Promise<{ success: true; deletedPath: string } | { success: false; error: string }> {
     // Note: _abortSignal ignored for local operations (fast, no need for cancellation)
-    
+
     // In-place workspaces are identified by projectPath === workspaceName
     // These are direct workspace directories (e.g., CLI/benchmark sessions), not git worktrees
     const isInPlace = projectPath === workspaceName;
-    
+
     // Compute workspace path using the canonical method
     const deletedPath = this.getWorkspacePath(projectPath, workspaceName);
 
