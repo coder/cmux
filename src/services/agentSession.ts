@@ -381,7 +381,7 @@ export class AgentSession {
       ? enforceThinkingPolicy(modelString, options.thinkingLevel)
       : undefined;
 
-    const streamResult = await this.aiService.streamMessage(
+    return this.aiService.streamMessage(
       historyResult.data,
       this.workspaceId,
       modelString,
@@ -393,8 +393,6 @@ export class AgentSession {
       options?.providerOptions,
       options?.mode
     );
-
-    return streamResult;
   }
 
   private attachAiListeners(): void {

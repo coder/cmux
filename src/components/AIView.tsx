@@ -74,20 +74,11 @@ const AIViewInner: React.FC<AIViewProps> = ({
     undefined
   );
 
-  // Auto-retry state (persisted per workspace, with cross-component sync)
-  // Semantics:
-  //   true (default): System errors should auto-retry
-  //   false: User stopped this (Ctrl+C), don't auto-retry until user re-engages
-  // State transitions are EXPLICIT only:
-  //   - User presses Ctrl+C → false
-  //   - User sends a message → true (clear intent: "I'm using this workspace")
-  //   - User clicks manual retry button → true
-  // No automatic resets on stream events - prevents initialization bugs
-  const [autoRetry, setAutoRetry] = usePersistedState<boolean>(
-    getAutoRetryKey(workspaceId),
-    true, // Default to true
-    { listener: true } // Enable cross-component synchronization
-  );
+  // Auto-retry state - minimal setter for keybinds and message sent handler
+  // RetryBarrier manages its own state, but we need this for Ctrl+C keybind
+  const [, setAutoRetry] = usePersistedState<boolean>(getAutoRetryKey(workspaceId), true, {
+    listener: true,
+  });
 
   // Use auto-scroll hook for scroll management
   const {
@@ -408,14 +399,7 @@ const AIViewInner: React.FC<AIViewProps> = ({
                   );
                 })}
                 {/* Show RetryBarrier after the last message if needed */}
-                {showRetryBarrier && (
-                  <RetryBarrier
-                    workspaceId={workspaceId}
-                    autoRetry={autoRetry}
-                    onStopAutoRetry={() => setAutoRetry(false)}
-                    onResetAutoRetry={() => setAutoRetry(true)}
-                  />
-                )}
+                {showRetryBarrier && <RetryBarrier workspaceId={workspaceId} />}
               </>
             )}
             <PinnedTodoList workspaceId={workspaceId} />

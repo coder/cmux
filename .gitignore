@@ -106,3 +106,5 @@ storybook-static/
 *.tgz
 src/test-workspaces/
 terminal-bench-results/
+nodemon.json
+test_hot_reload.sh
