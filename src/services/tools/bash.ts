@@ -112,6 +112,10 @@ export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
         let exitCode: number | null = null;
         let resolved = false;
 
+        // Forward-declare teardown function that will be defined below
+        // eslint-disable-next-line prefer-const
+        let teardown: () => void;
+
         // Helper to resolve once
         const resolveOnce = (result: BashToolResult) => {
           if (!resolved) {
@@ -124,13 +128,20 @@ export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
           }
         };
 
-        // Set up abort signal listener - cancellation is handled by runtime
+        // Set up abort signal listener - immediately resolve on abort
         let abortListener: (() => void) | null = null;
         if (abortSignal) {
           abortListener = () => {
             if (!resolved) {
-              // Runtime handles the actual cancellation
-              // We just need to clean up our side
+              // Immediately resolve with abort error to unblock AI SDK stream
+              // The runtime will handle killing the actual process
+              teardown();
+              resolveOnce({
+                success: false,
+                error: "Command execution was aborted",
+                exitCode: -2,
+                wall_duration_ms: Math.round(performance.now() - startTime),
+              });
             }
           };
           abortSignal.addEventListener("abort", abortListener);
@@ -163,8 +174,8 @@ export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
         // eslint-disable-next-line prefer-const
         let finalize: () => void;
 
-        // Helper to tear down streams and readline interfaces
-        const teardown = () => {
+        // Define teardown (already declared above)
+        teardown = () => {
           stdoutReader.close();
           stderrReader.close();
           stdoutNodeStream.destroy();
