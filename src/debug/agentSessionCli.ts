@@ -187,6 +187,12 @@ async function main(): Promise<void> {
   const emitJsonStreaming = values["json-streaming"] === true;
 
   const suppressHumanOutput = emitJsonStreaming || emitFinalJson;
+
+  // Log model selection for terminal-bench verification
+  if (!suppressHumanOutput) {
+    console.error(`[cmux-cli] Using model: ${model}`);
+  }
+
   const humanStream = process.stdout;
   const writeHuman = (text: string) => {
     if (suppressHumanOutput) {
