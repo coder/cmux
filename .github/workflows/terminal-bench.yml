@@ -108,6 +108,24 @@ jobs:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
 
+      - name: Print results summary
+        if: always()
+        run: |
+          echo "=== Terminal-Bench Results Summary ==="
+          if [ -f "$(find runs -name 'results.json' | head -1)" ]; then
+            RESULTS_FILE=$(find runs -name 'results.json' | head -1)
+            echo "Results file: $RESULTS_FILE"
+            echo ""
+            echo "Full results.json:"
+            cat "$RESULTS_FILE" | jq '.' || cat "$RESULTS_FILE"
+            echo ""
+            echo "Per-task summary:"
+            cat "$RESULTS_FILE" | jq -r '.trials[] | "\(.task_id): \(if .resolved then "✓ PASS" else "✗ FAIL" end)"' 2>/dev/null || echo "Failed to parse task details"
+          else
+            echo "No results.json found in runs/"
+            ls -la runs/
+          fi
+
       - name: Upload benchmark results
         if: always()
         uses: actions/upload-artifact@v4
