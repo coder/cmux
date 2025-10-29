@@ -28,20 +28,9 @@ import { isWorkspaceForkSwitchEvent } from "./utils/workspaceFork";
 import { getThinkingLevelKey, getRuntimeKey } from "./constants/storage";
 import type { BranchListResult } from "./types/ipc";
 import { useTelemetry } from "./hooks/useTelemetry";
-import { parseRuntimeString } from "./utils/chatCommands";
+import { useWorkspaceModal } from "./hooks/useWorkspaceModal";
 
 const THINKING_LEVELS: ThinkingLevel[] = ["off", "low", "medium", "high"];
-
-const INITIAL_WORKSPACE_MODAL_STATE = {
-  isOpen: false,
-  projectPath: null as string | null,
-  projectName: "",
-  branches: [] as string[],
-  defaultTrunk: undefined as string | undefined,
-  loadError: null as string | null,
-  startMessage: undefined as string | undefined,
-  model: undefined as string | undefined,
-};
 
 function AppInner() {
   // Get app-level state from context
@@ -58,9 +47,6 @@ function AppInner() {
     setSelectedWorkspace,
   } = useApp();
 
-  const [workspaceModalState, setWorkspaceModalState] = useState(INITIAL_WORKSPACE_MODAL_STATE);
-  const workspaceModalProjectRef = useRef<string | null>(null);
-
   // Auto-collapse sidebar on mobile by default
   const isMobile = typeof window !== "undefined" && window.innerWidth <= 768;
   const [sidebarCollapsed, setSidebarCollapsed] = usePersistedState("sidebarCollapsed", isMobile);
@@ -74,6 +60,13 @@ function AppInner() {
 
   // Get workspace store for command palette
   const workspaceStore = useWorkspaceStoreRaw();
+
+  // Workspace modal management
+  const workspaceModal = useWorkspaceModal({
+    createWorkspace,
+    setSelectedWorkspace,
+    telemetry,
+  });
 
   // Wrapper for setSelectedWorkspace that tracks telemetry
   const handleWorkspaceSwitch = useCallback(
@@ -179,126 +172,6 @@ function AppInner() {
     },
     [removeProject, selectedWorkspace, setSelectedWorkspace]
   );
-
-  const handleAddWorkspace = useCallback(
-    async (
-      projectPath: string,
-      initialData?: { startMessage?: string; model?: string; error?: string }
-    ) => {
-      const projectName =
-        projectPath.split("/").pop() ?? projectPath.split("\\").pop() ?? "project";
-
-      workspaceModalProjectRef.current = projectPath;
-      setWorkspaceModalState({
-        isOpen: true,
-        projectPath,
-        projectName,
-        branches: [],
-        defaultTrunk: undefined,
-        loadError: initialData?.error ?? null,
-        startMessage: initialData?.startMessage,
-        model: initialData?.model,
-      });
-
-      try {
-        const branchResult = await window.api.projects.listBranches(projectPath);
-
-        // Guard against race condition: only update state if this is still the active project
-        if (workspaceModalProjectRef.current !== projectPath) {
-          return;
-        }
-
-        const sanitizedBranches = Array.isArray(branchResult?.branches)
-          ? branchResult.branches.filter((branch): branch is string => typeof branch === "string")
-          : [];
-
-        const recommended =
-          typeof branchResult?.recommendedTrunk === "string" &&
-          sanitizedBranches.includes(branchResult.recommendedTrunk)
-            ? branchResult.recommendedTrunk
-            : sanitizedBranches[0];
-
-        setWorkspaceModalState((prev) => ({
-          ...prev,
-          branches: sanitizedBranches,
-          defaultTrunk: recommended,
-          loadError: null,
-        }));
-      } catch (err) {
-        console.error("Failed to load branches for modal:", err);
-        const message = err instanceof Error ? err.message : "Unknown error";
-        setWorkspaceModalState((prev) => ({
-          ...prev,
-          loadError: `Unable to load branches automatically: ${message}. You can still enter the trunk branch manually.`,
-        }));
-      }
-    },
-    []
-  );
-
-  const handleCreateWorkspace = async (
-    branchName: string,
-    trunkBranch: string,
-    runtime?: string,
-    startMessage?: string,
-    model?: string
-  ) => {
-    if (!workspaceModalState.projectPath) return;
-
-    console.assert(
-      typeof trunkBranch === "string" && trunkBranch.trim().length > 0,
-      "Expected trunk branch to be provided by the workspace modal"
-    );
-
-    // Parse runtime config if provided
-    let runtimeConfig: RuntimeConfig | undefined;
-    if (runtime) {
-      try {
-        runtimeConfig = parseRuntimeString(runtime, branchName);
-      } catch (err) {
-        console.error("Failed to parse runtime config:", err);
-        throw err; // Let modal handle the error
-      }
-    }
-
-    const newWorkspace = await createWorkspace(
-      workspaceModalState.projectPath,
-      branchName,
-      trunkBranch,
-      runtimeConfig
-    );
-    if (newWorkspace) {
-      // Track workspace creation
-      telemetry.workspaceCreated(newWorkspace.workspaceId);
-      setSelectedWorkspace(newWorkspace);
-
-      // Save runtime preference for this project if provided
-      if (runtime) {
-        const runtimeKey = getRuntimeKey(workspaceModalState.projectPath);
-        localStorage.setItem(runtimeKey, runtime);
-      }
-
-      // Send start message if provided
-      if (startMessage) {
-        // Build send message options - use provided model or default
-        const { buildSendMessageOptions } = await import("@/hooks/useSendMessageOptions");
-        const sendOptions = buildSendMessageOptions(newWorkspace.workspaceId);
-
-        if (model) {
-          sendOptions.model = model;
-        }
-
-        // Defer until React finishes rendering and WorkspaceStore subscribes
-        requestAnimationFrame(() => {
-          void window.api.workspace.sendMessage(
-            newWorkspace.workspaceId,
-            startMessage,
-            sendOptions
-          );
-        });
-      }
-    }
-  };
 
   const handleGetSecrets = useCallback(async (projectPath: string) => {
     return await window.api.projects.secrets.get(projectPath);
@@ -452,9 +325,9 @@ function AppInner() {
 
   const openNewWorkspaceFromPalette = useCallback(
     (projectPath: string) => {
-      void handleAddWorkspace(projectPath);
+      void workspaceModal.openModal(projectPath);
     },
-    [handleAddWorkspace]
+    [workspaceModal.openModal]
   );
 
   const getBranchesForProject = useCallback(
@@ -648,7 +521,7 @@ function AppInner() {
         error?: string;
       }>;
       const { projectPath, startMessage, model, error } = customEvent.detail;
-      void handleAddWorkspace(projectPath, { startMessage, model, error });
+      void workspaceModal.openModal(projectPath, { startMessage, model, error });
     };
 
     window.addEventListener(
@@ -660,7 +533,7 @@ function AppInner() {
         CUSTOM_EVENTS.OPEN_NEW_WORKSPACE_MODAL,
         handleOpenNewWorkspaceModal as EventListener
       );
-  }, [handleAddWorkspace]);
+  }, [workspaceModal.openModal]);
 
   return (
     <>
@@ -668,7 +541,7 @@ function AppInner() {
         <LeftSidebar
           onSelectWorkspace={handleWorkspaceSwitch}
           onAddProject={addProject}
-          onAddWorkspace={handleAddWorkspace}
+          onAddWorkspace={workspaceModal.openModal}
           onRemoveProject={handleRemoveProject}
           lastReadTimestamps={lastReadTimestamps}
           onToggleUnread={onToggleUnread}
@@ -721,21 +594,18 @@ function AppInner() {
             workspaceId: selectedWorkspace?.workspaceId,
           })}
         />
-        {workspaceModalState.isOpen && workspaceModalState.projectPath && (
+        {workspaceModal.state.isOpen && workspaceModal.state.projectPath && (
           <NewWorkspaceModal
-            isOpen={workspaceModalState.isOpen}
-            projectName={workspaceModalState.projectName}
-            projectPath={workspaceModalState.projectPath}
-            branches={workspaceModalState.branches}
-            defaultTrunkBranch={workspaceModalState.defaultTrunk}
-            loadErrorMessage={workspaceModalState.loadError}
-            initialStartMessage={workspaceModalState.startMessage}
-            initialModel={workspaceModalState.model}
-            onClose={() => {
-              workspaceModalProjectRef.current = null;
-              setWorkspaceModalState(INITIAL_WORKSPACE_MODAL_STATE);
-            }}
-            onAdd={handleCreateWorkspace}
+            isOpen={workspaceModal.state.isOpen}
+            projectName={workspaceModal.state.projectName}
+            projectPath={workspaceModal.state.projectPath}
+            branches={workspaceModal.state.branches}
+            defaultTrunkBranch={workspaceModal.state.defaultTrunk}
+            loadErrorMessage={workspaceModal.state.loadError}
+            initialStartMessage={workspaceModal.state.startMessage}
+            initialModel={workspaceModal.state.model}
+            onClose={workspaceModal.closeModal}
+            onAdd={workspaceModal.handleCreate}
           />
         )}
         <DirectorySelectModal />
