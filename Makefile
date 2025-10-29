@@ -96,6 +96,14 @@ dev: node_modules/.installed build-main ## Start development server (Vite + tsgo
 		"bun x concurrently \"$(TSGO) -w -p tsconfig.main.json\" \"bun x tsc-alias -w -p tsconfig.main.json\"" \
 		"vite"
 
+dev-server: node_modules/.installed build-main ## Start server mode with hot reload
+	@echo "Starting server with hot reload (http://localhost:3000)..."
+	@bun x concurrently -k \
+		"bun x concurrently \"$(TSGO) -w -p tsconfig.main.json\" \"bun x tsc-alias -w -p tsconfig.main.json\"" \
+		"bun x nodemon --watch dist/main.js --watch dist/main-server.js --delay 500ms --exec 'node dist/main.js server'"
+
+
+
 start: node_modules/.installed build-main build-preload build-static ## Build and start Electron app
 	@bun x electron --remote-debugging-port=9222 .
 
