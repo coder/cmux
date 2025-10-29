@@ -3,10 +3,10 @@ import { usePersistedState, updatePersistedState } from "@/hooks/usePersistedSta
 import { getRetryStateKey, getAutoRetryKey } from "@/constants/storage";
 import { CUSTOM_EVENTS, createCustomEvent } from "@/constants/events";
 import { cn } from "@/lib/utils";
-import type { SendMessageError } from "@/types/errors";
 import type { RetryState } from "@/hooks/useResumeManager";
 import { useWorkspaceState } from "@/stores/WorkspaceStore";
 import { isEligibleForAutoRetry, isNonRetryableSendError } from "@/utils/messages/retryEligibility";
+import { formatSendMessageError } from "@/utils/errors/formatSendError";
 
 interface RetryBarrierProps {
   workspaceId: string;
@@ -112,19 +112,14 @@ export const RetryBarrier: React.FC<RetryBarrierProps> = ({ workspaceId, classNa
     setAutoRetry(false);
   };
 
-  // Format error message for display
-  const getErrorMessage = (error: SendMessageError): string => {
-    switch (error.type) {
-      case "api_key_not_found":
-        return `API key not found for ${error.provider}. Configure with /providers set ${error.provider} apiKey YOUR_KEY`;
-      case "provider_not_supported":
-        return `Provider ${error.provider} is not supported yet.`;
-      case "invalid_model_string":
-        return error.message;
-      case "unknown":
-      default:
-        return error.raw || "Unknown error occurred";
-    }
+  // Format error message for display (centralized logic)
+  const getErrorMessage = (error: typeof lastError): string => {
+    if (!error) return "";
+    const formatted = formatSendMessageError(error);
+    // Combine message with command if available
+    return formatted.providerCommand
+      ? `${formatted.message} Configure with ${formatted.providerCommand}`
+      : formatted.message;
   };
 
   if (effectiveAutoRetry) {
