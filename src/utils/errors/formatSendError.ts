@@ -34,7 +34,7 @@ export function formatSendMessageError(error: SendMessageError): FormattedError 
 
     case "unknown":
       return {
-        message: error.raw || "Unknown error occurred",
+        message: error.raw || "An unexpected error occurred",
       };
   }
 }
