@@ -179,8 +179,18 @@ for JOB_ID in $JOB_IDS; do
       echo "" >&2
     fi
   else
-    # In-progress/pending/queued job - logs not yet available
-    echo "ℹ️  Job is $JOB_STATUS - logs will be available when job completes" >&2
+    # In-progress/pending/queued job - GitHub API doesn't provide logs until completion
+    echo "ℹ️  Job is $JOB_STATUS - logs not available via API until completion" >&2
+    echo "" >&2
+    
+    # Show which step is currently running
+    CURRENT_STEP=$(gh api "/repos/coder/cmux/actions/jobs/$JOB_ID" 2>/dev/null | jq -r '.steps[] | select(.status == "in_progress") | .name' | head -1)
+    if [[ -n "$CURRENT_STEP" ]]; then
+      echo "🔄 Currently running: $CURRENT_STEP" >&2
+    fi
+    
+    # Construct GitHub URL for viewing live logs in browser
+    echo "👁️  View live logs: https://github.com/coder/cmux/actions/runs/$RUN_ID/job/$JOB_ID" >&2
     echo "" >&2
   fi
 done
