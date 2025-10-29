@@ -194,7 +194,9 @@ export const TOOL_DEFINITIONS = {
         emoji: z.string().describe("A single emoji character representing the current activity"),
         message: z
           .string()
-          .describe(`A brief description of the current activity (auto-truncated to ${STATUS_MESSAGE_MAX_LENGTH} chars with ellipsis if needed)`),
+          .describe(
+            `A brief description of the current activity (auto-truncated to ${STATUS_MESSAGE_MAX_LENGTH} chars with ellipsis if needed)`
+          ),
       })
       .strict(),
   },

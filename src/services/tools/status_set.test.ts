@@ -171,7 +171,8 @@ describe("status_set tool validation", () => {
       expect(result1.message.length).toBe(STATUS_MESSAGE_MAX_LENGTH);
 
       // Test with longer message
-      const longMessage = "This is a very long message that exceeds the 60 character limit and should be truncated";
+      const longMessage =
+        "This is a very long message that exceeds the 60 character limit and should be truncated";
       const result2 = (await tool.execute!(
         { emoji: "✅", message: longMessage },
         mockToolCallOptions
