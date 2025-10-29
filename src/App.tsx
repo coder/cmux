@@ -32,6 +32,17 @@ import { parseRuntimeString } from "./utils/chatCommands";
 
 const THINKING_LEVELS: ThinkingLevel[] = ["off", "low", "medium", "high"];
 
+const INITIAL_WORKSPACE_MODAL_STATE = {
+  isOpen: false,
+  projectPath: null as string | null,
+  projectName: "",
+  branches: [] as string[],
+  defaultTrunk: undefined as string | undefined,
+  loadError: null as string | null,
+  startMessage: undefined as string | undefined,
+  model: undefined as string | undefined,
+};
+
 function AppInner() {
   // Get app-level state from context
   const {
@@ -46,17 +57,6 @@ function AppInner() {
     selectedWorkspace,
     setSelectedWorkspace,
   } = useApp();
-
-  const INITIAL_WORKSPACE_MODAL_STATE = {
-    isOpen: false,
-    projectPath: null as string | null,
-    projectName: "",
-    branches: [] as string[],
-    defaultTrunk: undefined as string | undefined,
-    loadError: null as string | null,
-    startMessage: undefined as string | undefined,
-    model: undefined as string | undefined,
-  };
 
   const [workspaceModalState, setWorkspaceModalState] = useState(INITIAL_WORKSPACE_MODAL_STATE);
   const workspaceModalProjectRef = useRef<string | null>(null);
@@ -234,25 +234,6 @@ function AppInner() {
       }
     },
     []
-  );
-
-  // Memoize callbacks to prevent LeftSidebar/ProjectSidebar re-renders
-  const handleAddProjectCallback = useCallback(() => {
-    void addProject();
-  }, [addProject]);
-
-  const handleAddWorkspaceCallback = useCallback(
-    (projectPath: string) => {
-      void handleAddWorkspace(projectPath);
-    },
-    [handleAddWorkspace]
-  );
-
-  const handleRemoveProjectCallback = useCallback(
-    (path: string) => {
-      void handleRemoveProject(path);
-    },
-    [handleRemoveProject]
   );
 
   const handleCreateWorkspace = async (
@@ -686,9 +667,9 @@ function AppInner() {
       <div className="bg-bg-dark flex h-screen overflow-hidden [@media(max-width:768px)]:flex-col">
         <LeftSidebar
           onSelectWorkspace={handleWorkspaceSwitch}
-          onAddProject={handleAddProjectCallback}
-          onAddWorkspace={handleAddWorkspaceCallback}
-          onRemoveProject={handleRemoveProjectCallback}
+          onAddProject={addProject}
+          onAddWorkspace={handleAddWorkspace}
+          onRemoveProject={handleRemoveProject}
           lastReadTimestamps={lastReadTimestamps}
           onToggleUnread={onToggleUnread}
           collapsed={sidebarCollapsed}
