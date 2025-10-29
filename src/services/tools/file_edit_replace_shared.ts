@@ -5,6 +5,13 @@
  * providing the core logic while keeping the tool definitions simple for AI providers.
  */
 
+import {
+  EDIT_FAILED_NOTE_PREFIX,
+  NOTE_READ_FILE_FIRST_RETRY,
+  NOTE_READ_FILE_RETRY,
+  NOTE_READ_FILE_AGAIN_RETRY,
+} from "@/types/tools";
+
 interface OperationMetadata {
   edits_applied: number;
   lines_replaced?: number;
@@ -20,6 +27,7 @@ export interface OperationResult {
 export interface OperationError {
   success: false;
   error: string;
+  note?: string; // Agent-only message (not displayed in UI)
 }
 
 export type OperationOutcome = OperationResult | OperationError;
@@ -53,6 +61,7 @@ export function handleStringReplace(
       success: false,
       error:
         "old_string not found in file. The text to replace must exist exactly as written in the file.",
+      note: `${EDIT_FAILED_NOTE_PREFIX} The old_string does not exist in the file. ${NOTE_READ_FILE_FIRST_RETRY}`,
     };
   }
 
@@ -63,6 +72,7 @@ export function handleStringReplace(
     return {
       success: false,
       error: `old_string appears ${occurrences} times in the file. Either expand the context to make it unique or set replace_count to ${occurrences} or -1.`,
+      note: `${EDIT_FAILED_NOTE_PREFIX} The old_string matched ${occurrences} locations. Add more surrounding context to make it unique, or set replace_count=${occurrences} to replace all occurrences.`,
     };
   }
 
@@ -70,6 +80,7 @@ export function handleStringReplace(
     return {
       success: false,
       error: `replace_count is ${replaceCount} but old_string only appears ${occurrences} time(s) in the file.`,
+      note: `${EDIT_FAILED_NOTE_PREFIX} The replace_count=${replaceCount} is too high. Retry with replace_count=${occurrences} or -1.`,
     };
   }
 
@@ -123,6 +134,7 @@ export function handleLineReplace(
     return {
       success: false,
       error: `start_line must be >= 1 (received ${args.start_line}).`,
+      note: `${EDIT_FAILED_NOTE_PREFIX} Line numbers must be >= 1.`,
     };
   }
 
@@ -130,6 +142,7 @@ export function handleLineReplace(
     return {
       success: false,
       error: `end_line must be >= start_line (received start ${args.start_line}, end ${args.end_line}).`,
+      note: `${EDIT_FAILED_NOTE_PREFIX} The end_line must be >= start_line.`,
     };
   }
 
@@ -139,6 +152,7 @@ export function handleLineReplace(
     return {
       success: false,
       error: `start_line ${args.start_line} exceeds current file length (${lines.length}).`,
+      note: `${EDIT_FAILED_NOTE_PREFIX} The file has ${lines.length} lines. ${NOTE_READ_FILE_RETRY}`,
     };
   }
 
@@ -149,6 +163,7 @@ export function handleLineReplace(
     return {
       success: false,
       error: `expected_lines validation failed. Current lines [${currentRange.join("\n")}] differ from expected [${args.expected_lines.join("\n")}].`,
+      note: `${EDIT_FAILED_NOTE_PREFIX} The file content changed since you last read it. ${NOTE_READ_FILE_AGAIN_RETRY}`,
     };
   }
 

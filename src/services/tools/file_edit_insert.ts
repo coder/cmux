@@ -3,7 +3,7 @@ import type { FileEditInsertToolResult } from "@/types/tools";
 import type { ToolConfiguration, ToolFactory } from "@/utils/tools/tools";
 import { TOOL_DEFINITIONS } from "@/utils/tools/toolDefinitions";
 import { validatePathInCwd, validateNoRedundantPrefix } from "./fileCommon";
-import { WRITE_DENIED_PREFIX } from "@/types/tools";
+import { EDIT_FAILED_NOTE_PREFIX, NOTE_READ_FILE_RETRY } from "@/types/tools";
 import { executeFileEditOperation } from "./file_edit_operation";
 import { RuntimeError } from "@/runtime/Runtime";
 import { fileExists } from "@/utils/runtime/fileExists";
@@ -40,14 +40,15 @@ export const createFileEditInsertTool: ToolFactory = (config: ToolConfiguration)
         if (pathValidation) {
           return {
             success: false,
-            error: `${WRITE_DENIED_PREFIX} ${pathValidation.error}`,
+            error: pathValidation.error,
           };
         }
 
         if (line_offset < 0) {
           return {
             success: false,
-            error: `${WRITE_DENIED_PREFIX} line_offset must be non-negative (got ${line_offset})`,
+            error: `line_offset must be non-negative (got ${line_offset})`,
+            note: `${EDIT_FAILED_NOTE_PREFIX} The line_offset must be >= 0.`,
           };
         }
 
@@ -61,7 +62,8 @@ export const createFileEditInsertTool: ToolFactory = (config: ToolConfiguration)
           if (!create) {
             return {
               success: false,
-              error: `${WRITE_DENIED_PREFIX} File not found: ${file_path}. To create it, set create: true`,
+              error: `File not found: ${file_path}. To create it, set create: true`,
+              note: `${EDIT_FAILED_NOTE_PREFIX} File does not exist. Set create: true to create it, or check the file path.`,
             };
           }
 
@@ -72,7 +74,7 @@ export const createFileEditInsertTool: ToolFactory = (config: ToolConfiguration)
             if (err instanceof RuntimeError) {
               return {
                 success: false,
-                error: `${WRITE_DENIED_PREFIX} ${err.message}`,
+                error: err.message,
               };
             }
             throw err;
@@ -90,6 +92,7 @@ export const createFileEditInsertTool: ToolFactory = (config: ToolConfiguration)
               return {
                 success: false,
                 error: `line_offset ${line_offset} is beyond file length (${lines.length} lines)`,
+                note: `${EDIT_FAILED_NOTE_PREFIX} The file has ${lines.length} lines. ${NOTE_READ_FILE_RETRY}`,
               };
             }
 
@@ -120,14 +123,14 @@ export const createFileEditInsertTool: ToolFactory = (config: ToolConfiguration)
         if (error && typeof error === "object" && "code" in error && error.code === "EACCES") {
           return {
             success: false,
-            error: `${WRITE_DENIED_PREFIX} Permission denied: ${file_path}`,
+            error: `Permission denied: ${file_path}`,
           };
         }
 
         const message = error instanceof Error ? error.message : String(error);
         return {
           success: false,
-          error: `${WRITE_DENIED_PREFIX} Failed to insert content: ${message}`,
+          error: `Failed to insert content: ${message}`,
         };
       }
     },
