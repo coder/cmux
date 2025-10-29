@@ -984,7 +984,11 @@ export class SSHRuntime implements Runtime {
             cd ${shescape.quote(deletedPath)} || exit 1
             git diff --quiet --exit-code && git diff --quiet --cached --exit-code || exit 1
             if git remote | grep -q .; then
-              git log --branches --not --remotes --oneline | head -1 | grep -q . && exit 2
+              unpushed=$(git log --branches --not --remotes --oneline)
+              if [ -n "$unpushed" ]; then
+                echo "$unpushed" | head -10 >&2
+                exit 2
+              fi
             fi
             exit 0
           `;
@@ -1012,9 +1016,28 @@ export class SSHRuntime implements Runtime {
       }
 
       if (checkExitCode === 2) {
+        // Read stderr which contains the unpushed commits output
+        const stderrReader = checkStream.stderr.getReader();
+        const decoder = new TextDecoder();
+        let stderr = "";
+        try {
+          while (true) {
+            const { done, value } = await stderrReader.read();
+            if (done) break;
+            stderr += decoder.decode(value, { stream: true });
+          }
+        } finally {
+          stderrReader.releaseLock();
+        }
+
+        const commitList = stderr.trim();
+        const errorMsg = commitList
+          ? `Workspace contains unpushed commits:\n\n${commitList}`
+          : `Workspace contains unpushed commits. Use force flag to delete anyway.`;
+
         return {
           success: false,
-          error: `Workspace contains unpushed commits. Use force flag to delete anyway.`,
+          error: errorMsg,
         };
       }
 
