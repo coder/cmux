@@ -512,6 +512,11 @@ export class LocalRuntime implements Runtime {
     _abortSignal?: AbortSignal
   ): Promise<{ success: true; deletedPath: string } | { success: false; error: string }> {
     // Note: _abortSignal ignored for local operations (fast, no need for cancellation)
+
+    // In-place workspaces are identified by projectPath === workspaceName
+    // These are direct workspace directories (e.g., CLI/benchmark sessions), not git worktrees
+    const isInPlace = projectPath === workspaceName;
+
     // Compute workspace path using the canonical method
     const deletedPath = this.getWorkspacePath(projectPath, workspaceName);
 
@@ -520,13 +525,22 @@ export class LocalRuntime implements Runtime {
       await fsPromises.access(deletedPath);
     } catch {
       // Directory doesn't exist - operation is idempotent
-      // Prune stale git records (best effort)
-      try {
-        using pruneProc = execAsync(`git -C "${projectPath}" worktree prune`);
-        await pruneProc.result;
-      } catch {
-        // Ignore prune errors - directory is already deleted, which is the goal
+      // For standard worktrees, prune stale git records (best effort)
+      if (!isInPlace) {
+        try {
+          using pruneProc = execAsync(`git -C "${projectPath}" worktree prune`);
+          await pruneProc.result;
+        } catch {
+          // Ignore prune errors - directory is already deleted, which is the goal
+        }
       }
+      return { success: true, deletedPath };
+    }
+
+    // For in-place workspaces, there's no worktree to remove
+    // Just return success - the workspace directory itself should not be deleted
+    // as it may contain the user's actual project files
+    if (isInPlace) {
       return { success: true, deletedPath };
     }
 

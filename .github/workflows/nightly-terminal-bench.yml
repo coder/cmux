@@ -1,0 +1,50 @@
+name: Nightly Terminal-Bench
+
+on:
+  schedule:
+    # Run full benchmark suite (~80 tasks) every night at midnight UTC
+    - cron: '0 0 * * *'
+  workflow_dispatch:
+    inputs:
+      models:
+        description: 'Models to test (comma-separated, or "all" for both)'
+        required: false
+        default: 'all'
+        type: string
+
+jobs:
+  determine-models:
+    name: Determine models to test
+    runs-on: ubuntu-latest
+    outputs:
+      models: ${{ steps.set-models.outputs.models }}
+    steps:
+      - name: Set models matrix
+        id: set-models
+        run: |
+          if [ "${{ inputs.models }}" = "all" ] || [ -z "${{ inputs.models }}" ]; then
+            echo 'models=["anthropic:claude-sonnet-4-5","openai:gpt-5-codex"]' >> $GITHUB_OUTPUT
+          else
+            # Convert comma-separated to JSON array
+            models="${{ inputs.models }}"
+            models_json=$(echo "$models" | jq -R -s -c 'split(",") | map(gsub("^\\s+|\\s+$"; ""))')
+            echo "models=$models_json" >> $GITHUB_OUTPUT
+          fi
+
+  benchmark:
+    name: ${{ matrix.model }}
+    needs: determine-models
+    strategy:
+      matrix:
+        model: ${{ fromJSON(needs.determine-models.outputs.models) }}
+      fail-fast: false
+    uses: ./.github/workflows/terminal-bench.yml
+    with:
+      model_name: ${{ matrix.model }}
+      thinking_level: 'high'
+      dataset: 'terminal-bench-core==0.1.1'
+      concurrency: '4'
+      livestream: true
+    secrets:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}

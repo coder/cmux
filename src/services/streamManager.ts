@@ -1,4 +1,5 @@
 import { EventEmitter } from "events";
+import * as path from "path";
 import {
   streamText,
   stepCountIs,
@@ -982,9 +983,13 @@ export class StreamManager extends EventEmitter {
       // Don't block stream completion waiting for directory deletion
       // This is especially important for SSH where rm -rf can take 500ms-2s
       if (streamInfo.runtimeTempDir) {
+        // Use parent directory as cwd for safety - if runtimeTempDir is malformed,
+        // we won't accidentally run rm -rf from root
+        const tempDirBasename = path.basename(streamInfo.runtimeTempDir);
+        const tempDirParent = path.dirname(streamInfo.runtimeTempDir);
         void streamInfo.runtime
-          .exec(`rm -rf "${streamInfo.runtimeTempDir}"`, {
-            cwd: "~",
+          .exec(`rm -rf "${tempDirBasename}"`, {
+            cwd: tempDirParent,
             timeout: 10,
           })
           .then(async (result) => {
