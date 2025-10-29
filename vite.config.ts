@@ -8,6 +8,9 @@ import { fileURLToPath } from "url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const disableMermaid = process.env.VITE_DISABLE_MERMAID === "1";
+
+// Vite server configuration (for dev-server remote access)
+const devServerHost = process.env.CMUX_VITE_HOST ?? "127.0.0.1"; // Secure by default
 const devServerPort = Number(process.env.CMUX_VITE_PORT ?? "5173");
 const previewPort = Number(process.env.CMUX_VITE_PREVIEW_PORT ?? "4173");
 
@@ -81,10 +84,10 @@ export default defineConfig(({ mode }) => ({
     plugins: [topLevelAwait()],
   },
   server: {
-    host: "127.0.0.1",
+    host: devServerHost, // Configurable via CMUX_VITE_HOST (defaults to 127.0.0.1 for security)
     port: devServerPort,
     strictPort: true,
-    allowedHosts: ["localhost", "127.0.0.1"],
+    allowedHosts: devServerHost === "0.0.0.0" ? undefined : ["localhost", "127.0.0.1"],
     sourcemapIgnoreList: () => false, // Show all sources in DevTools
   },
   preview: {

@@ -7,7 +7,7 @@ import type { TodoItem } from "@/types/tools";
 import { StreamingMessageAggregator } from "@/utils/messages/StreamingMessageAggregator";
 import { updatePersistedState } from "@/hooks/usePersistedState";
 import { getRetryStateKey } from "@/constants/storage";
-import { CUSTOM_EVENTS } from "@/constants/events";
+import { CUSTOM_EVENTS, createCustomEvent } from "@/constants/events";
 import { useSyncExternalStore } from "react";
 import { isCaughtUpMessage, isStreamError, isDeleteMessage, isCmuxMessage } from "@/types/ipc";
 import { MapStore } from "./MapStore";
@@ -263,11 +263,7 @@ export class WorkspaceStore {
    * Triggers useResumeManager to check if interrupted stream can be resumed.
    */
   private dispatchResumeCheck(workspaceId: string): void {
-    window.dispatchEvent(
-      new CustomEvent(CUSTOM_EVENTS.RESUME_CHECK_REQUESTED, {
-        detail: { workspaceId },
-      })
-    );
+    window.dispatchEvent(createCustomEvent(CUSTOM_EVENTS.RESUME_CHECK_REQUESTED, { workspaceId }));
   }
 
   /**

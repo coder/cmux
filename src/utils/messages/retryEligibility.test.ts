@@ -1,6 +1,7 @@
 import { describe, it, expect } from "@jest/globals";
-import { hasInterruptedStream, isEligibleForAutoRetry } from "./retryEligibility";
+import { hasInterruptedStream, isEligibleForAutoRetry, isNonRetryableSendError } from "./retryEligibility";
 import type { DisplayedMessage } from "@/types/message";
+import type { SendMessageError } from "@/types/errors";
 
 describe("hasInterruptedStream", () => {
   it("returns false for empty messages", () => {
@@ -553,5 +554,39 @@ describe("isEligibleForAutoRetry", () => {
       const justSent = Date.now() - 500; // 0.5s ago
       expect(isEligibleForAutoRetry(messages, justSent)).toBe(false);
     });
+  });
+});
+
+describe("isNonRetryableSendError", () => {
+  it("returns true for api_key_not_found error", () => {
+    const error: SendMessageError = {
+      type: "api_key_not_found",
+      provider: "anthropic",
+    };
+    expect(isNonRetryableSendError(error)).toBe(true);
+  });
+
+  it("returns true for provider_not_supported error", () => {
+    const error: SendMessageError = {
+      type: "provider_not_supported",
+      provider: "unknown-provider",
+    };
+    expect(isNonRetryableSendError(error)).toBe(true);
+  });
+
+  it("returns true for invalid_model_string error", () => {
+    const error: SendMessageError = {
+      type: "invalid_model_string",
+      message: "Invalid model format",
+    };
+    expect(isNonRetryableSendError(error)).toBe(true);
+  });
+
+  it("returns false for unknown error", () => {
+    const error: SendMessageError = {
+      type: "unknown",
+      raw: "Some transient error",
+    };
+    expect(isNonRetryableSendError(error)).toBe(false);
   });
 });

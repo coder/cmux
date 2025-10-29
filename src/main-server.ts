@@ -20,7 +20,7 @@ const program = new Command();
 program
   .name("cmux-server")
   .description("HTTP/WebSocket server for cmux - allows accessing cmux backend from mobile devices")
-  .option("-h, --host <host>", "bind to specific host", "0.0.0.0")
+  .option("-h, --host <host>", "bind to specific host", "localhost")
   .option("-p, --port <port>", "bind to specific port", "3000")
   .parse(process.argv);
 
@@ -149,7 +149,7 @@ app.get("/health", (req, res) => {
 // Fallback to index.html for SPA routes (use middleware instead of deprecated wildcard)
 app.use((req, res, next) => {
   if (!req.path.startsWith("/ipc") && !req.path.startsWith("/ws")) {
-    res.sendFile(path.join(__dirname, "."));
+    res.sendFile(path.join(__dirname, "index.html"));
   } else {
     next();
   }
@@ -245,7 +245,7 @@ wss.on("connection", (ws) => {
   ws.on("error", (error) => {
     console.error("WebSocket error:", error);
   });
-});
+  });
 
 server.listen(PORT, HOST, () => {
   console.log(`Server is running on http://${HOST}:${PORT}`);

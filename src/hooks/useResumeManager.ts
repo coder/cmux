@@ -1,15 +1,17 @@
 import { useEffect, useRef } from "react";
 import { useWorkspaceStoreRaw, type WorkspaceState } from "@/stores/WorkspaceStore";
-import { CUSTOM_EVENTS } from "@/constants/events";
+import { CUSTOM_EVENTS, type CustomEventType } from "@/constants/events";
 import { getAutoRetryKey, getRetryStateKey } from "@/constants/storage";
 import { getSendOptionsFromStorage } from "@/utils/messages/sendOptions";
-import { readPersistedState } from "./usePersistedState";
-import { isEligibleForAutoRetry } from "@/utils/messages/retryEligibility";
+import { readPersistedState, updatePersistedState } from "./usePersistedState";
+import { isEligibleForAutoRetry, isNonRetryableSendError } from "@/utils/messages/retryEligibility";
 import { applyCompactionOverrides } from "@/utils/messages/compactionOptions";
+import type { SendMessageError } from "@/types/errors";
 
-interface RetryState {
+export interface RetryState {
   attempt: number;
   retryStartTime: number;
+  lastError?: SendMessageError;
 }
 
 const INITIAL_DELAY = 1000; // 1 second
@@ -106,12 +108,19 @@ export function useResumeManager() {
     // 3. Must not already be retrying
     if (retryingRef.current.has(workspaceId)) return false;
 
-    // 4. Check exponential backoff timer
+    // 4. Check if previous error was non-retryable (e.g., api_key_not_found)
     const retryState = readPersistedState<RetryState>(
       getRetryStateKey(workspaceId),
       { attempt: 0, retryStartTime: Date.now() - INITIAL_DELAY } // Make immediately eligible on first check
     );
 
+    if (retryState.lastError && isNonRetryableSendError(retryState.lastError)) {
+      // Don't auto-retry errors that require user action
+      // Manual retry is still available via RetryBarrier
+      return false;
+    }
+
+    // 5. Check exponential backoff timer
     const { attempt, retryStartTime } = retryState;
     const delay = Math.min(INITIAL_DELAY * Math.pow(2, attempt), MAX_DELAY);
     const timeSinceLastRetry = Date.now() - retryStartTime;
@@ -124,9 +133,13 @@ export function useResumeManager() {
   /**
    * Attempt to resume a workspace stream
    * Polling will check eligibility every 1 second
+   * 
+   * @param workspaceId - The workspace to resume
+   * @param isManual - If true, bypass eligibility checks (user explicitly clicked retry)
    */
-  const attemptResume = async (workspaceId: string) => {
-    if (!isEligibleForResume(workspaceId)) return;
+  const attemptResume = async (workspaceId: string, isManual = false) => {
+    // Skip eligibility checks for manual retries (user explicitly wants to retry)
+    if (!isManual && !isEligibleForResume(workspaceId)) return;
 
     // Mark as retrying
     retryingRef.current.add(workspaceId);
@@ -157,24 +170,29 @@ export function useResumeManager() {
       const result = await window.api.workspace.resumeStream(workspaceId, options);
 
       if (!result.success) {
-        // Increment attempt and reset timer for next retry
+        // Store error in retry state so RetryBarrier can display it
         const newState: RetryState = {
           attempt: attempt + 1,
           retryStartTime: Date.now(),
+          lastError: result.error,
         };
-        localStorage.setItem(getRetryStateKey(workspaceId), JSON.stringify(newState));
+        updatePersistedState(getRetryStateKey(workspaceId), newState);
       } else {
         // Success - clear retry state entirely
         // If stream fails again, we'll start fresh (immediately eligible)
-        localStorage.removeItem(getRetryStateKey(workspaceId));
+        updatePersistedState(getRetryStateKey(workspaceId), null);
       }
-    } catch {
-      // Increment attempt on error
+    } catch (error) {
+      // Store error in retry state for display
       const newState: RetryState = {
         attempt: attempt + 1,
         retryStartTime: Date.now(),
+        lastError: {
+          type: "unknown",
+          raw: error instanceof Error ? error.message : "Failed to resume stream",
+        },
       };
-      localStorage.setItem(getRetryStateKey(workspaceId), JSON.stringify(newState));
+      updatePersistedState(getRetryStateKey(workspaceId), newState);
     } finally {
       // Always clear retrying flag
       retryingRef.current.delete(workspaceId);
@@ -189,9 +207,9 @@ export function useResumeManager() {
 
     // Listen for resume check requests (primary mechanism)
     const handleResumeCheck = (event: Event) => {
-      const customEvent = event as CustomEvent<{ workspaceId: string }>;
-      const { workspaceId } = customEvent.detail;
-      void attemptResume(workspaceId);
+      const customEvent = event as CustomEventType<typeof CUSTOM_EVENTS.RESUME_CHECK_REQUESTED>;
+      const { workspaceId, isManual = false } = customEvent.detail;
+      void attemptResume(workspaceId, isManual);
     };
 
     window.addEventListener(CUSTOM_EVENTS.RESUME_CHECK_REQUESTED, handleResumeCheck);

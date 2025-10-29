@@ -4,7 +4,7 @@ import { useCommandRegistry } from "@/contexts/CommandRegistryContext";
 import type { CommandAction } from "@/contexts/CommandRegistryContext";
 import { formatKeybind, KEYBINDS, isEditableElement, matchesKeybind } from "@/utils/ui/keybinds";
 import { getSlashCommandSuggestions } from "@/utils/slashCommands/suggestions";
-import { CUSTOM_EVENTS } from "@/constants/events";
+import { CUSTOM_EVENTS, createCustomEvent } from "@/constants/events";
 
 interface CommandPaletteProps {
   getSlashContext?: () => { providerNames: string[]; workspaceId?: string };
@@ -189,9 +189,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ getSlashContext 
             shortcutHint: `${formatKeybind(KEYBINDS.SEND_MESSAGE)} to insert`,
             run: () => {
               const text = s.replacement;
-              window.dispatchEvent(
-                new CustomEvent(CUSTOM_EVENTS.INSERT_TO_CHAT_INPUT, { detail: { text } })
-              );
+              window.dispatchEvent(createCustomEvent(CUSTOM_EVENTS.INSERT_TO_CHAT_INPUT, { text }));
             },
           })),
         },

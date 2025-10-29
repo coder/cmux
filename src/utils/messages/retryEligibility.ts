@@ -1,17 +1,31 @@
 import type { DisplayedMessage } from "@/types/message";
-import type { StreamErrorType } from "@/types/errors";
+import type { StreamErrorType, SendMessageError } from "@/types/errors";
 
 /**
  * Error types that should NOT be auto-retried because they require user action
  * These errors won't resolve on their own - the user must fix the underlying issue
  */
-const NON_RETRYABLE_ERRORS: StreamErrorType[] = [
+const NON_RETRYABLE_STREAM_ERRORS: StreamErrorType[] = [
   "authentication", // Bad API key - user must fix credentials
   "quota", // Billing/usage limits - user must upgrade or wait for reset
   "model_not_found", // Invalid model - user must select different model
   "context_exceeded", // Message too long - user must reduce context
   "aborted", // User cancelled - should not auto-retry
 ];
+
+/**
+ * Check if a SendMessageError (from resumeStream failures) is non-retryable
+ */
+export function isNonRetryableSendError(error: SendMessageError): boolean {
+  switch (error.type) {
+    case "api_key_not_found": // Missing API key - user must configure
+    case "provider_not_supported": // Unsupported provider - user must switch
+    case "invalid_model_string": // Bad model format - user must fix
+      return true;
+    case "unknown":
+      return false; // Unknown errors might be transient
+  }
+}
 
 /**
  * Check if messages contain an interrupted stream
@@ -77,7 +91,7 @@ export function isEligibleForAutoRetry(
   // (but manual retry is still available via hasInterruptedStream)
   const lastMessage = messages[messages.length - 1];
   if (lastMessage.type === "stream-error") {
-    return !NON_RETRYABLE_ERRORS.includes(lastMessage.errorType);
+    return !NON_RETRYABLE_STREAM_ERRORS.includes(lastMessage.errorType);
   }
 
   // Other interrupted states (partial messages, user messages) are auto-retryable
