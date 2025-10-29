@@ -144,7 +144,7 @@ export const TOOL_DEFINITIONS = {
   todo_write: {
     description:
       "Create or update the todo list for tracking multi-step tasks (limit: 7 items). " +
-      "The TODO list is prominently displayed to the user at the bottom of the chat. " +
+      "The TODO list is displayed to the user at all times. " +
       "Replace the entire list on each call - the AI tracks which tasks are completed.\n" +
       "\n" +
       "Mark ONE task as in_progress at a time. " +
@@ -152,6 +152,9 @@ export const TOOL_DEFINITIONS = {
       "Use appropriate tense in content: past tense for completed (e.g., 'Added tests'), " +
       "present progressive for in_progress (e.g., 'Adding tests'), " +
       "and imperative/infinitive for pending (e.g., 'Add tests').\n" +
+      "\n" +
+      "If you hit the 7-item limit, summarize older completed items into one line " +
+      "(e.g., 'Completed initial setup (3 tasks)').\n" +
       "\n" +
       "Update the list as work progresses. If work fails or the approach changes, update " +
       "the list to reflect reality - only mark tasks complete when they actually succeed.",
