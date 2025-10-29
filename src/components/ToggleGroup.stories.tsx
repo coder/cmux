@@ -1,7 +1,7 @@
-import type { Meta, StoryObj } from "@storybook/react";
-import { action } from "@storybook/addon-actions";
-import { expect, userEvent, within, waitFor } from "@storybook/test";
-import { useArgs } from "@storybook/preview-api";
+import type { Meta, StoryObj } from "@storybook/react-vite";
+import { action } from "storybook/actions";
+import { expect, userEvent, within, waitFor } from "storybook/test";
+import { useArgs } from "storybook/preview-api";
 import { ToggleGroup, type ToggleOption } from "./ToggleGroup";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
