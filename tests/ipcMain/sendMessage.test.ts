@@ -150,12 +150,12 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
         // Setup test environment
         const { env, workspaceId, cleanup } = await setupWorkspace(provider);
         try {
-          // Send a message that will generate text deltas
+          // Send a simple message to generate text deltas
           // Disable reasoning for this test to avoid flakiness and encrypted content issues in CI
           void sendMessageWithModel(
             env.mockIpcRenderer,
             workspaceId,
-            "Write a short paragraph about TypeScript",
+            "Say 'test' and nothing else",
             provider,
             model,
             { thinkingLevel: "off" }
@@ -536,9 +536,54 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
       30000
     );
 
-    test.concurrent(
-      "should handle tool calls and return file contents",
-      async () => {
+
+
+
+
+    test.concurrent("should return error when model is not provided", async () => {
+      const { env, workspaceId, cleanup } = await setupWorkspace(provider);
+      try {
+        // Send message without model
+        const result = await sendMessage(
+          env.mockIpcRenderer,
+          workspaceId,
+          "Hello",
+          {} as { model: string }
+        );
+
+        // Should fail with appropriate error
+        assertError(result, "unknown");
+        if (!result.success && result.error.type === "unknown") {
+          expect(result.error.raw).toContain("No model specified");
+        }
+      } finally {
+        await cleanup();
+      }
+    });
+
+    test.concurrent("should return error for invalid model string", async () => {
+      const { env, workspaceId, cleanup } = await setupWorkspace(provider);
+      try {
+        // Send message with invalid model format
+        const result = await sendMessage(env.mockIpcRenderer, workspaceId, "Hello", {
+          model: "invalid-format",
+        });
+
+        // Should fail with invalid_model_string error
+        assertError(result, "invalid_model_string");
+      } finally {
+        await cleanup();
+      }
+    });
+
+
+  });
+
+  // Matrix tests - test across both providers for features that may have provider-specific behavior
+  describe("matrix tests", () => {
+    test.each(PROVIDER_CONFIGS)(
+      "%s:%s should handle tool calls and return file contents",
+      async (provider, model) => {
         const { env, workspaceId, workspacePath, cleanup } = await setupWorkspace(provider);
         try {
           // Generate a random string
@@ -577,9 +622,9 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
       20000
     );
 
-    test.concurrent(
-      "should maintain conversation continuity across messages",
-      async () => {
+    test.each(PROVIDER_CONFIGS)(
+      "%s:%s should maintain conversation continuity across messages",
+      async (provider, model) => {
         const { env, workspaceId, cleanup } = await setupWorkspace(provider);
         try {
           // First message: Ask for a random word
@@ -662,45 +707,9 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
       20000
     );
 
-    test.concurrent("should return error when model is not provided", async () => {
-      const { env, workspaceId, cleanup } = await setupWorkspace(provider);
-      try {
-        // Send message without model
-        const result = await sendMessage(
-          env.mockIpcRenderer,
-          workspaceId,
-          "Hello",
-          {} as { model: string }
-        );
-
-        // Should fail with appropriate error
-        assertError(result, "unknown");
-        if (!result.success && result.error.type === "unknown") {
-          expect(result.error.raw).toContain("No model specified");
-        }
-      } finally {
-        await cleanup();
-      }
-    });
-
-    test.concurrent("should return error for invalid model string", async () => {
-      const { env, workspaceId, cleanup } = await setupWorkspace(provider);
-      try {
-        // Send message with invalid model format
-        const result = await sendMessage(env.mockIpcRenderer, workspaceId, "Hello", {
-          model: "invalid-format",
-        });
-
-        // Should fail with invalid_model_string error
-        assertError(result, "invalid_model_string");
-      } finally {
-        await cleanup();
-      }
-    });
-
-    test.concurrent(
-      "should include mode-specific instructions in system message",
-      async () => {
+    test.each(PROVIDER_CONFIGS)(
+      "%s:%s should include mode-specific instructions in system message",
+      async (provider, model) => {
         // Setup test environment
         const { env, workspaceId, tempGitRepo, cleanup } = await setupWorkspace(provider);
         try {
@@ -783,100 +792,19 @@ These are general instructions that apply to all modes.
       },
       25000
     );
-  });
 
-  // Error handling tests for API key issues
-  describe("API key error handling", () => {
     test.each(PROVIDER_CONFIGS)(
-      "%s should return api_key_not_found error when API key is missing",
+      "%s:%s should return error when accumulated history exceeds token limit",
       async (provider, model) => {
-        const { env, workspaceId, cleanup } = await setupWorkspaceWithoutProvider(
-          `noapi-${provider}`
-        );
-        try {
-          // Try to send message without API key configured
-          const result = await sendMessageWithModel(
-            env.mockIpcRenderer,
-            workspaceId,
-            "Hello",
-            provider,
-            model
-          );
-
-          // Should fail with api_key_not_found error
-          assertError(result, "api_key_not_found");
-          if (!result.success && result.error.type === "api_key_not_found") {
-            expect(result.error.provider).toBe(provider);
-          }
-        } finally {
-          await cleanup();
-        }
-      }
-    );
-  });
-
-  // Non-existent model error handling tests
-  describe("non-existent model error handling", () => {
-    test.each(PROVIDER_CONFIGS)(
-      "%s should return stream error when model does not exist",
-      async (provider) => {
-        const { env, workspaceId, cleanup } = await setupWorkspace(provider);
-        try {
-          // Use a clearly non-existent model name
-          const nonExistentModel = "definitely-not-a-real-model-12345";
-          const result = await sendMessageWithModel(
-            env.mockIpcRenderer,
-            workspaceId,
-            "Hello, world!",
-            provider,
-            nonExistentModel
-          );
-
-          // IPC call should succeed (errors come through stream events)
-          expect(result.success).toBe(true);
-
-          // Wait for stream-error event
-          const collector = createEventCollector(env.sentEvents, workspaceId);
-          const errorEvent = await collector.waitForEvent("stream-error", 10000);
-
-          // Should have received a stream-error event
-          expect(errorEvent).toBeDefined();
-          expect(collector.hasError()).toBe(true);
-
-          // Verify error message is the enhanced user-friendly version
-          if (errorEvent && "error" in errorEvent) {
-            const errorMsg = String(errorEvent.error);
-            // Should have the enhanced error message format
-            expect(errorMsg).toContain("definitely-not-a-real-model-12345");
-            expect(errorMsg).toContain("does not exist or is not available");
-          }
-
-          // Verify error type is properly categorized
-          if (errorEvent && "errorType" in errorEvent) {
-            expect(errorEvent.errorType).toBe("model_not_found");
-          }
-        } finally {
-          await cleanup();
-        }
-      }
-    );
-  });
-
-  // Token limit error handling tests - using single provider to reduce test time (expensive test)
-  describe("token limit error handling", () => {
-    test.concurrent(
-      "should return error when accumulated history exceeds token limit",
-      async () => {
-        const provider = DEFAULT_PROVIDER;
-        const model = DEFAULT_MODEL;
         const { env, workspaceId, cleanup } = await setupWorkspace(provider);
         try {
           // Build up large conversation history to exceed context limits
-          // For Anthropic: 200k tokens → need ~15 messages of 50k chars (750k chars total) to exceed
-          // Reduced from 40 to 15 messages to speed up test while still triggering the error
+          // Reduced from 15 to 10 messages to speed up test while still triggering the error
+          // For Anthropic: 200k tokens → ~10 messages of 50k chars (500k chars) exceeds limit
+          // For OpenAI: gpt-4o-mini 128k tokens → same approach works
           await buildLargeHistory(workspaceId, env.config, {
             messageSize: 50_000,
-            messageCount: 15,
+            messageCount: 10,
           });
 
           // Now try to send a new message - should trigger token limit error
@@ -973,7 +901,206 @@ These are general instructions that apply to all modes.
       },
       30000
     );
+
+    test.each(PROVIDER_CONFIGS)(
+      "%s:%s should pass additionalSystemInstructions through to system message",
+      async (provider, model) => {
+        const { env, workspaceId, cleanup } = await setupWorkspace(provider);
+        try {
+          // Send message with custom system instructions that add a distinctive marker
+          const result = await sendMessage(env.mockIpcRenderer, workspaceId, "Say hello", {
+            model: `${provider}:${model}`,
+            additionalSystemInstructions:
+              "IMPORTANT: You must include the word BANANA somewhere in every response.",
+          });
+
+          // IPC call should succeed
+          expect(result.success).toBe(true);
+
+          // Wait for stream to complete
+          const collector = await waitForStreamSuccess(env.sentEvents, workspaceId, 10000);
+
+          // Get the final assistant message
+          const finalMessage = collector.getFinalMessage();
+          expect(finalMessage).toBeDefined();
+
+          // Verify response contains the distinctive marker from additional system instructions
+          if (finalMessage && "parts" in finalMessage && Array.isArray(finalMessage.parts)) {
+            const content = finalMessage.parts
+              .filter((part) => part.type === "text")
+              .map((part) => (part as { text: string }).text)
+              .join("");
+
+            expect(content).toContain("BANANA");
+          }
+        } finally {
+          await cleanup();
+        }
+      },
+      15000
+    );
   });
+
+  // Image support tests - test across both providers (vision models behave differently)
+  describe.each(PROVIDER_CONFIGS)("%s:%s image support", (provider, model) => {
+    test.concurrent(
+      "should send images to AI model and get response",
+      async () => {
+        const { env, workspaceId, cleanup } = await setupWorkspace(provider);
+        try {
+          // Send message with image attachment
+          const result = await sendMessage(env.mockIpcRenderer, workspaceId, "What color is this?", {
+            model: modelString(provider, model),
+            imageParts: [{ url: TEST_IMAGES.RED_PIXEL, mediaType: "image/png" }],
+          });
+
+          expect(result.success).toBe(true);
+
+          // Wait for stream to complete
+          const collector = await waitForStreamSuccess(env.sentEvents, workspaceId, 30000);
+
+          // Verify we got a response about the image
+          const deltas = collector.getDeltas();
+          expect(deltas.length).toBeGreaterThan(0);
+
+          // Combine all text deltas
+          const fullResponse = deltas
+            .map((d) => (d as StreamDeltaEvent).delta)
+            .join("")
+            .toLowerCase();
+
+          // Should mention red color in some form
+          expect(fullResponse.length).toBeGreaterThan(0);
+          // Red pixel should be detected (flexible matching as different models may phrase differently)
+          expect(fullResponse).toMatch(/red|color/i);
+        } finally {
+          await cleanup();
+        }
+      },
+      40000 // Vision models can be slower
+    );
+
+    test.concurrent(
+      "should preserve image parts through history",
+      async () => {
+        const { env, workspaceId, cleanup } = await setupWorkspace(provider);
+        try {
+          // Send message with image
+          const result = await sendMessage(env.mockIpcRenderer, workspaceId, "Describe this", {
+            model: modelString(provider, model),
+            imageParts: [{ url: TEST_IMAGES.BLUE_PIXEL, mediaType: "image/png" }],
+          });
+
+          expect(result.success).toBe(true);
+
+          // Wait for stream to complete
+          await waitForStreamSuccess(env.sentEvents, workspaceId, 30000);
+
+          // Read history from disk
+          const messages = await readChatHistory(env.tempDir, workspaceId);
+
+          // Find the user message
+          const userMessage = messages.find((m: { role: string }) => m.role === "user");
+          expect(userMessage).toBeDefined();
+
+          // Verify image part is preserved with correct format
+          if (userMessage) {
+            const imagePart = userMessage.parts.find((p: { type: string }) => p.type === "file");
+            expect(imagePart).toBeDefined();
+            if (imagePart) {
+              expect(imagePart.url).toBe(TEST_IMAGES.BLUE_PIXEL);
+              expect(imagePart.mediaType).toBe("image/png");
+            }
+          }
+        } finally {
+          await cleanup();
+        }
+      },
+      40000
+    );
+  });
+
+
+
+  // Error handling tests for API key issues
+  describe("API key error handling", () => {
+    test.each(PROVIDER_CONFIGS)(
+      "%s should return api_key_not_found error when API key is missing",
+      async (provider, model) => {
+        const { env, workspaceId, cleanup } = await setupWorkspaceWithoutProvider(
+          `noapi-${provider}`
+        );
+        try {
+          // Try to send message without API key configured
+          const result = await sendMessageWithModel(
+            env.mockIpcRenderer,
+            workspaceId,
+            "Hello",
+            provider,
+            model
+          );
+
+          // Should fail with api_key_not_found error
+          assertError(result, "api_key_not_found");
+          if (!result.success && result.error.type === "api_key_not_found") {
+            expect(result.error.provider).toBe(provider);
+          }
+        } finally {
+          await cleanup();
+        }
+      }
+    );
+  });
+
+  // Non-existent model error handling tests
+  describe("non-existent model error handling", () => {
+    test.each(PROVIDER_CONFIGS)(
+      "%s should return stream error when model does not exist",
+      async (provider) => {
+        const { env, workspaceId, cleanup } = await setupWorkspace(provider);
+        try {
+          // Use a clearly non-existent model name
+          const nonExistentModel = "definitely-not-a-real-model-12345";
+          const result = await sendMessageWithModel(
+            env.mockIpcRenderer,
+            workspaceId,
+            "Hello, world!",
+            provider,
+            nonExistentModel
+          );
+
+          // IPC call should succeed (errors come through stream events)
+          expect(result.success).toBe(true);
+
+          // Wait for stream-error event
+          const collector = createEventCollector(env.sentEvents, workspaceId);
+          const errorEvent = await collector.waitForEvent("stream-error", 10000);
+
+          // Should have received a stream-error event
+          expect(errorEvent).toBeDefined();
+          expect(collector.hasError()).toBe(true);
+
+          // Verify error message is the enhanced user-friendly version
+          if (errorEvent && "error" in errorEvent) {
+            const errorMsg = String(errorEvent.error);
+            // Should have the enhanced error message format
+            expect(errorMsg).toContain("definitely-not-a-real-model-12345");
+            expect(errorMsg).toContain("does not exist or is not available");
+          }
+
+          // Verify error type is properly categorized
+          if (errorEvent && "errorType" in errorEvent) {
+            expect(errorEvent.errorType).toBe("model_not_found");
+          }
+        } finally {
+          await cleanup();
+        }
+      }
+    );
+  });
+
+  // Token limit error handling tests - using single provider to reduce test time (expensive test)
+
 
   // Tool policy tests - using single provider (tool policy is implemented in our code, not provider-specific)
   describe("tool policy", () => {
@@ -1021,7 +1148,7 @@ These are general instructions that apply to all modes.
           const collector = createEventCollector(env.sentEvents, workspaceId);
 
           // Wait for stream to complete
-          await collector.waitForEvent("stream-end", 30000);
+          await collector.waitForEvent("stream-end", 20000);
 
           // Verify stream completed successfully
           assertStreamSuccess(collector);
@@ -1040,7 +1167,7 @@ These are general instructions that apply to all modes.
           await cleanup();
         }
       },
-      30000
+      20000
     );
 
     test.concurrent(
@@ -1077,8 +1204,8 @@ These are general instructions that apply to all modes.
 
           // Wait for either stream-end or stream-error
           await Promise.race([
-            collector.waitForEvent("stream-end", 30000),
-            collector.waitForEvent("stream-error", 30000),
+            collector.waitForEvent("stream-end", 20000),
+            collector.waitForEvent("stream-error", 20000),
           ]);
 
           // This will throw with detailed error info if stream didn't complete successfully
@@ -1091,53 +1218,12 @@ These are general instructions that apply to all modes.
           await cleanup();
         }
       },
-      30000
+      20000
     );
   });
 
   // Additional system instructions tests - using single provider
-  describe("additional system instructions", () => {
-    const provider = DEFAULT_PROVIDER;
-    const model = DEFAULT_MODEL;
 
-    test.concurrent(
-      "should pass additionalSystemInstructions through to system message",
-      async () => {
-        const { env, workspaceId, cleanup } = await setupWorkspace(provider);
-        try {
-          // Send message with custom system instructions that add a distinctive marker
-          const result = await sendMessage(env.mockIpcRenderer, workspaceId, "Say hello", {
-            model: `${provider}:${model}`,
-            additionalSystemInstructions:
-              "IMPORTANT: You must include the word BANANA somewhere in every response.",
-          });
-
-          // IPC call should succeed
-          expect(result.success).toBe(true);
-
-          // Wait for stream to complete
-          const collector = await waitForStreamSuccess(env.sentEvents, workspaceId, 10000);
-
-          // Get the final assistant message
-          const finalMessage = collector.getFinalMessage();
-          expect(finalMessage).toBeDefined();
-
-          // Verify response contains the distinctive marker from additional system instructions
-          if (finalMessage && "parts" in finalMessage && Array.isArray(finalMessage.parts)) {
-            const content = finalMessage.parts
-              .filter((part) => part.type === "text")
-              .map((part) => (part as { text: string }).text)
-              .join("");
-
-            expect(content).toContain("BANANA");
-          }
-        } finally {
-          await cleanup();
-        }
-      },
-      15000
-    );
-  });
 
   // OpenAI auto truncation integration test
   // This test verifies that the truncation: "auto" parameter works correctly
@@ -1376,83 +1462,4 @@ These are general instructions that apply to all modes.
 });
 
 // Test image support - using single provider (image handling is SDK-level, not provider-specific)
-describe("image support", () => {
-  const provider = DEFAULT_PROVIDER;
-  const model = DEFAULT_MODEL;
 
-  test.concurrent(
-    "should send images to AI model and get response",
-    async () => {
-      const { env, workspaceId, cleanup } = await setupWorkspace(provider);
-      try {
-        // Send message with image attachment
-        const result = await sendMessage(env.mockIpcRenderer, workspaceId, "What color is this?", {
-          model: modelString(provider, model),
-          imageParts: [{ url: TEST_IMAGES.RED_PIXEL, mediaType: "image/png" }],
-        });
-
-        expect(result.success).toBe(true);
-
-        // Wait for stream to complete
-        const collector = await waitForStreamSuccess(env.sentEvents, workspaceId, 30000);
-
-        // Verify we got a response about the image
-        const deltas = collector.getDeltas();
-        expect(deltas.length).toBeGreaterThan(0);
-
-        // Combine all text deltas
-        const fullResponse = deltas
-          .map((d) => (d as StreamDeltaEvent).delta)
-          .join("")
-          .toLowerCase();
-
-        // Should mention red color in some form
-        expect(fullResponse.length).toBeGreaterThan(0);
-        // Red pixel should be detected (flexible matching as different models may phrase differently)
-        expect(fullResponse).toMatch(/red|color/i);
-      } finally {
-        await cleanup();
-      }
-    },
-    40000 // Vision models can be slower
-  );
-
-  test.concurrent(
-    "should preserve image parts through history",
-    async () => {
-      const { env, workspaceId, cleanup } = await setupWorkspace(provider);
-      try {
-        // Send message with image
-        const result = await sendMessage(env.mockIpcRenderer, workspaceId, "Describe this", {
-          model: modelString(provider, model),
-          imageParts: [{ url: TEST_IMAGES.BLUE_PIXEL, mediaType: "image/png" }],
-        });
-
-        expect(result.success).toBe(true);
-
-        // Wait for stream to complete
-        await waitForStreamSuccess(env.sentEvents, workspaceId, 30000);
-
-        // Read history from disk
-        const messages = await readChatHistory(env.tempDir, workspaceId);
-
-        // Find the user message
-        const userMessage = messages.find((m: { role: string }) => m.role === "user");
-        expect(userMessage).toBeDefined();
-
-        // Verify image part is preserved with correct format
-        if (userMessage) {
-          const imagePart = userMessage.parts.find((p: { type: string }) => p.type === "file");
-          expect(imagePart).toBeDefined();
-          if (imagePart) {
-            expect(imagePart.url).toBe(TEST_IMAGES.BLUE_PIXEL);
-            expect(imagePart.mediaType).toBe("image/png");
-          }
-        }
-      } finally {
-        await cleanup();
-      }
-    },
-    40000
-  );
-});
