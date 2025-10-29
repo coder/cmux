@@ -1,11 +1,6 @@
 /**
  * HTTP/WebSocket Server for cmux
  * Allows accessing cmux backend from mobile devices
- *
- * Usage: node dist/main.js server [-h HOST] [-p PORT]
- * Options:
- *   -h HOST    Bind to specific host (default: 0.0.0.0)
- *   -p PORT    Bind to specific port (default: 3000)
  */
 import { Config } from "./config";
 import { IPC_CHANNELS } from "@/constants/ipc-constants";
@@ -17,22 +12,21 @@ import * as http from "http";
 import * as path from "path";
 import type { RawData } from "ws";
 import { WebSocket, WebSocketServer } from "ws";
+import { Command } from "commander";
 
 // Parse command line arguments
-const args = process.argv.slice(3); // Skip node, script, and "server"
-let HOST = "0.0.0.0";
-let PORT = 3000;
+const program = new Command();
 
-for (let i = 0; i < args.length; i++) {
-  const arg = args[i];
-  if (arg === "-h" && i + 1 < args.length) {
-    HOST = args[i + 1];
-    i++; // Skip next arg since we consumed it
-  } else if (arg === "-p" && i + 1 < args.length) {
-    PORT = parseInt(args[i + 1], 10);
-    i++;
-  }
-}
+program
+  .name("cmux-server")
+  .description("HTTP/WebSocket server for cmux - allows accessing cmux backend from mobile devices")
+  .option("-h, --host <host>", "bind to specific host", "0.0.0.0")
+  .option("-p, --port <port>", "bind to specific port", "3000")
+  .parse(process.argv);
+
+const options = program.opts();
+const HOST = options.host as string;
+const PORT = parseInt(options.port as string, 10);
 
 // Mock Electron's ipcMain for HTTP
 class HttpIpcMainAdapter {
