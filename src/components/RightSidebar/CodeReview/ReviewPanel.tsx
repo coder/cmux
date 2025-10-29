@@ -154,17 +154,14 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({
   // Persist diff base per workspace (falls back to global default)
   const [diffBase, setDiffBase] = usePersistedState(`review-diff-base:${workspaceId}`, defaultBase);
 
-  // Persist includeUncommitted flag per workspace
+  // Persist includeUncommitted flag globally
   const [includeUncommitted, setIncludeUncommitted] = usePersistedState(
-    `review-include-uncommitted:${workspaceId}`,
+    "review-include-uncommitted",
     false
   );
 
-  // Persist showReadHunks flag per workspace
-  const [showReadHunks, setShowReadHunks] = usePersistedState(
-    `review-show-read:${workspaceId}`,
-    true
-  );
+  // Persist showReadHunks flag globally
+  const [showReadHunks, setShowReadHunks] = usePersistedState("review-show-read", true);
 
   // Initialize review state hook
   const { isRead, toggleRead } = useReviewState(workspaceId);
