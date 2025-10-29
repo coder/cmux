@@ -309,9 +309,8 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ getSlashContext 
 
   const isSlashQuery = !currentField && query.trim().startsWith("/");
   const isCommandQuery = !currentField && query.trim().startsWith(">");
-  const shouldUseCmdkFilter = currentField
-    ? currentField.type === "select"
-    : !isSlashQuery && !isCommandQuery;
+  // Enable cmdk filtering for all cases except slash queries (which we handle manually)
+  const shouldUseCmdkFilter = currentField ? currentField.type === "select" : !isSlashQuery;
 
   let groups: PaletteGroup[] = generalResults.groups;
   let emptyText: string | undefined = generalResults.emptyText;
