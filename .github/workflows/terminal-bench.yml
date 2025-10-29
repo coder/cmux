@@ -2,7 +2,8 @@ name: Terminal-Bench
 
 on:
   schedule:
-    # Run full benchmark suite every night at midnight UTC
+    # Run full benchmark suite (~80 tasks) every night at midnight UTC
+    # Uses terminal-bench-core==0.1.1 which is the stable, full benchmark suite
     - cron: '0 0 * * *'
   workflow_dispatch:
     inputs:
