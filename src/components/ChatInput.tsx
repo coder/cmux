@@ -427,11 +427,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
         // Handle /vim command
         if (parsed.type === "vim-toggle") {
           setInput(""); // Clear input immediately
-          updatePersistedState<boolean>(
-            VIM_ENABLED_KEY,
-            (prev) => !(prev ?? false),
-            false
-          );
+          updatePersistedState<boolean>(VIM_ENABLED_KEY, (prev) => !(prev ?? false), false);
           return;
         }
 
