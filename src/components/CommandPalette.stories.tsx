@@ -185,8 +185,8 @@ export const Default: Story = {
         <br />
         <strong>Features:</strong>
         <br />
-        • By default, shows workspace switching commands
-        <br />• Type <kbd>&gt;</kbd> to see all commands across all sections
+        • By default, shows only workspace switching commands (no create/delete/rename)
+        <br />• Type <kbd>&gt;</kbd> to see all commands including workspace management
         <br />• Type <kbd>/</kbd> to see slash commands for chat input
         <br />
         • Use ↑↓ arrow keys to navigate, Enter to execute

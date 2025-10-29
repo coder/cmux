@@ -58,11 +58,11 @@ When documentation shows `Ctrl`, it means:
 
 The command palette (`Ctrl+Shift+P`) is primarily a **workspace switcher** by default:
 
-- **Default**: Shows only workspace commands (switch, create, rename, etc.)
-- **`>` prefix**: Shows all commands (navigation, chat, modes, projects, etc.)
+- **Default**: Shows only workspace switching commands (no mutations like create/delete/rename)
+- **`>` prefix**: Shows all commands (navigation, chat, modes, projects, workspace management, etc.)
 - **`/` prefix**: Shows slash command suggestions for inserting into chat
 
-This design keeps the palette focused on the most common use case (workspace switching) while still providing quick access to all commands when needed.
+This design keeps the palette focused on the most common use case (switching between workspaces) while still providing quick access to all commands when needed.
 
 ## Tips
 
