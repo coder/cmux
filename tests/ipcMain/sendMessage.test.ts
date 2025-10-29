@@ -190,8 +190,6 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
       20000
     );
 
-
-
     test.concurrent(
       "should include tokens and timestamp in delta events",
       async () => {
