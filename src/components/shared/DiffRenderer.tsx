@@ -186,26 +186,45 @@ export const DiffRenderer: React.FC<DiffRendererProps> = ({
         }))
       );
     } else {
-      // Fallback to plain lines
-      return content.split("\n").map((line, idx) => {
-        const type = (line.startsWith("+")
+      // Fallback to plain lines with proper line numbering
+      const lines = content.split("\n").filter((line) => line.length > 0);
+      const result = [];
+      let oldLine = oldStart;
+      let newLine = newStart;
+
+      for (let idx = 0; idx < lines.length; idx++) {
+        const line = lines[idx];
+        const firstChar = line.charAt(0);
+        const type = (firstChar === "+"
           ? "add"
-          : line.startsWith("-")
+          : firstChar === "-"
             ? "remove"
-            : line.startsWith("@@")
+            : firstChar === "@"
               ? "header"
               : "context") as DiffLineType;
-        return {
+
+        // For unified diffs, show new line number for additions/context, old for removals
+        const lineNumber = type === "remove" ? oldLine : newLine;
+
+        result.push({
           key: idx,
           type,
-          lineNumber: idx + 1,
-          indicator: line.charAt(0),
+          lineNumber,
+          indicator: firstChar,
           content: line.substring(1),
           isHighlighted: false,
-        };
-      });
+        });
+
+        // Update line counters (headers don't affect line numbers)
+        if (type !== "header") {
+          if (type !== "add") oldLine++;
+          if (type !== "remove") newLine++;
+        }
+      }
+
+      return result;
     }
-  }, [highlightedChunks, content]);
+  }, [highlightedChunks, content, oldStart, newStart]);
 
   return (
     <div
@@ -417,31 +436,77 @@ export const SelectableDiffRenderer = React.memo<SelectableDiffRendererProps>(
       newStart
     );
 
-    // Build lineData from highlighted chunks (memoized to prevent repeated parsing)
-    // Note: content field is NOT included - must be extracted from lines array when needed
+    // Build lineData for both highlighted and plain modes
+    // This ensures line selection works before highlighting completes
     const lineData = React.useMemo(() => {
-      if (!highlightedChunks) return [];
+      if (highlightedChunks) {
+        // Highlighted mode - use chunk data
+        const data: Array<{
+          index: number;
+          type: DiffLineType;
+          lineNum: number;
+          html: string;
+          isHighlighted: boolean;
+        }> = [];
 
-      const data: Array<{
-        index: number;
-        type: DiffLineType;
-        lineNum: number;
-        html: string;
-      }> = [];
-
-      highlightedChunks.forEach((chunk) => {
-        chunk.lines.forEach((line) => {
-          data.push({
-            index: line.originalIndex,
-            type: chunk.type,
-            lineNum: line.lineNumber,
-            html: line.html,
+        highlightedChunks.forEach((chunk) => {
+          chunk.lines.forEach((line) => {
+            data.push({
+              index: line.originalIndex,
+              type: chunk.type,
+              lineNum: line.lineNumber,
+              html: line.html,
+              isHighlighted: true,
+            });
           });
         });
-      });
 
-      return data;
-    }, [highlightedChunks]);
+        return data;
+      } else {
+        // Plain mode - compute from raw lines with proper line numbering
+        const rawLines = content.split("\n").filter((line) => line.length > 0);
+        const data: Array<{
+          index: number;
+          type: DiffLineType;
+          lineNum: number;
+          html: string;
+          isHighlighted: boolean;
+        }> = [];
+        let oldLine = oldStart;
+        let newLine = newStart;
+
+        for (let idx = 0; idx < rawLines.length; idx++) {
+          const line = rawLines[idx];
+          const firstChar = line.charAt(0);
+          const type = (firstChar === "+"
+            ? "add"
+            : firstChar === "-"
+              ? "remove"
+              : firstChar === "@"
+                ? "header"
+                : "context") as DiffLineType;
+
+          // For unified diffs, show new line number for additions/context, old for removals
+          const lineNum = type === "remove" ? oldLine : newLine;
+
+          data.push({
+            index: idx,
+            type,
+            lineNum,
+            html: line.substring(1),
+            isHighlighted: false,
+          });
+
+          // Update line counters (headers don't affect line numbers)
+          if (type !== "header") {
+            if (type !== "add") oldLine++;
+            if (type !== "remove") newLine++;
+          }
+        }
+
+        return data;
+      }
+    }, [highlightedChunks, content, oldStart, newStart]);
 
     // Memoize highlighted line data to avoid re-parsing HTML on every render
     // Only recalculate when lineData or searchConfig changes
@@ -496,11 +561,8 @@ export const SelectableDiffRenderer = React.memo<SelectableDiffRendererProps>(
       return index >= start && index <= end;
     };
 
-    // Extract lines for rendering (done once, outside map)
+    // Extract raw lines for ReviewNoteInput (done once, outside map)
     const lines = useMemo(() => content.split("\n").filter((line) => line.length > 0), [content]);
-
-    // Determine if we're using highlighted or plain mode
-    const useHighlighted = highlightedLineData.length > 0;
 
     return (
       <div
@@ -513,22 +575,7 @@ export const SelectableDiffRenderer = React.memo<SelectableDiffRendererProps>(
           gridTemplateColumns: "minmax(min-content, 1fr)",
         }}
       >
-        {(useHighlighted ? highlightedLineData : lines).map((item, displayIndex) => {
-          // Normalize data structure
-          const lineInfo: { type: DiffLineType; lineNum: number; html: string } = useHighlighted
-            ? (item as (typeof highlightedLineData)[number])
-            : {
-                type: ((item as string).startsWith("+")
-                  ? "add"
-                  : (item as string).startsWith("-")
-                    ? "remove"
-                    : (item as string).startsWith("@@")
-                      ? "header"
-                      : "context") as DiffLineType,
-                lineNum: displayIndex + 1,
-                html: (item as string).substring(1), // Plain content without +/- prefix
-              };
-
+        {highlightedLineData.map((lineInfo, displayIndex) => {
           const isSelected = isLineSelected(displayIndex);
           const indicator = lineInfo.type === "add" ? "+" : lineInfo.type === "remove" ? "-" : " ";
 
@@ -601,10 +648,13 @@ export const SelectableDiffRenderer = React.memo<SelectableDiffRendererProps>(
                     </span>
                   )}
                   <span
-                    className={cn("pl-2", useHighlighted && "[&_span:not(.search-highlight)]:!bg-transparent")}
+                    className={cn(
+                      "pl-2",
+                      lineInfo.isHighlighted && "[&_span:not(.search-highlight)]:!bg-transparent"
+                    )}
                     style={{ color: getLineContentColor(lineInfo.type) }}
                   >
-                    {useHighlighted ? (
+                    {lineInfo.isHighlighted ? (
                       <span dangerouslySetInnerHTML={{ __html: lineInfo.html }} />
                     ) : (
                       lineInfo.html

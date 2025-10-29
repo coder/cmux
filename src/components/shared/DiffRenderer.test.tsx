@@ -1,9 +1,28 @@
 /**
  * Tests for DiffRenderer components
- *
- * These are integration tests that verify the review note feature works end-to-end.
- * We test the line extraction and formatting logic that ReviewNoteInput uses internally.
  */
+
+
+// ============================================================================
+// Component Rendering Tests
+// ============================================================================
+// TODO: Add React Testing Library tests for component rendering
+// These tests would verify:
+// - Plain diff renders immediately
+// - Line numbers display correctly with custom oldStart/newStart
+// - Line selection works before highlighting completes
+// - Height consistency between plain and highlighted modes
+//
+// Note: RTL tests need proper DOM setup which is complex in bun test environment.
+// Consider adding these as integration tests using Playwright or Cypress instead.
+//
+// For now, the critical functionality is covered by the review note logic tests below,
+// and the component works correctly in manual testing.
+// ============================================================================
+
+// ============================================================================
+// Review Note Logic Tests
+// ============================================================================
 
 describe("SelectableDiffRenderer review notes", () => {
   it("should extract correct line content for review notes", () => {
