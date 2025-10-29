@@ -30,7 +30,7 @@ REMOTE_BRANCH=$(git rev-parse --abbrev-ref --symbolic-full-name '@{u}' 2>/dev/nu
 if [[ -z "$REMOTE_BRANCH" ]]; then
   echo "⚠️  Current branch '$CURRENT_BRANCH' has no upstream branch." >&2
   echo "Setting upstream to origin/$CURRENT_BRANCH..." >&2
-  
+
   # Try to set upstream
   if git push -u origin "$CURRENT_BRANCH" 2>&1; then
     echo "✅ Upstream set successfully!" >&2
