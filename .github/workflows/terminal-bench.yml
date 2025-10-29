@@ -33,11 +33,17 @@ on:
 
 jobs:
   benchmark:
-    name: Run Terminal-Bench
+    name: Run Terminal-Bench (${{ matrix.model_name }})
     runs-on: ${{ github.repository_owner == 'coder' && 'depot-ubuntu-22.04-16' || 'ubuntu-latest' }}
     # Full suite (~80 tasks) at concurrency=4 takes ~60-90 minutes
     # Allow 3 hours for safety margin and slower tasks
     timeout-minutes: 180
+    strategy:
+      # Run scheduled benchmarks for both models
+      matrix:
+        model_name: ${{ github.event_name == 'schedule' && fromJSON('["anthropic:claude-sonnet-4-5", "openai:gpt-5-codex"]') || fromJSON('[""]') }}
+        thinking_level: ${{ github.event_name == 'schedule' && fromJSON('["high"]') || fromJSON('[""]') }}
+      fail-fast: false
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -62,7 +68,7 @@ jobs:
           TB_CONCURRENCY: ${{ inputs.concurrency || '4' }}
           TB_LIVESTREAM: ${{ inputs.livestream && '1' || '' }}
           TB_SAMPLE_SIZE: ${{ inputs.sample_size || '' }}
-          TB_ARGS: ${{ inputs.extra_args || '' }}
+          TB_ARGS: ${{ matrix.model_name && format('--agent-kwarg model_name={0} --agent-kwarg thinking_level={1} {2}', matrix.model_name, matrix.thinking_level, inputs.extra_args || '') || inputs.extra_args || '' }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
 
@@ -70,7 +76,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: terminal-bench-results-${{ github.run_id }}
+          name: terminal-bench-results-${{ matrix.model_name && format('{0}-{1}', matrix.model_name, github.run_id) || github.run_id }}
           path: |
             runs/
           if-no-files-found: warn
