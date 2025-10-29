@@ -36,6 +36,8 @@ import type { DiffHunk, ReviewFilters as ReviewFiltersType } from "@/types/revie
 import type { FileTreeNode } from "@/utils/git/numstatParser";
 import { matchesKeybind, KEYBINDS, formatKeybind } from "@/utils/ui/keybinds";
 import { applyFrontendFilters } from "@/utils/review/filterHunks";
+import { useWorkspaceState } from "@/stores/WorkspaceStore";
+import { getLatestReviewCompletion } from "@/utils/review/detectReviewCompletion";
 import { cn } from "@/lib/utils";
 
 interface ReviewPanelProps {
@@ -132,6 +134,33 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({
   const [isPanelFocused, setIsPanelFocused] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [fileTree, setFileTree] = useState<FileTreeNode | null>(null);
+  const workspaceState = useWorkspaceState(workspaceId);
+  const latestReviewCompletion = useMemo(
+    () => getLatestReviewCompletion(workspaceState.cmuxMessages),
+    [workspaceState.cmuxMessages]
+  );
+  const [acknowledgedReviewCompletion, setAcknowledgedReviewCompletion] = useState<number | null>(null);
+  const initializedReviewAckRef = useRef(false);
+
+  useEffect(() => {
+    if (initializedReviewAckRef.current) {
+      return;
+    }
+    setAcknowledgedReviewCompletion(latestReviewCompletion?.assistantSequence ?? null);
+    initializedReviewAckRef.current = true;
+  }, [latestReviewCompletion]);
+
+  useEffect(() => {
+    setAcknowledgedReviewCompletion(null);
+    initializedReviewAckRef.current = false;
+  }, [workspaceId]);
+
+  const isReviewOutdated = useMemo(() => {
+    if (!latestReviewCompletion) return false;
+    if (acknowledgedReviewCompletion == null) return true;
+    return latestReviewCompletion.assistantSequence > acknowledgedReviewCompletion;
+  }, [acknowledgedReviewCompletion, latestReviewCompletion]);
+
   // Map of hunkId -> toggle function for expand/collapse
   const toggleExpandFnsRef = useRef<Map<string, () => void>>(new Map());
 
@@ -159,6 +188,13 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({
     `review-include-uncommitted:${workspaceId}`,
     false
   );
+
+  const handleRefresh = useCallback(() => {
+    if (latestReviewCompletion) {
+      setAcknowledgedReviewCompletion(latestReviewCompletion.assistantSequence);
+    }
+    setRefreshTrigger((prev) => prev + 1);
+  }, [latestReviewCompletion]);
 
   // Persist showReadHunks flag per workspace
   const [showReadHunks, setShowReadHunks] = usePersistedState(
@@ -515,7 +551,7 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({
     const handleKeyDown = (e: KeyboardEvent) => {
       if (matchesKeybind(e, KEYBINDS.REFRESH_REVIEW)) {
         e.preventDefault();
-        setRefreshTrigger((prev) => prev + 1);
+        handleRefresh();
       } else if (matchesKeybind(e, KEYBINDS.FOCUS_REVIEW_SEARCH)) {
         e.preventDefault();
         searchInputRef.current?.focus();
@@ -524,7 +560,7 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, []);
+  }, [handleRefresh]);
 
   return (
     <div
@@ -539,11 +575,12 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({
         filters={filters}
         stats={stats}
         onFiltersChange={setFilters}
-        onRefresh={() => setRefreshTrigger((prev) => prev + 1)}
+        onRefresh={handleRefresh}
         isLoading={isLoadingHunks || isLoadingTree}
         workspaceId={workspaceId}
         workspacePath={workspacePath}
         refreshTrigger={refreshTrigger}
+        isRefreshOutdated={isReviewOutdated}
       />
 
       {error ? (

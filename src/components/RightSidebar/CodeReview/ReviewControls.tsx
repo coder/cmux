@@ -17,6 +17,7 @@ interface ReviewControlsProps {
   workspaceId: string;
   workspacePath: string;
   refreshTrigger?: number;
+  isRefreshOutdated?: boolean;
 }
 
 export const ReviewControls: React.FC<ReviewControlsProps> = ({
@@ -28,6 +29,7 @@ export const ReviewControls: React.FC<ReviewControlsProps> = ({
   workspaceId,
   workspacePath,
   refreshTrigger,
+  isRefreshOutdated,
 }) => {
   // Local state for input value - only commit on blur/Enter
   const [inputValue, setInputValue] = useState(filters.diffBase);
@@ -83,7 +85,9 @@ export const ReviewControls: React.FC<ReviewControlsProps> = ({
 
   return (
     <div className="bg-separator border-border-light flex flex-wrap items-center gap-3 border-b px-3 py-2 text-[11px]">
-      {onRefresh && <RefreshButton onClick={onRefresh} isLoading={isLoading} />}
+      {onRefresh && (
+        <RefreshButton onClick={onRefresh} isLoading={isLoading} isOutdated={isRefreshOutdated} />
+      )}
       <label className="text-muted font-medium whitespace-nowrap">Base:</label>
       <input
         type="text"

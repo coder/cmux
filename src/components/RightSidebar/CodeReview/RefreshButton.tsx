@@ -10,9 +10,14 @@ import { cn } from "@/lib/utils";
 interface RefreshButtonProps {
   onClick: () => void;
   isLoading?: boolean;
+  isOutdated?: boolean;
 }
 
-export const RefreshButton: React.FC<RefreshButtonProps> = ({ onClick, isLoading = false }) => {
+export const RefreshButton: React.FC<RefreshButtonProps> = ({
+  onClick,
+  isLoading = false,
+  isOutdated = false,
+}) => {
   // Track animation state for graceful stopping
   const [animationState, setAnimationState] = useState<"idle" | "spinning" | "stopping">("idle");
   const spinOnceTimeoutRef = useRef<number | null>(null);
@@ -76,7 +81,9 @@ export const RefreshButton: React.FC<RefreshButtonProps> = ({ onClick, isLoading
       <Tooltip position="bottom" align="left">
         {animationState !== "idle"
           ? "Refreshing..."
-          : `Refresh diff (${formatKeybind(KEYBINDS.REFRESH_REVIEW)})`}
+          : isOutdated
+            ? "Outdated. You can refresh."
+            : `Refresh diff (${formatKeybind(KEYBINDS.REFRESH_REVIEW)})`}
       </Tooltip>
     </TooltipWrapper>
   );
