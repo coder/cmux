@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import React, { useState, useEffect } from "react";
+import React, { useMemo } from "react";
 import { Mermaid } from "./Mermaid";
 import {
   getShikiHighlighter,
@@ -7,6 +7,7 @@ import {
   SHIKI_THEME,
 } from "@/utils/highlighting/shikiHighlighter";
 import { CopyButton } from "@/components/ui/CopyButton";
+import { useIntersectionHighlight } from "@/hooks/useIntersectionHighlight";
 
 interface CodeProps {
   node?: unknown;
@@ -58,21 +59,20 @@ function extractShikiLines(html: string): string[] {
 }
 
 /**
- * CodeBlock component with async Shiki highlighting
- * Displays code with line numbers in a CSS grid
+ * CodeBlock component with lazy async Shiki highlighting
+ * Displays code with line numbers in a CSS grid.
+ * Highlighting is deferred until the block enters the viewport.
  */
 const CodeBlock: React.FC<CodeBlockProps> = ({ code, language }) => {
-  const [highlightedLines, setHighlightedLines] = useState<string[] | null>(null);
-
   // Split code into lines, removing trailing empty line
-  const plainLines = code
-    .split("\n")
-    .filter((line, idx, arr) => idx < arr.length - 1 || line !== "");
+  const plainLines = useMemo(
+    () => code.split("\n").filter((line, idx, arr) => idx < arr.length - 1 || line !== ""),
+    [code]
+  );
 
-  useEffect(() => {
-    let cancelled = false;
-
-    async function highlight() {
+  // Lazy highlight when code block becomes visible
+  const { result: highlightedLines, ref } = useIntersectionHighlight(
+    async () => {
       try {
         const highlighter = await getShikiHighlighter();
         const shikiLang = mapToShikiLang(language);
@@ -89,30 +89,24 @@ const CodeBlock: React.FC<CodeBlockProps> = ({ code, language }) => {
           theme: SHIKI_THEME,
         });
 
-        if (!cancelled) {
-          const lines = extractShikiLines(html);
-          // Remove trailing empty line if present
-          const filteredLines = lines.filter(
-            (line, idx, arr) => idx < arr.length - 1 || line.trim() !== ""
-          );
-          setHighlightedLines(filteredLines.length > 0 ? filteredLines : null);
-        }
+        const lines = extractShikiLines(html);
+        // Remove trailing empty line if present
+        const filteredLines = lines.filter(
+          (line, idx, arr) => idx < arr.length - 1 || line.trim() !== ""
+        );
+        return filteredLines.length > 0 ? filteredLines : null;
       } catch (error) {
         console.warn(`Failed to highlight code block (${language}):`, error);
-        if (!cancelled) setHighlightedLines(null);
+        return null;
       }
-    }
-
-    void highlight();
-    return () => {
-      cancelled = true;
-    };
-  }, [code, language]);
+    },
+    [code, language]
+  );
 
   const lines = highlightedLines ?? plainLines;
 
   return (
-    <div className="code-block-wrapper">
+    <div ref={ref} className="code-block-wrapper">
       <div className="code-block-container">
         {lines.map((content, idx) => (
           <React.Fragment key={idx}>

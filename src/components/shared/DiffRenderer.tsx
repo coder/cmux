@@ -4,7 +4,7 @@
  * ReviewPanel uses SelectableDiffRenderer for interactive line selection.
  */
 
-import React, { useEffect, useState } from "react";
+import React, { useMemo } from "react";
 import { cn } from "@/lib/utils";
 import { getLanguageFromPath } from "@/utils/git/languageDetector";
 import { Tooltip, TooltipWrapper } from "../Tooltip";
@@ -14,6 +14,7 @@ import {
   highlightSearchMatches,
   type SearchHighlightConfig,
 } from "@/utils/highlighting/highlightSearchTerms";
+import { useIntersectionHighlight } from "@/hooks/useIntersectionHighlight";
 
 // Shared type for diff line types
 export type DiffLineType = "add" | "remove" | "context" | "header";
@@ -108,21 +109,18 @@ interface DiffRendererProps {
 }
 
 /**
- * Hook to pre-process and highlight diff content in chunks
- * Runs once when content/language changes (NOT search - that's applied post-process)
+ * Hook to lazily pre-process and highlight diff content in chunks
+ * Defers highlighting until the diff enters the viewport.
+ * Search decorations are applied post-highlight.
  */
 function useHighlightedDiff(
   content: string,
   language: string,
   oldStart: number,
   newStart: number
-): HighlightedChunk[] | null {
-  const [chunks, setChunks] = useState<HighlightedChunk[] | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function highlight() {
+): { chunks: HighlightedChunk[] | null; ref: React.RefObject<HTMLDivElement> } {
+  const { result: chunks, ref } = useIntersectionHighlight(
+    async () => {
       // Split into lines
       const lines = content.split("\n").filter((line) => line.length > 0);
 
@@ -134,19 +132,12 @@ function useHighlightedDiff(
         diffChunks.map((chunk) => highlightDiffChunk(chunk, language))
       );
 
-      if (!cancelled) {
-        setChunks(highlighted);
-      }
-    }
+      return highlighted;
+    },
+    [content, language, oldStart, newStart]
+  );
 
-    void highlight();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [content, language, oldStart, newStart]);
-
-  return chunks;
+  return { chunks, ref };
 }
 
 /**
@@ -173,27 +164,52 @@ export const DiffRenderer: React.FC<DiffRendererProps> = ({
     [filePath]
   );
 
-  const highlightedChunks = useHighlightedDiff(content, language, oldStart, newStart);
+  const { chunks: highlightedChunks, ref } = useHighlightedDiff(
+    content,
+    language,
+    oldStart,
+    newStart
+  );
 
-  // Show loading state while highlighting
-  if (!highlightedChunks) {
-    return (
-      <div
-        className="bg-code-bg m-0 grid overflow-auto rounded py-1.5 [&_*]:text-[inherit]"
-        style={{
-          fontSize: fontSize ?? "12px",
-          lineHeight: 1.4,
-          maxHeight: maxHeight ?? "400px",
-          gridTemplateColumns: "minmax(min-content, 1fr)",
-        }}
-      >
-        <div style={{ opacity: 0.5, padding: "8px" }}>Processing...</div>
-      </div>
-    );
-  }
+  // Normalize data structure for rendering (highlighted or plain)
+  const normalizedLines = useMemo(() => {
+    if (highlightedChunks) {
+      // Use highlighted chunks
+      return highlightedChunks.flatMap((chunk) =>
+        chunk.lines.map((line) => ({
+          key: line.originalIndex,
+          type: chunk.type,
+          lineNumber: line.lineNumber,
+          indicator: chunk.type === "add" ? "+" : chunk.type === "remove" ? "-" : " ",
+          content: line.html,
+          isHighlighted: true,
+        }))
+      );
+    } else {
+      // Fallback to plain lines
+      return content.split("\n").map((line, idx) => {
+        const type = (line.startsWith("+")
+          ? "add"
+          : line.startsWith("-")
+            ? "remove"
+            : line.startsWith("@@")
+              ? "header"
+              : "context") as DiffLineType;
+        return {
+          key: idx,
+          type,
+          lineNumber: idx + 1,
+          indicator: line.charAt(0),
+          content: line.substring(1),
+          isHighlighted: false,
+        };
+      });
+    }
+  }, [highlightedChunks, content]);
 
   return (
     <div
+      ref={ref}
       className="bg-code-bg m-0 grid overflow-auto rounded py-1.5 [&_*]:text-[inherit]"
       style={{
         fontSize: fontSize ?? "12px",
@@ -202,50 +218,49 @@ export const DiffRenderer: React.FC<DiffRendererProps> = ({
         gridTemplateColumns: "minmax(min-content, 1fr)",
       }}
     >
-      {highlightedChunks.flatMap((chunk) =>
-        chunk.lines.map((line) => {
-          const indicator = chunk.type === "add" ? "+" : chunk.type === "remove" ? "-" : " ";
-          return (
-            <div
-              key={line.originalIndex}
-              className="block w-full"
-              style={{ background: getDiffLineBackground(chunk.type) }}
+      {normalizedLines.map((line) => (
+        <div
+          key={line.key}
+          className="block w-full"
+          style={{ background: getDiffLineBackground(line.type) }}
+        >
+          <div
+            className="flex px-2 font-mono whitespace-pre"
+            style={{ color: getDiffLineColor(line.type) }}
+          >
+            <span
+              className="inline-block w-1 shrink-0 text-center"
+              style={{
+                color: getContrastColor(line.type),
+                opacity: line.type === "add" || line.type === "remove" ? 0.9 : 0.6,
+              }}
             >
-              <div
-                className="flex px-2 font-mono whitespace-pre"
-                style={{ color: getDiffLineColor(chunk.type) }}
+              {line.indicator}
+            </span>
+            {showLineNumbers && (
+              <span
+                className="flex min-w-9 shrink-0 items-center justify-end pr-1 select-none"
+                style={{
+                  color: getContrastColor(line.type),
+                  opacity: line.type === "add" || line.type === "remove" ? 0.9 : 0.6,
+                }}
               >
-                <span
-                  className="inline-block w-1 shrink-0 text-center"
-                  style={{
-                    color: getContrastColor(chunk.type),
-                    opacity: chunk.type === "add" || chunk.type === "remove" ? 0.9 : 0.6,
-                  }}
-                >
-                  {indicator}
-                </span>
-                {showLineNumbers && (
-                  <span
-                    className="flex min-w-9 shrink-0 items-center justify-end pr-1 select-none"
-                    style={{
-                      color: getContrastColor(chunk.type),
-                      opacity: chunk.type === "add" || chunk.type === "remove" ? 0.9 : 0.6,
-                    }}
-                  >
-                    {line.lineNumber}
-                  </span>
-                )}
-                <span
-                  className="pl-2 [&_span:not(.search-highlight)]:!bg-transparent"
-                  style={{ color: getLineContentColor(chunk.type) }}
-                >
-                  <span dangerouslySetInnerHTML={{ __html: line.html }} />
-                </span>
-              </div>
-            </div>
-          );
-        })
-      )}
+                {line.lineNumber}
+              </span>
+            )}
+            <span
+              className={cn("pl-2", line.isHighlighted && "[&_span:not(.search-highlight)]:!bg-transparent")}
+              style={{ color: getLineContentColor(line.type) }}
+            >
+              {line.isHighlighted ? (
+                <span dangerouslySetInnerHTML={{ __html: line.content }} />
+              ) : (
+                line.content
+              )}
+            </span>
+          </div>
+        </div>
+      ))}
     </div>
   );
 };
@@ -395,7 +410,12 @@ export const SelectableDiffRenderer = React.memo<SelectableDiffRendererProps>(
       [filePath]
     );
 
-    const highlightedChunks = useHighlightedDiff(content, language, oldStart, newStart);
+    const { chunks: highlightedChunks, ref } = useHighlightedDiff(
+      content,
+      language,
+      oldStart,
+      newStart
+    );
 
     // Build lineData from highlighted chunks (memoized to prevent repeated parsing)
     // Note: content field is NOT included - must be extracted from lines array when needed
@@ -476,28 +496,15 @@ export const SelectableDiffRenderer = React.memo<SelectableDiffRendererProps>(
       return index >= start && index <= end;
     };
 
-    // Show loading state while highlighting
-    if (!highlightedChunks || highlightedLineData.length === 0) {
-      return (
-        <div
-          className="bg-code-bg m-0 grid overflow-auto rounded py-1.5 [&_*]:text-[inherit]"
-          style={{
-            fontSize: fontSize ?? "12px",
-            lineHeight: 1.4,
-            maxHeight: maxHeight ?? "400px",
-            gridTemplateColumns: "minmax(min-content, 1fr)",
-          }}
-        >
-          <div style={{ opacity: 0.5, padding: "8px" }}>Processing...</div>
-        </div>
-      );
-    }
-
     // Extract lines for rendering (done once, outside map)
-    const lines = content.split("\n").filter((line) => line.length > 0);
+    const lines = useMemo(() => content.split("\n").filter((line) => line.length > 0), [content]);
+
+    // Determine if we're using highlighted or plain mode
+    const useHighlighted = highlightedLineData.length > 0;
 
     return (
       <div
+        ref={ref}
         className="bg-code-bg m-0 grid overflow-auto rounded py-1.5 [&_*]:text-[inherit]"
         style={{
           fontSize: fontSize ?? "12px",
@@ -506,7 +513,22 @@ export const SelectableDiffRenderer = React.memo<SelectableDiffRendererProps>(
           gridTemplateColumns: "minmax(min-content, 1fr)",
         }}
       >
-        {highlightedLineData.map((lineInfo, displayIndex) => {
+        {(useHighlighted ? highlightedLineData : lines).map((item, displayIndex) => {
+          // Normalize data structure
+          const lineInfo: { type: DiffLineType; lineNum: number; html: string } = useHighlighted
+            ? (item as (typeof highlightedLineData)[number])
+            : {
+                type: ((item as string).startsWith("+")
+                  ? "add"
+                  : (item as string).startsWith("-")
+                    ? "remove"
+                    : (item as string).startsWith("@@")
+                      ? "header"
+                      : "context") as DiffLineType,
+                lineNum: displayIndex + 1,
+                html: (item as string).substring(1), // Plain content without +/- prefix
+              };
+
           const isSelected = isLineSelected(displayIndex);
           const indicator = lineInfo.type === "add" ? "+" : lineInfo.type === "remove" ? "-" : " ";
 
@@ -579,10 +601,14 @@ export const SelectableDiffRenderer = React.memo<SelectableDiffRendererProps>(
                     </span>
                   )}
                   <span
-                    className="pl-2 [&_span:not(.search-highlight)]:!bg-transparent"
+                    className={cn("pl-2", useHighlighted && "[&_span:not(.search-highlight)]:!bg-transparent")}
                     style={{ color: getLineContentColor(lineInfo.type) }}
                   >
-                    <span dangerouslySetInnerHTML={{ __html: lineInfo.html }} />
+                    {useHighlighted ? (
+                      <span dangerouslySetInnerHTML={{ __html: lineInfo.html }} />
+                    ) : (
+                      lineInfo.html
+                    )}
                   </span>
                 </div>
               </div>
