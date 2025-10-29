@@ -93,7 +93,16 @@ export const createFileEditInsertTool: ToolFactory = (config: ToolConfiguration)
               };
             }
 
-            const newLines = [...lines.slice(0, line_offset), content, ...lines.slice(line_offset)];
+            // Normalize content: if it already ends with \n, treat it as having its own newline
+            // Otherwise, it will get a newline when joined with other lines
+            const contentEndsWithNewline = content.endsWith("\n");
+            const normalizedContent = contentEndsWithNewline ? content.slice(0, -1) : content;
+
+            const newLines = [
+              ...lines.slice(0, line_offset),
+              normalizedContent,
+              ...lines.slice(line_offset),
+            ];
             const newContent = newLines.join("\n");
 
             return {
