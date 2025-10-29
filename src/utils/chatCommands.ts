@@ -70,6 +70,7 @@ export interface CreateWorkspaceOptions {
   trunkBranch?: string;
   runtime?: string;
   startMessage?: string;
+  model?: string;
   sendMessageOptions?: SendMessageOptions;
 }
 
@@ -130,12 +131,13 @@ export async function createNewWorkspace(
 
   // If there's a start message, defer until React finishes rendering and WorkspaceStore subscribes
   if (options.startMessage && options.sendMessageOptions) {
+    const sendOptions = { ...options.sendMessageOptions };
+    // Apply model override if provided
+    if (options.model) {
+      sendOptions.model = options.model;
+    }
     requestAnimationFrame(() => {
-      void window.api.workspace.sendMessage(
-        result.metadata.id,
-        options.startMessage!,
-        options.sendMessageOptions
-      );
+      void window.api.workspace.sendMessage(result.metadata.id, options.startMessage!, sendOptions);
     });
   }
 
@@ -337,6 +339,7 @@ export async function handleNewCommand(
       trunkBranch: parsed.trunkBranch,
       runtime: parsed.runtime,
       startMessage: parsed.startMessage,
+      model: parsed.model,
       sendMessageOptions,
     });
 
