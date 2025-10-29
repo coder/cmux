@@ -662,3 +662,194 @@ export const ActiveWorkspaceWithChat: Story = {
     return <AppWithChatMocks />;
   },
 };
+
+/**
+ * Tool Errors Story - Shows both error formats in GenericToolCall
+ */
+export const ToolErrorsDisplay: Story = {
+  render: () => {
+    const AppWithToolErrors = () => {
+      const initialized = useRef(false);
+
+      if (!initialized.current) {
+        const workspaceId = "my-app-tool-errors";
+
+        // Setup mock API
+        setupMockAPI({
+          projects: new Map([
+            [
+              "/home/user/projects/my-app",
+              {
+                path: "/home/user/projects/my-app",
+                workspaces: [],
+              },
+            ],
+          ]),
+          workspaces: [
+            {
+              id: workspaceId,
+              name: "tool-errors-demo",
+              projectPath: "/home/user/projects/my-app",
+              projectName: "my-app",
+              namedWorkspacePath: "/home/user/.cmux/src/my-app/tool-errors-demo",
+            },
+          ],
+          apiOverrides: {
+            workspace: {
+              create: () => Promise.resolve({ success: false, error: "Mock" }),
+              list: () => Promise.resolve([]),
+              rename: () => Promise.resolve({ success: false, error: "Mock" }),
+              remove: () => Promise.resolve({ success: false, error: "Mock" }),
+              fork: () => Promise.resolve({ success: false, error: "Mock" }),
+              openTerminal: () => Promise.resolve(undefined),
+              sendMessage: () => Promise.resolve({ success: true, data: undefined }),
+              resumeStream: () => Promise.resolve({ success: true, data: undefined }),
+              interruptStream: () => Promise.resolve({ success: true, data: undefined }),
+              truncateHistory: () => Promise.resolve({ success: true, data: undefined }),
+              replaceChatHistory: () => Promise.resolve({ success: true, data: undefined }),
+              getInfo: () => Promise.resolve(null),
+              executeBash: () =>
+                Promise.resolve({
+                  success: true,
+                  data: { success: true, output: "", exitCode: 0, wall_duration_ms: 0 },
+                }),
+              onMetadata: () => () => undefined,
+              onChat: (workspaceId, callback) => {
+                // Simulate chat history with various tool errors
+                setTimeout(() => {
+                  // User message
+                  callback({
+                    id: "msg-1",
+                    role: "user",
+                    parts: [{ type: "text", text: "Try calling some tools" }],
+                    metadata: {
+                      historySequence: 1,
+                      timestamp: STABLE_TIMESTAMP - 120000,
+                    },
+                  });
+
+                  // Assistant response with multiple tool errors
+                  callback({
+                    id: "msg-2",
+                    role: "assistant",
+                    parts: [
+                      {
+                        type: "text",
+                        text: "I'll try various tools to demonstrate error handling.",
+                      },
+                      // Tool error format #1: AI SDK error (tool doesn't exist)
+                      {
+                        type: "dynamic-tool",
+                        toolCallId: "call-1",
+                        toolName: "nonexistent_tool",
+                        state: "output-available",
+                        input: {
+                          someParam: "value",
+                        },
+                        output: {
+                          error:
+                            "Tool 'nonexistent_tool' is not available. Available tools: bash, file_read, file_edit_replace_string, file_edit_insert, propose_plan, todo_write, todo_read, web_search",
+                        },
+                      },
+                      // Tool error format #2: Tool implementation error (bash command fails)
+                      {
+                        type: "dynamic-tool",
+                        toolCallId: "call-2",
+                        toolName: "bash",
+                        state: "output-available",
+                        input: {
+                          script: "exit 1",
+                        },
+                        output: {
+                          success: false,
+                          error: "Command exited with code 1",
+                          exitCode: 1,
+                          wall_duration_ms: 42,
+                        },
+                      },
+                      // Tool error format #3: File read error
+                      {
+                        type: "dynamic-tool",
+                        toolCallId: "call-3",
+                        toolName: "file_read",
+                        state: "output-available",
+                        input: {
+                          filePath: "/nonexistent/file.txt",
+                        },
+                        output: {
+                          success: false,
+                          error: "ENOENT: no such file or directory, open '/nonexistent/file.txt'",
+                        },
+                      },
+                      // Tool error format #4: File edit with WRITE DENIED (should be collapsed)
+                      {
+                        type: "dynamic-tool",
+                        toolCallId: "call-4",
+                        toolName: "file_edit_replace_string",
+                        state: "output-available",
+                        input: {
+                          file_path: "src/test.ts",
+                          old_string: "const x = 1;",
+                          new_string: "const x = 2;",
+                        },
+                        output: {
+                          success: false,
+                          error:
+                            "WRITE DENIED, FILE UNMODIFIED: File has been modified since it was read. Please re-read the file and try again.",
+                        },
+                      },
+                      // Tool error format #5: Policy disabled tool
+                      {
+                        type: "dynamic-tool",
+                        toolCallId: "call-5",
+                        toolName: "file_edit_insert",
+                        state: "output-available",
+                        input: {
+                          file_path: "src/new.ts",
+                          line_offset: 0,
+                          content: "console.log('test');",
+                        },
+                        output: {
+                          error:
+                            "Tool execution skipped because the requested tool is disabled by policy.",
+                        },
+                      },
+                      {
+                        type: "text",
+                        text: "As you can see, various tool errors are displayed with clear error messages and 'failed' status.",
+                      },
+                    ],
+                    metadata: {
+                      historySequence: 2,
+                      timestamp: STABLE_TIMESTAMP - 110000,
+                      model: "anthropic:claude-sonnet-4-20250514",
+                    },
+                  });
+                }, 100);
+
+                return () => undefined;
+              },
+            },
+          },
+        });
+
+        // Set initial workspace selection
+        localStorage.setItem(
+          "selectedWorkspace",
+          JSON.stringify({
+            workspaceId: workspaceId,
+            projectPath: "/home/user/projects/my-app",
+            projectName: "my-app",
+            namedWorkspacePath: "/home/user/.cmux/src/my-app/tool-errors-demo",
+          })
+        );
+
+        initialized.current = true;
+      }
+
+      return <AppLoader />;
+    };
+
+    return <AppWithToolErrors />;
+  },
+};
