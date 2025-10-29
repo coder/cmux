@@ -105,3 +105,4 @@ tmpfork
 storybook-static/
 *.tgz
 src/test-workspaces/
+terminal-bench-results/
