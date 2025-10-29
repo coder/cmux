@@ -117,6 +117,15 @@ const CodeBlock: React.FC<CodeBlockProps> = ({ code, language }) => {
         {lines.map((content, idx) => (
           <React.Fragment key={idx}>
             <div className="line-number">{idx + 1}</div>
+            {/* SECURITY AUDIT: dangerouslySetInnerHTML usage
+             * Source: Shiki syntax highlighter (highlighter.codeToHtml)
+             * Safety: Shiki escapes all user content before wrapping in <span> tokens
+             * Data flow: User markdown → react-markdown → code prop → Shiki → extractShikiLines → here
+             * Verification: Shiki's codeToHtml tokenizes and escapes HTML entities in code content
+             * Risk: Low - Shiki is a trusted library that properly escapes user input
+             * Alternative considered: Render Shiki's full <code> block, but per-line rendering
+             *   required for line numbers in CSS grid layout
+             */}
             <div
               className="code-line"
               {...(highlightedLines
