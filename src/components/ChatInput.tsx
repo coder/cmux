@@ -95,7 +95,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   const { recentModels, addModel } = useModelLRU();
   const commandListId = useId();
   const telemetry = useTelemetry();
-  const [vimEnabled] = usePersistedState<boolean>(VIM_ENABLED_KEY, false);
+  const [vimEnabled] = usePersistedState<boolean>(VIM_ENABLED_KEY, false, { listener: true });
 
   // Get current send message options from shared hook (must be at component top level)
   const sendMessageOptions = useSendMessageOptions(workspaceId);
