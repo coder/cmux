@@ -53,6 +53,11 @@ export class IpcMain {
   >();
   private mainWindow: BrowserWindow | null = null;
 
+  // Optional desktop notification wiring (lazy-enabled from main-desktop)
+  private preferencesService?: import("@/services/preferencesService").PreferencesService;
+  private notificationService?: import("@/services/notificationService").NotificationService;
+  private notificationsAttached = false;
+
   // Run optional .cmux/init hook for a newly created workspace and stream its output
   private async startWorkspaceInitHook(params: {
     projectPath: string;
@@ -1381,4 +1386,58 @@ export class IpcMain {
     }
     return null;
   }
+
+  /**
+   * Enable native desktop notifications and expose preference helpers.
+   * Designed to be called once from main-desktop after services are loaded.
+   */
+  enableDesktopNotifications(
+    preferencesService: import("@/services/preferencesService").PreferencesService,
+    notificationService: import("@/services/notificationService").NotificationService
+  ): void {
+    this.preferencesService = preferencesService;
+    this.notificationService = notificationService;
+
+    if (this.notificationsAttached) return;
+    this.notificationsAttached = true;
+
+    // Wire AIService events -> NotificationService
+    this.aiService.on("stream-end", (event: import("@/types/stream").StreamEndEvent) => {
+      try {
+        if (!this.notificationService) return;
+        const preview = this.notificationService.buildPreviewFromParts(event.parts);
+        if (this.notificationService.isQuestion(preview)) {
+          this.notificationService.notifyQuestion(event.parts);
+        } else {
+          this.notificationService.notifyComplete(event.parts);
+        }
+      } catch (error) {
+        // Never let notification errors crash app; just log
+        log.error("Failed to send desktop notification for stream-end:", error);
+      }
+    });
+
+    this.aiService.on("error", (event: import("@/types/stream").ErrorEvent) => {
+      try {
+        if (!this.notificationService) return;
+        this.notificationService.notifyError(event.errorType, event.error);
+      } catch (error) {
+        log.error("Failed to send desktop notification for error:", error);
+      }
+    });
+  }
+
+  /** Get current notification preferences (or defaults if unavailable) */
+  getNotificationPrefs(): import("@/types/notifications").NotificationPreferences {
+    const { DEFAULT_NOTIFICATION_PREFERENCES } = require("@/types/notifications") as typeof import(
+      "@/types/notifications"
+    );
+    return this.preferencesService?.load() ?? DEFAULT_NOTIFICATION_PREFERENCES;
+  }
+
+  /** Save notification preferences immediately */
+  setNotificationPrefs(next: import("@/types/notifications").NotificationPreferences): void {
+    this.preferencesService?.save(next);
+  }
+
 }

@@ -64,10 +64,22 @@ if (!app.isPackaged) {
 //
 // Lazy-load Config and IpcMain to avoid loading heavy AI SDK dependencies at startup
 // These will be loaded on-demand when createWindow() is called
+let preferencesService: import("./services/preferencesService").PreferencesService | null = null;
+let notificationService: import("./services/notificationService").NotificationService | null = null;
+
 let config: Config | null = null;
 let ipcMain: IpcMain | null = null;
 let loadTokenizerModulesFn: typeof loadTokenizerModules | null = null;
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
+// Windows notifications: set AUMID early so toasts work reliably in dev/prod
+if (process.platform === "win32") {
+  try {
+    app.setAppUserModelId("com.cmux.app");
+  } catch (error) {
+    console.warn("Failed to set AppUserModelId:", error);
+  }
+}
+
 let updaterService: typeof import("./services/updater").UpdaterService.prototype | null = null;
 const isE2ETest = process.env.CMUX_E2E === "1";
 const forceDistLoad = process.env.CMUX_E2E_LOAD_DIST === "1";
@@ -166,7 +178,66 @@ function timestamp(): string {
 }
 
 function createMenu() {
+  // Build Notifications submenu from current preferences (if services loaded)
+  const notificationsSubmenu = (): MenuItemConstructorOptions[] => {
+    if (!ipcMain || typeof (ipcMain as any).getNotificationPrefs !== "function") {
+      return [
+        { label: "Notifications unavailable (loading)", enabled: false },
+      ];
+    }
+
+    const prefs = (ipcMain as any).getNotificationPrefs() as import("@/types/notifications").NotificationPreferences;
+
+    const toggle = (mutate: (p: import("@/types/notifications").NotificationPreferences) => void) => {
+      const next = JSON.parse(JSON.stringify(prefs)) as typeof prefs;
+      mutate(next);
+      (ipcMain as any).setNotificationPrefs(next);
+      // Rebuild menu to reflect new state
+      createMenu();
+    };
+
+    return [
+      {
+        label: "Enable Notifications",
+        type: "checkbox",
+        checked: prefs.enabled,
+        click: () => toggle((p) => { p.enabled = !p.enabled; }),
+      },
+      { type: "separator" },
+      {
+        label: "On Complete",
+        type: "checkbox",
+        checked: prefs.kinds.complete,
+        enabled: prefs.enabled,
+        click: () => toggle((p) => { p.kinds.complete = !p.kinds.complete; }),
+      },
+      {
+        label: "On Question",
+        type: "checkbox",
+        checked: prefs.kinds.question,
+        enabled: prefs.enabled,
+        click: () => toggle((p) => { p.kinds.question = !p.kinds.question; }),
+      },
+      {
+        label: "On Error",
+        type: "checkbox",
+        checked: prefs.kinds.error,
+        enabled: prefs.enabled,
+        click: () => toggle((p) => { p.kinds.error = !p.kinds.error; }),
+      },
+    ];
+  };
+
   const template: MenuItemConstructorOptions[] = [
+    {
+      label: "Cmux",
+      submenu: [
+        {
+          label: "Notifications",
+          submenu: notificationsSubmenu(),
+        },
+      ],
+    },
     {
       label: "Edit",
       submenu: [
@@ -309,16 +380,25 @@ async function loadServices(): Promise<void> {
     { IpcMain: IpcMainClass },
     { loadTokenizerModules: loadTokenizerFn },
     { UpdaterService: UpdaterServiceClass },
+    { PreferencesService: PreferencesServiceClass },
+    { NotificationService: NotificationServiceClass },
   ] = await Promise.all([
     import("./config"),
     import("./services/ipcMain"),
     import("./utils/main/tokenizer"),
     import("./services/updater"),
+    import("./services/preferencesService"),
+    import("./services/notificationService"),
   ]);
   /* eslint-enable no-restricted-syntax */
   config = new ConfigClass();
   ipcMain = new IpcMainClass(config);
   loadTokenizerModulesFn = loadTokenizerFn;
+
+  // Instantiate desktop-only services and enable notifications
+  preferencesService = new PreferencesServiceClass(config);
+  notificationService = new NotificationServiceClass(() => mainWindow, preferencesService);
+  ipcMain.enableDesktopNotifications(preferencesService, notificationService);
 
   // Initialize updater service in packaged builds or when DEBUG_UPDATER is set
   const debugConfig = parseDebugUpdater(process.env.DEBUG_UPDATER);
