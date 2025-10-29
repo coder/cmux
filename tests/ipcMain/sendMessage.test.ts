@@ -790,7 +790,7 @@ These are general instructions that apply to all modes.
     test.each(PROVIDER_CONFIGS)(
       "%s:%s should return error when accumulated history exceeds token limit",
       async (provider, model) => {
-        const { env, workspaceId, cleanup} = await setupWorkspace(provider);
+        const { env, workspaceId, cleanup } = await setupWorkspace(provider);
         try {
           // Build up large conversation history to exceed context limits
           // Different providers have different limits:
