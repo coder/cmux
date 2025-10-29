@@ -793,12 +793,12 @@ These are general instructions that apply to all modes.
         const { env, workspaceId, cleanup } = await setupWorkspace(provider);
         try {
           // Build up large conversation history to exceed context limits
-          // Reduced from 15 to 10 messages to speed up test while still triggering the error
-          // For Anthropic: 200k tokens → ~10 messages of 50k chars (500k chars) exceeds limit
-          // For OpenAI: gpt-4o-mini 128k tokens → same approach works
+          // Use 15 messages to ensure we trigger error on both providers
+          // For Anthropic: 200k tokens → 15 messages of 50k chars (750k chars) exceeds limit
+          // For OpenAI: gpt-5-codex 128k tokens → same approach works
           await buildLargeHistory(workspaceId, env.config, {
             messageSize: 50_000,
-            messageCount: 10,
+            messageCount: 15,
           });
 
           // Now try to send a new message - should trigger token limit error
