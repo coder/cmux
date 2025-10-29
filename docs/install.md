@@ -8,11 +8,10 @@ Download pre-built binaries from [the releases page](https://github.com/coder/cm
 
 - **macOS**: Signed and notarized DMG (separate builds for Intel/Apple Silicon)
 - **Linux**: AppImage
-- **Windows**: not implemented, coming soon
 
 ### Development Builds
 
-Pre-built binaries are available from [GitHub Actions](https://github.com/coder/cmux/actions/workflows/build.yml):
+Down pre-built binaries of `main` from [GitHub Actions](https://github.com/coder/cmux/actions/workflows/build.yml):
 
 - **macOS**: Signed and notarized DMG
   - `macos-dmg-x64` (Intel Macs)
@@ -21,7 +20,7 @@ Pre-built binaries are available from [GitHub Actions](https://github.com/coder/
 
 To download:
 
-1. Go to the [Build workflow](https://github.com/coder/cmux/actions/workflows/build.yml)
+1. Go to the [Build workflow](https://github.com/coder/cmux/actions/workflows/build.yml?query=event:merge_group)
 2. Click on the latest successful run
 3. Scroll down to "Artifacts" section
 4. Download the appropriate artifact for your platform

@@ -5,7 +5,7 @@
 # cmux - coding agent multiplexer
 
 [![CI](https://github.com/coder/cmux/actions/workflows/ci.yml/badge.svg)](https://github.com/coder/cmux/actions/workflows/ci.yml)
-[![Build](https://github.com/coder/cmux/actions/workflows/build.yml/badge.svg)](https://github.com/coder/cmux/actions/workflows/build.yml)
+[![Build](https://github.com/coder/cmux/actions/workflows/build.yml/badge.svg)](https://github.com/coder/cmux/actions/workflows/build.yml?query=event:merge_group)
 [![Download](https://img.shields.io/badge/Download-Releases-purple)](https://github.com/coder/cmux/releases)
 [![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL%203.0-blue.svg)](LICENSE)
 
@@ -44,19 +44,18 @@ Here are some specific use cases we enable:
 UX. You'll find familiar features like Plan/Exec mode, VIM inputs, `/compact` and new ones
 like [opportunistic compaction](https://cmux.io/context-management.html) and [mode prompts](https://cmux.io/instruction-files.html#mode-prompts).
 
-📚 **[Read the full documentation →](https://cmux.io)**
+**[Read the full documentation →](https://cmux.io)**
 
-## Quick Install
+## Install
 
 > [!WARNING]  
 > cmux is in a Preview state. You will encounter bugs and performance issues.
 > It's still possible to be highly productive. We are using it almost exclusively for our own development.
 
-Download pre-built binaries from [the releases page](https://github.com/coder/cmux/releases):
+Download pre-built binaries from [the releases page](https://github.com/coder/cmux/releases) for
+macOS and Linux.
 
-- **macOS**: Signed and notarized DMG (separate builds for Intel/Apple Silicon)
-- **Linux**: AppImage
-- **Windows**: not implemented, coming soon
+[More on installation →](https://cmux.io/install.html)
 
 ## Screenshots
 
