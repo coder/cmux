@@ -112,7 +112,8 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: terminal-bench-results-${{ inputs.model_name && format('{0}-{1}', inputs.model_name, github.run_id) || format('{0}', github.run_id) }}
+          # Replace colons with hyphens to avoid GitHub artifact name restrictions
+          name: terminal-bench-results-${{ inputs.model_name && replace(format('{0}-{1}', inputs.model_name, github.run_id), ':', '-') || format('{0}', github.run_id) }}
           path: |
             runs/
           if-no-files-found: warn
