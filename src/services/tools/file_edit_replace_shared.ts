@@ -5,7 +5,12 @@
  * providing the core logic while keeping the tool definitions simple for AI providers.
  */
 
-import { EDIT_FAILED_NOTE_PREFIX } from "@/types/tools";
+import {
+  EDIT_FAILED_NOTE_PREFIX,
+  NOTE_READ_FILE_FIRST_RETRY,
+  NOTE_READ_FILE_RETRY,
+  NOTE_READ_FILE_AGAIN_RETRY,
+} from "@/types/tools";
 
 interface OperationMetadata {
   edits_applied: number;
@@ -56,7 +61,7 @@ export function handleStringReplace(
       success: false,
       error:
         "old_string not found in file. The text to replace must exist exactly as written in the file.",
-      note: `${EDIT_FAILED_NOTE_PREFIX} The old_string does not exist in the file. Read the file first to get the exact current content, then retry.`,
+      note: `${EDIT_FAILED_NOTE_PREFIX} The old_string does not exist in the file. ${NOTE_READ_FILE_FIRST_RETRY}`,
     };
   }
 
@@ -147,7 +152,7 @@ export function handleLineReplace(
     return {
       success: false,
       error: `start_line ${args.start_line} exceeds current file length (${lines.length}).`,
-      note: `${EDIT_FAILED_NOTE_PREFIX} The file has ${lines.length} lines. Read the file to get current content, then retry.`,
+      note: `${EDIT_FAILED_NOTE_PREFIX} The file has ${lines.length} lines. ${NOTE_READ_FILE_RETRY}`,
     };
   }
 
@@ -158,7 +163,7 @@ export function handleLineReplace(
     return {
       success: false,
       error: `expected_lines validation failed. Current lines [${currentRange.join("\n")}] differ from expected [${args.expected_lines.join("\n")}].`,
-      note: `${EDIT_FAILED_NOTE_PREFIX} The file content changed since you last read it. Read the file again and retry.`,
+      note: `${EDIT_FAILED_NOTE_PREFIX} The file content changed since you last read it. ${NOTE_READ_FILE_AGAIN_RETRY}`,
     };
   }
 

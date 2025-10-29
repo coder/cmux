@@ -3,7 +3,7 @@ import type { FileEditInsertToolResult } from "@/types/tools";
 import type { ToolConfiguration, ToolFactory } from "@/utils/tools/tools";
 import { TOOL_DEFINITIONS } from "@/utils/tools/toolDefinitions";
 import { validatePathInCwd, validateNoRedundantPrefix } from "./fileCommon";
-import { EDIT_FAILED_NOTE_PREFIX } from "@/types/tools";
+import { EDIT_FAILED_NOTE_PREFIX, NOTE_READ_FILE_RETRY } from "@/types/tools";
 import { executeFileEditOperation } from "./file_edit_operation";
 import { RuntimeError } from "@/runtime/Runtime";
 import { fileExists } from "@/utils/runtime/fileExists";
@@ -92,7 +92,7 @@ export const createFileEditInsertTool: ToolFactory = (config: ToolConfiguration)
               return {
                 success: false,
                 error: `line_offset ${line_offset} is beyond file length (${lines.length} lines)`,
-                note: `${EDIT_FAILED_NOTE_PREFIX} The file has ${lines.length} lines. Read the file to get current content, then retry.`,
+                note: `${EDIT_FAILED_NOTE_PREFIX} The file has ${lines.length} lines. ${NOTE_READ_FILE_RETRY}`,
               };
             }
 
