@@ -232,6 +232,26 @@ wss.on("connection", (ws) => {
   });
 });
 
-server.listen(3000, () => {
-  console.log("Server is running on port 3000");
+const DEFAULT_PORT = 3000;
+
+const resolvePort = (value?: string): number => {
+  if (!value) {
+    return DEFAULT_PORT;
+  }
+
+  const parsed = Number.parseInt(value, 10);
+  if (!Number.isInteger(parsed) || parsed <= 0 || parsed > 65535) {
+    console.warn(
+      `Invalid CMUX_SERVER_PORT "${value}". Falling back to default port ${DEFAULT_PORT}.`
+    );
+    return DEFAULT_PORT;
+  }
+
+  return parsed;
+};
+
+const port = resolvePort(process.env.CMUX_SERVER_PORT);
+
+server.listen(port, () => {
+  console.log(`Server is running on port ${port}`);
 });
