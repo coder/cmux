@@ -123,8 +123,26 @@ jobs:
 
       - uses: ./.github/actions/setup-cmux
 
+      - name: Get Playwright version
+        id: playwright-version
+        run: echo "version=$(bun x playwright --version | cut -d' ' -f2)" >> $GITHUB_OUTPUT
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        id: playwright-cache
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ steps.playwright-version.outputs.version }}
+          restore-keys: |
+            ${{ runner.os }}-playwright-
+
       - name: Install Playwright browsers
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
         run: bun x playwright install --with-deps
+
+      - name: Install Playwright system dependencies
+        if: steps.playwright-cache.outputs.cache-hit == 'true'
+        run: bun x playwright install-deps
 
       - name: Build Storybook
         run: make storybook-build
@@ -154,11 +172,26 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y xvfb
 
-      - name: Install Playwright runtime dependencies
-        run: bun x playwright install-deps
+      - name: Get Playwright version
+        id: playwright-version
+        run: echo "version=$(bun x playwright --version | cut -d' ' -f2)" >> $GITHUB_OUTPUT
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        id: playwright-cache
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ steps.playwright-version.outputs.version }}
+          restore-keys: |
+            ${{ runner.os }}-playwright-
 
       - name: Install Playwright browsers
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
         run: bun x playwright install --with-deps
+
+      - name: Install Playwright system dependencies
+        if: steps.playwright-cache.outputs.cache-hit == 'true'
+        run: bun x playwright install-deps
 
       - name: Run e2e tests
         run: xvfb-run -a make test-e2e
