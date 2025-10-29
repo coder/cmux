@@ -377,4 +377,29 @@ describe("file_edit_insert tool", () => {
     // Should respect the trailing newline in content
     expect(updatedContent).toBe("line1\nINSERTED1\nINSERTED2\nline2");
   });
+
+  it("should preserve trailing newline when appending to file without trailing newline", async () => {
+    // Regression test for Codex feedback: when inserting at EOF with content ending in \n,
+    // the newline should be preserved even if the original file doesn't end with one
+    const initialContent = "line1\nline2"; // No trailing newline
+    await fs.writeFile(testFilePath, initialContent);
+
+    using testEnv = createTestFileEditInsertTool({ cwd: testDir });
+    const tool = testEnv.tool;
+    const args: FileEditInsertToolArgs = {
+      file_path: "test.txt",
+      line_offset: 2, // Append at end
+      content: "line3\n", // With trailing newline
+    };
+
+    // Execute
+    const result = (await tool.execute!(args, mockToolCallOptions)) as FileEditInsertToolResult;
+
+    // Assert
+    expect(result.success).toBe(true);
+
+    const updatedContent = await fs.readFile(testFilePath, "utf-8");
+    // Should preserve the trailing newline from content even at EOF
+    expect(updatedContent).toBe("line1\nline2\nline3\n");
+  });
 });

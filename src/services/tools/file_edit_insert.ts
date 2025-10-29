@@ -93,10 +93,14 @@ export const createFileEditInsertTool: ToolFactory = (config: ToolConfiguration)
               };
             }
 
-            // Normalize content: if it already ends with \n, treat it as having its own newline
-            // Otherwise, it will get a newline when joined with other lines
+            // Handle newline behavior:
+            // - If content ends with \n and we're not at EOF, strip it (join will add it back)
+            // - If content ends with \n and we're at EOF, keep it (join won't add trailing newline)
+            // - If content doesn't end with \n, keep as-is (join will add newlines between lines)
             const contentEndsWithNewline = content.endsWith("\n");
-            const normalizedContent = contentEndsWithNewline ? content.slice(0, -1) : content;
+            const insertingAtEnd = line_offset === lines.length;
+            const shouldStripTrailingNewline = contentEndsWithNewline && !insertingAtEnd;
+            const normalizedContent = shouldStripTrailingNewline ? content.slice(0, -1) : content;
 
             const newLines = [
               ...lines.slice(0, line_offset),
