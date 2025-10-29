@@ -664,7 +664,88 @@ span.search-highlight {
   background: var(--color-code-bg) !important;
 }
 
-/* Markdown code blocks */
+/* Code block wrapper with copy button */
+.code-block-wrapper {
+  position: relative;
+  margin: 0.75em 0;
+}
+
+/* Code block with line numbers - each line is a grid row */
+.code-block-container {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  background: var(--color-code-bg);
+  border-radius: 4px;
+  padding: 6px 0;
+  font-family: var(--font-monospace);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.line-number {
+  background: rgba(0, 0, 0, 0.2);
+  padding: 0 8px 0 6px;
+  text-align: right;
+  color: rgba(255, 255, 255, 0.4);
+  user-select: none;
+  border-right: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.code-line {
+  padding: 0 8px;
+  white-space: pre-wrap;
+}
+
+.code-line code {
+  background: transparent;
+  padding: 0;
+}
+
+/* Reusable copy button styles */
+.copy-button {
+  padding: 6px 8px;
+  background: rgba(0, 0, 0, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  color: rgba(255, 255, 255, 0.6);
+  cursor: pointer;
+  transition: color 0.2s, background 0.2s, border-color 0.2s;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.copy-button:hover {
+  background: rgba(0, 0, 0, 0.8);
+  color: rgba(255, 255, 255, 0.9);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.copy-icon {
+  width: 14px;
+  height: 14px;
+}
+
+.copy-feedback {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+/* Code block specific positioning */
+.code-copy-button {
+  position: absolute;
+  bottom: 8px;
+  right: 8px;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.code-block-wrapper:hover .code-copy-button {
+  opacity: 1;
+}
+
+/* Markdown code blocks (fallback for non-highlighted blocks) */
 pre code {
   display: block;
   background: var(--color-code-bg);

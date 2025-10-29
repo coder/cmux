@@ -484,20 +484,43 @@ export const ActiveWorkspaceWithChat: Story = {
                     },
                   });
 
-                  // User asking to run tests
+                  // Assistant with code block example
                   callback({
                     id: "msg-5",
+                    role: "assistant",
+                    parts: [
+                      {
+                        type: "text",
+                        text: "Perfect! I've added JWT authentication. Here's what the updated endpoint looks like:\n\n```typescript\nimport { verifyToken } from '../auth/jwt';\n\nexport function getUser(req, res) {\n  const token = req.headers.authorization?.split(' ')[1];\n  if (!token || !verifyToken(token)) {\n    return res.status(401).json({ error: 'Unauthorized' });\n  }\n  const user = db.users.find(req.params.id);\n  res.json(user);\n}\n```\n\nThe endpoint now requires a valid JWT token in the Authorization header. Let me run the tests to verify everything works.",
+                      },
+                    ],
+                    metadata: {
+                      historySequence: 5,
+                      timestamp: STABLE_TIMESTAMP - 260000,
+                      model: "claude-sonnet-4-20250514",
+                      usage: {
+                        inputTokens: 1800,
+                        outputTokens: 520,
+                        totalTokens: 2320,
+                      },
+                      duration: 3200,
+                    },
+                  });
+
+                  // User asking to run tests
+                  callback({
+                    id: "msg-6",
                     role: "user",
                     parts: [{ type: "text", text: "Can you run the tests to make sure it works?" }],
                     metadata: {
-                      historySequence: 5,
+                      historySequence: 6,
                       timestamp: STABLE_TIMESTAMP - 240000,
                     },
                   });
 
                   // Assistant running tests
                   callback({
-                    id: "msg-6",
+                    id: "msg-7",
                     role: "assistant",
                     parts: [
                       {
@@ -522,7 +545,7 @@ export const ActiveWorkspaceWithChat: Story = {
                       },
                     ],
                     metadata: {
-                      historySequence: 6,
+                      historySequence: 7,
                       timestamp: STABLE_TIMESTAMP - 230000,
                       model: "claude-sonnet-4-20250514",
                       usage: {
@@ -536,7 +559,7 @@ export const ActiveWorkspaceWithChat: Story = {
 
                   // User follow-up about error handling
                   callback({
-                    id: "msg-7",
+                    id: "msg-8",
                     role: "user",
                     parts: [
                       {
@@ -545,14 +568,14 @@ export const ActiveWorkspaceWithChat: Story = {
                       },
                     ],
                     metadata: {
-                      historySequence: 7,
+                      historySequence: 8,
                       timestamp: STABLE_TIMESTAMP - 180000,
                     },
                   });
 
                   // Assistant response with thinking (reasoning)
                   callback({
-                    id: "msg-8",
+                    id: "msg-9",
                     role: "assistant",
                     parts: [
                       {
@@ -582,7 +605,7 @@ export const ActiveWorkspaceWithChat: Story = {
                       },
                     ],
                     metadata: {
-                      historySequence: 8,
+                      historySequence: 9,
                       timestamp: STABLE_TIMESTAMP - 170000,
                       model: "claude-sonnet-4-20250514",
                       usage: {
