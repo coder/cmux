@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useEffect, useCallback, useRef } from "react";
 import "./styles/globals.css";
 import { useApp } from "./contexts/AppContext";
 import type { WorkspaceSelection } from "./components/ProjectSidebar";
@@ -22,13 +22,12 @@ import { CommandPalette } from "./components/CommandPalette";
 import { buildCoreSources, type BuildSourcesParams } from "./utils/commands/sources";
 
 import type { ThinkingLevel } from "./types/thinking";
-import type { RuntimeConfig } from "./types/runtime";
 import { CUSTOM_EVENTS } from "./constants/events";
 import { isWorkspaceForkSwitchEvent } from "./utils/workspaceFork";
-import { getThinkingLevelKey, getRuntimeKey } from "./constants/storage";
+import { getThinkingLevelKey } from "./constants/storage";
 import type { BranchListResult } from "./types/ipc";
 import { useTelemetry } from "./hooks/useTelemetry";
-import { parseRuntimeString } from "./utils/chatCommands";
+import { useWorkspaceModal } from "./hooks/useWorkspaceModal";
 
 const THINKING_LEVELS: ThinkingLevel[] = ["off", "low", "medium", "high"];
 
@@ -46,15 +45,6 @@ function AppInner() {
     selectedWorkspace,
     setSelectedWorkspace,
   } = useApp();
-  const [workspaceModalOpen, setWorkspaceModalOpen] = useState(false);
-  const [workspaceModalProject, setWorkspaceModalProject] = useState<string | null>(null);
-  const [workspaceModalProjectName, setWorkspaceModalProjectName] = useState<string>("");
-  const [workspaceModalBranches, setWorkspaceModalBranches] = useState<string[]>([]);
-  const [workspaceModalDefaultTrunk, setWorkspaceModalDefaultTrunk] = useState<string | undefined>(
-    undefined
-  );
-  const [workspaceModalLoadError, setWorkspaceModalLoadError] = useState<string | null>(null);
-  const workspaceModalProjectRef = useRef<string | null>(null);
 
   // Auto-collapse sidebar on mobile by default
   const isMobile = typeof window !== "undefined" && window.innerWidth <= 768;
@@ -69,6 +59,13 @@ function AppInner() {
 
   // Get workspace store for command palette
   const workspaceStore = useWorkspaceStoreRaw();
+
+  // Workspace modal management
+  const workspaceModal = useWorkspaceModal({
+    createWorkspace,
+    setSelectedWorkspace,
+    telemetry,
+  });
 
   // Wrapper for setSelectedWorkspace that tracks telemetry
   const handleWorkspaceSwitch = useCallback(
@@ -174,108 +171,6 @@ function AppInner() {
     },
     [removeProject, selectedWorkspace, setSelectedWorkspace]
   );
-
-  const handleAddWorkspace = useCallback(async (projectPath: string) => {
-    const projectName = projectPath.split("/").pop() ?? projectPath.split("\\").pop() ?? "project";
-
-    workspaceModalProjectRef.current = projectPath;
-    setWorkspaceModalProject(projectPath);
-    setWorkspaceModalProjectName(projectName);
-    setWorkspaceModalBranches([]);
-    setWorkspaceModalDefaultTrunk(undefined);
-    setWorkspaceModalLoadError(null);
-    setWorkspaceModalOpen(true);
-
-    try {
-      const branchResult = await window.api.projects.listBranches(projectPath);
-
-      // Guard against race condition: only update state if this is still the active project
-      if (workspaceModalProjectRef.current !== projectPath) {
-        return;
-      }
-
-      const sanitizedBranches = Array.isArray(branchResult?.branches)
-        ? branchResult.branches.filter((branch): branch is string => typeof branch === "string")
-        : [];
-
-      const recommended =
-        typeof branchResult?.recommendedTrunk === "string" &&
-        sanitizedBranches.includes(branchResult.recommendedTrunk)
-          ? branchResult.recommendedTrunk
-          : sanitizedBranches[0];
-
-      setWorkspaceModalBranches(sanitizedBranches);
-      setWorkspaceModalDefaultTrunk(recommended);
-      setWorkspaceModalLoadError(null);
-    } catch (err) {
-      console.error("Failed to load branches for modal:", err);
-      const message = err instanceof Error ? err.message : "Unknown error";
-      setWorkspaceModalLoadError(
-        `Unable to load branches automatically: ${message}. You can still enter the trunk branch manually.`
-      );
-    }
-  }, []);
-
-  // Memoize callbacks to prevent LeftSidebar/ProjectSidebar re-renders
-  const handleAddProjectCallback = useCallback(() => {
-    void addProject();
-  }, [addProject]);
-
-  const handleAddWorkspaceCallback = useCallback(
-    (projectPath: string) => {
-      void handleAddWorkspace(projectPath);
-    },
-    [handleAddWorkspace]
-  );
-
-  const handleRemoveProjectCallback = useCallback(
-    (path: string) => {
-      void handleRemoveProject(path);
-    },
-    [handleRemoveProject]
-  );
-
-  const handleCreateWorkspace = async (
-    branchName: string,
-    trunkBranch: string,
-    runtime?: string
-  ) => {
-    if (!workspaceModalProject) return;
-
-    console.assert(
-      typeof trunkBranch === "string" && trunkBranch.trim().length > 0,
-      "Expected trunk branch to be provided by the workspace modal"
-    );
-
-    // Parse runtime config if provided
-    let runtimeConfig: RuntimeConfig | undefined;
-    if (runtime) {
-      try {
-        runtimeConfig = parseRuntimeString(runtime, branchName);
-      } catch (err) {
-        console.error("Failed to parse runtime config:", err);
-        throw err; // Let modal handle the error
-      }
-    }
-
-    const newWorkspace = await createWorkspace(
-      workspaceModalProject,
-      branchName,
-      trunkBranch,
-      runtimeConfig
-    );
-    if (newWorkspace) {
-      // Track workspace creation
-      telemetry.workspaceCreated(newWorkspace.workspaceId);
-      setSelectedWorkspace(newWorkspace);
-
-      // Save runtime preference for this project if provided
-      if (runtime) {
-        const runtimeKey = getRuntimeKey(workspaceModalProject);
-        localStorage.setItem(runtimeKey, runtime);
-      }
-    }
-  };
 
   const handleGetSecrets = useCallback(async (projectPath: string) => {
     return await window.api.projects.secrets.get(projectPath);
@@ -425,13 +320,13 @@ function AppInner() {
     }
   }, []);
 
-  const registerParamsRef = useRef<BuildSourcesParams | null>(null);
+  const registerParamsRef = useRef<BuildSourcesParams>({} as BuildSourcesParams);
 
   const openNewWorkspaceFromPalette = useCallback(
     (projectPath: string) => {
-      void handleAddWorkspace(projectPath);
+      void workspaceModal.openModal(projectPath);
     },
-    [handleAddWorkspace]
+    [workspaceModal]
   );
 
   const getBranchesForProject = useCallback(
@@ -514,8 +409,7 @@ function AppInner() {
 
   useEffect(() => {
     const unregister = registerSource(() => {
-      const params = registerParamsRef.current;
-      if (!params) return [];
+      const params: BuildSourcesParams = registerParamsRef.current;
 
       // Compute streaming models here (only when command palette opens)
       const allStates = workspaceStore.getAllStates();
@@ -615,14 +509,38 @@ function AppInner() {
       );
   }, [projects, setSelectedWorkspace, setWorkspaceMetadata]);
 
+  // Handle open new workspace modal event
+  useEffect(() => {
+    const handleOpenNewWorkspaceModal = (e: Event) => {
+      const customEvent = e as CustomEvent<{
+        projectPath: string;
+        startMessage?: string;
+        model?: string;
+        error?: string;
+      }>;
+      const { projectPath, startMessage, model, error } = customEvent.detail;
+      void workspaceModal.openModal(projectPath, { startMessage, model, error });
+    };
+
+    window.addEventListener(
+      CUSTOM_EVENTS.OPEN_NEW_WORKSPACE_MODAL,
+      handleOpenNewWorkspaceModal as EventListener
+    );
+    return () =>
+      window.removeEventListener(
+        CUSTOM_EVENTS.OPEN_NEW_WORKSPACE_MODAL,
+        handleOpenNewWorkspaceModal as EventListener
+      );
+  }, [workspaceModal]);
+
   return (
     <>
       <div className="bg-bg-dark flex h-screen overflow-hidden [@media(max-width:768px)]:flex-col">
         <LeftSidebar
           onSelectWorkspace={handleWorkspaceSwitch}
-          onAddProject={handleAddProjectCallback}
-          onAddWorkspace={handleAddWorkspaceCallback}
-          onRemoveProject={handleRemoveProjectCallback}
+          onAddProject={() => void addProject()}
+          onAddWorkspace={(path) => void workspaceModal.openModal(path)}
+          onRemoveProject={(path) => void handleRemoveProject(path)}
           lastReadTimestamps={lastReadTimestamps}
           onToggleUnread={onToggleUnread}
           collapsed={sidebarCollapsed}
@@ -674,24 +592,18 @@ function AppInner() {
             workspaceId: selectedWorkspace?.workspaceId,
           })}
         />
-        {workspaceModalOpen && workspaceModalProject && (
+        {workspaceModal.state.isOpen && workspaceModal.state.projectPath && (
           <NewWorkspaceModal
-            isOpen={workspaceModalOpen}
-            projectName={workspaceModalProjectName}
-            projectPath={workspaceModalProject}
-            branches={workspaceModalBranches}
-            defaultTrunkBranch={workspaceModalDefaultTrunk}
-            loadErrorMessage={workspaceModalLoadError}
-            onClose={() => {
-              workspaceModalProjectRef.current = null;
-              setWorkspaceModalOpen(false);
-              setWorkspaceModalProject(null);
-              setWorkspaceModalProjectName("");
-              setWorkspaceModalBranches([]);
-              setWorkspaceModalDefaultTrunk(undefined);
-              setWorkspaceModalLoadError(null);
-            }}
-            onAdd={handleCreateWorkspace}
+            isOpen={workspaceModal.state.isOpen}
+            projectName={workspaceModal.state.projectName}
+            projectPath={workspaceModal.state.projectPath}
+            branches={workspaceModal.state.branches}
+            defaultTrunkBranch={workspaceModal.state.defaultTrunk}
+            loadErrorMessage={workspaceModal.state.loadError}
+            initialStartMessage={workspaceModal.state.startMessage}
+            initialModel={workspaceModal.state.model}
+            onClose={workspaceModal.closeModal}
+            onAdd={workspaceModal.handleCreate}
           />
         )}
         <DirectorySelectModal />
