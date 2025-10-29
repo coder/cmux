@@ -95,6 +95,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   const { recentModels, addModel } = useModelLRU();
   const commandListId = useId();
   const telemetry = useTelemetry();
+  const [vimEnabled] = usePersistedState<boolean>(VIM_ENABLED_KEY, false);
 
   // Get current send message options from shared hook (must be at component top level)
   const sendMessageOptions = useSendMessageOptions(workspaceId);
@@ -426,21 +427,11 @@ export const ChatInput: React.FC<ChatInputProps> = ({
         // Handle /vim command
         if (parsed.type === "vim-toggle") {
           setInput(""); // Clear input immediately
-          let newState = false;
           updatePersistedState<boolean>(
             VIM_ENABLED_KEY,
-            (prev) => {
-              const next = !(prev ?? false);
-              newState = next;
-              return next;
-            },
+            (prev) => !(prev ?? false),
             false
           );
-          setToast({
-            id: Date.now().toString(),
-            type: "success",
-            message: newState ? "Vim mode enabled" : "Vim mode disabled",
-          });
           return;
         }
 
@@ -727,7 +718,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     }
     hints.push(`${formatKeybind(KEYBINDS.SEND_MESSAGE)} to send`);
     hints.push(`${formatKeybind(KEYBINDS.OPEN_MODEL_SELECTOR)} to change model`);
-    hints.push("/vim to toggle Vim mode");
+    hints.push(`/vim to toggle Vim mode (${vimEnabled ? "on" : "off"})`);
 
     return `Type a message... (${hints.join(", ")})`;
   })();
