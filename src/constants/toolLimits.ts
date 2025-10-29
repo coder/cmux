@@ -15,3 +15,5 @@ export const BASH_TRUNCATE_MAX_FILE_BYTES = 1024 * 1024; // 1MB file limit (same
 export const BASH_MAX_LINE_BYTES = 1024; // 1KB per line for AI agent
 
 export const MAX_TODOS = 7; // Maximum number of TODO items in a list
+
+export const STATUS_MESSAGE_MAX_LENGTH = 60; // Maximum length for status messages (auto-truncated)
