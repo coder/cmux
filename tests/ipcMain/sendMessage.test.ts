@@ -790,25 +790,38 @@ These are general instructions that apply to all modes.
     test.each(PROVIDER_CONFIGS)(
       "%s:%s should return error when accumulated history exceeds token limit",
       async (provider, model) => {
-        const { env, workspaceId, cleanup } = await setupWorkspace(provider);
+        const { env, workspaceId, cleanup} = await setupWorkspace(provider);
         try {
           // Build up large conversation history to exceed context limits
-          // Use 15 messages to ensure we trigger error on both providers
-          // For Anthropic: 200k tokens → 15 messages of 50k chars (750k chars) exceeds limit
-          // For OpenAI: gpt-5-codex 128k tokens → same approach works
+          // Different providers have different limits:
+          // - Anthropic: 200k tokens → need ~15 messages of 50k chars (750k chars total)
+          // - OpenAI: gpt-5-codex has large context, use 30 messages to ensure we hit limit
           await buildLargeHistory(workspaceId, env.config, {
             messageSize: 50_000,
-            messageCount: 15,
+            messageCount: provider === "anthropic" ? 15 : 30,
           });
 
           // Now try to send a new message - should trigger token limit error
           // due to accumulated history
+          // Disable auto-truncation for OpenAI to force context error
+          const sendOptions =
+            provider === "openai"
+              ? {
+                  providerOptions: {
+                    openai: {
+                      disableAutoTruncation: true,
+                      forceContextLimitError: true,
+                    },
+                  },
+                }
+              : undefined;
           const result = await sendMessageWithModel(
             env.mockIpcRenderer,
             workspaceId,
             "What is the weather?",
             provider,
-            model
+            model,
+            sendOptions
           );
 
           // IPC call itself should succeed (errors come through stream events)
