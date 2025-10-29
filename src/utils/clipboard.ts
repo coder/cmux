@@ -5,7 +5,7 @@
  */
 export async function copyToClipboard(text: string): Promise<void> {
   // Try modern clipboard API first
-  if (navigator.clipboard && navigator.clipboard.writeText) {
+  if (navigator.clipboard?.writeText) {
     await navigator.clipboard.writeText(text);
     return;
   }
@@ -20,4 +20,3 @@ export async function copyToClipboard(text: string): Promise<void> {
   document.execCommand("copy");
   document.body.removeChild(textarea);
 }
-

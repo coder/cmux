@@ -27,14 +27,16 @@ export const CopyButton: React.FC<CopyButtonProps> = ({
 }) => {
   const [copied, setCopied] = useState(false);
 
-  const handleCopy = async () => {
-    try {
-      await copyToClipboard(text);
-      setCopied(true);
-      setTimeout(() => setCopied(false), feedbackDuration);
-    } catch (error) {
-      console.warn("Failed to copy to clipboard:", error);
-    }
+  const handleCopy = () => {
+    void (async () => {
+      try {
+        await copyToClipboard(text);
+        setCopied(true);
+        setTimeout(() => setCopied(false), feedbackDuration);
+      } catch (error) {
+        console.warn("Failed to copy to clipboard:", error);
+      }
+    })();
   };
 
   return (
@@ -43,12 +45,7 @@ export const CopyButton: React.FC<CopyButtonProps> = ({
       onClick={handleCopy}
       aria-label="Copy to clipboard"
     >
-      {copied ? (
-        <span className="copy-feedback">Copied!</span>
-      ) : (
-        <CopyIcon className="copy-icon" />
-      )}
+      {copied ? <span className="copy-feedback">Copied!</span> : <CopyIcon className="copy-icon" />}
     </button>
   );
 };
-

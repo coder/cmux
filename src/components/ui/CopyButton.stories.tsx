@@ -77,4 +77,3 @@ With a copy button!"
     },
   },
 };
-

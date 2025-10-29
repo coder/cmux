@@ -49,10 +49,10 @@ function extractShikiLines(html: string): string[] {
   return codeMatch[1].split("\n").map((chunk) => {
     const start = chunk.indexOf('<span class="line">');
     if (start === -1) return "";
-    
+
     const contentStart = start + '<span class="line">'.length;
     const end = chunk.lastIndexOf("</span>");
-    
+
     return end > contentStart ? chunk.substring(contentStart, end) : "";
   });
 }
@@ -65,7 +65,9 @@ const CodeBlock: React.FC<CodeBlockProps> = ({ code, language }) => {
   const [highlightedLines, setHighlightedLines] = useState<string[] | null>(null);
 
   // Split code into lines, removing trailing empty line
-  const plainLines = code.split("\n").filter((line, idx, arr) => idx < arr.length - 1 || line !== "");
+  const plainLines = code
+    .split("\n")
+    .filter((line, idx, arr) => idx < arr.length - 1 || line !== "");
 
   useEffect(() => {
     let cancelled = false;
@@ -90,7 +92,9 @@ const CodeBlock: React.FC<CodeBlockProps> = ({ code, language }) => {
         if (!cancelled) {
           const lines = extractShikiLines(html);
           // Remove trailing empty line if present
-          const filteredLines = lines.filter((line, idx, arr) => idx < arr.length - 1 || line.trim() !== "");
+          const filteredLines = lines.filter(
+            (line, idx, arr) => idx < arr.length - 1 || line.trim() !== ""
+          );
           setHighlightedLines(filteredLines.length > 0 ? filteredLines : null);
         }
       } catch (error) {
@@ -100,10 +104,12 @@ const CodeBlock: React.FC<CodeBlockProps> = ({ code, language }) => {
     }
 
     void highlight();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [code, language]);
 
-  const lines = highlightedLines || plainLines;
+  const lines = highlightedLines ?? plainLines;
 
   return (
     <div className="code-block-wrapper">
@@ -111,12 +117,11 @@ const CodeBlock: React.FC<CodeBlockProps> = ({ code, language }) => {
         {lines.map((content, idx) => (
           <React.Fragment key={idx}>
             <div className="line-number">{idx + 1}</div>
-            <div 
-              className="code-line" 
-              {...(highlightedLines 
+            <div
+              className="code-line"
+              {...(highlightedLines
                 ? { dangerouslySetInnerHTML: { __html: content } }
-                : { children: <code>{content}</code> }
-              )}
+                : { children: <code>{content}</code> })}
             />
           </React.Fragment>
         ))}
