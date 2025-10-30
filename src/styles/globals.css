@@ -187,17 +187,29 @@
   --radius: 0.5rem;
 }
 
-/* Explicit tooltip utilities (in case Tailwind doesn't generate them) */
-.bg-primary {
-  background-color: hsl(0 0% 18%) !important;
-}
+/* Explicit tooltip utilities using @layer for proper Tailwind integration */
+@layer utilities {
+  .bg-primary {
+    background-color: hsl(0 0% 18%) !important;
+  }
 
-.text-primary-foreground {
-  color: hsl(0 0% 98%) !important;
-}
+  .text-primary-foreground {
+    color: hsl(0 0% 98%) !important;
+  }
 
-.fill-primary {
-  fill: hsl(0 0% 18%) !important;
+  .fill-primary {
+    fill: hsl(0 0% 18%) !important;
+  }
+  
+  /* Additional explicit classes for tooltips */
+  [data-radix-popper-content-wrapper] [role="tooltip"] {
+    background-color: hsl(0 0% 18%) !important;
+    color: hsl(0 0% 98%) !important;
+    padding: 0.25rem 0.625rem !important;
+    border-radius: 0.375rem !important;
+    font-size: 0.75rem !important;
+    line-height: 1rem !important;
+  }
 }
 
 :root {
