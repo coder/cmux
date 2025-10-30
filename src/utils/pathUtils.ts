@@ -39,7 +39,7 @@ export function expandTilde(inputPath: string): string {
 }
 
 /**
- * Validate that a project path exists and is a directory
+ * Validate that a project path exists, is a directory, and is a git repository
  * Automatically expands tilde and normalizes the path
  *
  * @param inputPath - Path to validate (may contain tilde)
@@ -51,6 +51,9 @@ export function expandTilde(inputPath: string): string {
  *
  * validateProjectPath("~/nonexistent")
  * // => { valid: false, error: "Path does not exist: /home/user/nonexistent" }
+ *
+ * validateProjectPath("~/not-a-git-repo")
+ * // => { valid: false, error: "Not a git repository: /home/user/not-a-git-repo" }
  */
 export function validateProjectPath(inputPath: string): PathValidationResult {
   // Expand tilde if present
@@ -75,6 +78,16 @@ export function validateProjectPath(inputPath: string): PathValidationResult {
     return {
       valid: false,
       error: `Path is not a directory: ${normalizedPath}`,
+    };
+  }
+
+  // Check if it's a git repository
+  const gitPath = path.join(normalizedPath, ".git");
+  // eslint-disable-next-line local/no-sync-fs-methods -- Synchronous validation required for IPC handler
+  if (!fs.existsSync(gitPath)) {
+    return {
+      valid: false,
+      error: `Not a git repository: ${normalizedPath}`,
     };
   }
 

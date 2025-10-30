@@ -1207,7 +1207,8 @@ export class IpcMain {
         config.projects.set(normalizedPath, projectConfig);
         this.config.saveConfig(config);
 
-        return Ok(projectConfig);
+        // Return both the config and the normalized path so frontend can use it
+        return Ok({ projectConfig, normalizedPath });
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         return Err(`Failed to create project: ${message}`);

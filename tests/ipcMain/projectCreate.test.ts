@@ -24,6 +24,8 @@ describeIntegration("PROJECT_CREATE IPC Handler", () => {
     const testDirName = `cmux-test-tilde-${Date.now()}`;
     const homeProjectPath = path.join(os.homedir(), testDirName);
     await fs.mkdir(homeProjectPath, { recursive: true });
+    // Create .git directory to make it a valid git repo
+    await fs.mkdir(path.join(homeProjectPath, ".git"));
 
     try {
       // Try to create project with tilde path
@@ -35,6 +37,7 @@ describeIntegration("PROJECT_CREATE IPC Handler", () => {
 
       // Should succeed
       expect(result.success).toBe(true);
+      expect(result.data.normalizedPath).toBe(homeProjectPath);
 
       // Verify the project was added with expanded path (not tilde path)
       const projectsList = await env.mockIpcRenderer.invoke(IPC_CHANNELS.PROJECT_LIST);
@@ -96,12 +99,29 @@ describeIntegration("PROJECT_CREATE IPC Handler", () => {
     await fs.rm(tempProjectDir, { recursive: true, force: true });
   });
 
+  test.concurrent("should reject directory without .git", async () => {
+    const env = await createTestEnvironment();
+    const tempProjectDir = await fs.mkdtemp(path.join(os.tmpdir(), "cmux-project-test-"));
+
+    const result = await env.mockIpcRenderer.invoke(IPC_CHANNELS.PROJECT_CREATE, tempProjectDir);
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("Not a git repository");
+
+    await cleanupTestEnvironment(env);
+    await fs.rm(tempProjectDir, { recursive: true, force: true });
+  });
+
   test.concurrent("should accept valid absolute path", async () => {
     const env = await createTestEnvironment();
     const tempProjectDir = await fs.mkdtemp(path.join(os.tmpdir(), "cmux-project-test-"));
+    // Create .git directory to make it a valid git repo
+    await fs.mkdir(path.join(tempProjectDir, ".git"));
+    
     const result = await env.mockIpcRenderer.invoke(IPC_CHANNELS.PROJECT_CREATE, tempProjectDir);
 
     expect(result.success).toBe(true);
+    expect(result.data.normalizedPath).toBe(tempProjectDir);
 
     // Verify project was added
     const projectsList = await env.mockIpcRenderer.invoke(IPC_CHANNELS.PROJECT_LIST);
@@ -115,11 +135,15 @@ describeIntegration("PROJECT_CREATE IPC Handler", () => {
   test.concurrent("should normalize paths with .. in them", async () => {
     const env = await createTestEnvironment();
     const tempProjectDir = await fs.mkdtemp(path.join(os.tmpdir(), "cmux-project-test-"));
+    // Create .git directory to make it a valid git repo
+    await fs.mkdir(path.join(tempProjectDir, ".git"));
+    
     // Create a path with .. that resolves to tempProjectDir
     const pathWithDots = path.join(tempProjectDir, "..", path.basename(tempProjectDir));
     const result = await env.mockIpcRenderer.invoke(IPC_CHANNELS.PROJECT_CREATE, pathWithDots);
 
     expect(result.success).toBe(true);
+    expect(result.data.normalizedPath).toBe(tempProjectDir);
 
     // Verify project was added with normalized path
     const projectsList = await env.mockIpcRenderer.invoke(IPC_CHANNELS.PROJECT_LIST);
@@ -133,6 +157,9 @@ describeIntegration("PROJECT_CREATE IPC Handler", () => {
   test.concurrent("should reject duplicate projects (same expanded path)", async () => {
     const env = await createTestEnvironment();
     const tempProjectDir = await fs.mkdtemp(path.join(os.tmpdir(), "cmux-project-test-"));
+    // Create .git directory to make it a valid git repo
+    await fs.mkdir(path.join(tempProjectDir, ".git"));
+    
     // Create first project
     const result1 = await env.mockIpcRenderer.invoke(IPC_CHANNELS.PROJECT_CREATE, tempProjectDir);
     expect(result1.success).toBe(true);

@@ -31,20 +31,30 @@ export function useProjectManagement() {
       const selectedPath = await window.api.dialog.selectDirectory();
       if (!selectedPath) return;
 
-      if (projects.has(selectedPath)) {
-        console.log("Project already exists:", selectedPath);
-        return;
-      }
-
       const result = await window.api.projects.create(selectedPath);
       if (result.success) {
+        // Use the normalized path returned from backend
+        const { normalizedPath, projectConfig } = result.data;
+
+        // Check if already exists using normalized path
+        if (projects.has(normalizedPath)) {
+          console.log("Project already exists:", normalizedPath);
+          alert("This project has already been added.");
+          return;
+        }
+
         const newProjects = new Map(projects);
-        newProjects.set(selectedPath, result.data);
+        newProjects.set(normalizedPath, projectConfig);
         setProjects(newProjects);
       } else {
+        // Show error to user
+        const errorMessage = typeof result.error === "string" ? result.error : "Failed to add project";
+        alert(errorMessage);
         console.error("Failed to create project:", result.error);
       }
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "An unexpected error occurred";
+      alert(`Failed to add project: ${errorMessage}`);
       console.error("Failed to add project:", error);
     }
   }, [projects]);

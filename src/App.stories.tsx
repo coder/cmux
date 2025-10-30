@@ -64,7 +64,11 @@ function setupMockAPI(options: {
     },
     projects: {
       list: () => Promise.resolve(Array.from(mockProjects.entries())),
-      create: () => Promise.resolve({ success: true, data: { workspaces: [] } }),
+      create: () =>
+        Promise.resolve({
+          success: true,
+          data: { projectConfig: { workspaces: [] }, normalizedPath: "/mock/project/path" },
+        }),
       remove: () => Promise.resolve({ success: true, data: undefined }),
       listBranches: () =>
         Promise.resolve({
