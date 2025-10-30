@@ -91,7 +91,7 @@ const AIViewInner: React.FC<AIViewProps> = ({
   //   - User sends a message → true (clear intent: "I'm using this workspace")
   //   - User clicks manual retry button → true
   // No automatic resets on stream events - prevents initialization bugs
-  const [autoRetry, setAutoRetry] = usePersistedState<boolean>(
+  const [_autoRetry, _setAutoRetry] = usePersistedState<boolean>(
     getAutoRetryKey(workspaceId),
     true, // Default to true
     { listener: true } // Enable cross-component synchronization
@@ -447,12 +447,7 @@ const AIViewInner: React.FC<AIViewProps> = ({
                 })}
                 {/* Show RetryBarrier after the last message if needed */}
                 {showRetryBarrier && (
-                  <RetryBarrier
-                    workspaceId={workspaceId}
-                    autoRetry={autoRetry}
-                    onStopAutoRetry={() => setAutoRetry(false)}
-                    onResetAutoRetry={() => setAutoRetry(true)}
-                  />
+                  <RetryBarrier workspaceId={workspaceId} />
                 )}
               </>
             )}

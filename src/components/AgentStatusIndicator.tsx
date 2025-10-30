@@ -1,6 +1,6 @@
 import React, { useCallback, useMemo } from "react";
 import { cn } from "@/lib/utils";
-import { TooltipWrapper, Tooltip } from "./Tooltip";
+import { Tooltip, TooltipTrigger, TooltipContent } from "./ui/tooltip";
 import { useWorkspaceSidebarState } from "@/stores/WorkspaceStore";
 import { getStatusTooltip } from "@/utils/ui/statusTooltip";
 
@@ -98,12 +98,10 @@ export const AgentStatusIndicator: React.FC<AgentStatusIndicatorProps> = ({
   // If tooltip content provided, wrap with proper Tooltip component
   if (title) {
     return (
-      <TooltipWrapper inline>
-        {indicator}
-        <Tooltip className="tooltip" align="center">
-          {title}
-        </Tooltip>
-      </TooltipWrapper>
+      <Tooltip>
+        <TooltipTrigger asChild>{indicator}</TooltipTrigger>
+        <TooltipContent side="top">{title}</TooltipContent>
+      </Tooltip>
     );
   }
 
