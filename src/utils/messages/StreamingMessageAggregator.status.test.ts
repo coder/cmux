@@ -584,7 +584,7 @@ describe("StreamingMessageAggregator - Agent Status", () => {
     expect(status?.url).toBe(testUrl);
   });
 
-  it("should persist URL until replaced with new status", () => {
+  it("should persist URL across status updates until explicitly replaced", () => {
     const aggregator = new StreamingMessageAggregator("2024-01-01T00:00:00.000Z");
     const messageId = "msg1";
 
@@ -621,7 +621,7 @@ describe("StreamingMessageAggregator - Agent Status", () => {
 
     expect(aggregator.getAgentStatus()?.url).toBe(testUrl);
 
-    // Second status without URL - should clear URL
+    // Second status without URL - should keep previous URL
     aggregator.handleToolCallStart({
       type: "tool-call-start",
       workspaceId: "workspace1",
@@ -642,9 +642,36 @@ describe("StreamingMessageAggregator - Agent Status", () => {
       result: { success: true, emoji: "✅", message: "Done" },
     });
 
+    const statusAfterUpdate = aggregator.getAgentStatus();
+    expect(statusAfterUpdate?.emoji).toBe("✅");
+    expect(statusAfterUpdate?.message).toBe("Done");
+    expect(statusAfterUpdate?.url).toBe(testUrl); // URL persists
+
+    // Third status with different URL - should replace
+    const newUrl = "https://github.com/owner/repo/pull/456";
+    aggregator.handleToolCallStart({
+      type: "tool-call-start",
+      workspaceId: "workspace1",
+      messageId,
+      toolCallId: "tool3",
+      toolName: "status_set",
+      args: { emoji: "🔄", message: "New PR", url: newUrl },
+      tokens: 10,
+      timestamp: Date.now(),
+    });
+
+    aggregator.handleToolCallEnd({
+      type: "tool-call-end",
+      workspaceId: "workspace1",
+      messageId,
+      toolCallId: "tool3",
+      toolName: "status_set",
+      result: { success: true, emoji: "🔄", message: "New PR", url: newUrl },
+    });
+
     const finalStatus = aggregator.getAgentStatus();
-    expect(finalStatus?.emoji).toBe("✅");
-    expect(finalStatus?.message).toBe("Done");
-    expect(finalStatus?.url).toBeUndefined();
+    expect(finalStatus?.emoji).toBe("🔄");
+    expect(finalStatus?.message).toBe("New PR");
+    expect(finalStatus?.url).toBe(newUrl); // URL replaced
   });
 });

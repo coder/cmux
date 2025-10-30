@@ -197,7 +197,7 @@ export const TOOL_DEFINITIONS = {
       "URL PARAMETER:\n" +
       "- Optional 'url' parameter links to external resources (e.g., PR URL: 'https://github.com/owner/repo/pull/123')\n" +
       "- Prefer stable URLs that don't change often - saving the same URL twice is a no-op\n" +
-      "- URL persists until replaced by a new status",
+      "- URL persists until replaced by a new status with a different URL",
     schema: z
       .object({
         emoji: z.string().describe("A single emoji character representing the current activity"),

@@ -523,10 +523,12 @@ export class StreamingMessageAggregator {
     // Use output instead of input to get the truncated message
     if (toolName === "status_set" && hasSuccessResult(output)) {
       const result = output as { success: true; emoji: string; message: string; url?: string };
+      // Preserve the previous URL if the new status doesn't provide one
+      const previousUrl = this.agentStatus?.url;
       this.agentStatus = {
         emoji: result.emoji,
         message: result.message,
-        ...(result.url && { url: result.url }),
+        url: result.url ?? previousUrl,
       };
     }
   }
