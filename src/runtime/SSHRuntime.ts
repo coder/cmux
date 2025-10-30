@@ -1,8 +1,6 @@
 import { spawn } from "child_process";
 import { Readable, Writable } from "stream";
 import * as path from "path";
-import * as os from "os";
-import * as crypto from "crypto";
 import { Shescape } from "shescape";
 import type {
   Runtime,
@@ -13,6 +11,8 @@ import type {
   WorkspaceCreationResult,
   WorkspaceInitParams,
   WorkspaceInitResult,
+  WorkspaceForkParams,
+  WorkspaceForkResult,
   InitLogger,
 } from "./Runtime";
 import { RuntimeError as RuntimeErrorClass } from "./Runtime";
@@ -24,6 +24,7 @@ import { expandTildeForSSH, cdCommandForSSH } from "./tildeExpansion";
 import { getProjectName } from "../utils/runtime/helpers";
 import { getErrorMessage } from "../utils/errors";
 import { execAsync } from "../utils/disposableExec";
+import { getControlPath } from "./sshConnectionPool";
 
 /**
  * Shescape instance for bash shell escaping.
@@ -54,17 +55,23 @@ export interface SSHRuntimeConfig {
  * - Supports SSH config aliases, ProxyJump, ControlMaster, etc.
  * - No password prompts (assumes key-based auth or ssh-agent)
  * - Atomic file writes via temp + rename
+ *
+ * IMPORTANT: All SSH operations MUST include a timeout to prevent hangs from network issues.
+ * Timeouts should be either set literally for internal operations or forwarded from upstream
+ * for user-initiated operations.
  */
 export class SSHRuntime implements Runtime {
   private readonly config: SSHRuntimeConfig;
   private readonly controlPath: string;
 
   constructor(config: SSHRuntimeConfig) {
+    // Note: srcBaseDir may contain tildes - they will be resolved via resolvePath() before use
+    // The WORKSPACE_CREATE IPC handler resolves paths before storing in config
     this.config = config;
-    // Generate unique control path for SSH connection multiplexing
-    // This allows multiple SSH sessions to reuse a single TCP connection
-    const randomId = crypto.randomBytes(8).toString("hex");
-    this.controlPath = path.join(os.tmpdir(), `cmux-ssh-${randomId}`);
+    // Get deterministic controlPath from connection pool
+    // Multiple SSHRuntime instances with same config share the same controlPath,
+    // enabling ControlMaster to multiplex SSH connections across operations
+    this.controlPath = getControlPath(config);
   }
 
   /**
@@ -73,6 +80,11 @@ export class SSHRuntime implements Runtime {
   // eslint-disable-next-line @typescript-eslint/require-await
   async exec(command: string, options: ExecOptions): Promise<ExecStream> {
     const startTime = performance.now();
+
+    // Short-circuit if already aborted
+    if (options.abortSignal?.aborted) {
+      throw new RuntimeErrorClass("Operation aborted before execution", "exec");
+    }
 
     // Build command parts
     const parts: string[] = [];
@@ -91,10 +103,16 @@ export class SSHRuntime implements Runtime {
     parts.push(command);
 
     // Join all parts with && to ensure each step succeeds before continuing
-    const fullCommand = parts.join(" && ");
+    let fullCommand = parts.join(" && ");
 
-    // Wrap in bash -c with shescape for safe shell execution
-    const remoteCommand = `bash -c ${shescape.quote(fullCommand)}`;
+    // Wrap remote command with timeout to ensure the command is killed on the remote side
+    // even if the local SSH client is killed but the ControlMaster connection persists
+    // Use timeout command with KILL signal
+    // Set remote timeout slightly longer (+1s) than local timeout to ensure
+    // the local timeout fires first in normal cases (for cleaner error handling)
+    // Note: Using BusyBox-compatible syntax (-s KILL) which also works with GNU timeout
+    const remoteTimeout = Math.ceil(options.timeout) + 1;
+    fullCommand = `timeout -s KILL ${remoteTimeout} bash -c ${shescape.quote(fullCommand)}`;
 
     // Build SSH args
     const sshArgs: string[] = ["-T"];
@@ -118,15 +136,35 @@ export class SSHRuntime implements Runtime {
     // ControlMaster=auto: Create master connection if none exists, otherwise reuse
     // ControlPath: Unix socket path for multiplexing
     // ControlPersist=60: Keep master connection alive for 60s after last session
+    //
+    // Socket reuse is safe even with timeouts because:
+    // - Each SSH command gets its own channel within the multiplexed connection
+    // - SIGKILL on the client immediately closes that channel
+    // - Remote sshd terminates the command when the channel closes
+    // - Multiplexing only shares the TCP connection, not command lifetime
     sshArgs.push("-o", "ControlMaster=auto");
     sshArgs.push("-o", `ControlPath=${this.controlPath}`);
     sshArgs.push("-o", "ControlPersist=60");
 
-    sshArgs.push(this.config.host, remoteCommand);
+    // Set comprehensive timeout options to ensure SSH respects the timeout
+    // ConnectTimeout: Maximum time to wait for connection establishment (DNS, TCP handshake, SSH auth)
+    // Cap at 15 seconds - users wanting long timeouts for builds shouldn't wait that long for connection
+    // ServerAliveInterval: Send keepalive every 5 seconds to detect dead connections
+    // ServerAliveCountMax: Consider connection dead after 2 missed keepalives (10 seconds total)
+    // Together these ensure that:
+    // 1. Connection establishment can't hang indefinitely (max 15s)
+    // 2. Established connections that die are detected quickly
+    // 3. The overall command timeout is respected from the moment ssh command starts
+    sshArgs.push("-o", `ConnectTimeout=${Math.min(Math.ceil(options.timeout), 15)}`);
+    // Set aggressive keepalives to detect dead connections
+    sshArgs.push("-o", "ServerAliveInterval=5");
+    sshArgs.push("-o", "ServerAliveCountMax=2");
+
+    sshArgs.push(this.config.host, fullCommand);
 
     // Debug: log the actual SSH command being executed
     log.debug(`SSH command: ssh ${sshArgs.join(" ")}`);
-    log.debug(`Remote command: ${remoteCommand}`);
+    log.debug(`Remote command: ${fullCommand}`);
 
     // Spawn ssh command
     const sshProcess = spawn("ssh", sshArgs, {
@@ -168,16 +206,14 @@ export class SSHRuntime implements Runtime {
 
     // Handle abort signal
     if (options.abortSignal) {
-      options.abortSignal.addEventListener("abort", () => sshProcess.kill());
+      options.abortSignal.addEventListener("abort", () => sshProcess.kill("SIGKILL"));
     }
 
     // Handle timeout
-    if (options.timeout !== undefined) {
-      setTimeout(() => {
-        timedOut = true;
-        sshProcess.kill();
-      }, options.timeout * 1000);
-    }
+    setTimeout(() => {
+      timedOut = true;
+      sshProcess.kill("SIGKILL");
+    }, options.timeout * 1000);
 
     return { stdout, stderr, stdin, exitCode, duration };
   }
@@ -185,7 +221,7 @@ export class SSHRuntime implements Runtime {
   /**
    * Read file contents over SSH as a stream
    */
-  readFile(path: string): ReadableStream<Uint8Array> {
+  readFile(path: string, abortSignal?: AbortSignal): ReadableStream<Uint8Array> {
     // Return stdout, but wrap to handle errors from exec() and exit code
     return new ReadableStream<Uint8Array>({
       start: async (controller: ReadableStreamDefaultController<Uint8Array>) => {
@@ -193,6 +229,7 @@ export class SSHRuntime implements Runtime {
           const stream = await this.exec(`cat ${shescape.quote(path)}`, {
             cwd: this.config.srcBaseDir,
             timeout: 300, // 5 minutes - reasonable for large files
+            abortSignal,
           });
 
           const reader = stream.stdout.getReader();
@@ -232,12 +269,16 @@ export class SSHRuntime implements Runtime {
 
   /**
    * Write file contents over SSH atomically from a stream
+   * Preserves symlinks and file permissions by resolving and copying metadata
    */
-  writeFile(path: string): WritableStream<Uint8Array> {
+  writeFile(path: string, abortSignal?: AbortSignal): WritableStream<Uint8Array> {
     const tempPath = `${path}.tmp.${Date.now()}`;
-    // Create parent directory if needed, then write file atomically
+    // Resolve symlinks to get the actual target path, preserving the symlink itself
+    // If target exists, save its permissions to restore after write
+    // If path doesn't exist, use 600 as default
+    // Then write atomically using mv (all-or-nothing for readers)
     // Use shescape.quote for safe path escaping
-    const writeCommand = `mkdir -p $(dirname ${shescape.quote(path)}) && cat > ${shescape.quote(tempPath)} && chmod 600 ${shescape.quote(tempPath)} && mv ${shescape.quote(tempPath)} ${shescape.quote(path)}`;
+    const writeCommand = `RESOLVED=$(readlink -f ${shescape.quote(path)} 2>/dev/null || echo ${shescape.quote(path)}) && PERMS=$(stat -c '%a' "$RESOLVED" 2>/dev/null || echo 600) && mkdir -p $(dirname "$RESOLVED") && cat > ${shescape.quote(tempPath)} && chmod "$PERMS" ${shescape.quote(tempPath)} && mv ${shescape.quote(tempPath)} "$RESOLVED"`;
 
     // Need to get the exec stream in async callbacks
     let execPromise: Promise<ExecStream> | null = null;
@@ -246,6 +287,7 @@ export class SSHRuntime implements Runtime {
       execPromise ??= this.exec(writeCommand, {
         cwd: this.config.srcBaseDir,
         timeout: 300, // 5 minutes - reasonable for large files
+        abortSignal,
       });
       return execPromise;
     };
@@ -283,12 +325,13 @@ export class SSHRuntime implements Runtime {
   /**
    * Get file statistics over SSH
    */
-  async stat(path: string): Promise<FileStat> {
+  async stat(path: string, abortSignal?: AbortSignal): Promise<FileStat> {
     // Use stat with format string to get: size, mtime, type
     // %s = size, %Y = mtime (seconds since epoch), %F = file type
     const stream = await this.exec(`stat -c '%s %Y %F' ${shescape.quote(path)}`, {
       cwd: this.config.srcBaseDir,
       timeout: 10, // 10 seconds - stat should be fast
+      abortSignal,
     });
 
     const [stdout, stderr, exitCode] = await Promise.all([
@@ -316,6 +359,76 @@ export class SSHRuntime implements Runtime {
       isDirectory: fileType === "directory",
     };
   }
+  async resolvePath(filePath: string): Promise<string> {
+    // Use shell to expand tildes on remote system
+    // Bash will expand ~ automatically when we echo the unquoted variable
+    // This works with BusyBox (doesn't require GNU coreutils)
+    const command = `bash -c 'p=${shescape.quote(filePath)}; echo $p'`;
+    // Use 5 second timeout for path resolution (should be near-instant)
+    return this.execSSHCommand(command, 5000);
+  }
+
+  /**
+   * Execute a simple SSH command and return stdout
+   * @param command - The command to execute on the remote host
+   * @param timeoutMs - Timeout in milliseconds (required to prevent network hangs)
+   * @private
+   */
+  private async execSSHCommand(command: string, timeoutMs: number): Promise<string> {
+    const sshArgs = this.buildSSHArgs();
+    sshArgs.push(this.config.host, command);
+
+    return new Promise((resolve, reject) => {
+      const proc = spawn("ssh", sshArgs);
+      let stdout = "";
+      let stderr = "";
+      let timedOut = false;
+
+      // Set timeout to prevent hanging on network issues
+      const timer = setTimeout(() => {
+        timedOut = true;
+        proc.kill();
+        reject(
+          new RuntimeErrorClass(`SSH command timed out after ${timeoutMs}ms: ${command}`, "network")
+        );
+      }, timeoutMs);
+
+      proc.stdout?.on("data", (data: Buffer) => {
+        stdout += data.toString();
+      });
+
+      proc.stderr?.on("data", (data: Buffer) => {
+        stderr += data.toString();
+      });
+
+      proc.on("close", (code) => {
+        clearTimeout(timer);
+        if (timedOut) return; // Already rejected
+
+        if (code !== 0) {
+          reject(new RuntimeErrorClass(`SSH command failed: ${stderr.trim()}`, "network"));
+          return;
+        }
+
+        const output = stdout.trim();
+        resolve(output);
+      });
+
+      proc.on("error", (err) => {
+        clearTimeout(timer);
+        if (timedOut) return; // Already rejected
+
+        reject(
+          new RuntimeErrorClass(
+            `Cannot execute SSH command: ${getErrorMessage(err)}`,
+            "network",
+            err instanceof Error ? err : undefined
+          )
+        );
+      });
+    });
+  }
+
   normalizePath(targetPath: string, basePath: string): string {
     // For SSH, handle paths in a POSIX-like manner without accessing the remote filesystem
     const target = targetPath.trim();
@@ -372,6 +485,12 @@ export class SSHRuntime implements Runtime {
       args.push("-o", "LogLevel=ERROR");
     }
 
+    // Add ControlMaster options for connection multiplexing
+    // This ensures git bundle transfers also reuse the master connection
+    args.push("-o", "ControlMaster=auto");
+    args.push("-o", `ControlPath=${this.controlPath}`);
+    args.push("-o", "ControlPersist=60");
+
     if (includeHost) {
       args.push(this.config.host);
     }
@@ -399,8 +518,14 @@ export class SSHRuntime implements Runtime {
   private async syncProjectToRemote(
     projectPath: string,
     workspacePath: string,
-    initLogger: InitLogger
+    initLogger: InitLogger,
+    abortSignal?: AbortSignal
   ): Promise<void> {
+    // Short-circuit if already aborted
+    if (abortSignal?.aborted) {
+      throw new Error("Sync operation aborted before starting");
+    }
+
     // Use timestamp-based bundle path to avoid conflicts (simpler than $$)
     const timestamp = Date.now();
     const bundleTempPath = `~/.cmux-bundle-${timestamp}.bundle`;
@@ -426,15 +551,22 @@ export class SSHRuntime implements Runtime {
       // Step 2: Create bundle locally and pipe to remote file via SSH
       initLogger.logStep(`Creating git bundle...`);
       await new Promise<void>((resolve, reject) => {
+        // Check if aborted before spawning
+        if (abortSignal?.aborted) {
+          reject(new Error("Bundle creation aborted"));
+          return;
+        }
+
         const sshArgs = this.buildSSHArgs(true);
         const command = `cd ${shescape.quote(projectPath)} && git bundle create - --all | ssh ${sshArgs.join(" ")} "cat > ${bundleTempPath}"`;
 
         log.debug(`Creating bundle: ${command}`);
         const proc = spawn("bash", ["-c", command]);
 
-        streamProcessToLogger(proc, initLogger, {
+        const cleanup = streamProcessToLogger(proc, initLogger, {
           logStdout: false,
           logStderr: true,
+          abortSignal,
         });
 
         let stderr = "";
@@ -443,7 +575,10 @@ export class SSHRuntime implements Runtime {
         });
 
         proc.on("close", (code) => {
-          if (code === 0) {
+          cleanup();
+          if (abortSignal?.aborted) {
+            reject(new Error("Bundle creation aborted"));
+          } else if (code === 0) {
             resolve();
           } else {
             reject(new Error(`Failed to create bundle: ${stderr}`));
@@ -451,6 +586,7 @@ export class SSHRuntime implements Runtime {
         });
 
         proc.on("error", (err) => {
+          cleanup();
           reject(err);
         });
       });
@@ -465,6 +601,7 @@ export class SSHRuntime implements Runtime {
       const cloneStream = await this.exec(`git clone --quiet ${bundleTempPath} ${cloneDestPath}`, {
         cwd: "~",
         timeout: 300, // 5 minutes for clone
+        abortSignal,
       });
 
       const [cloneStdout, cloneStderr, cloneExitCode] = await Promise.all([
@@ -486,6 +623,7 @@ export class SSHRuntime implements Runtime {
         {
           cwd: "~",
           timeout: 30,
+          abortSignal,
         }
       );
       await createTrackingBranchesStream.exitCode;
@@ -499,6 +637,7 @@ export class SSHRuntime implements Runtime {
           {
             cwd: "~",
             timeout: 10,
+            abortSignal,
           }
         );
 
@@ -516,6 +655,7 @@ export class SSHRuntime implements Runtime {
           {
             cwd: "~",
             timeout: 10,
+            abortSignal,
           }
         );
         await removeOriginStream.exitCode;
@@ -526,6 +666,7 @@ export class SSHRuntime implements Runtime {
       const rmStream = await this.exec(`rm ${bundleTempPath}`, {
         cwd: "~",
         timeout: 10,
+        abortSignal,
       });
 
       const rmExitCode = await rmStream.exitCode;
@@ -540,6 +681,7 @@ export class SSHRuntime implements Runtime {
         const rmStream = await this.exec(`rm -f ${bundleTempPath}`, {
           cwd: "~",
           timeout: 10,
+          abortSignal,
         });
         await rmStream.exitCode;
       } catch {
@@ -556,7 +698,8 @@ export class SSHRuntime implements Runtime {
   private async runInitHook(
     projectPath: string,
     workspacePath: string,
-    initLogger: InitLogger
+    initLogger: InitLogger,
+    abortSignal?: AbortSignal
   ): Promise<void> {
     // Check if hook exists locally (we synced the project, so local check is sufficient)
     const hookExists = await checkInitHookExists(projectPath);
@@ -577,6 +720,7 @@ export class SSHRuntime implements Runtime {
     const hookStream = await this.exec(hookCommand, {
       cwd: workspacePath, // Run in the workspace directory
       timeout: 3600, // 1 hour - generous timeout for init hooks
+      abortSignal,
     });
 
     // Create line-buffered loggers
@@ -628,7 +772,7 @@ export class SSHRuntime implements Runtime {
 
   async createWorkspace(params: WorkspaceCreationParams): Promise<WorkspaceCreationResult> {
     try {
-      const { projectPath, branchName, initLogger } = params;
+      const { projectPath, branchName, initLogger, abortSignal } = params;
       // Compute workspace path using canonical method
       const workspacePath = this.getWorkspacePath(projectPath, branchName);
 
@@ -649,6 +793,7 @@ export class SSHRuntime implements Runtime {
         const mkdirStream = await this.exec(parentDirCommand, {
           cwd: "/tmp",
           timeout: 10,
+          abortSignal,
         });
         const mkdirExitCode = await mkdirStream.exitCode;
         if (mkdirExitCode !== 0) {
@@ -680,13 +825,13 @@ export class SSHRuntime implements Runtime {
   }
 
   async initWorkspace(params: WorkspaceInitParams): Promise<WorkspaceInitResult> {
-    const { projectPath, branchName, trunkBranch, workspacePath, initLogger } = params;
+    const { projectPath, branchName, trunkBranch, workspacePath, initLogger, abortSignal } = params;
 
     try {
       // 1. Sync project to remote (opportunistic rsync with scp fallback)
       initLogger.logStep("Syncing project files to remote...");
       try {
-        await this.syncProjectToRemote(projectPath, workspacePath, initLogger);
+        await this.syncProjectToRemote(projectPath, workspacePath, initLogger, abortSignal);
       } catch (error) {
         const errorMsg = getErrorMessage(error);
         initLogger.logStderr(`Failed to sync project: ${errorMsg}`);
@@ -710,6 +855,7 @@ export class SSHRuntime implements Runtime {
       const checkoutStream = await this.exec(checkoutCmd, {
         cwd: workspacePath, // Use the full workspace path for git operations
         timeout: 300, // 5 minutes for git checkout (can be slow on large repos)
+        abortSignal,
       });
 
       const [stdout, stderr, exitCode] = await Promise.all([
@@ -733,7 +879,7 @@ export class SSHRuntime implements Runtime {
       // Note: runInitHook calls logComplete() internally if hook exists
       const hookExists = await checkInitHookExists(projectPath);
       if (hookExists) {
-        await this.runInitHook(projectPath, workspacePath, initLogger);
+        await this.runInitHook(projectPath, workspacePath, initLogger, abortSignal);
       } else {
         // No hook - signal completion immediately
         initLogger.logComplete(0);
@@ -754,10 +900,15 @@ export class SSHRuntime implements Runtime {
   async renameWorkspace(
     projectPath: string,
     oldName: string,
-    newName: string
+    newName: string,
+    abortSignal?: AbortSignal
   ): Promise<
     { success: true; oldPath: string; newPath: string } | { success: false; error: string }
   > {
+    // Check if already aborted
+    if (abortSignal?.aborted) {
+      return { success: false, error: "Rename operation aborted" };
+    }
     // Compute workspace paths using canonical method
     const oldPath = this.getWorkspacePath(projectPath, oldName);
     const newPath = this.getWorkspacePath(projectPath, newName);
@@ -775,6 +926,7 @@ export class SSHRuntime implements Runtime {
       const stream = await this.exec(moveCommand, {
         cwd: this.config.srcBaseDir,
         timeout: 30,
+        abortSignal,
       });
 
       await stream.stdin.close();
@@ -809,47 +961,104 @@ export class SSHRuntime implements Runtime {
   async deleteWorkspace(
     projectPath: string,
     workspaceName: string,
-    force: boolean
+    force: boolean,
+    abortSignal?: AbortSignal
   ): Promise<{ success: true; deletedPath: string } | { success: false; error: string }> {
+    // Check if already aborted
+    if (abortSignal?.aborted) {
+      return { success: false, error: "Delete operation aborted" };
+    }
+
     // Compute workspace path using canonical method
     const deletedPath = this.getWorkspacePath(projectPath, workspaceName);
 
     try {
-      // Check if workspace exists first
-      const checkExistStream = await this.exec(`test -d ${shescape.quote(deletedPath)}`, {
+      // Combine all pre-deletion checks into a single bash script to minimize round trips
+      // Exit codes: 0=ok to delete, 1=uncommitted changes, 2=unpushed commits, 3=doesn't exist
+      const checkScript = force
+        ? // When force=true, only check existence
+          `test -d ${shescape.quote(deletedPath)} || exit 3`
+        : // When force=false, perform all safety checks
+          `
+            test -d ${shescape.quote(deletedPath)} || exit 3
+            cd ${shescape.quote(deletedPath)} || exit 1
+            git diff --quiet --exit-code && git diff --quiet --cached --exit-code || exit 1
+            if git remote | grep -q .; then
+              unpushed=$(git log --branches --not --remotes --oneline)
+              if [ -n "$unpushed" ]; then
+                echo "$unpushed" | head -10 >&2
+                exit 2
+              fi
+            fi
+            exit 0
+          `;
+
+      const checkStream = await this.exec(checkScript, {
         cwd: this.config.srcBaseDir,
         timeout: 10,
+        abortSignal,
       });
 
-      await checkExistStream.stdin.close();
-      const existsExitCode = await checkExistStream.exitCode;
+      await checkStream.stdin.close();
+      const checkExitCode = await checkStream.exitCode;
 
-      // If directory doesn't exist, deletion is a no-op (success)
-      if (existsExitCode !== 0) {
+      // Handle check results
+      if (checkExitCode === 3) {
+        // Directory doesn't exist - deletion is idempotent (success)
         return { success: true, deletedPath };
       }
 
-      // Check if workspace has uncommitted changes (unless force is true)
-      if (!force) {
-        // Check for uncommitted changes using git diff
-        const checkStream = await this.exec(
-          `cd ${shescape.quote(deletedPath)} && git diff --quiet --exit-code && git diff --quiet --cached --exit-code`,
-          {
-            cwd: this.config.srcBaseDir,
-            timeout: 10,
+      if (checkExitCode === 1) {
+        return {
+          success: false,
+          error: `Workspace contains uncommitted changes. Use force flag to delete anyway.`,
+        };
+      }
+
+      if (checkExitCode === 2) {
+        // Read stderr which contains the unpushed commits output
+        const stderrReader = checkStream.stderr.getReader();
+        const decoder = new TextDecoder();
+        let stderr = "";
+        try {
+          while (true) {
+            const { done, value } = await stderrReader.read();
+            if (done) break;
+            stderr += decoder.decode(value, { stream: true });
           }
-        );
-
-        await checkStream.stdin.close();
-        const checkExitCode = await checkStream.exitCode;
-
-        if (checkExitCode !== 0) {
-          // Workspace has uncommitted changes
-          return {
-            success: false,
-            error: `Workspace contains uncommitted changes. Use force flag to delete anyway.`,
-          };
+        } finally {
+          stderrReader.releaseLock();
         }
+
+        const commitList = stderr.trim();
+        const errorMsg = commitList
+          ? `Workspace contains unpushed commits:\n\n${commitList}`
+          : `Workspace contains unpushed commits. Use force flag to delete anyway.`;
+
+        return {
+          success: false,
+          error: errorMsg,
+        };
+      }
+
+      if (checkExitCode !== 0) {
+        // Unexpected error
+        const stderrReader = checkStream.stderr.getReader();
+        const decoder = new TextDecoder();
+        let stderr = "";
+        try {
+          while (true) {
+            const { done, value } = await stderrReader.read();
+            if (done) break;
+            stderr += decoder.decode(value, { stream: true });
+          }
+        } finally {
+          stderrReader.releaseLock();
+        }
+        return {
+          success: false,
+          error: `Failed to check workspace state: ${stderr || `exit code ${checkExitCode}`}`,
+        };
       }
 
       // SSH runtimes use plain directories, not git worktrees
@@ -860,6 +1069,7 @@ export class SSHRuntime implements Runtime {
       const stream = await this.exec(removeCommand, {
         cwd: this.config.srcBaseDir,
         timeout: 30,
+        abortSignal,
       });
 
       await stream.stdin.close();
@@ -891,25 +1101,16 @@ export class SSHRuntime implements Runtime {
     }
   }
 
-  /**
-   * Cleanup SSH control socket on disposal
-   * Note: ControlPersist will automatically close the master connection after timeout,
-   * but we try to clean up immediately for good hygiene
-   */
-  dispose(): void {
-    try {
-      // Send exit command to master connection (if it exists)
-      // This is a best-effort cleanup - the socket will auto-cleanup anyway
-      const exitArgs = ["-O", "exit", "-o", `ControlPath=${this.controlPath}`, this.config.host];
-
-      const exitProc = spawn("ssh", exitArgs, { stdio: "ignore" });
-
-      // Don't wait for it - fire and forget
-      exitProc.unref();
-    } catch (error) {
-      // Ignore errors - control socket will timeout naturally
-      log.debug(`SSH control socket cleanup failed (non-fatal): ${getErrorMessage(error)}`);
-    }
+  forkWorkspace(_params: WorkspaceForkParams): Promise<WorkspaceForkResult> {
+    // SSH forking is not yet implemented due to unresolved complexities:
+    // - Users expect the new workspace's filesystem state to match the remote workspace,
+    //   not the local project (which may be out of sync or on a different commit)
+    // - This requires: detecting the branch, copying remote state, handling uncommitted changes
+    // - For now, users should create a new workspace from the desired branch instead
+    return Promise.resolve({
+      success: false,
+      error: "Forking SSH workspaces is not yet implemented. Create a new workspace instead.",
+    });
   }
 }
 

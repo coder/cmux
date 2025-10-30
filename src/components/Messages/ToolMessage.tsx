@@ -7,6 +7,7 @@ import { FileEditToolCall } from "../tools/FileEditToolCall";
 import { FileReadToolCall } from "../tools/FileReadToolCall";
 import { ProposePlanToolCall } from "../tools/ProposePlanToolCall";
 import { TodoToolCall } from "../tools/TodoToolCall";
+import { StatusSetToolCall } from "../tools/StatusSetToolCall";
 import type {
   BashToolArgs,
   BashToolResult,
@@ -22,6 +23,8 @@ import type {
   ProposePlanToolResult,
   TodoWriteToolArgs,
   TodoWriteToolResult,
+  StatusSetToolArgs,
+  StatusSetToolResult,
 } from "@/types/tools";
 
 interface ToolMessageProps {
@@ -71,6 +74,11 @@ function isProposePlanTool(toolName: string, args: unknown): args is ProposePlan
 function isTodoWriteTool(toolName: string, args: unknown): args is TodoWriteToolArgs {
   if (toolName !== "todo_write") return false;
   return TOOL_DEFINITIONS.todo_write.schema.safeParse(args).success;
+}
+
+function isStatusSetTool(toolName: string, args: unknown): args is StatusSetToolArgs {
+  if (toolName !== "status_set") return false;
+  return TOOL_DEFINITIONS.status_set.schema.safeParse(args).success;
 }
 
 export const ToolMessage: React.FC<ToolMessageProps> = ({ message, className, workspaceId }) => {
@@ -158,6 +166,18 @@ export const ToolMessage: React.FC<ToolMessageProps> = ({ message, className, wo
         <TodoToolCall
           args={message.args}
           result={message.result as TodoWriteToolResult | undefined}
+          status={message.status}
+        />
+      </div>
+    );
+  }
+
+  if (isStatusSetTool(message.toolName, message.args)) {
+    return (
+      <div className={className}>
+        <StatusSetToolCall
+          args={message.args}
+          result={message.result as StatusSetToolResult | undefined}
           status={message.status}
         />
       </div>

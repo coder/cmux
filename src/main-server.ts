@@ -12,6 +12,21 @@ import * as http from "http";
 import * as path from "path";
 import type { RawData } from "ws";
 import { WebSocket, WebSocketServer } from "ws";
+import { Command } from "commander";
+
+// Parse command line arguments
+const program = new Command();
+
+program
+  .name("cmux-server")
+  .description("HTTP/WebSocket server for cmux - allows accessing cmux backend from mobile devices")
+  .option("-h, --host <host>", "bind to specific host", "localhost")
+  .option("-p, --port <port>", "bind to specific port", "3000")
+  .parse(process.argv);
+
+const options = program.opts();
+const HOST = options.host as string;
+const PORT = parseInt(options.port as string, 10);
 
 // Mock Electron's ipcMain for HTTP
 class HttpIpcMainAdapter {
@@ -134,7 +149,7 @@ app.get("/health", (req, res) => {
 // Fallback to index.html for SPA routes (use middleware instead of deprecated wildcard)
 app.use((req, res, next) => {
   if (!req.path.startsWith("/ipc") && !req.path.startsWith("/ws")) {
-    res.sendFile(path.join(__dirname, "."));
+    res.sendFile(path.join(__dirname, "index.html"));
   } else {
     next();
   }
@@ -232,6 +247,6 @@ wss.on("connection", (ws) => {
   });
 });
 
-server.listen(3000, () => {
-  console.log("Server is running on port 3000");
+server.listen(PORT, HOST, () => {
+  console.log(`Server is running on http://${HOST}:${PORT}`);
 });

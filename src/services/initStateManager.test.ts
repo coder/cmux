@@ -53,8 +53,10 @@ describe("InitStateManager", () => {
       manager.appendOutput(workspaceId, "Installing deps...", false);
       manager.appendOutput(workspaceId, "Done!", false);
       expect(manager.getInitState(workspaceId)?.lines).toEqual([
-        { line: "Installing deps...", isError: false, timestamp: expect.any(Number) as number },
-        { line: "Done!", isError: false, timestamp: expect.any(Number) as number },
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+        { line: "Installing deps...", isError: false, timestamp: expect.any(Number) },
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+        { line: "Done!", isError: false, timestamp: expect.any(Number) },
       ]);
 
       // End init (await to ensure event fires)
@@ -79,8 +81,10 @@ describe("InitStateManager", () => {
 
       const state = manager.getInitState(workspaceId);
       expect(state?.lines).toEqual([
-        { line: "stdout line", isError: false, timestamp: expect.any(Number) as number },
-        { line: "stderr line", isError: true, timestamp: expect.any(Number) as number },
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+        { line: "stdout line", isError: false, timestamp: expect.any(Number) },
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+        { line: "stderr line", isError: true, timestamp: expect.any(Number) },
       ]);
     });
 
@@ -109,8 +113,10 @@ describe("InitStateManager", () => {
       expect(diskState?.status).toBe("success");
       expect(diskState?.exitCode).toBe(0);
       expect(diskState?.lines).toEqual([
-        { line: "Line 1", isError: false, timestamp: expect.any(Number) as number },
-        { line: "Line 2", isError: true, timestamp: expect.any(Number) as number },
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+        { line: "Line 1", isError: false, timestamp: expect.any(Number) },
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+        { line: "Line 2", isError: true, timestamp: expect.any(Number) },
       ]);
     });
 
@@ -221,15 +227,25 @@ describe("InitStateManager", () => {
       expect(stateAfterDelete).toBeNull();
     });
 
-    it("should clear in-memory state", () => {
+    it("should clear in-memory state", async () => {
       const workspaceId = "test-workspace";
       manager.startInit(workspaceId, "/path/to/hook");
 
       expect(manager.getInitState(workspaceId)).toBeTruthy();
 
+      // Get the init promise before clearing
+      const initPromise = manager.waitForInit(workspaceId);
+
+      // Clear in-memory state (rejects internal promise, but waitForInit catches it)
       manager.clearInMemoryState(workspaceId);
 
+      // Verify state is cleared
       expect(manager.getInitState(workspaceId)).toBeUndefined();
+
+      // waitForInit never throws - it resolves even when init is canceled
+      // This allows tools to proceed and fail naturally with their own errors
+      // eslint-disable-next-line @typescript-eslint/await-thenable
+      await expect(initPromise).resolves.toBeUndefined();
     });
   });
 

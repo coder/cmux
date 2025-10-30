@@ -21,13 +21,8 @@ import { useAutoScroll } from "@/hooks/useAutoScroll";
 import { usePersistedState } from "@/hooks/usePersistedState";
 import { useThinking } from "@/contexts/ThinkingContext";
 import { useWorkspaceState, useWorkspaceAggregator } from "@/stores/WorkspaceStore";
-import { StatusIndicator } from "./StatusIndicator";
+import { WorkspaceHeader } from "./WorkspaceHeader";
 import { getModelName } from "@/utils/ai/models";
-import { GitStatusIndicator } from "./GitStatusIndicator";
-import { RuntimeBadge } from "./RuntimeBadge";
-
-import { useGitStatus } from "@/stores/GitStatusStore";
-import { TooltipWrapper, Tooltip } from "./Tooltip";
 import type { DisplayedMessage } from "@/types/message";
 import type { RuntimeConfig } from "@/types/runtime";
 import { useAIViewKeybinds } from "@/hooks/useAIViewKeybinds";
@@ -75,27 +70,15 @@ const AIViewInner: React.FC<AIViewProps> = ({
   const workspaceState = useWorkspaceState(workspaceId);
   const aggregator = useWorkspaceAggregator(workspaceId);
 
-  // Get git status for this workspace
-  const gitStatus = useGitStatus(workspaceId);
-
   const [editingMessage, setEditingMessage] = useState<{ id: string; content: string } | undefined>(
     undefined
   );
 
-  // Auto-retry state (persisted per workspace, with cross-component sync)
-  // Semantics:
-  //   true (default): System errors should auto-retry
-  //   false: User stopped this (Ctrl+C), don't auto-retry until user re-engages
-  // State transitions are EXPLICIT only:
-  //   - User presses Ctrl+C → false
-  //   - User sends a message → true (clear intent: "I'm using this workspace")
-  //   - User clicks manual retry button → true
-  // No automatic resets on stream events - prevents initialization bugs
-  const [autoRetry, setAutoRetry] = usePersistedState<boolean>(
-    getAutoRetryKey(workspaceId),
-    true, // Default to true
-    { listener: true } // Enable cross-component synchronization
-  );
+  // Auto-retry state - minimal setter for keybinds and message sent handler
+  // RetryBarrier manages its own state, but we need this for Ctrl+C keybind
+  const [, setAutoRetry] = usePersistedState<boolean>(getAutoRetryKey(workspaceId), true, {
+    listener: true,
+  });
 
   // Use auto-scroll hook for scroll management
   const {
@@ -257,12 +240,12 @@ const AIViewInner: React.FC<AIViewProps> = ({
     return (
       <div
         className={cn(
-          "flex flex-1 flex-row bg-neutral-950 text-neutral-300 overflow-x-auto overflow-y-hidden [@media(max-width:768px)]:flex-col",
+          "flex flex-1 flex-row bg-neutral-900 text-neutral-300 overflow-x-auto overflow-y-hidden [@media(max-width:768px)]:flex-col",
           className
         )}
         style={{ containerType: "inline-size" }}
       >
-        <div className="flex h-full flex-1 flex-col items-center justify-center text-center text-neutral-400">
+        <div className="text-placeholder flex h-full flex-1 flex-col items-center justify-center text-center">
           <h3 className="m-0 mb-2.5 text-base font-medium">Loading workspace...</h3>
         </div>
       </div>
@@ -296,12 +279,12 @@ const AIViewInner: React.FC<AIViewProps> = ({
     return (
       <div
         className={cn(
-          "flex flex-1 flex-row bg-neutral-950 text-neutral-300 overflow-x-auto overflow-y-hidden [@media(max-width:768px)]:flex-col",
+          "flex flex-1 flex-row bg-neutral-900 text-neutral-300 overflow-x-auto overflow-y-hidden [@media(max-width:768px)]:flex-col",
           className
         )}
         style={{ containerType: "inline-size" }}
       >
-        <div className="flex h-full flex-1 flex-col items-center justify-center text-center text-neutral-400">
+        <div className="text-placeholder flex h-full flex-1 flex-col items-center justify-center text-center">
           <h3 className="m-0 mb-2.5 text-base font-medium">Loading workspace...</h3>
         </div>
       </div>
@@ -312,12 +295,12 @@ const AIViewInner: React.FC<AIViewProps> = ({
     return (
       <div
         className={cn(
-          "flex flex-1 flex-row bg-neutral-950 text-neutral-300 overflow-x-auto overflow-y-hidden [@media(max-width:768px)]:flex-col",
+          "flex flex-1 flex-row bg-neutral-900 text-neutral-300 overflow-x-auto overflow-y-hidden [@media(max-width:768px)]:flex-col",
           className
         )}
         style={{ containerType: "inline-size" }}
       >
-        <div className="flex h-full flex-1 flex-col items-center justify-center text-center text-neutral-400">
+        <div className="text-placeholder flex h-full flex-1 flex-col items-center justify-center text-center">
           <h3 className="m-0 mb-2.5 text-base font-medium">No Workspace Selected</h3>
           <p className="m-0 text-[13px]">
             Select a workspace from the sidebar to view and interact with Claude
@@ -330,7 +313,7 @@ const AIViewInner: React.FC<AIViewProps> = ({
   return (
     <div
       className={cn(
-        "flex flex-1 flex-row bg-neutral-950 text-neutral-300 overflow-x-auto overflow-y-hidden [@media(max-width:768px)]:flex-col",
+        "flex flex-1 flex-row bg-neutral-900 text-neutral-300 overflow-x-auto overflow-y-hidden [@media(max-width:768px)]:flex-col",
         className
       )}
       style={{ containerType: "inline-size" }}
@@ -339,41 +322,13 @@ const AIViewInner: React.FC<AIViewProps> = ({
         ref={chatAreaRef}
         className="flex min-w-96 flex-1 flex-col [@media(max-width:768px)]:max-h-full [@media(max-width:768px)]:w-full [@media(max-width:768px)]:min-w-0"
       >
-        <div className="flex items-center justify-between border-b border-neutral-800 bg-neutral-950 px-[15px] py-1 [@media(max-width:768px)]:flex-wrap [@media(max-width:768px)]:gap-2 [@media(max-width:768px)]:py-2 [@media(max-width:768px)]:pl-[60px]">
-          <div className="flex min-w-0 items-center gap-2 overflow-hidden font-semibold text-neutral-300">
-            <StatusIndicator
-              streaming={canInterrupt}
-              title={
-                canInterrupt && currentModel ? `${getModelName(currentModel)} streaming` : "Idle"
-              }
-            />
-            <GitStatusIndicator
-              gitStatus={gitStatus}
-              workspaceId={workspaceId}
-              tooltipPosition="bottom"
-            />
-            <RuntimeBadge runtimeConfig={runtimeConfig} />
-            <span className="min-w-0 truncate font-mono text-xs">
-              {projectName} / {branch}
-            </span>
-            <span className="min-w-0 truncate font-mono text-[11px] font-normal text-neutral-400">
-              {namedWorkspacePath}
-            </span>
-            <TooltipWrapper inline>
-              <button
-                onClick={handleOpenTerminal}
-                className="flex cursor-pointer items-center justify-center border-none bg-transparent p-1 text-neutral-400 transition-colors hover:text-neutral-300 [&_svg]:h-4 [&_svg]:w-4"
-              >
-                <svg viewBox="0 0 16 16" fill="currentColor">
-                  <path d="M0 2.75C0 1.784.784 1 1.75 1h12.5c.966 0 1.75.784 1.75 1.75v10.5A1.75 1.75 0 0114.25 15H1.75A1.75 1.75 0 010 13.25V2.75zm1.75-.25a.25.25 0 00-.25.25v10.5c0 .138.112.25.25.25h12.5a.25.25 0 00.25-.25V2.75a.25.25 0 00-.25-.25H1.75zM7.25 8a.75.75 0 01-.22.53l-2.25 2.25a.75.75 0 01-1.06-1.06L5.44 8 3.72 6.28a.75.75 0 111.06-1.06l2.25 2.25c.141.14.22.331.22.53zm1.5 1.5a.75.75 0 000 1.5h3a.75.75 0 000-1.5h-3z" />
-                </svg>
-              </button>
-              <Tooltip className="tooltip" position="bottom" align="center">
-                Open in terminal ({formatKeybind(KEYBINDS.OPEN_TERMINAL)})
-              </Tooltip>
-            </TooltipWrapper>
-          </div>
-        </div>
+        <WorkspaceHeader
+          workspaceId={workspaceId}
+          projectName={projectName}
+          branch={branch}
+          namedWorkspacePath={namedWorkspacePath}
+          runtimeConfig={runtimeConfig}
+        />
 
         <div className="relative flex-1 overflow-hidden">
           <div
@@ -389,7 +344,7 @@ const AIViewInner: React.FC<AIViewProps> = ({
             className="h-full overflow-y-auto p-[15px] leading-[1.5] break-words whitespace-pre-wrap"
           >
             {mergedMessages.length === 0 ? (
-              <div className="flex h-full flex-1 flex-col items-center justify-center text-center text-neutral-400 [&_h3]:m-0 [&_h3]:mb-2.5 [&_h3]:text-base [&_h3]:font-medium [&_p]:m-0 [&_p]:text-[13px]">
+              <div className="text-placeholder flex h-full flex-1 flex-col items-center justify-center text-center [&_h3]:m-0 [&_h3]:mb-2.5 [&_h3]:text-base [&_h3]:font-medium [&_p]:m-0 [&_p]:text-[13px]">
                 <h3>No Messages Yet</h3>
                 <p>Send a message below to begin</p>
                 <p className="mt-5 text-xs text-[#888]">
@@ -444,14 +399,7 @@ const AIViewInner: React.FC<AIViewProps> = ({
                   );
                 })}
                 {/* Show RetryBarrier after the last message if needed */}
-                {showRetryBarrier && (
-                  <RetryBarrier
-                    workspaceId={workspaceId}
-                    autoRetry={autoRetry}
-                    onStopAutoRetry={() => setAutoRetry(false)}
-                    onResetAutoRetry={() => setAutoRetry(true)}
-                  />
-                )}
+                {showRetryBarrier && <RetryBarrier workspaceId={workspaceId} />}
               </>
             )}
             <PinnedTodoList workspaceId={workspaceId} />

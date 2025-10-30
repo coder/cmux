@@ -134,6 +134,61 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
     );
 
     test.concurrent(
+      "should interrupt stream with pending bash tool call near-instantly",
+      async () => {
+        // Setup test environment
+        const { env, workspaceId, cleanup } = await setupWorkspace(provider);
+        try {
+          // Ask the model to run a long-running bash command
+          // Use explicit instruction to ensure tool call happens
+          const message = "Use the bash tool to run: sleep 60";
+          void sendMessageWithModel(env.mockIpcRenderer, workspaceId, message, provider, model);
+
+          // Wait for stream to start (more reliable than waiting for tool-call-start)
+          const collector = createEventCollector(env.sentEvents, workspaceId);
+          await collector.waitForEvent("stream-start", 10000);
+
+          // Give model time to start calling the tool (sleep command should be in progress)
+          // This ensures we're actually interrupting a running command
+          await new Promise((resolve) => setTimeout(resolve, 2000));
+
+          // Record interrupt time
+          const interruptStartTime = performance.now();
+
+          // Interrupt the stream
+          const interruptResult = await env.mockIpcRenderer.invoke(
+            IPC_CHANNELS.WORKSPACE_INTERRUPT_STREAM,
+            workspaceId
+          );
+
+          const interruptDuration = performance.now() - interruptStartTime;
+
+          // Should succeed
+          expect(interruptResult.success).toBe(true);
+
+          // Interrupt should complete near-instantly (< 2 seconds)
+          // This validates that we don't wait for the sleep 60 command to finish
+          expect(interruptDuration).toBeLessThan(2000);
+
+          // Wait for abort event
+          const abortOrEndReceived = await waitFor(() => {
+            collector.collect();
+            const hasAbort = collector
+              .getEvents()
+              .some((e) => "type" in e && e.type === "stream-abort");
+            const hasEnd = collector.hasStreamEnd();
+            return hasAbort || hasEnd;
+          }, 5000);
+
+          expect(abortOrEndReceived).toBe(true);
+        } finally {
+          await cleanup();
+        }
+      },
+      25000
+    );
+
+    test.concurrent(
       "should include tokens and timestamp in delta events",
       async () => {
         // Setup test environment

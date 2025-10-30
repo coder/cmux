@@ -69,8 +69,12 @@ export async function execBuffered(
 /**
  * Read file contents as a UTF-8 string
  */
-export async function readFileString(runtime: Runtime, path: string): Promise<string> {
-  const stream = runtime.readFile(path);
+export async function readFileString(
+  runtime: Runtime,
+  path: string,
+  abortSignal?: AbortSignal
+): Promise<string> {
+  const stream = runtime.readFile(path, abortSignal);
   return streamToString(stream);
 }
 
@@ -80,9 +84,10 @@ export async function readFileString(runtime: Runtime, path: string): Promise<st
 export async function writeFileString(
   runtime: Runtime,
   path: string,
-  content: string
+  content: string,
+  abortSignal?: AbortSignal
 ): Promise<void> {
-  const stream = runtime.writeFile(path);
+  const stream = runtime.writeFile(path, abortSignal);
   const writer = stream.getWriter();
   try {
     await writer.write(new TextEncoder().encode(content));

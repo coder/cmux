@@ -1,7 +1,7 @@
 import type { CommandAction } from "@/contexts/CommandRegistryContext";
 import { formatKeybind, KEYBINDS } from "@/utils/ui/keybinds";
 import type { ThinkingLevel } from "@/types/thinking";
-import { CUSTOM_EVENTS } from "@/constants/events";
+import { CUSTOM_EVENTS, createCustomEvent } from "@/constants/events";
 
 import type { ProjectConfig } from "@/config";
 import type { FrontendWorkspaceMetadata } from "@/types/workspace";
@@ -357,7 +357,7 @@ export function buildCoreSources(p: BuildSourcesParams): Array<() => CommandActi
         section: section.mode,
         shortcutHint: formatKeybind(KEYBINDS.OPEN_MODEL_SELECTOR),
         run: () => {
-          window.dispatchEvent(new CustomEvent(CUSTOM_EVENTS.OPEN_MODEL_SELECTOR));
+          window.dispatchEvent(createCustomEvent(CUSTOM_EVENTS.OPEN_MODEL_SELECTOR));
         },
       },
     ];

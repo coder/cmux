@@ -1,3 +1,6 @@
+// For more info, see https://github.com/storybookjs/eslint-plugin-storybook#configuration-flat-config-format
+import storybook from "eslint-plugin-storybook";
+
 import js from "@eslint/js";
 import { defineConfig } from "eslint/config";
 import react from "eslint-plugin-react";
@@ -392,6 +395,42 @@ export default defineConfig([
     },
   },
   {
+    // Renderer process (frontend) architectural boundary - prevent Node.js API usage
+    files: ["src/**/*.ts", "src/**/*.tsx"],
+    ignores: [
+      "src/main*.ts",
+      "src/preload.ts",
+      "src/services/**",
+      "src/runtime/**",
+      "src/utils/main/**",
+      "src/utils/providers/**",
+      "src/telemetry/**",
+      "src/git.ts",
+      "src/config.ts",
+      "src/debug/**",
+      "**/*.test.ts",
+      "**/*.test.tsx",
+    ],
+    rules: {
+      "no-restricted-globals": [
+        "error",
+        {
+          name: "process",
+          message:
+            "Renderer code cannot access 'process' global (not available in renderer). Use IPC to communicate with main process or use constants for environment-agnostic values.",
+        },
+      ],
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector: "MemberExpression[object.name='process'][property.name='env']",
+          message:
+            "Renderer code cannot access process.env (not available in renderer). Use IPC to get environment variables from main process or use constants.",
+        },
+      ],
+    },
+  },
+  {
     // Test file configuration
     files: ["**/*.test.ts", "**/*.test.tsx"],
     languageOptions: {
@@ -408,4 +447,15 @@ export default defineConfig([
       },
     },
   },
+  {
+    // Storybook story files - disable type-aware rules for Storybook 10 barrel exports
+    files: ["**/*.stories.ts", "**/*.stories.tsx", ".storybook/**/*.ts", ".storybook/**/*.tsx"],
+    rules: {
+      "@typescript-eslint/no-unsafe-assignment": "off",
+      "@typescript-eslint/no-unsafe-call": "off",
+      "@typescript-eslint/no-unsafe-member-access": "off",
+      "@typescript-eslint/no-unsafe-return": "off",
+    },
+  },
+  ...storybook.configs["flat/recommended"],
 ]);

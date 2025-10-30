@@ -7,8 +7,8 @@ import { parseArgs } from "util";
 import { Config } from "@/config";
 import { HistoryService } from "@/services/historyService";
 import { PartialService } from "@/services/partialService";
-import { AIService } from "@/services/aiService";
 import { InitStateManager } from "@/services/initStateManager";
+import { AIService } from "@/services/aiService";
 import { AgentSession, type AgentSessionChatEvent } from "@/services/agentSession";
 import {
   isCaughtUpMessage,
@@ -187,6 +187,12 @@ async function main(): Promise<void> {
   const emitJsonStreaming = values["json-streaming"] === true;
 
   const suppressHumanOutput = emitJsonStreaming || emitFinalJson;
+
+  // Log model selection for terminal-bench verification
+  if (!suppressHumanOutput) {
+    console.error(`[cmux-cli] Using model: ${model}`);
+  }
+
   const humanStream = process.stdout;
   const writeHuman = (text: string) => {
     if (suppressHumanOutput) {
@@ -209,8 +215,8 @@ async function main(): Promise<void> {
 
   const historyService = new HistoryService(config);
   const partialService = new PartialService(config, historyService);
-  const aiService = new AIService(config, historyService, partialService);
   const initStateManager = new InitStateManager(config);
+  const aiService = new AIService(config, historyService, partialService, initStateManager);
   ensureProvidersConfig(config);
 
   const session = new AgentSession({

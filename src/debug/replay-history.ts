@@ -17,6 +17,7 @@ import { parseArgs } from "util";
 import { defaultConfig } from "@/config";
 import type { CmuxMessage } from "@/types/message";
 import { createCmuxMessage } from "@/types/message";
+import { InitStateManager } from "@/services/initStateManager";
 import { AIService } from "@/services/aiService";
 import { HistoryService } from "@/services/historyService";
 import { PartialService } from "@/services/partialService";
@@ -123,7 +124,8 @@ async function main() {
   const config = defaultConfig;
   const historyService = new HistoryService(config);
   const partialService = new PartialService(config, historyService);
-  const aiService = new AIService(config, historyService, partialService);
+  const initStateManager = new InitStateManager(config);
+  const aiService = new AIService(config, historyService, partialService, initStateManager);
 
   const modelString = values.model ?? "openai:gpt-5-codex";
   const thinkingLevel = (values.thinking ?? "high") as "low" | "medium" | "high";

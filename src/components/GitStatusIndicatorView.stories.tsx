@@ -1,5 +1,5 @@
-import type { Meta, StoryObj } from "@storybook/react";
-import { expect, userEvent, waitFor } from "@storybook/test";
+import type { Meta, StoryObj } from "@storybook/react-vite";
+import { expect, userEvent, waitFor } from "storybook/test";
 import { GitStatusIndicatorView } from "./GitStatusIndicatorView";
 import type { GitCommit, GitBranchHeader } from "@/utils/git/parseGitLog";
 import { useState } from "react";
@@ -23,7 +23,7 @@ const meta = {
     layout: "centered",
   },
   tags: ["autodocs"],
-} satisfies Meta<InteractiveProps>;
+} satisfies Meta<typeof GitStatusIndicatorView>;
 
 export default meta;
 type Story = StoryObj<InteractiveProps>;

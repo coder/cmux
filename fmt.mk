@@ -16,7 +16,7 @@ PRETTIER := bun x prettier
 # Tool availability checks
 SHFMT := $(shell command -v shfmt 2>/dev/null)
 NIX := $(shell command -v nix 2>/dev/null)
-UVX := $(shell command -v uvx 2>/dev/null)
+UVX := $(shell command -v uvx 2>/dev/null || (test -x $(HOME)/.local/bin/uvx && echo $(HOME)/.local/bin/uvx))
 
 fmt: fmt-prettier fmt-shell fmt-python fmt-nix
 	@echo "==> All formatting complete!"
@@ -59,11 +59,11 @@ endif
 
 fmt-python: .check-uvx
 	@echo "Formatting Python files..."
-	@uvx ruff format $(PYTHON_DIRS)
+	@$(UVX) ruff format $(PYTHON_DIRS)
 
 fmt-python-check: .check-uvx
 	@echo "Checking Python formatting..."
-	@uvx ruff format --check $(PYTHON_DIRS)
+	@$(UVX) ruff format --check $(PYTHON_DIRS)
 
 fmt-nix:
 ifeq ($(NIX),)

@@ -1,5 +1,5 @@
-import type { Meta, StoryObj } from "@storybook/react";
-import { action } from "@storybook/addon-actions";
+import type { Meta, StoryObj } from "@storybook/react-vite";
+import { action } from "storybook/actions";
 import { CommandPalette } from "./CommandPalette";
 import { CommandRegistryProvider } from "@/contexts/CommandRegistryContext";
 import type { CommandAction } from "@/contexts/CommandRegistryContext";

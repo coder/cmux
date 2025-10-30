@@ -53,10 +53,11 @@ export function parseRuntimeString(
 
     // Accept both "hostname" and "user@hostname" formats
     // SSH will use current user or ~/.ssh/config if user not specified
+    // Use tilde path - backend will resolve it via runtime.resolvePath()
     return {
       type: RUNTIME_MODE.SSH,
       host: hostPart,
-      srcBaseDir: "~/cmux", // Default remote base directory (NOT including workspace name)
+      srcBaseDir: "~/cmux", // Default remote base directory (tilde will be resolved by backend)
     };
   }
 

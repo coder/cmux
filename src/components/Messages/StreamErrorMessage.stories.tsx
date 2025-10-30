@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from "@storybook/react";
+import type { Meta, StoryObj } from "@storybook/react-vite";
 import { StreamErrorMessage } from "./StreamErrorMessage";
 import type { DisplayedMessage } from "@/types/message";
 import type { StreamErrorType } from "@/types/errors";

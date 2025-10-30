@@ -5,7 +5,7 @@ import * as os from "os";
 import { createFileEditInsertTool } from "./file_edit_insert";
 import type { FileEditInsertToolArgs, FileEditInsertToolResult } from "@/types/tools";
 import type { ToolCallOptions } from "ai";
-import { TestTempDir } from "./testHelpers";
+import { TestTempDir, getTestDeps } from "./testHelpers";
 import { createRuntime } from "@/runtime/runtimeFactory";
 
 // Mock ToolCallOptions for testing
@@ -19,6 +19,7 @@ const mockToolCallOptions: ToolCallOptions = {
 function createTestFileEditInsertTool(options?: { cwd?: string }) {
   const tempDir = new TestTempDir("test-file-edit-insert");
   const tool = createFileEditInsertTool({
+    ...getTestDeps(),
     cwd: options?.cwd ?? process.cwd(),
     runtime: createRuntime({ type: "local", srcBaseDir: "/tmp" }),
     runtimeTempDir: tempDir.path,
@@ -55,7 +56,7 @@ describe("file_edit_insert tool", () => {
     using testEnv = createTestFileEditInsertTool({ cwd: testDir });
     const tool = testEnv.tool;
     const args: FileEditInsertToolArgs = {
-      file_path: testFilePath,
+      file_path: "test.txt", // Use relative path
       line_offset: 0,
       content: "INSERTED",
     };
@@ -78,7 +79,7 @@ describe("file_edit_insert tool", () => {
     using testEnv = createTestFileEditInsertTool({ cwd: testDir });
     const tool = testEnv.tool;
     const args: FileEditInsertToolArgs = {
-      file_path: testFilePath,
+      file_path: "test.txt", // Use relative path
       line_offset: 1,
       content: "INSERTED",
     };
@@ -101,7 +102,7 @@ describe("file_edit_insert tool", () => {
     using testEnv = createTestFileEditInsertTool({ cwd: testDir });
     const tool = testEnv.tool;
     const args: FileEditInsertToolArgs = {
-      file_path: testFilePath,
+      file_path: "test.txt", // Use relative path
       line_offset: 2,
       content: "INSERTED",
     };
@@ -124,7 +125,7 @@ describe("file_edit_insert tool", () => {
     using testEnv = createTestFileEditInsertTool({ cwd: testDir });
     const tool = testEnv.tool;
     const args: FileEditInsertToolArgs = {
-      file_path: testFilePath,
+      file_path: "test.txt", // Use relative path
       line_offset: 3,
       content: "INSERTED",
     };
@@ -147,7 +148,7 @@ describe("file_edit_insert tool", () => {
     using testEnv = createTestFileEditInsertTool({ cwd: testDir });
     const tool = testEnv.tool;
     const args: FileEditInsertToolArgs = {
-      file_path: testFilePath,
+      file_path: "test.txt", // Use relative path
       line_offset: 1,
       content: "INSERTED1\nINSERTED2",
     };
@@ -169,7 +170,7 @@ describe("file_edit_insert tool", () => {
     using testEnv = createTestFileEditInsertTool({ cwd: testDir });
     const tool = testEnv.tool;
     const args: FileEditInsertToolArgs = {
-      file_path: testFilePath,
+      file_path: "test.txt", // Use relative path
       line_offset: 0,
       content: "INSERTED",
     };
@@ -186,12 +187,10 @@ describe("file_edit_insert tool", () => {
 
   it("should fail when file does not exist and create is not set", async () => {
     // Setup
-    const nonExistentPath = path.join(testDir, "nonexistent.txt");
-
     using testEnv = createTestFileEditInsertTool({ cwd: testDir });
     const tool = testEnv.tool;
     const args: FileEditInsertToolArgs = {
-      file_path: nonExistentPath,
+      file_path: "nonexistent.txt", // Use relative path
       line_offset: 0,
       content: "INSERTED",
     };
@@ -209,15 +208,14 @@ describe("file_edit_insert tool", () => {
 
   it("should create file when create is true and file does not exist", async () => {
     // Setup
-    const nonExistentPath = path.join(testDir, "newfile.txt");
-
     const tool = createFileEditInsertTool({
+      ...getTestDeps(),
       cwd: testDir,
       runtime: createRuntime({ type: "local", srcBaseDir: "/tmp" }),
       runtimeTempDir: "/tmp",
     });
     const args: FileEditInsertToolArgs = {
-      file_path: nonExistentPath,
+      file_path: "newfile.txt", // Use relative path
       line_offset: 0,
       content: "INSERTED",
       create: true,
@@ -229,21 +227,20 @@ describe("file_edit_insert tool", () => {
     // Assert
     expect(result.success).toBe(true);
 
-    const fileContent = await fs.readFile(nonExistentPath, "utf-8");
+    const fileContent = await fs.readFile(path.join(testDir, "newfile.txt"), "utf-8");
     expect(fileContent).toBe("INSERTED\n");
   });
 
   it("should create parent directories when create is true", async () => {
     // Setup
-    const nestedPath = path.join(testDir, "nested", "dir", "newfile.txt");
-
     const tool = createFileEditInsertTool({
+      ...getTestDeps(),
       cwd: testDir,
       runtime: createRuntime({ type: "local", srcBaseDir: "/tmp" }),
       runtimeTempDir: "/tmp",
     });
     const args: FileEditInsertToolArgs = {
-      file_path: nestedPath,
+      file_path: "nested/dir/newfile.txt", // Use relative path
       line_offset: 0,
       content: "INSERTED",
       create: true,
@@ -255,7 +252,7 @@ describe("file_edit_insert tool", () => {
     // Assert
     expect(result.success).toBe(true);
 
-    const fileContent = await fs.readFile(nestedPath, "utf-8");
+    const fileContent = await fs.readFile(path.join(testDir, "nested/dir/newfile.txt"), "utf-8");
     expect(fileContent).toBe("INSERTED\n");
   });
 
@@ -265,12 +262,13 @@ describe("file_edit_insert tool", () => {
     await fs.writeFile(testFilePath, initialContent);
 
     const tool = createFileEditInsertTool({
+      ...getTestDeps(),
       cwd: testDir,
       runtime: createRuntime({ type: "local", srcBaseDir: "/tmp" }),
       runtimeTempDir: "/tmp",
     });
     const args: FileEditInsertToolArgs = {
-      file_path: testFilePath,
+      file_path: "test.txt", // Use relative path
       line_offset: 1,
       content: "INSERTED",
       create: true,
@@ -294,7 +292,7 @@ describe("file_edit_insert tool", () => {
     using testEnv = createTestFileEditInsertTool({ cwd: testDir });
     const tool = testEnv.tool;
     const args: FileEditInsertToolArgs = {
-      file_path: testFilePath,
+      file_path: "test.txt", // Use relative path
       line_offset: -1,
       content: "INSERTED",
     };
@@ -317,7 +315,7 @@ describe("file_edit_insert tool", () => {
     using testEnv = createTestFileEditInsertTool({ cwd: testDir });
     const tool = testEnv.tool;
     const args: FileEditInsertToolArgs = {
-      file_path: testFilePath,
+      file_path: "test.txt", // Use relative path
       line_offset: 10, // File only has 2 lines
       content: "INSERTED",
     };
@@ -330,5 +328,78 @@ describe("file_edit_insert tool", () => {
     if (!result.success) {
       expect(result.error).toContain("beyond file length");
     }
+  });
+
+  it("should handle content with trailing newline correctly (no double newlines)", async () => {
+    // This test verifies the fix for the terminal-bench "hello-world" bug
+    // where content with \n at the end was getting an extra newline added
+    using testEnv = createTestFileEditInsertTool({ cwd: testDir });
+    const tool = testEnv.tool;
+    const args: FileEditInsertToolArgs = {
+      file_path: "newfile.txt",
+      line_offset: 0,
+      content: "Hello, world!\n", // Content already has trailing newline
+      create: true,
+    };
+
+    // Execute
+    const result = (await tool.execute!(args, mockToolCallOptions)) as FileEditInsertToolResult;
+
+    // Assert
+    expect(result.success).toBe(true);
+
+    const fileContent = await fs.readFile(path.join(testDir, "newfile.txt"), "utf-8");
+    // Should NOT have double newline - the trailing \n in content should be preserved as-is
+    expect(fileContent).toBe("Hello, world!\n");
+    expect(fileContent).not.toBe("Hello, world!\n\n");
+  });
+
+  it("should handle multiline content with trailing newline", async () => {
+    // Setup
+    const initialContent = "line1\nline2";
+    await fs.writeFile(testFilePath, initialContent);
+
+    using testEnv = createTestFileEditInsertTool({ cwd: testDir });
+    const tool = testEnv.tool;
+    const args: FileEditInsertToolArgs = {
+      file_path: "test.txt",
+      line_offset: 1,
+      content: "INSERTED1\nINSERTED2\n", // Multiline with trailing newline
+    };
+
+    // Execute
+    const result = (await tool.execute!(args, mockToolCallOptions)) as FileEditInsertToolResult;
+
+    // Assert
+    expect(result.success).toBe(true);
+
+    const updatedContent = await fs.readFile(testFilePath, "utf-8");
+    // Should respect the trailing newline in content
+    expect(updatedContent).toBe("line1\nINSERTED1\nINSERTED2\nline2");
+  });
+
+  it("should preserve trailing newline when appending to file without trailing newline", async () => {
+    // Regression test for Codex feedback: when inserting at EOF with content ending in \n,
+    // the newline should be preserved even if the original file doesn't end with one
+    const initialContent = "line1\nline2"; // No trailing newline
+    await fs.writeFile(testFilePath, initialContent);
+
+    using testEnv = createTestFileEditInsertTool({ cwd: testDir });
+    const tool = testEnv.tool;
+    const args: FileEditInsertToolArgs = {
+      file_path: "test.txt",
+      line_offset: 2, // Append at end
+      content: "line3\n", // With trailing newline
+    };
+
+    // Execute
+    const result = (await tool.execute!(args, mockToolCallOptions)) as FileEditInsertToolResult;
+
+    // Assert
+    expect(result.success).toBe(true);
+
+    const updatedContent = await fs.readFile(testFilePath, "utf-8");
+    // Should preserve the trailing newline from content even at EOF
+    expect(updatedContent).toBe("line1\nline2\nline3\n");
   });
 });

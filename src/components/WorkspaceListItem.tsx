@@ -1,12 +1,9 @@
-import React, { useState, useCallback, useMemo } from "react";
+import React, { useState, useCallback } from "react";
 import type { FrontendWorkspaceMetadata } from "@/types/workspace";
-import { useWorkspaceSidebarState } from "@/stores/WorkspaceStore";
 import { useGitStatus } from "@/stores/GitStatusStore";
-import { formatRelativeTime } from "@/utils/ui/dateTime";
 import { TooltipWrapper, Tooltip } from "./Tooltip";
 import { GitStatusIndicator } from "./GitStatusIndicator";
-import { ModelDisplay } from "./Messages/ModelDisplay";
-import { StatusIndicator } from "./StatusIndicator";
+import { AgentStatusIndicator } from "./AgentStatusIndicator";
 import { useRename } from "@/contexts/WorkspaceRenameContext";
 import { cn } from "@/lib/utils";
 import { RuntimeBadge } from "./RuntimeBadge";
@@ -42,8 +39,6 @@ const WorkspaceListItemInner: React.FC<WorkspaceListItemProps> = ({
 }) => {
   // Destructure metadata for convenience
   const { id: workspaceId, name: workspaceName, namedWorkspacePath } = metadata;
-  // Subscribe to this specific workspace's sidebar state (streaming status, model, recency)
-  const sidebarState = useWorkspaceSidebarState(workspaceId);
   const gitStatus = useGitStatus(workspaceId);
 
   // Get rename context
@@ -55,15 +50,7 @@ const WorkspaceListItemInner: React.FC<WorkspaceListItemProps> = ({
 
   // Use workspace name from metadata instead of deriving from path
   const displayName = workspaceName;
-  const isStreaming = sidebarState.canInterrupt;
-  const streamingModel = sidebarState.currentModel;
   const isEditing = editingWorkspaceId === workspaceId;
-
-  // Compute unread status locally based on recency vs last read timestamp
-  // Note: We don't check !isSelected here because user should be able to see
-  // and toggle unread status even for the selected workspace
-  const isUnread =
-    sidebarState.recencyTimestamp !== null && sidebarState.recencyTimestamp > lastReadTimestamp;
 
   const startRenaming = () => {
     if (requestRename(workspaceId, displayName)) {
@@ -102,32 +89,11 @@ const WorkspaceListItemInner: React.FC<WorkspaceListItemProps> = ({
     }
   };
 
-  // Memoize toggle unread handler to prevent StatusIndicator re-renders
+  // Memoize toggle unread handler to prevent AgentStatusIndicator re-renders
   const handleToggleUnread = useCallback(
     () => onToggleUnread(workspaceId),
     [onToggleUnread, workspaceId]
   );
-
-  // Memoize tooltip title to prevent creating new React elements on every render
-  const statusTooltipTitle = useMemo(() => {
-    if (isStreaming && streamingModel) {
-      return (
-        <span>
-          <ModelDisplay modelString={streamingModel} showTooltip={false} /> is responding
-        </span>
-      );
-    }
-    if (isStreaming) {
-      return "Assistant is responding";
-    }
-    if (isUnread) {
-      return "Unread messages";
-    }
-    if (sidebarState.recencyTimestamp) {
-      return `Idle • Last used ${formatRelativeTime(sidebarState.recencyTimestamp)}`;
-    }
-    return "Idle";
-  }, [isStreaming, streamingModel, isUnread, sidebarState.recencyTimestamp]);
 
   return (
     <React.Fragment>
@@ -209,12 +175,11 @@ const WorkspaceListItemInner: React.FC<WorkspaceListItemProps> = ({
             </span>
           )}
         </div>
-        <StatusIndicator
-          className="ml-2"
-          streaming={isStreaming}
-          unread={isUnread}
+        <AgentStatusIndicator
+          workspaceId={workspaceId}
+          lastReadTimestamp={lastReadTimestamp}
           onClick={handleToggleUnread}
-          title={statusTooltipTitle}
+          className="ml-2"
         />
       </div>
       {renameError && isEditing && (
