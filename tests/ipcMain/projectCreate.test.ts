@@ -117,7 +117,7 @@ describeIntegration("PROJECT_CREATE IPC Handler", () => {
     const tempProjectDir = await fs.mkdtemp(path.join(os.tmpdir(), "cmux-project-test-"));
     // Create .git directory to make it a valid git repo
     await fs.mkdir(path.join(tempProjectDir, ".git"));
-    
+
     const result = await env.mockIpcRenderer.invoke(IPC_CHANNELS.PROJECT_CREATE, tempProjectDir);
 
     expect(result.success).toBe(true);
@@ -137,7 +137,7 @@ describeIntegration("PROJECT_CREATE IPC Handler", () => {
     const tempProjectDir = await fs.mkdtemp(path.join(os.tmpdir(), "cmux-project-test-"));
     // Create .git directory to make it a valid git repo
     await fs.mkdir(path.join(tempProjectDir, ".git"));
-    
+
     // Create a path with .. that resolves to tempProjectDir
     const pathWithDots = path.join(tempProjectDir, "..", path.basename(tempProjectDir));
     const result = await env.mockIpcRenderer.invoke(IPC_CHANNELS.PROJECT_CREATE, pathWithDots);
@@ -159,7 +159,7 @@ describeIntegration("PROJECT_CREATE IPC Handler", () => {
     const tempProjectDir = await fs.mkdtemp(path.join(os.tmpdir(), "cmux-project-test-"));
     // Create .git directory to make it a valid git repo
     await fs.mkdir(path.join(tempProjectDir, ".git"));
-    
+
     // Create first project
     const result1 = await env.mockIpcRenderer.invoke(IPC_CHANNELS.PROJECT_CREATE, tempProjectDir);
     expect(result1.success).toBe(true);

@@ -212,9 +212,9 @@ export interface IPCApi {
     list(): Promise<string[]>;
   };
   projects: {
-    create(projectPath: string): Promise<
-      Result<{ projectConfig: ProjectConfig; normalizedPath: string }, string>
-    >;
+    create(
+      projectPath: string
+    ): Promise<Result<{ projectConfig: ProjectConfig; normalizedPath: string }, string>>;
     remove(projectPath: string): Promise<Result<void, string>>;
     list(): Promise<Array<[string, ProjectConfig]>>;
     listBranches(projectPath: string): Promise<BranchListResult>;

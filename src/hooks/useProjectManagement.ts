@@ -48,7 +48,8 @@ export function useProjectManagement() {
         setProjects(newProjects);
       } else {
         // Show error to user
-        const errorMessage = typeof result.error === "string" ? result.error : "Failed to add project";
+        const errorMessage =
+          typeof result.error === "string" ? result.error : "Failed to add project";
         alert(errorMessage);
         console.error("Failed to create project:", result.error);
       }

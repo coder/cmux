@@ -70,12 +70,12 @@ describe("pathUtils", () => {
       fs.mkdirSync(testDir, { recursive: true });
       // eslint-disable-next-line local/no-sync-fs-methods -- Test setup only
       fs.mkdirSync(path.join(testDir, ".git"));
-      
+
       const result = validateProjectPath(`~/${path.basename(testDir)}`);
       expect(result.valid).toBe(true);
       expect(result.expandedPath).toBe(testDir);
       expect(result.error).toBeUndefined();
-      
+
       // Cleanup
       fs.rmSync(testDir, { recursive: true, force: true });
     });
