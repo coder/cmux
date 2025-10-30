@@ -1,17 +1,17 @@
 import { describe, test, expect, jest } from "@jest/globals";
 import { executeFileEditOperation } from "./file_edit_operation";
-import { WRITE_DENIED_PREFIX } from "@/types/tools";
-import { createRuntime } from "@/runtime/runtimeFactory";
 import type { Runtime } from "@/runtime/Runtime";
+
+import { createTestToolConfig, getTestDeps } from "./testHelpers";
 
 const TEST_CWD = "/tmp";
 
 function createConfig(runtime?: Runtime) {
-  return {
-    cwd: TEST_CWD,
-    runtime: runtime ?? createRuntime({ type: "local", srcBaseDir: TEST_CWD }),
-    runtimeTempDir: "/tmp",
-  };
+  const config = createTestToolConfig(TEST_CWD);
+  if (runtime) {
+    config.runtime = runtime;
+  }
+  return config;
 }
 
 describe("executeFileEditOperation", () => {
@@ -24,7 +24,7 @@ describe("executeFileEditOperation", () => {
 
     expect(result.success).toBe(false);
     if (!result.success) {
-      expect(result.error.startsWith(WRITE_DENIED_PREFIX)).toBe(true);
+      expect(result.error).toContain("File operations are restricted to the workspace directory");
     }
   });
 
@@ -67,6 +67,7 @@ describe("executeFileEditOperation", () => {
         cwd: testCwd,
         runtime: mockRuntime,
         runtimeTempDir: "/tmp",
+        ...getTestDeps(),
       },
       filePath: testFilePath,
       operation: () => ({ success: true, newContent: "test", metadata: {} }),

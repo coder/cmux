@@ -5,7 +5,7 @@
 # cmux - coding agent multiplexer
 
 [![CI](https://github.com/coder/cmux/actions/workflows/ci.yml/badge.svg)](https://github.com/coder/cmux/actions/workflows/ci.yml)
-[![Build](https://github.com/coder/cmux/actions/workflows/build.yml/badge.svg)](https://github.com/coder/cmux/actions/workflows/build.yml)
+[![Build](https://github.com/coder/cmux/actions/workflows/build.yml/badge.svg)](https://github.com/coder/cmux/actions/workflows/build.yml?query=event:merge_group)
 [![Download](https://img.shields.io/badge/Download-Releases-purple)](https://github.com/coder/cmux/releases)
 [![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL%203.0-blue.svg)](LICENSE)
 
@@ -13,7 +13,7 @@
 
 ![cmux product screenshot](docs/img/product-hero.webp)
 
-A cross-platform desktop application for parallel agentic development.
+A desktop application for parallel agentic development.
 
 <details>
 <summary>Why parallelize?</summary>
@@ -33,7 +33,9 @@ Here are some specific use cases we enable:
 
 ## Features
 
-- Isolated workspaces with central view on git status updates
+- Isolated workspaces with central view on git divergence
+  - **Local**: git worktrees on your local machine ([docs](https://cmux.io/local.html))
+  - **SSH**: regular git clones on a remote server ([docs](https://cmux.io/ssh.html))
 - Multi-model (`sonnet-4-*`, `gpt-5-*`, `opus-4-*`)
 - Supporting UI and keybinds for efficiently managing a suite of agents
 - Rich markdown outputs (mermaid diagrams, LaTeX, etc.)
@@ -42,25 +44,29 @@ Here are some specific use cases we enable:
 UX. You'll find familiar features like Plan/Exec mode, VIM inputs, `/compact` and new ones
 like [opportunistic compaction](https://cmux.io/context-management.html) and [mode prompts](https://cmux.io/instruction-files.html#mode-prompts).
 
-📚 **[Read the full documentation →](https://cmux.io)**
+**[Read the full documentation →](https://cmux.io)**
 
-## Quick Install
+## Install
 
 > [!WARNING]  
 > cmux is in a Preview state. You will encounter bugs and performance issues.
 > It's still possible to be highly productive. We are using it almost exclusively for our own development.
 
-Download pre-built binaries from [the releases page](https://github.com/coder/cmux/releases):
+Download pre-built binaries from [the releases page](https://github.com/coder/cmux/releases) for
+macOS and Linux.
 
-- **macOS**: Signed and notarized DMG (separate builds for Intel/Apple Silicon)
-- **Linux**: AppImage
-- **Windows**: not implemented, coming soon
+[More on installation →](https://cmux.io/install.html)
 
 ## Screenshots
 
 <div align="center">
   <p><em>Integrated code-review for faster iteration:</p>
   <img src="./docs/img/code-review.webp" alt="Screenshot of code review" />
+</div>
+
+<div align="center">
+  <p><em>Agents report their status through the sidebar:</em></p>
+  <img src="./docs/img/agent-status.webp" alt="Screenshot of agent status" />
 </div>
 
 <div align="center">

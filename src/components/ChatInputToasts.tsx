@@ -3,6 +3,7 @@ import type { Toast } from "./ChatInputToast";
 import { SolutionLabel } from "./ChatInputToast";
 import type { ParsedCommand } from "@/utils/slashCommands/types";
 import type { SendMessageError as SendMessageErrorType } from "@/types/errors";
+import { formatSendMessageError } from "@/utils/errors/formatSendError";
 
 /**
  * Creates a toast message for command-related errors and help messages
@@ -146,26 +147,29 @@ export const createCommandToast = (parsed: ParsedCommand): Toast | null => {
  */
 export const createErrorToast = (error: SendMessageErrorType): Toast => {
   switch (error.type) {
-    case "api_key_not_found":
+    case "api_key_not_found": {
+      const formatted = formatSendMessageError(error);
       return {
         id: Date.now().toString(),
         type: "error",
         title: "API Key Not Found",
         message: `The ${error.provider} provider requires an API key to function.`,
-        solution: (
+        solution: formatted.providerCommand ? (
           <>
             <SolutionLabel>Quick Fix:</SolutionLabel>
-            /providers set {error.provider} apiKey YOUR_API_KEY
+            {formatted.providerCommand}
           </>
-        ),
+        ) : undefined,
       };
+    }
 
-    case "provider_not_supported":
+    case "provider_not_supported": {
+      const formatted = formatSendMessageError(error);
       return {
         id: Date.now().toString(),
         type: "error",
         title: "Provider Not Supported",
-        message: `The ${error.provider} provider is not supported yet.`,
+        message: formatted.message,
         solution: (
           <>
             <SolutionLabel>Try This:</SolutionLabel>
@@ -173,13 +177,15 @@ export const createErrorToast = (error: SendMessageErrorType): Toast => {
           </>
         ),
       };
+    }
 
-    case "invalid_model_string":
+    case "invalid_model_string": {
+      const formatted = formatSendMessageError(error);
       return {
         id: Date.now().toString(),
         type: "error",
         title: "Invalid Model Format",
-        message: error.message,
+        message: formatted.message,
         solution: (
           <>
             <SolutionLabel>Expected Format:</SolutionLabel>
@@ -187,14 +193,17 @@ export const createErrorToast = (error: SendMessageErrorType): Toast => {
           </>
         ),
       };
+    }
 
     case "unknown":
-    default:
+    default: {
+      const formatted = formatSendMessageError(error);
       return {
         id: Date.now().toString(),
         type: "error",
         title: "Message Send Failed",
-        message: error.raw || "An unexpected error occurred while sending your message.",
+        message: formatted.message,
       };
+    }
   }
 };

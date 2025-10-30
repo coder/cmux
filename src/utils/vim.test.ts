@@ -224,6 +224,62 @@ describe("Vim Command Integration Tests", () => {
       expect(state.text).toBe("heXXllo");
       expect(state.cursor).toBe(2);
     });
+
+    test("s substitutes character under cursor", () => {
+      const state = executeVimCommands(
+        { ...initialState, text: "hello", cursor: 1, mode: "normal" },
+        ["s"]
+      );
+      expect(state.text).toBe("hllo");
+      expect(state.cursor).toBe(1);
+      expect(state.mode).toBe("insert");
+      expect(state.yankBuffer).toBe("e");
+    });
+
+    test("s at end of text does nothing", () => {
+      const state = executeVimCommands(
+        { ...initialState, text: "hello", cursor: 5, mode: "normal" },
+        ["s"]
+      );
+      expect(state.text).toBe("hello");
+      expect(state.mode).toBe("normal");
+    });
+
+    test("~ toggles case of character under cursor", () => {
+      const state = executeVimCommands(
+        { ...initialState, text: "HeLLo", cursor: 0, mode: "normal" },
+        ["~"]
+      );
+      expect(state.text).toBe("heLLo");
+      expect(state.cursor).toBe(1);
+    });
+
+    test("~ toggles case and moves through word", () => {
+      const state = executeVimCommands(
+        { ...initialState, text: "HeLLo", cursor: 0, mode: "normal" },
+        ["~", "~", "~"]
+      );
+      expect(state.text).toBe("hElLo");
+      expect(state.cursor).toBe(3);
+    });
+
+    test("~ on non-letter does nothing but advances cursor", () => {
+      const state = executeVimCommands(
+        { ...initialState, text: "a 1 b", cursor: 1, mode: "normal" },
+        ["~"]
+      );
+      expect(state.text).toBe("a 1 b");
+      expect(state.cursor).toBe(2);
+    });
+
+    test("~ at end of text does not advance cursor", () => {
+      const state = executeVimCommands(
+        { ...initialState, text: "hello", cursor: 4, mode: "normal" },
+        ["~"]
+      );
+      expect(state.text).toBe("hellO");
+      expect(state.cursor).toBe(4);
+    });
   });
 
   describe("Line Operations", () => {

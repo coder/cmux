@@ -1,10 +1,41 @@
 /**
- * Utilities for handling tilde path expansion in SSH commands
+ * Utilities for handling tilde path expansion
  *
- * When running commands over SSH, tilde paths need special handling:
+ * For SSH commands, tilde paths need special handling:
  * - Quoted tildes won't expand: `cd '~'` fails, but `cd "$HOME"` works
  * - Must escape special shell characters when using $HOME expansion
+ *
+ * For local paths, tildes should be expanded to actual file system paths.
  */
+
+import * as os from "os";
+import * as path from "path";
+
+/**
+ * Expand tilde to actual home directory path for local file system operations.
+ *
+ * Converts:
+ * - "~" → "/home/user" (actual home directory)
+ * - "~/path" → "/home/user/path"
+ * - "/abs/path" → "/abs/path" (unchanged)
+ *
+ * @param filePath - Path that may contain tilde prefix
+ * @returns Fully expanded absolute path
+ *
+ * @example
+ * expandTilde("~")           // => "/home/user"
+ * expandTilde("~/workspace") // => "/home/user/workspace"
+ * expandTilde("/abs/path")   // => "/abs/path"
+ */
+export function expandTilde(filePath: string): string {
+  if (filePath === "~") {
+    return os.homedir();
+  } else if (filePath.startsWith("~/")) {
+    return path.join(os.homedir(), filePath.slice(2));
+  } else {
+    return filePath;
+  }
+}
 
 /**
  * Expand tilde path to $HOME-based path for use in SSH commands.

@@ -590,22 +590,26 @@ exit 1
           );
 
           test.concurrent(
-            "handles tilde (~/) paths correctly (SSH only)",
+            "resolves tilde paths in srcBaseDir to absolute paths (SSH only)",
             async () => {
+              if (!sshConfig) {
+                throw new Error("SSH server is required for SSH integration tests");
+              }
+
               const env = await createTestEnvironment();
               const tempGitRepo = await createTempGitRepo();
 
               try {
-                const branchName = generateBranchName("tilde-test");
+                const branchName = generateBranchName("tilde-resolution-test");
                 const trunkBranch = await detectDefaultTrunkBranch(tempGitRepo);
 
-                // Use ~/workspace/... path instead of absolute path
+                // Use tilde path - should be accepted and resolved
                 const tildeRuntimeConfig: RuntimeConfig = {
                   type: "ssh",
                   host: `testuser@localhost`,
                   srcBaseDir: `~/workspace`,
-                  identityFile: sshConfig!.privateKeyPath,
-                  port: sshConfig!.port,
+                  identityFile: sshConfig.privateKeyPath,
+                  port: sshConfig.port,
                 };
 
                 const { result, cleanup } = await createWorkspaceWithCleanup(
@@ -616,17 +620,22 @@ exit 1
                   tildeRuntimeConfig
                 );
 
+                // Should succeed and resolve tilde to absolute path
                 expect(result.success).toBe(true);
                 if (!result.success) {
-                  throw new Error(`Failed to create workspace with tilde path: ${result.error}`);
+                  throw new Error(`Failed to create workspace: ${result.error}`);
                 }
 
-                // Wait for init to complete
-                await new Promise((resolve) => setTimeout(resolve, getInitWaitTime()));
+                // Verify the stored runtimeConfig has resolved path (not tilde)
+                const projectsConfig = env.config.loadConfigOrDefault();
+                const projectWorkspaces =
+                  projectsConfig.projects.get(tempGitRepo)?.workspaces ?? [];
+                const workspace = projectWorkspaces.find((w) => w.name === branchName);
 
-                // Verify workspace exists
-                expect(result.metadata.id).toBeDefined();
-                expect(result.metadata.namedWorkspacePath).toBeDefined();
+                expect(workspace).toBeDefined();
+                expect(workspace?.runtimeConfig?.srcBaseDir).toBeDefined();
+                expect(workspace?.runtimeConfig?.srcBaseDir).toMatch(/^\/home\//);
+                expect(workspace?.runtimeConfig?.srcBaseDir).not.toContain("~");
 
                 await cleanup();
               } finally {
@@ -638,35 +647,27 @@ exit 1
           );
 
           test.concurrent(
-            "handles tilde paths with init hooks (SSH only)",
+            "resolves bare tilde in srcBaseDir to home directory (SSH only)",
             async () => {
+              if (!sshConfig) {
+                throw new Error("SSH server is required for SSH integration tests");
+              }
+
               const env = await createTestEnvironment();
               const tempGitRepo = await createTempGitRepo();
 
               try {
-                // Add init hook to repo
-                await createInitHook(
-                  tempGitRepo,
-                  `#!/bin/bash
-echo "Init hook executed with tilde path"
-`
-                );
-                await commitChanges(tempGitRepo, "Add init hook for tilde test");
-
-                const branchName = generateBranchName("tilde-init-test");
+                const branchName = generateBranchName("bare-tilde-resolution");
                 const trunkBranch = await detectDefaultTrunkBranch(tempGitRepo);
 
-                // Use ~/workspace/... path instead of absolute path
+                // Use bare tilde - should be accepted and resolved to home directory
                 const tildeRuntimeConfig: RuntimeConfig = {
                   type: "ssh",
                   host: `testuser@localhost`,
-                  srcBaseDir: `~/workspace`,
-                  identityFile: sshConfig!.privateKeyPath,
-                  port: sshConfig!.port,
+                  srcBaseDir: `~`,
+                  identityFile: sshConfig.privateKeyPath,
+                  port: sshConfig.port,
                 };
-
-                // Capture init events to verify hook output
-                const initEvents = setupInitEventCapture(env);
 
                 const { result, cleanup } = await createWorkspaceWithCleanup(
                   env,
@@ -676,34 +677,22 @@ echo "Init hook executed with tilde path"
                   tildeRuntimeConfig
                 );
 
+                // Should succeed and resolve tilde to home directory
                 expect(result.success).toBe(true);
                 if (!result.success) {
-                  throw new Error(
-                    `Failed to create workspace with tilde path + init hook: ${result.error}`
-                  );
+                  throw new Error(`Failed to create workspace: ${result.error}`);
                 }
 
-                // Wait for init to complete (including hook)
-                await new Promise((resolve) => setTimeout(resolve, getInitWaitTime()));
+                // Verify the stored runtimeConfig has resolved path (not tilde)
+                const projectsConfig = env.config.loadConfigOrDefault();
+                const projectWorkspaces =
+                  projectsConfig.projects.get(tempGitRepo)?.workspaces ?? [];
+                const workspace = projectWorkspaces.find((w) => w.name === branchName);
 
-                // Verify init hook was executed
-                const outputEvents = filterEventsByType(initEvents, EVENT_TYPE_INIT_OUTPUT);
-                const outputLines = outputEvents.map((e) => {
-                  const data = e.data as { line?: string };
-                  return data.line ?? "";
-                });
-
-                // Debug: Print all output including errors
-                console.log("=== TILDE INIT HOOK OUTPUT ===");
-                outputEvents.forEach((e) => {
-                  const data = e.data as { line?: string; isError?: boolean };
-                  const prefix = data.isError ? "[ERROR]" : "[INFO] ";
-                  console.log(prefix + (data.line ?? ""));
-                });
-                console.log("=== END TILDE INIT HOOK OUTPUT ===");
-
-                expect(outputLines.some((line) => line.includes("Running init hook"))).toBe(true);
-                expect(outputLines.some((line) => line.includes("Init hook executed"))).toBe(true);
+                expect(workspace).toBeDefined();
+                expect(workspace?.runtimeConfig?.srcBaseDir).toBeDefined();
+                expect(workspace?.runtimeConfig?.srcBaseDir).toMatch(/^\/home\//);
+                expect(workspace?.runtimeConfig?.srcBaseDir).not.toContain("~");
 
                 await cleanup();
               } finally {
@@ -820,10 +809,8 @@ echo "Init hook executed with tilde path"
     test.concurrent(
       "forwards origin remote instead of bundle path",
       async () => {
-        // Skip if SSH server not available
         if (!sshConfig) {
-          console.log("Skipping SSH-specific test: SSH server not available");
-          return;
+          throw new Error("SSH server is required for SSH integration tests");
         }
 
         const env = await createTestEnvironment();
@@ -848,7 +835,7 @@ echo "Init hook executed with tilde path"
           const runtimeConfig: RuntimeConfig = {
             type: "ssh",
             host: "testuser@localhost",
-            srcBaseDir: "~/workspace",
+            srcBaseDir: sshConfig.workdir,
             identityFile: sshConfig.privateKeyPath,
             port: sshConfig.port,
           };

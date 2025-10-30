@@ -26,11 +26,15 @@ export const createFileEditReplaceStringTool: ToolFactory = (config: ToolConfigu
   return tool({
     description: TOOL_DEFINITIONS.file_edit_replace_string.description,
     inputSchema: TOOL_DEFINITIONS.file_edit_replace_string.schema,
-    execute: async (args: StringReplaceArgs): Promise<FileEditReplaceStringToolResult> => {
+    execute: async (
+      args: StringReplaceArgs,
+      { abortSignal }
+    ): Promise<FileEditReplaceStringToolResult> => {
       return executeFileEditOperation({
         config,
         filePath: args.file_path,
         operation: (originalContent) => handleStringReplace(args, originalContent),
+        abortSignal,
       });
     },
   });

@@ -47,6 +47,7 @@ describe("parseRuntimeString", () => {
 
   test("accepts SSH with hostname only (user will be inferred)", () => {
     const result = parseRuntimeString("ssh hostname", workspaceName);
+    // Uses tilde path - backend will resolve it via runtime.resolvePath()
     expect(result).toEqual({
       type: "ssh",
       host: "hostname",
@@ -56,9 +57,20 @@ describe("parseRuntimeString", () => {
 
   test("accepts SSH with hostname.domain only", () => {
     const result = parseRuntimeString("ssh dev.example.com", workspaceName);
+    // Uses tilde path - backend will resolve it via runtime.resolvePath()
     expect(result).toEqual({
       type: "ssh",
       host: "dev.example.com",
+      srcBaseDir: "~/cmux",
+    });
+  });
+
+  test("uses tilde path for root user too", () => {
+    const result = parseRuntimeString("ssh root@hostname", workspaceName);
+    // Backend will resolve ~ to /root for root user
+    expect(result).toEqual({
+      type: "ssh",
+      host: "root@hostname",
       srcBaseDir: "~/cmux",
     });
   });

@@ -10,7 +10,8 @@ require("disposablestack/auto");
 assert.equal(typeof Symbol.dispose, "symbol");
 assert.equal(typeof Symbol.asyncDispose, "symbol");
 
-// Polyfill File for Node 18 (undici needs it)
+// Polyfill File for undici in jest environment
+// undici expects File to be available globally but jest doesn't provide it
 if (typeof globalThis.File === "undefined") {
   (globalThis as any).File = class File extends Blob {
     constructor(bits: BlobPart[], name: string, options?: FilePropertyBag) {

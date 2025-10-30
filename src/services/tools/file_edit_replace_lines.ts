@@ -26,11 +26,15 @@ export const createFileEditReplaceLinesTool: ToolFactory = (config: ToolConfigur
   return tool({
     description: TOOL_DEFINITIONS.file_edit_replace_lines.description,
     inputSchema: TOOL_DEFINITIONS.file_edit_replace_lines.schema,
-    execute: async (args: LineReplaceArgs): Promise<FileEditReplaceLinesToolResult> => {
+    execute: async (
+      args: LineReplaceArgs,
+      { abortSignal }
+    ): Promise<FileEditReplaceLinesToolResult> => {
       const result = await executeFileEditOperation({
         config,
         filePath: args.file_path,
         operation: (originalContent) => handleLineReplace(args, originalContent),
+        abortSignal,
       });
 
       // handleLineReplace always returns lines_replaced and line_delta,

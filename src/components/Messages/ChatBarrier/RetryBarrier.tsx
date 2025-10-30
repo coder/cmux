@@ -1,37 +1,37 @@
-import React, { useState, useEffect, useCallback } from "react";
-import { usePersistedState } from "@/hooks/usePersistedState";
-import { getRetryStateKey } from "@/constants/storage";
-import { CUSTOM_EVENTS } from "@/constants/events";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
+import { usePersistedState, updatePersistedState } from "@/hooks/usePersistedState";
+import { getRetryStateKey, getAutoRetryKey } from "@/constants/storage";
+import { CUSTOM_EVENTS, createCustomEvent } from "@/constants/events";
 import { cn } from "@/lib/utils";
+import type { RetryState } from "@/hooks/useResumeManager";
+import { useWorkspaceState } from "@/stores/WorkspaceStore";
+import { isEligibleForAutoRetry, isNonRetryableSendError } from "@/utils/messages/retryEligibility";
+import { formatSendMessageError } from "@/utils/errors/formatSendError";
 
 interface RetryBarrierProps {
   workspaceId: string;
-  autoRetry: boolean;
-  onStopAutoRetry: () => void;
-  onResetAutoRetry: () => void;
   className?: string;
 }
 
 const INITIAL_DELAY = 1000; // 1 second
 const MAX_DELAY = 60000; // 60 seconds (cap for exponential backoff)
 
-interface RetryState {
-  attempt: number;
-  retryStartTime: number;
-}
-
 const defaultRetryState: RetryState = {
   attempt: 0,
   retryStartTime: Date.now(),
 };
 
-export const RetryBarrier: React.FC<RetryBarrierProps> = ({
-  workspaceId,
-  autoRetry,
-  onStopAutoRetry,
-  onResetAutoRetry,
-  className,
-}) => {
+export const RetryBarrier: React.FC<RetryBarrierProps> = ({ workspaceId, className }) => {
+  // Get workspace state for computing effective autoRetry
+  const workspaceState = useWorkspaceState(workspaceId);
+
+  // Read autoRetry preference from localStorage
+  const [autoRetry, setAutoRetry] = usePersistedState<boolean>(
+    getAutoRetryKey(workspaceId),
+    true, // Default to true
+    { listener: true }
+  );
+
   // Use persisted state for retry tracking (survives workspace switches)
   // Read retry state (managed by useResumeManager)
   const [retryState] = usePersistedState<RetryState>(
@@ -40,7 +40,26 @@ export const RetryBarrier: React.FC<RetryBarrierProps> = ({
     { listener: true }
   );
 
-  const { attempt, retryStartTime } = retryState;
+  const { attempt, retryStartTime, lastError } = retryState || defaultRetryState;
+
+  // Compute effective autoRetry state: user preference AND error is retryable
+  // This ensures UI shows "Retry" button (not "Retrying...") for non-retryable errors
+  const effectiveAutoRetry = useMemo(() => {
+    if (!autoRetry || !workspaceState) return false;
+
+    // Check if current state is eligible for auto-retry
+    const messagesEligible = isEligibleForAutoRetry(
+      workspaceState.messages,
+      workspaceState.pendingStreamStartTime
+    );
+
+    // Also check RetryState for SendMessageErrors (from resumeStream failures)
+    if (lastError && isNonRetryableSendError(lastError)) {
+      return false; // Non-retryable SendMessageError
+    }
+
+    return messagesEligible;
+  }, [autoRetry, workspaceState, lastError]);
 
   // Local state for UI
   const [countdown, setCountdown] = useState(0);
@@ -71,16 +90,18 @@ export const RetryBarrier: React.FC<RetryBarrierProps> = ({
   // Emits event to useResumeManager instead of calling resumeStream directly
   // This keeps all retry logic centralized in one place
   const handleManualRetry = () => {
-    onResetAutoRetry(); // Re-enable auto-retry for next failure
+    setAutoRetry(true); // Re-enable auto-retry for next failure
 
     // Clear retry state to make workspace immediately eligible for resume
-    // (no retryState = defaults to immediately eligible in useResumeManager)
-    localStorage.removeItem(getRetryStateKey(workspaceId));
+    // Use updatePersistedState to ensure listener-enabled hooks receive the update
+    updatePersistedState(getRetryStateKey(workspaceId), null);
 
     // Emit event to useResumeManager - it will handle the actual resume
+    // Pass isManual flag to bypass eligibility checks (user explicitly wants to retry)
     window.dispatchEvent(
-      new CustomEvent(CUSTOM_EVENTS.RESUME_CHECK_REQUESTED, {
-        detail: { workspaceId },
+      createCustomEvent(CUSTOM_EVENTS.RESUME_CHECK_REQUESTED, {
+        workspaceId,
+        isManual: true,
       })
     );
   };
@@ -88,39 +109,56 @@ export const RetryBarrier: React.FC<RetryBarrierProps> = ({
   // Stop auto-retry handler
   const handleStopAutoRetry = () => {
     setCountdown(0);
-    onStopAutoRetry();
+    setAutoRetry(false);
   };
 
-  if (autoRetry) {
+  // Format error message for display (centralized logic)
+  const getErrorMessage = (error: typeof lastError): string => {
+    if (!error) return "";
+    const formatted = formatSendMessageError(error);
+    // Combine message with command if available
+    return formatted.providerCommand
+      ? `${formatted.message} Configure with ${formatted.providerCommand}`
+      : formatted.message;
+  };
+
+  if (effectiveAutoRetry) {
     // Auto-retry mode: Show countdown and stop button
     // useResumeManager handles the actual retry logic
     return (
       <div
         className={cn(
-          "my-5 px-5 py-4 bg-gradient-to-br from-[rgba(255,165,0,0.1)] to-[rgba(255,140,0,0.1)] border-l-4 border-warning rounded flex justify-between items-center gap-4",
+          "my-5 px-5 py-4 bg-gradient-to-br from-[rgba(255,165,0,0.1)] to-[rgba(255,140,0,0.1)] border-l-4 border-warning rounded flex flex-col gap-3",
           className
         )}
       >
-        <div className="flex flex-1 items-center gap-3">
-          <span className="text-lg leading-none">🔄</span>
-          <div className="font-primary text-foreground text-[13px] font-medium">
-            {countdown === 0 ? (
-              <>Retrying... (attempt {attempt + 1})</>
-            ) : (
-              <>
-                Retrying in{" "}
-                <span className="text-warning font-mono font-semibold">{countdown}s</span> (attempt{" "}
-                {attempt + 1})
-              </>
-            )}
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex flex-1 items-center gap-3">
+            <span className="text-lg leading-none">🔄</span>
+            <div className="font-primary text-foreground text-[13px] font-medium">
+              {countdown === 0 ? (
+                <>Retrying... (attempt {attempt + 1})</>
+              ) : (
+                <>
+                  Retrying in{" "}
+                  <span className="text-warning font-mono font-semibold">{countdown}s</span>{" "}
+                  (attempt {attempt + 1})
+                </>
+              )}
+            </div>
           </div>
+          <button
+            className="border-warning font-primary text-warning hover:bg-warning-overlay cursor-pointer rounded border bg-transparent px-4 py-2 text-xs font-semibold whitespace-nowrap transition-all duration-200 hover:-translate-y-px active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-50"
+            onClick={handleStopAutoRetry}
+          >
+            Stop (Ctrl+C)
+          </button>
         </div>
-        <button
-          className="border-warning font-primary text-warning hover:bg-warning-overlay cursor-pointer rounded border bg-transparent px-4 py-2 text-xs font-semibold whitespace-nowrap transition-all duration-200 hover:-translate-y-px active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-50"
-          onClick={handleStopAutoRetry}
-        >
-          Stop Auto-Retry
-        </button>
+        {lastError && (
+          <div className="font-primary text-foreground/80 pl-8 text-[12px]">
+            <span className="text-warning font-semibold">Error:</span> {getErrorMessage(lastError)}
+          </div>
+        )}
       </div>
     );
   } else {
@@ -128,22 +166,29 @@ export const RetryBarrier: React.FC<RetryBarrierProps> = ({
     return (
       <div
         className={cn(
-          "my-5 px-5 py-4 bg-gradient-to-br from-[rgba(255,165,0,0.1)] to-[rgba(255,140,0,0.1)] border-l-4 border-warning rounded flex justify-between items-center gap-4",
+          "my-5 px-5 py-4 bg-gradient-to-br from-[rgba(255,165,0,0.1)] to-[rgba(255,140,0,0.1)] border-l-4 border-warning rounded flex flex-col gap-3",
           className
         )}
       >
-        <div className="flex flex-1 items-center gap-3">
-          <span className="text-lg leading-none">⚠️</span>
-          <div className="font-primary text-foreground text-[13px] font-medium">
-            Stream interrupted
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex flex-1 items-center gap-3">
+            <span className="text-lg leading-none">⚠️</span>
+            <div className="font-primary text-foreground text-[13px] font-medium">
+              Stream interrupted
+            </div>
           </div>
+          <button
+            className="bg-warning font-primary text-background cursor-pointer rounded border-none px-4 py-2 text-xs font-semibold whitespace-nowrap transition-all duration-200 hover:-translate-y-px hover:brightness-120 active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-50"
+            onClick={handleManualRetry}
+          >
+            Retry
+          </button>
         </div>
-        <button
-          className="bg-warning font-primary text-background cursor-pointer rounded border-none px-4 py-2 text-xs font-semibold whitespace-nowrap transition-all duration-200 hover:-translate-y-px hover:brightness-120 active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-50"
-          onClick={handleManualRetry}
-        >
-          Retry
-        </button>
+        {lastError && (
+          <div className="font-primary text-foreground/80 pl-8 text-[12px]">
+            <span className="text-warning font-semibold">Error:</span> {getErrorMessage(lastError)}
+          </div>
+        )}
       </div>
     );
   }

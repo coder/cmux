@@ -46,6 +46,28 @@ include fmt.mk
 # Build tools
 TSGO := bun run node_modules/@typescript/native-preview/bin/tsgo.js
 
+# Node.js version check
+REQUIRED_NODE_VERSION := 20
+NODE_VERSION := $(shell node --version | sed 's/v\([0-9]*\).*/\1/')
+
+define check_node_version
+	@if [ "$(NODE_VERSION)" -lt "$(REQUIRED_NODE_VERSION)" ]; then \
+		echo "Error: Node.js v$(REQUIRED_NODE_VERSION) or higher is required"; \
+		echo "Current version: v$(NODE_VERSION)"; \
+		echo ""; \
+		echo "To upgrade Node.js:"; \
+		echo "  1. Install 'n' version manager: curl -L https://raw.githubusercontent.com/tj/n/master/bin/n | sudo bash -s -- lts"; \
+		echo "  2. Or use 'n' if already installed: sudo n $(REQUIRED_NODE_VERSION)"; \
+		echo ""; \
+		exit 1; \
+	fi
+endef
+
+# Detect if browser opener is available that Storybook can use
+# Storybook uses 'open' package which tries xdg-open on Linux, open on macOS, start on Windows
+HAS_BROWSER_OPENER := $(shell command -v xdg-open >/dev/null 2>&1 && echo "yes" || echo "no")
+STORYBOOK_OPEN_FLAG := $(if $(filter yes,$(HAS_BROWSER_OPENER)),,--no-open)
+
 TS_SOURCES := $(shell find src -type f \( -name '*.ts' -o -name '*.tsx' \))
 
 # Default target
@@ -73,6 +95,19 @@ dev: node_modules/.installed build-main ## Start development server (Vite + tsgo
 	@bun x concurrently -k \
 		"bun x concurrently \"$(TSGO) -w -p tsconfig.main.json\" \"bun x tsc-alias -w -p tsconfig.main.json\"" \
 		"vite"
+
+dev-server: node_modules/.installed build-main ## Start server mode with hot reload (backend :3000 + frontend :5173). Use VITE_HOST=0.0.0.0 BACKEND_HOST=0.0.0.0 for remote access
+	@echo "Starting dev-server..."
+	@echo "  Backend (IPC/WebSocket): http://$(or $(BACKEND_HOST),localhost):$(or $(BACKEND_PORT),3000)"
+	@echo "  Frontend (with HMR):     http://$(or $(VITE_HOST),localhost):$(or $(VITE_PORT),5173)"
+	@echo ""
+	@echo "For remote access: make dev-server VITE_HOST=0.0.0.0 BACKEND_HOST=0.0.0.0"
+	@bun x concurrently -k \
+		"bun x concurrently \"$(TSGO) -w -p tsconfig.main.json\" \"bun x tsc-alias -w -p tsconfig.main.json\"" \
+		"bun x nodemon --watch dist/main.js --watch dist/main-server.js --delay 500ms --exec 'node dist/main.js server --host $(or $(BACKEND_HOST),localhost) --port $(or $(BACKEND_PORT),3000)'" \
+		"CMUX_VITE_HOST=$(or $(VITE_HOST),127.0.0.1) CMUX_VITE_PORT=$(or $(VITE_PORT),5173) VITE_BACKEND_URL=http://$(or $(BACKEND_HOST),localhost):$(or $(BACKEND_PORT),3000) vite"
+
+
 
 start: node_modules/.installed build-main build-preload build-static ## Build and start Electron app
 	@bun x electron --remote-debugging-port=9222 .
@@ -244,15 +279,19 @@ docs-watch: ## Watch and rebuild documentation
 
 ## Storybook
 storybook: node_modules/.installed ## Start Storybook development server
-	@bun x storybook dev -p 6006
+	$(check_node_version)
+	@bun x storybook dev -p 6006 $(STORYBOOK_OPEN_FLAG)
 
 storybook-build: node_modules/.installed src/version.ts ## Build static Storybook
+	$(check_node_version)
 	@bun x storybook build
 
 test-storybook: node_modules/.installed ## Run Storybook interaction tests (requires Storybook to be running or built)
+	$(check_node_version)
 	@bun x test-storybook
 
 chromatic: node_modules/.installed ## Run Chromatic for visual regression testing
+	$(check_node_version)
 	@bun x chromatic --exit-zero-on-changes
 
 ## Benchmarks

@@ -142,6 +142,29 @@ describeIntegration("Runtime integration tests", () => {
 
           expect(result.stdout.trim()).toContain(workspace.path);
         });
+        test.concurrent(
+          "handles timeout correctly",
+          async () => {
+            const runtime = createRuntime();
+            await using workspace = await TestWorkspace.create(runtime, type);
+
+            // Command that sleeps longer than timeout
+            const startTime = performance.now();
+            const result = await execBuffered(runtime, "sleep 10", {
+              cwd: workspace.path,
+              timeout: 1, // 1 second timeout
+            });
+            const duration = performance.now() - startTime;
+
+            // Exit code should be EXIT_CODE_TIMEOUT (-998)
+            expect(result.exitCode).toBe(-998);
+            // Should complete in around 1 second, not 10 seconds
+            // Allow some margin for overhead (especially on SSH)
+            expect(duration).toBeLessThan(3000); // 3 seconds max
+            expect(duration).toBeGreaterThan(500); // At least 0.5 seconds
+          },
+          15000
+        ); // 15 second timeout for test (includes workspace creation overhead)
       });
 
       describe("readFile() - File reading", () => {
@@ -305,6 +328,94 @@ describeIntegration("Runtime integration tests", () => {
 
           const content = await readFileString(runtime, `${workspace.path}/special.txt`);
           expect(content).toBe(specialContent);
+        });
+
+        test.concurrent("preserves symlinks when editing target file", async () => {
+          const runtime = createRuntime();
+          await using workspace = await TestWorkspace.create(runtime, type);
+
+          // Create a target file
+          const targetPath = `${workspace.path}/target.txt`;
+          await writeFileString(runtime, targetPath, "original content");
+
+          // Create a symlink to the target
+          const linkPath = `${workspace.path}/link.txt`;
+          const result = await execBuffered(runtime, `ln -s target.txt link.txt`, {
+            cwd: workspace.path,
+            timeout: 30,
+          });
+          expect(result.exitCode).toBe(0);
+
+          // Verify symlink was created
+          const lsResult = await execBuffered(runtime, "ls -la link.txt", {
+            cwd: workspace.path,
+            timeout: 30,
+          });
+          expect(lsResult.stdout).toContain("->");
+          expect(lsResult.stdout).toContain("target.txt");
+
+          // Edit the file via the symlink
+          await writeFileString(runtime, linkPath, "new content");
+
+          // Verify the symlink is still a symlink (not replaced with a file)
+          const lsAfter = await execBuffered(runtime, "ls -la link.txt", {
+            cwd: workspace.path,
+            timeout: 30,
+          });
+          expect(lsAfter.stdout).toContain("->");
+          expect(lsAfter.stdout).toContain("target.txt");
+
+          // Verify both the symlink and target have the new content
+          const linkContent = await readFileString(runtime, linkPath);
+          expect(linkContent).toBe("new content");
+
+          const targetContent = await readFileString(runtime, targetPath);
+          expect(targetContent).toBe("new content");
+        });
+
+        test.concurrent("preserves file permissions when editing through symlink", async () => {
+          const runtime = createRuntime();
+          await using workspace = await TestWorkspace.create(runtime, type);
+
+          // Create a target file with specific permissions (755)
+          const targetPath = `${workspace.path}/target.txt`;
+          await writeFileString(runtime, targetPath, "original content");
+
+          // Set permissions to 755
+          const chmodResult = await execBuffered(runtime, "chmod 755 target.txt", {
+            cwd: workspace.path,
+            timeout: 30,
+          });
+          expect(chmodResult.exitCode).toBe(0);
+
+          // Verify initial permissions
+          const statBefore = await execBuffered(runtime, "stat -c '%a' target.txt", {
+            cwd: workspace.path,
+            timeout: 30,
+          });
+          expect(statBefore.stdout.trim()).toBe("755");
+
+          // Create a symlink to the target
+          const linkPath = `${workspace.path}/link.txt`;
+          const lnResult = await execBuffered(runtime, "ln -s target.txt link.txt", {
+            cwd: workspace.path,
+            timeout: 30,
+          });
+          expect(lnResult.exitCode).toBe(0);
+
+          // Edit the file via the symlink
+          await writeFileString(runtime, linkPath, "new content");
+
+          // Verify permissions are preserved
+          const statAfter = await execBuffered(runtime, "stat -c '%a' target.txt", {
+            cwd: workspace.path,
+            timeout: 30,
+          });
+          expect(statAfter.stdout.trim()).toBe("755");
+
+          // Verify content was updated
+          const content = await readFileString(runtime, targetPath);
+          expect(content).toBe("new content");
         });
       });
 
@@ -1043,16 +1154,10 @@ describeIntegration("Runtime integration tests", () => {
           // Try to delete a workspace that doesn't exist
           const result = await runtime.deleteWorkspace(workspace.path, "non-existent", false);
 
-          // For SSH with rm -rf, deleting non-existent directory succeeds (rm -rf is idempotent)
-          // For local git worktree, it should fail
-          if (type === "local") {
-            expect(result.success).toBe(false);
-            if (!result.success) {
-              expect(result.error).toContain("Failed to remove worktree");
-            }
-          } else {
-            // SSH: rm -rf non-existent is a no-op (succeeds)
-            expect(result.success).toBe(true);
+          // Both local and SSH deleteWorkspace are now idempotent - return success for non-existent workspaces
+          expect(result.success).toBe(true);
+          if (result.success) {
+            expect(result.deletedPath).toBeDefined();
           }
         });
       });

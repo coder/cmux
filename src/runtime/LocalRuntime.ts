@@ -12,6 +12,8 @@ import type {
   WorkspaceCreationResult,
   WorkspaceInitParams,
   WorkspaceInitResult,
+  WorkspaceForkParams,
+  WorkspaceForkResult,
   InitLogger,
 } from "./Runtime";
 import { RuntimeError as RuntimeErrorClass } from "./Runtime";
@@ -22,6 +24,7 @@ import { checkInitHookExists, getInitHookPath, createLineBufferedLoggers } from 
 import { execAsync } from "../utils/disposableExec";
 import { getProjectName } from "../utils/runtime/helpers";
 import { getErrorMessage } from "../utils/errors";
+import { expandTilde } from "./tildeExpansion";
 
 /**
  * Local runtime implementation that executes commands and file operations
@@ -31,7 +34,8 @@ export class LocalRuntime implements Runtime {
   private readonly srcBaseDir: string;
 
   constructor(srcBaseDir: string) {
-    this.srcBaseDir = srcBaseDir;
+    // Expand tilde to actual home directory path for local file system operations
+    this.srcBaseDir = expandTilde(srcBaseDir);
   }
 
   async exec(command: string, options: ExecOptions): Promise<ExecStream> {
@@ -205,7 +209,8 @@ export class LocalRuntime implements Runtime {
     return { stdout, stderr, stdin, exitCode, duration };
   }
 
-  readFile(filePath: string): ReadableStream<Uint8Array> {
+  readFile(filePath: string, _abortSignal?: AbortSignal): ReadableStream<Uint8Array> {
+    // Note: _abortSignal ignored for local operations (fast, no need for cancellation)
     const nodeStream = fs.createReadStream(filePath);
 
     // Handle errors by wrapping in a transform
@@ -234,18 +239,33 @@ export class LocalRuntime implements Runtime {
     });
   }
 
-  writeFile(filePath: string): WritableStream<Uint8Array> {
+  writeFile(filePath: string, _abortSignal?: AbortSignal): WritableStream<Uint8Array> {
+    // Note: _abortSignal ignored for local operations (fast, no need for cancellation)
     let tempPath: string;
     let writer: WritableStreamDefaultWriter<Uint8Array>;
+    let resolvedPath: string;
+    let originalMode: number | undefined;
 
     return new WritableStream<Uint8Array>({
       async start() {
+        // Resolve symlinks to write through them (preserves the symlink)
+        try {
+          resolvedPath = await fsPromises.realpath(filePath);
+          // Save original permissions to restore after write
+          const stat = await fsPromises.stat(resolvedPath);
+          originalMode = stat.mode;
+        } catch {
+          // If file doesn't exist, use the original path and default permissions
+          resolvedPath = filePath;
+          originalMode = undefined;
+        }
+
         // Create parent directories if they don't exist
-        const parentDir = path.dirname(filePath);
+        const parentDir = path.dirname(resolvedPath);
         await fsPromises.mkdir(parentDir, { recursive: true });
 
         // Create temp file for atomic write
-        tempPath = `${filePath}.tmp.${Date.now()}`;
+        tempPath = `${resolvedPath}.tmp.${Date.now()}`;
         const nodeStream = fs.createWriteStream(tempPath);
         const webStream = Writable.toWeb(nodeStream) as WritableStream<Uint8Array>;
         writer = webStream.getWriter();
@@ -257,7 +277,11 @@ export class LocalRuntime implements Runtime {
         // Close the writer and rename to final location
         await writer.close();
         try {
-          await fsPromises.rename(tempPath, filePath);
+          // If we have original permissions, apply them to temp file before rename
+          if (originalMode !== undefined) {
+            await fsPromises.chmod(tempPath, originalMode);
+          }
+          await fsPromises.rename(tempPath, resolvedPath);
         } catch (err) {
           throw new RuntimeErrorClass(
             `Failed to write file ${filePath}: ${err instanceof Error ? err.message : String(err)}`,
@@ -282,7 +306,8 @@ export class LocalRuntime implements Runtime {
     });
   }
 
-  async stat(filePath: string): Promise<FileStat> {
+  async stat(filePath: string, _abortSignal?: AbortSignal): Promise<FileStat> {
+    // Note: _abortSignal ignored for local operations (fast, no need for cancellation)
     try {
       const stats = await fsPromises.stat(filePath);
       return {
@@ -297,6 +322,14 @@ export class LocalRuntime implements Runtime {
         err instanceof Error ? err : undefined
       );
     }
+  }
+
+  resolvePath(filePath: string): Promise<string> {
+    // Expand tilde to actual home directory path
+    const expanded = expandTilde(filePath);
+
+    // Resolve to absolute path (handles relative paths like "./foo")
+    return Promise.resolve(path.resolve(expanded));
   }
 
   normalizePath(targetPath: string, basePath: string): string {
@@ -450,10 +483,12 @@ export class LocalRuntime implements Runtime {
   async renameWorkspace(
     projectPath: string,
     oldName: string,
-    newName: string
+    newName: string,
+    _abortSignal?: AbortSignal
   ): Promise<
     { success: true; oldPath: string; newPath: string } | { success: false; error: string }
   > {
+    // Note: _abortSignal ignored for local operations (fast, no need for cancellation)
     // Compute workspace paths using canonical method
     const oldPath = this.getWorkspacePath(projectPath, oldName);
     const newPath = this.getWorkspacePath(projectPath, newName);
@@ -473,10 +508,41 @@ export class LocalRuntime implements Runtime {
   async deleteWorkspace(
     projectPath: string,
     workspaceName: string,
-    force: boolean
+    force: boolean,
+    _abortSignal?: AbortSignal
   ): Promise<{ success: true; deletedPath: string } | { success: false; error: string }> {
+    // Note: _abortSignal ignored for local operations (fast, no need for cancellation)
+
+    // In-place workspaces are identified by projectPath === workspaceName
+    // These are direct workspace directories (e.g., CLI/benchmark sessions), not git worktrees
+    const isInPlace = projectPath === workspaceName;
+
     // Compute workspace path using the canonical method
     const deletedPath = this.getWorkspacePath(projectPath, workspaceName);
+
+    // Check if directory exists - if not, operation is idempotent
+    try {
+      await fsPromises.access(deletedPath);
+    } catch {
+      // Directory doesn't exist - operation is idempotent
+      // For standard worktrees, prune stale git records (best effort)
+      if (!isInPlace) {
+        try {
+          using pruneProc = execAsync(`git -C "${projectPath}" worktree prune`);
+          await pruneProc.result;
+        } catch {
+          // Ignore prune errors - directory is already deleted, which is the goal
+        }
+      }
+      return { success: true, deletedPath };
+    }
+
+    // For in-place workspaces, there's no worktree to remove
+    // Just return success - the workspace directory itself should not be deleted
+    // as it may contain the user's actual project files
+    if (isInPlace) {
+      return { success: true, deletedPath };
+    }
 
     try {
       // Use git worktree remove to delete the worktree
@@ -491,6 +557,25 @@ export class LocalRuntime implements Runtime {
       return { success: true, deletedPath };
     } catch (error) {
       const message = getErrorMessage(error);
+
+      // Check if the error is due to missing/stale worktree
+      const normalizedError = message.toLowerCase();
+      const looksLikeMissingWorktree =
+        normalizedError.includes("not a working tree") ||
+        normalizedError.includes("does not exist") ||
+        normalizedError.includes("no such file");
+
+      if (looksLikeMissingWorktree) {
+        // Worktree records are stale - prune them
+        try {
+          using pruneProc = execAsync(`git -C "${projectPath}" worktree prune`);
+          await pruneProc.result;
+        } catch {
+          // Ignore prune errors
+        }
+        // Treat as success - workspace is gone (idempotent)
+        return { success: true, deletedPath };
+      }
 
       // If force is enabled and git worktree remove failed, fall back to rm -rf
       // This handles edge cases like submodules where git refuses to delete
@@ -519,6 +604,54 @@ export class LocalRuntime implements Runtime {
 
       // force=false - return the git error without attempting rm -rf
       return { success: false, error: `Failed to remove worktree: ${message}` };
+    }
+  }
+
+  async forkWorkspace(params: WorkspaceForkParams): Promise<WorkspaceForkResult> {
+    const { projectPath, sourceWorkspaceName, newWorkspaceName, initLogger } = params;
+
+    // Get source workspace path
+    const sourceWorkspacePath = this.getWorkspacePath(projectPath, sourceWorkspaceName);
+
+    // Get current branch from source workspace
+    try {
+      using proc = execAsync(`git -C "${sourceWorkspacePath}" branch --show-current`);
+      const { stdout } = await proc.result;
+      const sourceBranch = stdout.trim();
+
+      if (!sourceBranch) {
+        return {
+          success: false,
+          error: "Failed to detect branch in source workspace",
+        };
+      }
+
+      // Use createWorkspace with sourceBranch as trunk to fork from source branch
+      const createResult = await this.createWorkspace({
+        projectPath,
+        branchName: newWorkspaceName,
+        trunkBranch: sourceBranch, // Fork from source branch instead of main/master
+        directoryName: newWorkspaceName,
+        initLogger,
+      });
+
+      if (!createResult.success || !createResult.workspacePath) {
+        return {
+          success: false,
+          error: createResult.error ?? "Failed to create workspace",
+        };
+      }
+
+      return {
+        success: true,
+        workspacePath: createResult.workspacePath,
+        sourceBranch,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: getErrorMessage(error),
+      };
     }
   }
 }

@@ -16,6 +16,7 @@ import type { InitLogger } from "./Runtime";
  * @param process Child process to stream from
  * @param initLogger Logger to stream output to
  * @param options Configuration for which streams to log
+ * @returns Cleanup function to remove abort signal listener (call this in process close/error handlers)
  */
 export function streamProcessToLogger(
   process: ChildProcess,
@@ -27,13 +28,25 @@ export function streamProcessToLogger(
     logStderr?: boolean;
     /** Optional: Command string to log before streaming starts */
     command?: string;
+    /** Optional: Abort signal to kill process on cancellation */
+    abortSignal?: AbortSignal;
   }
-): void {
-  const { logStdout = false, logStderr = true, command } = options ?? {};
+): () => void {
+  const { logStdout = false, logStderr = true, command, abortSignal } = options ?? {};
 
   // Log the command being executed (if provided)
   if (command) {
     initLogger.logStep(`Executing: ${command}`);
+  }
+
+  // Set up abort signal handler
+  const abortHandler = abortSignal
+    ? () => {
+        process.kill();
+      }
+    : null;
+  if (abortHandler && abortSignal) {
+    abortSignal.addEventListener("abort", abortHandler);
   }
 
   // Drain stdout (prevent pipe overflow)
@@ -65,4 +78,11 @@ export function streamProcessToLogger(
       // Otherwise drain silently to prevent buffer overflow
     });
   }
+
+  // Return cleanup function to remove abort listener
+  return () => {
+    if (abortHandler && abortSignal) {
+      abortSignal.removeEventListener("abort", abortHandler);
+    }
+  };
 }

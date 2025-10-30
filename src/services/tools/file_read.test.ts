@@ -1,12 +1,12 @@
 import { describe, it, expect, beforeEach, afterEach } from "bun:test";
+import { LocalRuntime } from "@/runtime/LocalRuntime";
 import * as fs from "fs/promises";
 import * as path from "path";
 import * as os from "os";
 import { createFileReadTool } from "./file_read";
 import type { FileReadToolArgs, FileReadToolResult } from "@/types/tools";
 import type { ToolCallOptions } from "ai";
-import { TestTempDir } from "./testHelpers";
-import { createRuntime } from "@/runtime/runtimeFactory";
+import { TestTempDir, createTestToolConfig, getTestDeps } from "./testHelpers";
 
 // Mock ToolCallOptions for testing
 const mockToolCallOptions: ToolCallOptions = {
@@ -18,11 +18,9 @@ const mockToolCallOptions: ToolCallOptions = {
 // Returns both tool and disposable temp directory
 function createTestFileReadTool(options?: { cwd?: string }) {
   const tempDir = new TestTempDir("test-file-read");
-  const tool = createFileReadTool({
-    cwd: options?.cwd ?? process.cwd(),
-    runtime: createRuntime({ type: "local", srcBaseDir: "/tmp" }),
-    runtimeTempDir: tempDir.path,
-  });
+  const config = createTestToolConfig(options?.cwd ?? process.cwd());
+  config.runtimeTempDir = tempDir.path; // Override runtimeTempDir to use test's disposable temp dir
+  const tool = createFileReadTool(config);
 
   return {
     tool,
@@ -55,7 +53,7 @@ describe("file_read tool", () => {
     using testEnv = createTestFileReadTool({ cwd: testDir });
     const tool = testEnv.tool;
     const args: FileReadToolArgs = {
-      filePath: testFilePath,
+      filePath: "test.txt", // Use relative path
     };
 
     // Execute
@@ -78,7 +76,7 @@ describe("file_read tool", () => {
     using testEnv = createTestFileReadTool({ cwd: testDir });
     const tool = testEnv.tool;
     const args: FileReadToolArgs = {
-      filePath: testFilePath,
+      filePath: "test.txt", // Use relative path
       offset: 3, // Start from line 3
     };
 
@@ -101,7 +99,7 @@ describe("file_read tool", () => {
     using testEnv = createTestFileReadTool({ cwd: testDir });
     const tool = testEnv.tool;
     const args: FileReadToolArgs = {
-      filePath: testFilePath,
+      filePath: "test.txt", // Use relative path
       limit: 2, // Read only first 2 lines
     };
 
@@ -124,7 +122,7 @@ describe("file_read tool", () => {
     using testEnv = createTestFileReadTool({ cwd: testDir });
     const tool = testEnv.tool;
     const args: FileReadToolArgs = {
-      filePath: testFilePath,
+      filePath: "test.txt", // Use relative path
       offset: 2, // Start from line 2
       limit: 2, // Read 2 lines
     };
@@ -148,7 +146,7 @@ describe("file_read tool", () => {
     using testEnv = createTestFileReadTool({ cwd: testDir });
     const tool = testEnv.tool;
     const args: FileReadToolArgs = {
-      filePath: testFilePath,
+      filePath: "test.txt", // Use relative path
     };
 
     // Execute
@@ -169,7 +167,7 @@ describe("file_read tool", () => {
     using testEnv = createTestFileReadTool({ cwd: testDir });
     const tool = testEnv.tool;
     const args: FileReadToolArgs = {
-      filePath: testFilePath,
+      filePath: "test.txt", // Use relative path
     };
 
     // Execute
@@ -185,12 +183,10 @@ describe("file_read tool", () => {
 
   it("should fail when file does not exist", async () => {
     // Setup
-    const nonExistentPath = path.join(testDir, "nonexistent.txt");
-
     using testEnv = createTestFileReadTool({ cwd: testDir });
     const tool = testEnv.tool;
     const args: FileReadToolArgs = {
-      filePath: nonExistentPath,
+      filePath: "nonexistent.txt", // Use relative path
     };
 
     // Execute
@@ -211,7 +207,7 @@ describe("file_read tool", () => {
     using testEnv = createTestFileReadTool({ cwd: testDir });
     const tool = testEnv.tool;
     const args: FileReadToolArgs = {
-      filePath: testFilePath,
+      filePath: "test.txt", // Use relative path
       offset: 10, // Beyond file length
     };
 
@@ -234,7 +230,7 @@ describe("file_read tool", () => {
     using testEnv = createTestFileReadTool({ cwd: testDir });
     const tool = testEnv.tool;
     const args: FileReadToolArgs = {
-      filePath: testFilePath,
+      filePath: "test.txt", // Use relative path
     };
 
     // Execute
@@ -261,7 +257,7 @@ describe("file_read tool", () => {
     using testEnv = createTestFileReadTool({ cwd: testDir });
     const tool = testEnv.tool;
     const args: FileReadToolArgs = {
-      filePath: testFilePath,
+      filePath: "test.txt", // Use relative path
     };
 
     // Execute
@@ -285,7 +281,7 @@ describe("file_read tool", () => {
     using testEnv = createTestFileReadTool({ cwd: testDir });
     const tool = testEnv.tool;
     const args: FileReadToolArgs = {
-      filePath: testFilePath,
+      filePath: "test.txt", // Use relative path
     };
 
     // Execute
@@ -308,7 +304,7 @@ describe("file_read tool", () => {
     using testEnv = createTestFileReadTool({ cwd: testDir });
     const tool = testEnv.tool;
     const args: FileReadToolArgs = {
-      filePath: testFilePath,
+      filePath: "test.txt", // Use relative path
       limit: 500, // Read only 500 lines
     };
 
@@ -319,6 +315,29 @@ describe("file_read tool", () => {
     expect(result.success).toBe(true);
     if (result.success) {
       expect(result.lines_read).toBe(500);
+    }
+  });
+
+  it("should reject absolute paths containing the workspace directory", async () => {
+    // Setup
+    const content = "test content";
+    await fs.writeFile(testFilePath, content);
+
+    using testEnv = createTestFileReadTool({ cwd: testDir });
+    const tool = testEnv.tool;
+    const args: FileReadToolArgs = {
+      filePath: testFilePath, // Absolute path containing cwd prefix
+    };
+
+    // Execute
+    const result = (await tool.execute!(args, mockToolCallOptions)) as FileReadToolResult;
+
+    // Assert
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error).toContain("Redundant path prefix detected");
+      expect(result.error).toContain("Please use relative paths to save tokens");
+      expect(result.error).toContain("test.txt"); // Should suggest the relative path
     }
   });
 
@@ -333,8 +352,9 @@ describe("file_read tool", () => {
 
     // Try to read file outside cwd by going up
     const tool = createFileReadTool({
+      ...getTestDeps(),
       cwd: subDir,
-      runtime: createRuntime({ type: "local", srcBaseDir: "/tmp" }),
+      runtime: new LocalRuntime(process.cwd()),
       runtimeTempDir: "/tmp",
     });
     const args: FileReadToolArgs = {

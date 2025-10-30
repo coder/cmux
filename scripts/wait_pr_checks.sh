@@ -28,9 +28,18 @@ CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
 REMOTE_BRANCH=$(git rev-parse --abbrev-ref --symbolic-full-name '@{u}' 2>/dev/null || echo "")
 
 if [[ -z "$REMOTE_BRANCH" ]]; then
-  echo "❌ Error: Current branch '$CURRENT_BRANCH' has no upstream branch." >&2
-  echo "Set an upstream with: git push -u origin $CURRENT_BRANCH" >&2
-  exit 1
+  echo "⚠️  Current branch '$CURRENT_BRANCH' has no upstream branch." >&2
+  echo "Setting upstream to origin/$CURRENT_BRANCH..." >&2
+
+  # Try to set upstream
+  if git push -u origin "$CURRENT_BRANCH" 2>&1; then
+    echo "✅ Upstream set successfully!" >&2
+    REMOTE_BRANCH="origin/$CURRENT_BRANCH"
+  else
+    echo "❌ Error: Failed to set upstream branch." >&2
+    echo "You may need to push manually: git push -u origin $CURRENT_BRANCH" >&2
+    exit 1
+  fi
 fi
 
 # Check if local and remote are in sync

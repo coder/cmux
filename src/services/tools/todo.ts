@@ -1,10 +1,11 @@
 import { tool } from "ai";
-import * as fs from "fs/promises";
 import * as path from "path";
+import type { Runtime } from "@/runtime/Runtime";
 import type { ToolFactory } from "@/utils/tools/tools";
 import { TOOL_DEFINITIONS } from "@/utils/tools/toolDefinitions";
 import type { TodoItem } from "@/types/tools";
 import { MAX_TODOS } from "@/constants/toolLimits";
+import { readFileString, writeFileString, execBuffered } from "@/utils/runtime/helpers";
 
 /**
  * Get path to todos.json file in the stream's temporary directory
@@ -14,12 +15,12 @@ function getTodoFilePath(tempDir: string): string {
 }
 
 /**
- * Read todos from filesystem
+ * Read todos from filesystem using runtime abstraction
  */
-async function readTodos(tempDir: string): Promise<TodoItem[]> {
+async function readTodos(runtime: Runtime, tempDir: string): Promise<TodoItem[]> {
   const todoFile = getTodoFilePath(tempDir);
   try {
-    const content = await fs.readFile(todoFile, "utf-8");
+    const content = await readFileString(runtime, todoFile);
     return JSON.parse(content) as TodoItem[];
   } catch {
     // File doesn't exist yet or is invalid
@@ -99,12 +100,14 @@ function validateTodos(todos: TodoItem[]): void {
 }
 
 /**
- * Write todos to filesystem
+ * Write todos to filesystem using runtime abstraction
  */
-async function writeTodos(tempDir: string, todos: TodoItem[]): Promise<void> {
+async function writeTodos(runtime: Runtime, tempDir: string, todos: TodoItem[]): Promise<void> {
   validateTodos(todos);
   const todoFile = getTodoFilePath(tempDir);
-  await fs.writeFile(todoFile, JSON.stringify(todos, null, 2), "utf-8");
+  // Ensure directory exists before writing (SSH runtime might not have created it yet)
+  await execBuffered(runtime, `mkdir -p "${tempDir}"`, { cwd: "/", timeout: 10 });
+  await writeFileString(runtime, todoFile, JSON.stringify(todos, null, 2));
 }
 
 /**
@@ -116,7 +119,7 @@ export const createTodoWriteTool: ToolFactory = (config) => {
     description: TOOL_DEFINITIONS.todo_write.description,
     inputSchema: TOOL_DEFINITIONS.todo_write.schema,
     execute: async ({ todos }) => {
-      await writeTodos(config.runtimeTempDir, todos);
+      await writeTodos(config.runtime, config.runtimeTempDir, todos);
       return {
         success: true as const,
         count: todos.length,
@@ -134,7 +137,7 @@ export const createTodoReadTool: ToolFactory = (config) => {
     description: TOOL_DEFINITIONS.todo_read.description,
     inputSchema: TOOL_DEFINITIONS.todo_read.schema,
     execute: async () => {
-      const todos = await readTodos(config.runtimeTempDir);
+      const todos = await readTodos(config.runtime, config.runtimeTempDir);
       return {
         todos,
       };
@@ -145,24 +148,28 @@ export const createTodoReadTool: ToolFactory = (config) => {
 /**
  * Set todos for a temp directory (useful for testing)
  */
-export async function setTodosForTempDir(tempDir: string, todos: TodoItem[]): Promise<void> {
-  await writeTodos(tempDir, todos);
+export async function setTodosForTempDir(
+  runtime: Runtime,
+  tempDir: string,
+  todos: TodoItem[]
+): Promise<void> {
+  await writeTodos(runtime, tempDir, todos);
 }
 
 /**
  * Get todos for a temp directory (useful for testing)
  */
-export async function getTodosForTempDir(tempDir: string): Promise<TodoItem[]> {
-  return readTodos(tempDir);
+export async function getTodosForTempDir(runtime: Runtime, tempDir: string): Promise<TodoItem[]> {
+  return readTodos(runtime, tempDir);
 }
 
 /**
  * Clear todos for a temp directory (useful for testing and cleanup)
  */
-export async function clearTodosForTempDir(tempDir: string): Promise<void> {
+export async function clearTodosForTempDir(runtime: Runtime, tempDir: string): Promise<void> {
   const todoFile = getTodoFilePath(tempDir);
   try {
-    await fs.unlink(todoFile);
+    await execBuffered(runtime, `rm -f "${todoFile}"`, { cwd: "/", timeout: 10 });
   } catch {
     // File doesn't exist, nothing to clear
   }

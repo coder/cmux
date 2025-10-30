@@ -9,7 +9,7 @@ import { usePersistedState, updatePersistedState } from "@/hooks/usePersistedSta
 import { useMode } from "@/contexts/ModeContext";
 import { ChatToggles } from "./ChatToggles";
 import { useSendMessageOptions } from "@/hooks/useSendMessageOptions";
-import { getModelKey, getInputKey } from "@/constants/storage";
+import { getModelKey, getInputKey, VIM_ENABLED_KEY } from "@/constants/storage";
 import {
   handleNewCommand,
   handleCompactCommand,
@@ -95,6 +95,9 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   const { recentModels, addModel } = useModelLRU();
   const commandListId = useId();
   const telemetry = useTelemetry();
+  const [vimEnabled, setVimEnabled] = usePersistedState<boolean>(VIM_ENABLED_KEY, false, {
+    listener: true,
+  });
 
   // Get current send message options from shared hook (must be at component top level)
   const sendMessageOptions = useSendMessageOptions(workspaceId);
@@ -423,6 +426,13 @@ export const ChatInput: React.FC<ChatInputProps> = ({
           return;
         }
 
+        // Handle /vim command
+        if (parsed.type === "vim-toggle") {
+          setInput(""); // Clear input immediately
+          setVimEnabled((prev) => !prev);
+          return;
+        }
+
         // Handle /telemetry command
         if (parsed.type === "telemetry-set") {
           setInput(""); // Clear input immediately
@@ -528,6 +538,9 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       // Regular message - send directly via API
       setIsSending(true);
 
+      // Save current state for restoration on error
+      const previousImageAttachments = [...imageAttachments];
+
       try {
         // Prepare image parts if any
         const imageParts = imageAttachments.map((img, index) => {
@@ -583,6 +596,15 @@ export const ChatInput: React.FC<ChatInputProps> = ({
           }
         }
 
+        // Clear input and images immediately for responsive UI
+        // These will be restored if the send operation fails
+        setInput("");
+        setImageAttachments([]);
+        // Reset textarea height
+        if (inputRef.current) {
+          inputRef.current.style.height = "36px";
+        }
+
         const result = await window.api.workspace.sendMessage(workspaceId, actualMessageText, {
           ...sendMessageOptions,
           ...compactionOptions,
@@ -596,19 +618,13 @@ export const ChatInput: React.FC<ChatInputProps> = ({
           console.error("Failed to send message:", result.error);
           // Show error using enhanced toast
           setToast(createErrorToast(result.error));
-          // Restore input on error so user can try again
+          // Restore input and images on error so user can try again
           setInput(messageText);
+          setImageAttachments(previousImageAttachments);
         } else {
           // Track telemetry for successful message send
           telemetry.messageSent(sendMessageOptions.model, mode, actualMessageText.length);
 
-          // Success - clear input and images
-          setInput("");
-          setImageAttachments([]);
-          // Reset textarea height
-          if (inputRef.current) {
-            inputRef.current.style.height = "36px";
-          }
           // Exit editing mode if we were editing
           if (editingMessage && onCancelEdit) {
             onCancelEdit();
@@ -625,6 +641,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
           })
         );
         setInput(messageText);
+        setImageAttachments(previousImageAttachments);
       } finally {
         setIsSending(false);
       }
@@ -699,6 +716,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     }
     hints.push(`${formatKeybind(KEYBINDS.SEND_MESSAGE)} to send`);
     hints.push(`${formatKeybind(KEYBINDS.OPEN_MODEL_SELECTOR)} to change model`);
+    hints.push(`/vim to toggle Vim mode (${vimEnabled ? "on" : "off"})`);
 
     return `Type a message... (${hints.join(", ")})`;
   })();

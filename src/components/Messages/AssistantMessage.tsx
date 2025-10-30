@@ -11,6 +11,7 @@ import { ModelDisplay } from "./ModelDisplay";
 import { CompactingMessageContent } from "./CompactingMessageContent";
 import { CompactionBackground } from "./CompactionBackground";
 import type { KebabMenuItem } from "@/components/KebabMenu";
+import { copyToClipboard } from "@/utils/clipboard";
 
 interface AssistantMessageProps {
   message: DisplayedMessage & { type: "assistant" };
@@ -25,7 +26,7 @@ export const AssistantMessage: React.FC<AssistantMessageProps> = ({
   className,
   workspaceId,
   isCompacting = false,
-  clipboardWriteText = (data: string) => navigator.clipboard.writeText(data),
+  clipboardWriteText = copyToClipboard,
 }) => {
   const [showRaw, setShowRaw] = useState(false);
 

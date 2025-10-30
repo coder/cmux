@@ -11,7 +11,9 @@ import {
   BASH_HARD_MAX_LINES,
   BASH_MAX_LINE_BYTES,
   BASH_MAX_TOTAL_BYTES,
+  STATUS_MESSAGE_MAX_LENGTH,
 } from "@/constants/toolLimits";
+import { TOOL_EDIT_WARNING } from "@/types/tools";
 
 import { zodToJsonSchema } from "zod-to-json-schema";
 
@@ -68,7 +70,8 @@ export const TOOL_DEFINITIONS = {
   },
   file_edit_replace_string: {
     description:
-      "Apply one or more edits to a file by replacing exact text matches. All edits are applied sequentially. Each old_string must be unique in the file unless replace_count > 1 or replace_count is -1.",
+      "Apply one or more edits to a file by replacing exact text matches. All edits are applied sequentially. Each old_string must be unique in the file unless replace_count > 1 or replace_count is -1. " +
+      `IMPORTANT: Edits may fail if old_string is not found or not unique. ${TOOL_EDIT_WARNING}`,
     schema: z.object({
       file_path: z.string().describe("The absolute path to the file to edit"),
       old_string: z
@@ -88,7 +91,8 @@ export const TOOL_DEFINITIONS = {
   },
   file_edit_replace_lines: {
     description:
-      "Replace a range of lines in a file. Use this for line-based edits when you know the exact line numbers to modify.",
+      "Replace a range of lines in a file. Use this for line-based edits when you know the exact line numbers to modify. " +
+      `IMPORTANT: Edits may fail if line numbers are invalid or file content has changed. ${TOOL_EDIT_WARNING}`,
     schema: z.object({
       file_path: z.string().describe("The absolute path to the file to edit"),
       start_line: z.number().int().min(1).describe("1-indexed start line (inclusive) to replace"),
@@ -106,7 +110,8 @@ export const TOOL_DEFINITIONS = {
   },
   file_edit_insert: {
     description:
-      "Insert content at a specific line position in a file. Line offset is 1-indexed: 0 inserts at the top, 1 inserts after line 1, etc.",
+      "Insert content at a specific line position in a file. Line offset is 1-indexed: 0 inserts at the top, 1 inserts after line 1, etc. " +
+      `IMPORTANT: Edits may fail if line_offset is invalid or file doesn't exist. ${TOOL_EDIT_WARNING}`,
     schema: z.object({
       file_path: z.string().describe("The absolute path to the file to edit"),
       line_offset: z
@@ -144,26 +149,20 @@ export const TOOL_DEFINITIONS = {
   todo_write: {
     description:
       "Create or update the todo list for tracking multi-step tasks (limit: 7 items). " +
-      "Use this for ALL complex, multi-step plans to keep the user informed of progress. " +
-      "Replace the entire list on each call - the AI should track which tasks are completed. " +
-      "\n\n" +
-      "Structure the list with high precision at the center:\n" +
-      "- Old completed work: Summarize into 1 overview item (e.g., 'Set up project infrastructure (4 tasks)')\n" +
-      "- Recent completions: Keep detailed (last 1-2 items)\n" +
-      "- Current work: One in_progress item with clear description\n" +
-      "- Immediate next steps: Detailed pending items (next 2-3 actions)\n" +
-      "- Far future work: Summarize into phase items (e.g., 'Testing and polish (3 items)')\n" +
+      "The TODO list is displayed to the user at all times. " +
+      "Replace the entire list on each call - the AI tracks which tasks are completed.\n" +
       "\n" +
-      "Update frequently as work progresses. As tasks complete, older completions should be " +
-      "condensed to make room. Similarly, summarized future work expands into detailed items " +
-      "as it becomes immediate. " +
-      "\n\n" +
       "Mark ONE task as in_progress at a time. " +
       "Order tasks as: completed first, then in_progress (max 1), then pending last. " +
-      "Before finishing your response, ensure all todos are marked as completed. " +
       "Use appropriate tense in content: past tense for completed (e.g., 'Added tests'), " +
       "present progressive for in_progress (e.g., 'Adding tests'), " +
-      "and imperative/infinitive for pending (e.g., 'Add tests').",
+      "and imperative/infinitive for pending (e.g., 'Add tests').\n" +
+      "\n" +
+      "If you hit the 7-item limit, summarize older completed items into one line " +
+      "(e.g., 'Completed initial setup (3 tasks)').\n" +
+      "\n" +
+      "Update the list as work progresses. If work fails or the approach changes, update " +
+      "the list to reflect reality - only mark tasks complete when they actually succeed.",
     schema: z.object({
       todos: z.array(
         z.object({
@@ -180,6 +179,30 @@ export const TOOL_DEFINITIONS = {
   todo_read: {
     description: "Read the current todo list",
     schema: z.object({}),
+  },
+  status_set: {
+    description:
+      "Set a status indicator to show what Assistant is currently doing. The status is set IMMEDIATELY \n" +
+      "when this tool is called, even before other tool calls complete.\n" +
+      "\n" +
+      "WHEN TO SET STATUS:\n" +
+      "- Set status when beginning concrete work (file edits, running tests, executing commands)\n" +
+      "- Update status as work progresses through distinct phases\n" +
+      "- Set a final status after completion, only claim success when certain (e.g., after confirming checks passed)\n" +
+      "- DO NOT set status during initial exploration, file reading, or planning phases\n" +
+      "\n" +
+      "The status is cleared when a new user message comes in. Validate your approach is feasible \n" +
+      "before setting status - failed tool calls after setting status indicate premature commitment.",
+    schema: z
+      .object({
+        emoji: z.string().describe("A single emoji character representing the current activity"),
+        message: z
+          .string()
+          .describe(
+            `A brief description of the current activity (auto-truncated to ${STATUS_MESSAGE_MAX_LENGTH} chars with ellipsis if needed)`
+          ),
+      })
+      .strict(),
   },
 } as const;
 
@@ -220,6 +243,7 @@ export function getAvailableTools(modelString: string): string[] {
     "propose_plan",
     "todo_write",
     "todo_read",
+    "status_set",
   ];
 
   // Add provider-specific tools

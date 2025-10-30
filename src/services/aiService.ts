@@ -12,6 +12,7 @@ import type { CmuxMessage, CmuxTextPart } from "@/types/message";
 import { createCmuxMessage } from "@/types/message";
 import type { Config } from "@/config";
 import { StreamManager } from "./streamManager";
+import type { InitStateManager } from "./initStateManager";
 import type { SendMessageError } from "@/types/errors";
 import { getToolsForModel } from "@/utils/tools/tools";
 import { createRuntime } from "@/runtime/runtimeFactory";
@@ -108,10 +109,16 @@ export class AIService extends EventEmitter {
   private readonly historyService: HistoryService;
   private readonly partialService: PartialService;
   private readonly config: Config;
+  private readonly initStateManager: InitStateManager;
   private readonly mockModeEnabled: boolean;
   private readonly mockScenarioPlayer?: MockScenarioPlayer;
 
-  constructor(config: Config, historyService: HistoryService, partialService: PartialService) {
+  constructor(
+    config: Config,
+    historyService: HistoryService,
+    partialService: PartialService,
+    initStateManager: InitStateManager
+  ) {
     super();
     // Increase max listeners to accommodate multiple concurrent workspace listeners
     // Each workspace subscribes to stream events, and we expect >10 concurrent workspaces
@@ -119,6 +126,7 @@ export class AIService extends EventEmitter {
     this.config = config;
     this.historyService = historyService;
     this.partialService = partialService;
+    this.initStateManager = initStateManager;
     this.streamManager = new StreamManager(historyService, partialService);
     void this.ensureSessionsDir();
     this.setupStreamEventForwarding();
@@ -423,12 +431,17 @@ export class AIService extends EventEmitter {
 
       // Get tool names early for mode transition sentinel (stub config, no workspace context needed)
       const earlyRuntime = createRuntime({ type: "local", srcBaseDir: process.cwd() });
-      const earlyAllTools = await getToolsForModel(modelString, {
-        cwd: process.cwd(),
-        runtime: earlyRuntime,
-        runtimeTempDir: os.tmpdir(),
-        secrets: {},
-      });
+      const earlyAllTools = await getToolsForModel(
+        modelString,
+        {
+          cwd: process.cwd(),
+          runtime: earlyRuntime,
+          runtimeTempDir: os.tmpdir(),
+          secrets: {},
+        },
+        "", // Empty workspace ID for early stub config
+        this.initStateManager
+      );
       const earlyTools = applyToolPolicy(earlyAllTools, toolPolicy);
       const toolNamesForSentinel = Object.keys(earlyTools);
 
@@ -506,11 +519,16 @@ export class AIService extends EventEmitter {
         return Err({ type: "unknown", raw: `Workspace ${workspaceId} not found in config` });
       }
 
-      // Get workspace path (directory name uses workspace name)
+      // Get workspace path - handle both worktree and in-place modes
       const runtime = createRuntime(
         metadata.runtimeConfig ?? { type: "local", srcBaseDir: this.config.srcDir }
       );
-      const workspacePath = runtime.getWorkspacePath(metadata.projectPath, metadata.name);
+      // In-place workspaces (CLI/benchmarks) have projectPath === name
+      // Use path directly instead of reconstructing via getWorkspacePath
+      const isInPlace = metadata.projectPath === metadata.name;
+      const workspacePath = isInPlace
+        ? metadata.projectPath
+        : runtime.getWorkspacePath(metadata.projectPath, metadata.name);
 
       // Build system message from workspace metadata
       const systemMessage = await buildSystemMessage(
@@ -533,12 +551,17 @@ export class AIService extends EventEmitter {
       const runtimeTempDir = await this.streamManager.createTempDirForStream(streamToken, runtime);
 
       // Get model-specific tools with workspace path (correct for local or remote)
-      const allTools = await getToolsForModel(modelString, {
-        cwd: workspacePath,
-        runtime,
-        secrets: secretsToRecord(projectSecrets),
-        runtimeTempDir,
-      });
+      const allTools = await getToolsForModel(
+        modelString,
+        {
+          cwd: workspacePath,
+          runtime,
+          secrets: secretsToRecord(projectSecrets),
+          runtimeTempDir,
+        },
+        workspaceId,
+        this.initStateManager
+      );
 
       // Apply tool policy to filter tools (if policy provided)
       const tools = applyToolPolicy(allTools, toolPolicy);

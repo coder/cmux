@@ -2,7 +2,7 @@ import { tool } from "ai";
 import type { FileReadToolResult } from "@/types/tools";
 import type { ToolConfiguration, ToolFactory } from "@/utils/tools/tools";
 import { TOOL_DEFINITIONS } from "@/utils/tools/toolDefinitions";
-import { validatePathInCwd, validateFileSize } from "./fileCommon";
+import { validatePathInCwd, validateFileSize, validateNoRedundantPrefix } from "./fileCommon";
 import { RuntimeError } from "@/runtime/Runtime";
 import { readFileString } from "@/utils/runtime/helpers";
 
@@ -20,7 +20,21 @@ export const createFileReadTool: ToolFactory = (config: ToolConfiguration) => {
       { abortSignal: _abortSignal }
     ): Promise<FileReadToolResult> => {
       // Note: abortSignal available but not used - file reads are fast and complete quickly
+
       try {
+        // Validate no redundant path prefix (must come first to catch absolute paths)
+        const redundantPrefixValidation = validateNoRedundantPrefix(
+          filePath,
+          config.cwd,
+          config.runtime
+        );
+        if (redundantPrefixValidation) {
+          return {
+            success: false,
+            error: redundantPrefixValidation.error,
+          };
+        }
+
         // Validate that the path is within the working directory
         const pathValidation = validatePathInCwd(filePath, config.cwd, config.runtime);
         if (pathValidation) {
