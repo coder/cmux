@@ -192,7 +192,12 @@ export const TOOL_DEFINITIONS = {
       "- DO NOT set status during initial exploration, file reading, or planning phases\n" +
       "\n" +
       "The status is cleared when a new user message comes in. Validate your approach is feasible \n" +
-      "before setting status - failed tool calls after setting status indicate premature commitment.",
+      "before setting status - failed tool calls after setting status indicate premature commitment.\n" +
+      "\n" +
+      "URL PARAMETER:\n" +
+      "- Optional 'url' parameter links to external resources (e.g., PR URL: 'https://github.com/owner/repo/pull/123')\n" +
+      "- Prefer stable URLs that don't change often - saving the same URL twice is a no-op\n" +
+      "- URL persists until replaced by a new status with a different URL",
     schema: z
       .object({
         emoji: z.string().describe("A single emoji character representing the current activity"),
@@ -200,6 +205,13 @@ export const TOOL_DEFINITIONS = {
           .string()
           .describe(
             `A brief description of the current activity (auto-truncated to ${STATUS_MESSAGE_MAX_LENGTH} chars with ellipsis if needed)`
+          ),
+        url: z
+          .string()
+          .url()
+          .optional()
+          .describe(
+            "Optional URL to external resource with more details (e.g., Pull Request URL). The URL persists and is displayed to the user for easy access."
           ),
       })
       .strict(),

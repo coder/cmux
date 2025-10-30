@@ -11,7 +11,7 @@ import type {
   ReasoningDeltaEvent,
   ReasoningEndEvent,
 } from "@/types/stream";
-import type { TodoItem } from "@/types/tools";
+import type { TodoItem, StatusSetToolResult } from "@/types/tools";
 
 import type { WorkspaceChatMessage, StreamErrorMessage, DeleteMessage } from "@/types/ipc";
 import { isInitStart, isInitOutput, isInitEnd, isCmuxMessage } from "@/types/ipc";
@@ -71,7 +71,11 @@ export class StreamingMessageAggregator {
 
   // Current agent status (updated when status_set is called)
   // Unlike todos, this persists after stream completion to show last activity
-  private agentStatus: { emoji: string; message: string } | undefined = undefined;
+  private agentStatus: { emoji: string; message: string; url?: string } | undefined = undefined;
+
+  // Last URL set via status_set - persists even when agentStatus is cleared
+  // This ensures URL stays available across stream boundaries
+  private lastStatusUrl: string | undefined = undefined;
 
   // Workspace init hook state (ephemeral, not persisted to history)
   private initState: {
@@ -143,7 +147,7 @@ export class StreamingMessageAggregator {
    * Updated whenever status_set is called.
    * Persists after stream completion (unlike todos).
    */
-  getAgentStatus(): { emoji: string; message: string } | undefined {
+  getAgentStatus(): { emoji: string; message: string; url?: string } | undefined {
     return this.agentStatus;
   }
 
@@ -522,8 +526,19 @@ export class StreamingMessageAggregator {
     // Update agent status if this was a successful status_set
     // Use output instead of input to get the truncated message
     if (toolName === "status_set" && hasSuccessResult(output)) {
-      const result = output as { success: true; emoji: string; message: string };
-      this.agentStatus = { emoji: result.emoji, message: result.message };
+      const result = output as Extract<StatusSetToolResult, { success: true }>;
+
+      // Update lastStatusUrl if a new URL is provided
+      if (result.url) {
+        this.lastStatusUrl = result.url;
+      }
+
+      // Use the provided URL, or fall back to the last URL ever set
+      this.agentStatus = {
+        emoji: result.emoji,
+        message: result.message,
+        url: result.url ?? this.lastStatusUrl,
+      };
     }
   }
 

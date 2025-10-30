@@ -191,4 +191,55 @@ describe("status_set tool validation", () => {
       expect(result.success).toBe(true);
     });
   });
+
+  describe("url parameter", () => {
+    it("should accept valid URLs", async () => {
+      const tool = createStatusSetTool(mockConfig);
+
+      const validUrls = [
+        "https://github.com/owner/repo/pull/123",
+        "http://example.com",
+        "https://example.com/path/to/resource?query=param",
+      ];
+
+      for (const url of validUrls) {
+        const result = (await tool.execute!(
+          { emoji: "🔍", message: "Test", url },
+          mockToolCallOptions
+        )) as {
+          success: boolean;
+          url: string;
+        };
+        expect(result.success).toBe(true);
+        expect(result.url).toBe(url);
+      }
+    });
+
+    it("should work without URL parameter", async () => {
+      const tool = createStatusSetTool(mockConfig);
+
+      const result = (await tool.execute!(
+        { emoji: "✅", message: "Test" },
+        mockToolCallOptions
+      )) as {
+        success: boolean;
+        url?: string;
+      };
+      expect(result.success).toBe(true);
+      expect(result.url).toBeUndefined();
+    });
+
+    it("should omit URL from result when undefined", async () => {
+      const tool = createStatusSetTool(mockConfig);
+
+      const result = (await tool.execute!(
+        { emoji: "✅", message: "Test", url: undefined },
+        mockToolCallOptions
+      )) as {
+        success: boolean;
+      };
+      expect(result.success).toBe(true);
+      expect("url" in result).toBe(false);
+    });
+  });
 });

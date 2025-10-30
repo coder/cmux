@@ -183,6 +183,7 @@ export interface TodoWriteToolResult {
 export interface StatusSetToolArgs {
   emoji: string;
   message: string;
+  url?: string;
 }
 
 export type StatusSetToolResult =
@@ -190,6 +191,7 @@ export type StatusSetToolResult =
       success: true;
       emoji: string;
       message: string;
+      url?: string;
     }
   | {
       success: false;

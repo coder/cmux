@@ -2,20 +2,7 @@ import { tool } from "ai";
 import type { ToolFactory } from "@/utils/tools/tools";
 import { TOOL_DEFINITIONS } from "@/utils/tools/toolDefinitions";
 import { STATUS_MESSAGE_MAX_LENGTH } from "@/constants/toolLimits";
-
-/**
- * Result type for status_set tool
- */
-export type StatusSetToolResult =
-  | {
-      success: true;
-      emoji: string;
-      message: string;
-    }
-  | {
-      success: false;
-      error: string;
-    };
+import type { StatusSetToolResult } from "@/types/tools";
 
 /**
  * Validates that a string is a single emoji character
@@ -65,7 +52,7 @@ export const createStatusSetTool: ToolFactory = () => {
   return tool({
     description: TOOL_DEFINITIONS.status_set.description,
     inputSchema: TOOL_DEFINITIONS.status_set.schema,
-    execute: ({ emoji, message }): Promise<StatusSetToolResult> => {
+    execute: ({ emoji, message, url }): Promise<StatusSetToolResult> => {
       // Validate emoji
       if (!isValidEmoji(emoji)) {
         return Promise.resolve({
@@ -83,6 +70,7 @@ export const createStatusSetTool: ToolFactory = () => {
         success: true,
         emoji,
         message: truncatedMessage,
+        ...(url && { url }),
       });
     },
   });
