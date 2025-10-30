@@ -13,10 +13,10 @@ export interface PathValidationResult {
 
 /**
  * Expand tilde (~) in paths to the user's home directory
- * 
+ *
  * @param inputPath - Path that may contain tilde
  * @returns Path with tilde expanded to home directory
- * 
+ *
  * @example
  * expandTilde("~/Documents") // => "/home/user/Documents"
  * expandTilde("~") // => "/home/user"
@@ -41,21 +41,21 @@ export function expandTilde(inputPath: string): string {
 /**
  * Validate that a project path exists and is a directory
  * Automatically expands tilde and normalizes the path
- * 
+ *
  * @param inputPath - Path to validate (may contain tilde)
  * @returns Validation result with expanded path or error
- * 
+ *
  * @example
  * validateProjectPath("~/my-project")
  * // => { valid: true, expandedPath: "/home/user/my-project" }
- * 
+ *
  * validateProjectPath("~/nonexistent")
  * // => { valid: false, error: "Path does not exist: /home/user/nonexistent" }
  */
 export function validateProjectPath(inputPath: string): PathValidationResult {
   // Expand tilde if present
   const expandedPath = expandTilde(inputPath);
-  
+
   // Normalize to resolve any .. or . in the path
   const normalizedPath = path.normalize(expandedPath);
 
@@ -83,4 +83,3 @@ export function validateProjectPath(inputPath: string): PathValidationResult {
     expandedPath: normalizedPath,
   };
 }
-

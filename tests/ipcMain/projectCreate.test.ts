@@ -1,6 +1,6 @@
 /**
  * Integration tests for PROJECT_CREATE IPC handler
- * 
+ *
  * Tests:
  * - Tilde expansion in project paths
  * - Path validation (existence, directory check)
@@ -28,7 +28,10 @@ describeIntegration("PROJECT_CREATE IPC Handler", () => {
     try {
       // Try to create project with tilde path
       const tildeProjectPath = `~/${testDirName}`;
-      const result = await env.mockIpcRenderer.invoke(IPC_CHANNELS.PROJECT_CREATE, tildeProjectPath);
+      const result = await env.mockIpcRenderer.invoke(
+        IPC_CHANNELS.PROJECT_CREATE,
+        tildeProjectPath
+      );
 
       // Should succeed
       expect(result.success).toBe(true);
@@ -36,7 +39,7 @@ describeIntegration("PROJECT_CREATE IPC Handler", () => {
       // Verify the project was added with expanded path (not tilde path)
       const projectsList = await env.mockIpcRenderer.invoke(IPC_CHANNELS.PROJECT_LIST);
       const projectPaths = projectsList.map((p: [string, unknown]) => p[0]);
-      
+
       // Should contain the expanded path
       expect(projectPaths).toContain(homeProjectPath);
       // Should NOT contain the tilde path
@@ -145,4 +148,3 @@ describeIntegration("PROJECT_CREATE IPC Handler", () => {
     await fs.rm(tempProjectDir, { recursive: true, force: true });
   });
 });
-

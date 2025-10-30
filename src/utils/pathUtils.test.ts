@@ -80,7 +80,7 @@ describe("pathUtils", () => {
       const filePath = path.join(tempDir, "test-file.txt");
       // eslint-disable-next-line local/no-sync-fs-methods -- Test setup only
       fs.writeFileSync(filePath, "test content");
-      
+
       const result = validateProjectPath(filePath);
       expect(result.valid).toBe(false);
       expect(result.error).toContain("not a directory");
@@ -101,4 +101,3 @@ describe("pathUtils", () => {
     });
   });
 });
-
