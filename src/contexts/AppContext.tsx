@@ -15,6 +15,8 @@ interface AppContextType {
   setProjects: Dispatch<SetStateAction<Map<string, ProjectConfig>>>;
   addProject: () => Promise<void>;
   removeProject: (path: string) => Promise<void>;
+  projectError: string | null;
+  clearProjectError: () => void;
 
   // Workspaces
   workspaceMetadata: Map<string, FrontendWorkspaceMetadata>;
