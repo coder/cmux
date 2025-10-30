@@ -1,48 +1,33 @@
-import React, { useState, useCallback, useEffect, useRef } from "react";
+import React, { useState, useCallback } from "react";
 import { Modal, ModalActions, CancelButton, PrimaryButton } from "./Modal";
+import type { ProjectConfig } from "@/config";
+
+interface ProjectCreateModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onSuccess: (normalizedPath: string, projectConfig: ProjectConfig) => void;
+}
 
 /**
  * Project creation modal that handles the full flow from path input to backend validation.
  *
- * Listens for 'directory-select-request' custom events, displays a modal
- * for path input, calls the backend to create the project, and shows
- * validation errors inline. Modal stays open until project is successfully
- * created or user cancels.
+ * Displays a modal for path input, calls the backend to create the project, and shows
+ * validation errors inline. Modal stays open until project is successfully created or user cancels.
  */
-export const ProjectCreateModal: React.FC = () => {
-  const [isOpen, setIsOpen] = useState(false);
+export const ProjectCreateModal: React.FC<ProjectCreateModalProps> = ({
+  isOpen,
+  onClose,
+  onSuccess,
+}) => {
   const [path, setPath] = useState("");
   const [error, setError] = useState("");
   const [isCreating, setIsCreating] = useState(false);
-  const resolveRef = useRef<((result: { success: boolean; data?: unknown }) => void) | null>(null);
-
-  // Listen for directory selection requests
-  useEffect(() => {
-    const handleDirectorySelectRequest = (e: Event) => {
-      const customEvent = e as CustomEvent<{
-        resolve: (result: { success: boolean; data?: unknown }) => void;
-      }>;
-
-      resolveRef.current = customEvent.detail.resolve;
-      setPath("");
-      setError("");
-      setIsCreating(false);
-      setIsOpen(true);
-    };
-
-    window.addEventListener("directory-select-request", handleDirectorySelectRequest);
-    return () => {
-      window.removeEventListener("directory-select-request", handleDirectorySelectRequest);
-    };
-  }, []);
 
   const handleCancel = useCallback(() => {
-    if (resolveRef.current) {
-      resolveRef.current({ success: false });
-      resolveRef.current = null;
-    }
-    setIsOpen(false);
-  }, []);
+    setPath("");
+    setError("");
+    onClose();
+  }, [onClose]);
 
   const handleSelect = useCallback(async () => {
     const trimmedPath = path.trim();
@@ -64,18 +49,20 @@ export const ProjectCreateModal: React.FC = () => {
       
       if (result.success) {
         // Check if duplicate (backend may normalize the path)
-        const { normalizedPath } = result.data as { normalizedPath: string };
+        const { normalizedPath, projectConfig } = result.data as {
+          normalizedPath: string;
+          projectConfig: ProjectConfig;
+        };
         if (existingPaths.has(normalizedPath)) {
           setError("This project has already been added.");
           return;
         }
         
-        // Success - close modal and resolve
-        if (resolveRef.current) {
-          resolveRef.current({ success: true, data: result.data });
-          resolveRef.current = null;
-        }
-        setIsOpen(false);
+        // Success - notify parent and close
+        onSuccess(normalizedPath, projectConfig);
+        setPath("");
+        setError("");
+        onClose();
       } else {
         // Backend validation error - show inline, keep modal open
         const errorMessage =
@@ -89,7 +76,7 @@ export const ProjectCreateModal: React.FC = () => {
     } finally {
       setIsCreating(false);
     }
-  }, [path]);
+  }, [path, onSuccess, onClose]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {

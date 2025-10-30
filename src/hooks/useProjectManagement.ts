@@ -22,28 +22,15 @@ export function useProjectManagement() {
     }
   };
 
-  const addProject = useCallback(async () => {
-    // Request project creation via web dialog event
-    // Dialog handles the full flow: path input, validation, backend call, and error display
-    const result = await new Promise<{ success: boolean; data?: unknown }>((resolve) => {
-      const event = new CustomEvent("directory-select-request", {
-        detail: { resolve },
-      });
-      window.dispatchEvent(event);
-    });
-
-    if (!result.success || !result.data) return;
-
-    // Project was successfully created, add to local state
-    const { normalizedPath, projectConfig } = result.data as {
-      normalizedPath: string;
-      projectConfig: ProjectConfig;
-    };
-
-    const newProjects = new Map(projects);
-    newProjects.set(normalizedPath, projectConfig);
-    setProjects(newProjects);
-  }, [projects]);
+  const addProject = useCallback(
+    (normalizedPath: string, projectConfig: ProjectConfig) => {
+      // Add successfully created project to local state
+      const newProjects = new Map(projects);
+      newProjects.set(normalizedPath, projectConfig);
+      setProjects(newProjects);
+    },
+    [projects]
+  );
 
   const removeProject = useCallback(
     async (path: string) => {
