@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from "@storybook/react";
+import type { Meta, StoryObj } from "@storybook/react-vite";
 import { AssistantMessage } from "./AssistantMessage";
 import type { DisplayedMessage } from "@/types/message";
 import { action } from "@storybook/addon-actions";
