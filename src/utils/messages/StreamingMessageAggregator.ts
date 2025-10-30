@@ -73,6 +73,10 @@ export class StreamingMessageAggregator {
   // Unlike todos, this persists after stream completion to show last activity
   private agentStatus: { emoji: string; message: string; url?: string } | undefined = undefined;
 
+  // Last URL set via status_set - persists even when agentStatus is cleared
+  // This ensures URL stays available across stream boundaries
+  private lastStatusUrl: string | undefined = undefined;
+
   // Workspace init hook state (ephemeral, not persisted to history)
   private initState: {
     status: "running" | "success" | "error";
@@ -523,12 +527,17 @@ export class StreamingMessageAggregator {
     // Use output instead of input to get the truncated message
     if (toolName === "status_set" && hasSuccessResult(output)) {
       const result = output as { success: true; emoji: string; message: string; url?: string };
-      // Preserve the previous URL if the new status doesn't provide one
-      const previousUrl = this.agentStatus?.url;
+
+      // Update lastStatusUrl if a new URL is provided
+      if (result.url) {
+        this.lastStatusUrl = result.url;
+      }
+
+      // Use the provided URL, or fall back to the last URL ever set
       this.agentStatus = {
         emoji: result.emoji,
         message: result.message,
-        url: result.url ?? previousUrl,
+        url: result.url ?? this.lastStatusUrl,
       };
     }
   }
