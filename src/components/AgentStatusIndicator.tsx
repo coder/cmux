@@ -74,14 +74,29 @@ export const AgentStatusIndicator: React.FC<AgentStatusIndicatorProps> = ({
     />
   );
 
+  const handleEmojiClick = useCallback(
+    (e: React.MouseEvent) => {
+      if (agentStatus?.url) {
+        e.stopPropagation(); // Prevent workspace selection
+        window.open(agentStatus.url, "_blank", "noopener,noreferrer");
+      }
+    },
+    [agentStatus?.url]
+  );
+
   const emoji = agentStatus ? (
     <div
-      className="flex shrink-0 items-center justify-center transition-all duration-200"
+      className={cn(
+        "flex shrink-0 items-center justify-center transition-all duration-200",
+        agentStatus.url && "cursor-pointer hover:opacity-80"
+      )}
       style={{
         fontSize: size * 1.5,
         filter: streaming ? "none" : "grayscale(100%)",
         opacity: streaming ? 1 : 0.6,
       }}
+      onClick={handleEmojiClick}
+      title={agentStatus.url ? "Click to open URL" : undefined}
     >
       {agentStatus.emoji}
     </div>

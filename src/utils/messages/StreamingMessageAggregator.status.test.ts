@@ -539,4 +539,112 @@ describe("StreamingMessageAggregator - Agent Status", () => {
     expect(status).toEqual({ emoji: "✅", message: truncatedMessage });
     expect(status?.message.length).toBe(60);
   });
+
+  it("should store URL when provided in status_set", () => {
+    const aggregator = new StreamingMessageAggregator("2024-01-01T00:00:00.000Z");
+    const messageId = "msg1";
+    const toolCallId = "tool1";
+
+    // Start a stream
+    aggregator.handleStreamStart({
+      type: "stream-start",
+      workspaceId: "workspace1",
+      messageId,
+      model: "test-model",
+      historySequence: 1,
+    });
+
+    // Add a status_set tool call with URL
+    const testUrl = "https://github.com/owner/repo/pull/123";
+    aggregator.handleToolCallStart({
+      type: "tool-call-start",
+      workspaceId: "workspace1",
+      messageId,
+      toolCallId,
+      toolName: "status_set",
+      args: { emoji: "🔗", message: "PR submitted", url: testUrl },
+      tokens: 10,
+      timestamp: Date.now(),
+    });
+
+    // Complete the tool call
+    aggregator.handleToolCallEnd({
+      type: "tool-call-end",
+      workspaceId: "workspace1",
+      messageId,
+      toolCallId,
+      toolName: "status_set",
+      result: { success: true, emoji: "🔗", message: "PR submitted", url: testUrl },
+    });
+
+    const status = aggregator.getAgentStatus();
+    expect(status).toBeDefined();
+    expect(status?.emoji).toBe("🔗");
+    expect(status?.message).toBe("PR submitted");
+    expect(status?.url).toBe(testUrl);
+  });
+
+  it("should persist URL until replaced with new status", () => {
+    const aggregator = new StreamingMessageAggregator("2024-01-01T00:00:00.000Z");
+    const messageId = "msg1";
+
+    // Start a stream
+    aggregator.handleStreamStart({
+      type: "stream-start",
+      workspaceId: "workspace1",
+      messageId,
+      model: "test-model",
+      historySequence: 1,
+    });
+
+    // First status with URL
+    const testUrl = "https://github.com/owner/repo/pull/123";
+    aggregator.handleToolCallStart({
+      type: "tool-call-start",
+      workspaceId: "workspace1",
+      messageId,
+      toolCallId: "tool1",
+      toolName: "status_set",
+      args: { emoji: "🔗", message: "PR submitted", url: testUrl },
+      tokens: 10,
+      timestamp: Date.now(),
+    });
+
+    aggregator.handleToolCallEnd({
+      type: "tool-call-end",
+      workspaceId: "workspace1",
+      messageId,
+      toolCallId: "tool1",
+      toolName: "status_set",
+      result: { success: true, emoji: "🔗", message: "PR submitted", url: testUrl },
+    });
+
+    expect(aggregator.getAgentStatus()?.url).toBe(testUrl);
+
+    // Second status without URL - should clear URL
+    aggregator.handleToolCallStart({
+      type: "tool-call-start",
+      workspaceId: "workspace1",
+      messageId,
+      toolCallId: "tool2",
+      toolName: "status_set",
+      args: { emoji: "✅", message: "Done" },
+      tokens: 10,
+      timestamp: Date.now(),
+    });
+
+    aggregator.handleToolCallEnd({
+      type: "tool-call-end",
+      workspaceId: "workspace1",
+      messageId,
+      toolCallId: "tool2",
+      toolName: "status_set",
+      result: { success: true, emoji: "✅", message: "Done" },
+    });
+
+    const finalStatus = aggregator.getAgentStatus();
+    expect(finalStatus?.emoji).toBe("✅");
+    expect(finalStatus?.message).toBe("Done");
+    expect(finalStatus?.url).toBeUndefined();
+  });
 });

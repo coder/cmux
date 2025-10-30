@@ -11,6 +11,7 @@ export type StatusSetToolResult =
       success: true;
       emoji: string;
       message: string;
+      url?: string;
     }
   | {
       success: false;
@@ -65,7 +66,7 @@ export const createStatusSetTool: ToolFactory = () => {
   return tool({
     description: TOOL_DEFINITIONS.status_set.description,
     inputSchema: TOOL_DEFINITIONS.status_set.schema,
-    execute: ({ emoji, message }): Promise<StatusSetToolResult> => {
+    execute: ({ emoji, message, url }): Promise<StatusSetToolResult> => {
       // Validate emoji
       if (!isValidEmoji(emoji)) {
         return Promise.resolve({
@@ -83,6 +84,7 @@ export const createStatusSetTool: ToolFactory = () => {
         success: true,
         emoji,
         message: truncatedMessage,
+        ...(url && { url }),
       });
     },
   });

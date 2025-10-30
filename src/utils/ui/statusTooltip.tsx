@@ -9,14 +9,23 @@ import { formatRelativeTime } from "@/utils/ui/dateTime";
 export function getStatusTooltip(options: {
   isStreaming: boolean;
   streamingModel: string | null;
-  agentStatus?: { emoji: string; message: string };
+  agentStatus?: { emoji: string; message: string; url?: string };
   isUnread?: boolean;
   recencyTimestamp?: number | null;
 }): React.ReactNode {
   const { isStreaming, streamingModel, agentStatus, isUnread, recencyTimestamp } = options;
 
-  // If agent status is set, always show that message
+  // If agent status is set, show message and URL (if available)
   if (agentStatus) {
+    if (agentStatus.url) {
+      return (
+        <>
+          {agentStatus.message}
+          <br />
+          <span style={{ opacity: 0.7, fontSize: "0.9em" }}>{agentStatus.url}</span>
+        </>
+      );
+    }
     return agentStatus.message;
   }
 

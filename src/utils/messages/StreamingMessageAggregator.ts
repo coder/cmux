@@ -71,7 +71,7 @@ export class StreamingMessageAggregator {
 
   // Current agent status (updated when status_set is called)
   // Unlike todos, this persists after stream completion to show last activity
-  private agentStatus: { emoji: string; message: string } | undefined = undefined;
+  private agentStatus: { emoji: string; message: string; url?: string } | undefined = undefined;
 
   // Workspace init hook state (ephemeral, not persisted to history)
   private initState: {
@@ -143,7 +143,7 @@ export class StreamingMessageAggregator {
    * Updated whenever status_set is called.
    * Persists after stream completion (unlike todos).
    */
-  getAgentStatus(): { emoji: string; message: string } | undefined {
+  getAgentStatus(): { emoji: string; message: string; url?: string } | undefined {
     return this.agentStatus;
   }
 
@@ -522,8 +522,12 @@ export class StreamingMessageAggregator {
     // Update agent status if this was a successful status_set
     // Use output instead of input to get the truncated message
     if (toolName === "status_set" && hasSuccessResult(output)) {
-      const result = output as { success: true; emoji: string; message: string };
-      this.agentStatus = { emoji: result.emoji, message: result.message };
+      const result = output as { success: true; emoji: string; message: string; url?: string };
+      this.agentStatus = {
+        emoji: result.emoji,
+        message: result.message,
+        ...(result.url && { url: result.url }),
+      };
     }
   }
 
