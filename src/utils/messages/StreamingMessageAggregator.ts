@@ -12,6 +12,7 @@ import type {
   ReasoningEndEvent,
 } from "@/types/stream";
 import type { TodoItem } from "@/types/tools";
+import type { StatusSetToolResult } from "@/services/tools/status_set";
 
 import type { WorkspaceChatMessage, StreamErrorMessage, DeleteMessage } from "@/types/ipc";
 import { isInitStart, isInitOutput, isInitEnd, isCmuxMessage } from "@/types/ipc";
@@ -526,7 +527,7 @@ export class StreamingMessageAggregator {
     // Update agent status if this was a successful status_set
     // Use output instead of input to get the truncated message
     if (toolName === "status_set" && hasSuccessResult(output)) {
-      const result = output as { success: true; emoji: string; message: string; url?: string };
+      const result = output as Extract<StatusSetToolResult, { success: true }>;
 
       // Update lastStatusUrl if a new URL is provided
       if (result.url) {
