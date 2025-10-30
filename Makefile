@@ -297,10 +297,10 @@ chromatic: node_modules/.installed ## Run Chromatic for visual regression testin
 ## Benchmarks
 benchmark-terminal: ## Run Terminal-Bench with the cmux agent (use TB_DATASET/TB_SAMPLE_SIZE/TB_TIMEOUT/TB_ARGS to customize)
 	@TB_DATASET=$${TB_DATASET:-terminal-bench-core==0.1.1}; \
+	TB_TIMEOUT=$${TB_TIMEOUT:-1800}; \
 	CONCURRENCY_FLAG=$${TB_CONCURRENCY:+--n-concurrent $$TB_CONCURRENCY}; \
 	LIVESTREAM_FLAG=$${TB_LIVESTREAM:+--livestream}; \
 	TASK_ID_FLAGS=""; \
-	TASK_IDS_LIST=""; \
 	if [ -n "$$TB_SAMPLE_SIZE" ]; then \
 		echo "Ensuring dataset $$TB_DATASET is downloaded..."; \
 		uvx terminal-bench datasets download --dataset "$$TB_DATASET" 2>&1 | grep -v "already exists" || true; \
@@ -316,28 +316,16 @@ benchmark-terminal: ## Run Terminal-Bench with the cmux agent (use TB_DATASET/TB
 		for task_id in $$TASK_IDS; do \
 			TASK_ID_FLAGS="$$TASK_ID_FLAGS --task-id $$task_id"; \
 		done; \
-		TASK_IDS_LIST="$$TASK_IDS"; \
 		echo "Selected task IDs: $$TASK_IDS"; \
 	fi; \
-	TIMEOUT_FLAG=""; \
-	if [ -n "$$TB_TIMEOUT" ]; then \
-		echo "Using explicit timeout: $$TB_TIMEOUT seconds"; \
-		TIMEOUT_FLAG="--global-agent-timeout-sec $$TB_TIMEOUT"; \
-	elif [ -n "$$TASK_IDS_LIST" ]; then \
-		echo "Calculating optimal timeout for selected tasks..."; \
-		TIMEOUT_FLAG=$$(python benchmarks/terminal_bench/calculate_timeout.py --task-ids $$TASK_IDS_LIST --format flag); \
-		echo "Timeout: $$TIMEOUT_FLAG"; \
-	else \
-		echo "Using default timeout (60 minutes for full suite)"; \
-		TIMEOUT_FLAG="--global-agent-timeout-sec 3600"; \
-	fi; \
+	echo "Using timeout: $$TB_TIMEOUT seconds"; \
 	echo "Running Terminal-Bench with dataset $$TB_DATASET"; \
 	uvx terminal-bench run \
 		--dataset "$$TB_DATASET" \
 		--agent-import-path benchmarks.terminal_bench.cmux_agent:CmuxAgent \
+		--global-agent-timeout-sec $$TB_TIMEOUT \
 		$$CONCURRENCY_FLAG \
 		$$LIVESTREAM_FLAG \
-		$$TIMEOUT_FLAG \
 		$$TASK_ID_FLAGS \
 		$${TB_ARGS}
 

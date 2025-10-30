@@ -26,48 +26,33 @@ make benchmark-terminal TB_ARGS="--agent-kwarg model_name=anthropic:claude-opus-
 - `TB_SAMPLE_SIZE`: Number of random tasks to run (default: all 80 tasks)
 - `TB_CONCURRENCY`: Number of concurrent tasks (default: 4)
 - `TB_LIVESTREAM`: Enable livestream mode (set to `1` to enable)
-- `TB_TIMEOUT`: Override timeout in seconds (default: intelligent per-task timeout)
+- `TB_TIMEOUT`: Global timeout in seconds (default: 1800 = 30 minutes)
 - `TB_ARGS`: Additional arguments passed to terminal-bench
 
-### Intelligent Timeout Handling
+### Timeout Handling
 
-The Makefile automatically calculates optimal timeouts based on task complexity:
+The benchmark uses a **global timeout** applied to all tasks. The default is **30 minutes (1800 seconds)**, which provides sufficient time for most tasks while catching genuinely stuck agents.
 
-- **FAST tasks** (5 min): Simple operations like `hello-world`, `fix-permissions`
-- **NORMAL tasks** (15 min): Default for most tasks
-- **SLOW tasks** (30 min): Data processing, ML training, complex analysis
-- **VERY_SLOW tasks** (60 min): Kernel compilation, large builds
+**Design Rationale:**
 
-**How it works:**
+Based on analysis of Oct 30, 2025 nightly runs:
+- Longest successful task: `blind-maze-explorer-algorithm.hard` at 20 minutes
+- 95th percentile: ~15 minutes
+- Mean duration: ~6 minutes
 
-1. If `TB_TIMEOUT` is set, uses that value explicitly
-2. If specific tasks are selected (via `TB_SAMPLE_SIZE` or `--task-id`), calculates the maximum timeout needed for those tasks
-3. For full suite runs, uses 60 minutes (conservative default)
+The 30-minute default provides comfortable headroom for complex tasks without excessive wait times for failed attempts.
 
-**Examples:**
+**Override timeout:**
 
 ```bash
-# Fast tasks get 5 minute timeout automatically
-make benchmark-terminal TB_ARGS="--task-id hello-world --task-id simple-web-scraper"
+# Run with 60 minute timeout for very complex tasks
+TB_TIMEOUT=3600 make benchmark-terminal
 
-# Slow tasks get 60 minute timeout automatically
-make benchmark-terminal TB_ARGS="--task-id build-linux-kernel-qemu"
-
-# Override timeout manually (in seconds)
-TB_TIMEOUT=1200 make benchmark-terminal TB_ARGS="--task-id chess-best-move"
+# Run with shorter 10 minute timeout for quick iteration
+TB_TIMEOUT=600 make benchmark-terminal TB_SAMPLE_SIZE=5
 ```
 
-### Task Timeout Configuration
-
-Task timeouts are configured in `task_timeouts.py` based on empirical data from nightly runs. To add or modify timeouts:
-
-```python
-# In task_timeouts.py
-TASK_TIMEOUTS = {
-    "my-new-task": SLOW_TIMEOUT,  # 30 minutes
-    "my-fast-task": FAST_TIMEOUT,  # 5 minutes
-}
-```
+**Note:** We prefer global timeout defaults over per-task configuration to avoid complexity and maintenance burden. If you find tasks consistently timing out, increase `TB_TIMEOUT` rather than adding per-task configuration.
 
 ## Agent Configuration
 
@@ -103,14 +88,15 @@ See `.github/workflows/terminal-bench.yml` and `.github/workflows/nightly-termin
 
 ## Timeout Analysis (2025-10-30 Nightly Run)
 
-Based on analysis of the Oct 30 nightly run:
+Based on analysis of the Oct 30 nightly run (15-minute timeout):
 
-- **27-35% of tasks hit timeout** with 15-minute default
-- **5-6 tasks passed tests but hit timeout** (would have succeeded with more time)
+- **27-35% of tasks hit timeout** (too aggressive)
+- **5-6 tasks passed tests but hit timeout flag** (false negatives)
 - **Mean duration**: 356s (Anthropic) / 438s (OpenAI)
 - **Median duration**: 272s (Anthropic) / 299s (OpenAI)
+- **Longest successful**: 1200s (20 minutes) for `blind-maze-explorer-algorithm.hard`
 
-**Impact of intelligent timeouts**: Expected to reduce false timeout failures by ~50% and improve pass rates by 10-15 percentage points (from ~42% to ~52-57%).
+**Impact of 30-minute timeout**: Expected to reduce false timeout failures by ~50% and improve pass rates by 10-15 percentage points (from ~42% to ~52-57%).
 
 ## Files
 
@@ -118,6 +104,4 @@ Based on analysis of the Oct 30 nightly run:
 - `cmux-run.sh`: Shell script that sets up environment and invokes cmux CLI
 - `cmux_payload.py`: Helper to package cmux app for containerized execution
 - `cmux_setup.sh.j2`: Jinja2 template for agent installation script
-- `task_timeouts.py`: Task-specific timeout configuration
-- `calculate_timeout.py`: Helper script to calculate optimal timeouts
 - `sample_tasks.py`: Utility to randomly sample tasks from dataset
