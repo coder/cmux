@@ -2,14 +2,14 @@ import React, { useState, useCallback, useEffect, useRef } from "react";
 import { Modal, ModalActions, CancelButton, PrimaryButton } from "./Modal";
 
 /**
- * Directory selection modal that handles the full project creation flow.
+ * Project creation modal that handles the full flow from path input to backend validation.
  *
  * Listens for 'directory-select-request' custom events, displays a modal
  * for path input, calls the backend to create the project, and shows
  * validation errors inline. Modal stays open until project is successfully
  * created or user cancels.
  */
-export const DirectorySelectModal: React.FC = () => {
+export const ProjectCreateModal: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [path, setPath] = useState("");
   const [error, setError] = useState("");
