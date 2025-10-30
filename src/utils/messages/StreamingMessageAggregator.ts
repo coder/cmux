@@ -11,8 +11,7 @@ import type {
   ReasoningDeltaEvent,
   ReasoningEndEvent,
 } from "@/types/stream";
-import type { TodoItem } from "@/types/tools";
-import type { StatusSetToolResult } from "@/services/tools/status_set";
+import type { TodoItem, StatusSetToolResult } from "@/types/tools";
 
 import type { WorkspaceChatMessage, StreamErrorMessage, DeleteMessage } from "@/types/ipc";
 import { isInitStart, isInitOutput, isInitEnd, isCmuxMessage } from "@/types/ipc";

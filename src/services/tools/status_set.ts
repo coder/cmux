@@ -2,21 +2,7 @@ import { tool } from "ai";
 import type { ToolFactory } from "@/utils/tools/tools";
 import { TOOL_DEFINITIONS } from "@/utils/tools/toolDefinitions";
 import { STATUS_MESSAGE_MAX_LENGTH } from "@/constants/toolLimits";
-
-/**
- * Result type for status_set tool
- */
-export type StatusSetToolResult =
-  | {
-      success: true;
-      emoji: string;
-      message: string;
-      url?: string;
-    }
-  | {
-      success: false;
-      error: string;
-    };
+import type { StatusSetToolResult } from "@/types/tools";
 
 /**
  * Validates that a string is a single emoji character
