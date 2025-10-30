@@ -6,7 +6,6 @@ import type { FrontendWorkspaceMetadata } from "./types/workspace";
 import { LeftSidebar } from "./components/LeftSidebar";
 import NewWorkspaceModal from "./components/NewWorkspaceModal";
 import { DirectorySelectModal } from "./components/DirectorySelectModal";
-import { ProjectErrorModal } from "./components/ProjectErrorModal";
 import { AIView } from "./components/AIView";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { usePersistedState, updatePersistedState } from "./hooks/usePersistedState";
@@ -39,8 +38,6 @@ function AppInner() {
     projects,
     addProject,
     removeProject,
-    projectError,
-    clearProjectError,
     workspaceMetadata,
     setWorkspaceMetadata,
     createWorkspace,
@@ -698,7 +695,6 @@ function AppInner() {
           />
         )}
         <DirectorySelectModal />
-        <ProjectErrorModal error={projectError} onClose={clearProjectError} />
       </div>
     </>
   );

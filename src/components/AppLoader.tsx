@@ -108,8 +108,6 @@ export function AppLoader() {
       setProjects={projectManagement.setProjects}
       addProject={projectManagement.addProject}
       removeProject={projectManagement.removeProject}
-      projectError={projectManagement.error}
-      clearProjectError={projectManagement.clearError}
       workspaceMetadata={workspaceManagement.workspaceMetadata}
       setWorkspaceMetadata={workspaceManagement.setWorkspaceMetadata}
       createWorkspace={workspaceManagement.createWorkspace}

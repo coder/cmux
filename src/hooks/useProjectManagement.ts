@@ -6,7 +6,6 @@ import type { ProjectConfig } from "@/config";
  */
 export function useProjectManagement() {
   const [projects, setProjects] = useState<Map<string, ProjectConfig>>(new Map());
-  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     void loadProjects();
@@ -24,50 +23,30 @@ export function useProjectManagement() {
   };
 
   const addProject = useCallback(async () => {
-    setError(null);
-    
-    // Request directory path via web dialog event
-    const selectedPath = await new Promise<string | null>((resolve) => {
+    // Request project creation via web dialog event
+    // Dialog handles the full flow: path input, validation, backend call, and error display
+    const result = await new Promise<{ success: boolean; data?: unknown }>((resolve) => {
       const event = new CustomEvent("directory-select-request", {
         detail: { resolve },
       });
       window.dispatchEvent(event);
     });
 
-    if (!selectedPath) return;
+    if (!result.success || !result.data) return;
 
-    try {
-      const result = await window.api.projects.create(selectedPath);
-      if (result.success) {
-        // Use the normalized path returned from backend
-        const { normalizedPath, projectConfig } = result.data;
+    // Project was successfully created, add to local state
+    const { normalizedPath, projectConfig } = result.data as {
+      normalizedPath: string;
+      projectConfig: ProjectConfig;
+    };
 
-        // Check if already exists using normalized path
-        if (projects.has(normalizedPath)) {
-          setError("This project has already been added.");
-          return;
-        }
-
-        const newProjects = new Map(projects);
-        newProjects.set(normalizedPath, projectConfig);
-        setProjects(newProjects);
-      } else {
-        // Show error to user
-        const errorMessage =
-          typeof result.error === "string" ? result.error : "Failed to add project";
-        setError(errorMessage);
-        console.error("Failed to create project:", result.error);
-      }
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "An unexpected error occurred";
-      setError(`Failed to add project: ${errorMessage}`);
-      console.error("Failed to add project:", error);
-    }
+    const newProjects = new Map(projects);
+    newProjects.set(normalizedPath, projectConfig);
+    setProjects(newProjects);
   }, [projects]);
 
   const removeProject = useCallback(
     async (path: string) => {
-      setError(null);
       try {
         const result = await window.api.projects.remove(path);
         if (result.success) {
@@ -76,8 +55,7 @@ export function useProjectManagement() {
           setProjects(newProjects);
         } else {
           console.error("Failed to remove project:", result.error);
-          // Show error to user - they might need to remove workspaces first
-          setError(result.error);
+          // TODO: Show error to user in UI - they might need to remove workspaces first
         }
       } catch (error) {
         console.error("Failed to remove project:", error);
@@ -86,17 +64,11 @@ export function useProjectManagement() {
     [projects]
   );
 
-  const clearError = useCallback(() => {
-    setError(null);
-  }, []);
-
   return {
     projects,
     setProjects,
     addProject,
     removeProject,
     loadProjects,
-    error,
-    clearError,
   };
 }
