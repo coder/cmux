@@ -82,7 +82,7 @@ export const DirectorySelectModal: React.FC = () => {
         onKeyDown={handleKeyDown}
         placeholder="/home/user/projects/my-project"
         autoFocus
-        className="bg-modal-bg border-border-medium focus:border-accent placeholder:text-muted mb-5 w-full rounded border px-3 py-2 font-mono text-sm text-white focus:outline-none"
+        className="mb-5 w-full rounded border border-neutral-700 bg-neutral-900 px-3 py-2 font-mono text-sm text-white placeholder:text-neutral-400 focus:border-sky-600 focus:outline-none"
       />
       {error && <div className="text-error -mt-3 mb-3 text-xs">{error}</div>}
       <ModalActions>

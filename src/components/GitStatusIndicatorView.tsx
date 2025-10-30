@@ -62,7 +62,7 @@ export const GitStatusIndicatorView: React.FC<GitStatusIndicatorViewProps> = ({
   if (!gitStatus) {
     return (
       <span
-        className="text-accent relative mr-1.5 flex items-center gap-1 font-mono text-[11px]"
+        className="relative mr-1.5 flex items-center gap-1 font-mono text-[11px] text-sky-600"
         aria-hidden="true"
       />
     );
@@ -72,7 +72,7 @@ export const GitStatusIndicatorView: React.FC<GitStatusIndicatorViewProps> = ({
   if (gitStatus.ahead === 0 && gitStatus.behind === 0 && !gitStatus.dirty) {
     return (
       <span
-        className="text-accent relative mr-1.5 flex items-center gap-1 font-mono text-[11px]"
+        className="relative mr-1.5 flex items-center gap-1 font-mono text-[11px] text-sky-600"
         aria-hidden="true"
       />
     );
@@ -81,7 +81,7 @@ export const GitStatusIndicatorView: React.FC<GitStatusIndicatorViewProps> = ({
   // Render colored indicator characters
   const renderIndicators = (indicators: string) => {
     return (
-      <span className="text-placeholder mr-2 shrink-0 font-mono whitespace-pre">
+      <span className="mr-2 shrink-0 font-mono whitespace-pre text-neutral-400">
         {Array.from(indicators).map((char, index) => (
           <span key={index} style={{ color: getIndicatorColor(index) }}>
             {char}
@@ -98,10 +98,10 @@ export const GitStatusIndicatorView: React.FC<GitStatusIndicatorViewProps> = ({
     }
 
     return (
-      <div className="border-separator-light mb-2 flex flex-col gap-0.5 border-b pb-2">
+      <div className="border-neutral-900-light mb-2 flex flex-col gap-0.5 border-b pb-2">
         {branchHeaders.map((header, index) => (
           <div key={index} className="flex gap-2 font-mono leading-snug">
-            <span className="text-placeholder mr-2 shrink-0 font-mono whitespace-pre">
+            <span className="mr-2 shrink-0 font-mono whitespace-pre text-neutral-400">
               {/* Create spacing to align with column */}
               {Array.from({ length: header.columnIndex }).map((_, i) => (
                 <span key={i} style={{ color: getIndicatorColor(i) }}>
@@ -110,7 +110,7 @@ export const GitStatusIndicatorView: React.FC<GitStatusIndicatorViewProps> = ({
               ))}
               <span style={{ color: getIndicatorColor(header.columnIndex) }}>!</span>
             </span>
-            <span className="text-foreground">[{header.branch}]</span>
+            <span className="text-neutral-300">[{header.branch}]</span>
           </div>
         ))}
       </div>
@@ -128,20 +128,20 @@ export const GitStatusIndicatorView: React.FC<GitStatusIndicatorViewProps> = ({
     const isTruncated = dirtyFiles.length > LIMIT;
 
     return (
-      <div className="border-separator-light mb-2 border-b pb-2">
+      <div className="border-neutral-900-light mb-2 border-b pb-2">
         <div className="text-git-dirty mb-1 font-mono font-semibold">Uncommitted changes:</div>
         <div className="flex flex-col gap-px">
           {displayFiles.map((line, index) => (
             <div
               key={index}
-              className="text-foreground font-mono text-[11px] leading-snug whitespace-pre"
+              className="font-mono text-[11px] leading-snug whitespace-pre text-neutral-300"
             >
               {line}
             </div>
           ))}
         </div>
         {isTruncated && (
-          <div className="text-muted-light mt-1 text-[10px] italic">
+          <div className="text-neutral-400-light mt-1 text-[10px] italic">
             (showing {LIMIT} of {dirtyFiles.length} files)
           </div>
         )}
@@ -172,9 +172,9 @@ export const GitStatusIndicatorView: React.FC<GitStatusIndicatorViewProps> = ({
             <div key={`${commit.hash}-${index}`} className="flex flex-col gap-0.5">
               <div className="flex gap-2 font-mono leading-snug">
                 {renderIndicators(commit.indicators)}
-                <span className="text-accent shrink-0 select-all">{commit.hash}</span>
-                <span className="text-muted-light shrink-0">{commit.date}</span>
-                <span className="text-foreground flex-1 break-words">{commit.subject}</span>
+                <span className="shrink-0 text-sky-600 select-all">{commit.hash}</span>
+                <span className="text-neutral-400-light shrink-0">{commit.date}</span>
+                <span className="flex-1 break-words text-neutral-300">{commit.subject}</span>
               </div>
             </div>
           ))}
@@ -187,7 +187,7 @@ export const GitStatusIndicatorView: React.FC<GitStatusIndicatorViewProps> = ({
   const tooltipElement = (
     <div
       className={cn(
-        "fixed z-[10000] bg-modal-bg text-foreground border border-separator-light rounded px-3 py-2 text-[11px] font-mono whitespace-pre max-w-96 max-h-[400px] overflow-auto shadow-[0_4px_12px_rgba(0,0,0,0.5)] pointer-events-auto transition-opacity duration-200",
+        "fixed z-[10000] bg-neutral-900 text-neutral-300 border border-neutral-900-light rounded px-3 py-2 text-[11px] font-mono whitespace-pre max-w-96 max-h-[400px] overflow-auto shadow-[0_4px_12px_rgba(0,0,0,0.5)] pointer-events-auto transition-opacity duration-200",
         showTooltip ? "opacity-100 visible" : "opacity-0 invisible"
       )}
       style={{
@@ -208,7 +208,7 @@ export const GitStatusIndicatorView: React.FC<GitStatusIndicatorViewProps> = ({
         ref={onContainerRef}
         onMouseEnter={onMouseEnter}
         onMouseLeave={onMouseLeave}
-        className="text-accent relative mr-1.5 flex items-center gap-1 font-mono text-[11px]"
+        className="relative mr-1.5 flex items-center gap-1 font-mono text-[11px] text-sky-600"
       >
         {gitStatus.ahead > 0 && (
           <span className="flex items-center font-normal">↑{gitStatus.ahead}</span>

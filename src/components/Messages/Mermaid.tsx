@@ -32,7 +32,7 @@ mermaid.initialize({
 const getButtonStyle = (disabled = false): CSSProperties => ({
   background: disabled ? "rgba(255, 255, 255, 0.05)" : "rgba(255, 255, 255, 0.1)",
   border: "1px solid rgba(255, 255, 255, 0.2)",
-  color: disabled ? "var(--color-text-secondary)" : "var(--color-text)",
+  color: disabled ? "theme(colors.gray.600)" : "theme(colors.gray.200)",
   padding: "6px 10px",
   cursor: disabled ? "not-allowed" : "pointer",
   borderRadius: "4px",
@@ -89,7 +89,7 @@ const DiagramModal: React.FC<{ children: ReactNode; onClose: () => void }> = ({
             right: "16px",
             background: "rgba(255, 255, 255, 0.1)",
             border: "1px solid rgba(255, 255, 255, 0.2)",
-            color: "var(--color-text)",
+            color: "theme(colors.gray.200)",
             padding: "8px 16px",
             cursor: "pointer",
             borderRadius: "4px",
@@ -191,7 +191,7 @@ export const Mermaid: React.FC<{ chart: string }> = ({ chart }) => {
       return (
         <div
           style={{
-            color: "var(--color-text-secondary)",
+            color: "theme(colors.gray.600)",
             background: "var(--color-code-bg)",
             padding: "12px",
             fontStyle: "italic",

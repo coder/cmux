@@ -67,11 +67,11 @@ export const BashToolCall: React.FC<BashToolCallProps> = ({
           <span>🔧</span>
           <Tooltip>bash</Tooltip>
         </TooltipWrapper>
-        <span className="text-text font-monospace max-w-96 truncate">{args.script}</span>
+        <span className="font-monospace max-w-96 truncate text-neutral-300">{args.script}</span>
         <span
           className="ml-2 text-[10px] whitespace-nowrap [@container(max-width:500px)]:hidden"
           style={{
-            color: isPending ? "var(--color-pending)" : "var(--color-text-secondary)",
+            color: isPending ? "var(--color-pending)" : "theme(colors.gray.600)",
           }}
         >
           timeout: {args.timeout_secs ?? BASH_DEFAULT_TIMEOUT_SECS}s

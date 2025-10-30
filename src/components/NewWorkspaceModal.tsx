@@ -163,7 +163,7 @@ const NewWorkspaceModal: React.FC<NewWorkspaceModalProps> = ({
             required
             aria-required="true"
           />
-          {error && <div className="text-danger-light mt-1.5 text-[13px]">{error}</div>}
+          {error && <div className="mt-1.5 text-[13px] text-red-400">{error}</div>}
         </div>
 
         <div className={formFieldClasses}>
@@ -196,7 +196,7 @@ const NewWorkspaceModal: React.FC<NewWorkspaceModalProps> = ({
             />
           )}
           {!hasBranches && (
-            <div className="text-danger-light mt-1.5 text-[13px]">
+            <div className="mt-1.5 text-[13px] text-red-400">
               No branches were detected automatically. Enter the trunk branch manually.
             </div>
           )}
@@ -237,7 +237,7 @@ const NewWorkspaceModal: React.FC<NewWorkspaceModalProps> = ({
               required
               aria-required="true"
             />
-            <div className="text-muted mt-1.5 text-[13px]">
+            <div className="mt-1.5 text-[13px] text-neutral-400">
               Workspace will be created at ~/cmux/{branchName || "<branch-name>"} on remote host
             </div>
           </div>
@@ -254,8 +254,8 @@ const NewWorkspaceModal: React.FC<NewWorkspaceModalProps> = ({
 
         {branchName.trim() && (
           <div>
-            <div className="text-muted mb-2 font-sans text-xs">Equivalent command:</div>
-            <div className="bg-dark border-border-light text-light mt-5 rounded border p-3 font-mono text-[13px] break-all whitespace-pre-wrap">
+            <div className="mb-2 font-sans text-xs text-neutral-400">Equivalent command:</div>
+            <div className="mt-5 rounded border border-neutral-700 bg-neutral-900 p-3 font-mono text-[13px] break-all whitespace-pre-wrap text-neutral-300">
               {formatNewCommand(
                 branchName.trim(),
                 trunkBranch.trim() || undefined,
