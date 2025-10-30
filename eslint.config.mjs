@@ -368,6 +368,10 @@ export default defineConfig([
   },
   {
     // Frontend architectural boundary - prevent services and tokenizer imports
+    // Note: src/utils/** and src/stores/** are not included because:
+    // - Some utils are shared between main/renderer (e.g., utils/tools registry)
+    // - Stores can import from utils/messages which is renderer-safe
+    // - Type-only imports from services are safe (types live in src/types/)
     files: ["src/components/**", "src/contexts/**", "src/hooks/**", "src/App.tsx"],
     rules: {
       "no-restricted-imports": [
