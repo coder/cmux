@@ -65,7 +65,7 @@ export async function validateProjectPath(inputPath: string): Promise<PathValida
   // Check if path exists
   try {
     const stats = await fs.stat(normalizedPath);
-    
+
     // Check if it's a directory
     if (!stats.isDirectory()) {
       return {

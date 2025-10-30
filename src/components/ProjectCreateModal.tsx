@@ -43,10 +43,10 @@ export const ProjectCreateModal: React.FC<ProjectCreateModalProps> = ({
       // First check if project already exists
       const existingProjects = await window.api.projects.list();
       const existingPaths = new Map(existingProjects);
-      
+
       // Try to create the project
       const result = await window.api.projects.create(trimmedPath);
-      
+
       if (result.success) {
         // Check if duplicate (backend may normalize the path)
         const { normalizedPath, projectConfig } = result.data as {
@@ -57,7 +57,7 @@ export const ProjectCreateModal: React.FC<ProjectCreateModalProps> = ({
           setError("This project has already been added.");
           return;
         }
-        
+
         // Success - notify parent and close
         onSuccess(normalizedPath, projectConfig);
         setPath("");
@@ -114,10 +114,7 @@ export const ProjectCreateModal: React.FC<ProjectCreateModalProps> = ({
         <CancelButton onClick={handleCancel} disabled={isCreating}>
           Cancel
         </CancelButton>
-        <PrimaryButton
-          onClick={() => void handleSelect()}
-          disabled={isCreating}
-        >
+        <PrimaryButton onClick={() => void handleSelect()} disabled={isCreating}>
           {isCreating ? "Adding..." : "Add Project"}
         </PrimaryButton>
       </ModalActions>
