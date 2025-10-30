@@ -29,13 +29,18 @@ import { FileTree } from "./FileTree";
 import { usePersistedState } from "@/hooks/usePersistedState";
 import { useReviewState } from "@/hooks/useReviewState";
 import { parseDiff, extractAllHunks } from "@/utils/git/diffParser";
-import { getReviewSearchStateKey } from "@/constants/storage";
+import { getReviewSearchStateKey, getReviewReadMoreStateKey } from "@/constants/storage";
 import { Tooltip, TooltipWrapper } from "@/components/Tooltip";
 import { parseNumstat, buildFileTree, extractNewPath } from "@/utils/git/numstatParser";
-import type { DiffHunk, ReviewFilters as ReviewFiltersType } from "@/types/review";
+import type {
+  DiffHunk,
+  ReviewFilters as ReviewFiltersType,
+  HunkReadMoreState,
+} from "@/types/review";
 import type { FileTreeNode } from "@/utils/git/numstatParser";
 import { matchesKeybind, KEYBINDS, formatKeybind } from "@/utils/ui/keybinds";
 import { applyFrontendFilters } from "@/utils/review/filterHunks";
+import { combineOverlappingHunks } from "@/utils/review/combineHunks";
 import { cn } from "@/lib/utils";
 
 interface ReviewPanelProps {
@@ -371,6 +376,23 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({
     searchState.matchCase,
   ]);
 
+  // Load read-more state for combining logic
+  const [readMoreStateMap] = usePersistedState<Record<string, HunkReadMoreState>>(
+    getReviewReadMoreStateKey(workspaceId),
+    {},
+    { listener: true }
+  );
+
+  // Combine overlapping hunks based on expansion state
+  const combinedHunks = useMemo(() => {
+    const hunksWithExpansion = filteredHunks.map((hunk) => ({
+      hunk,
+      hunkId: hunk.id,
+      expansion: readMoreStateMap[hunk.id] || { up: 0, down: 0 },
+    }));
+    return combineOverlappingHunks(hunksWithExpansion);
+  }, [filteredHunks, readMoreStateMap]);
+
   // Memoize search config to prevent re-creating object on every render
   // This allows React.memo on HunkViewer to work properly
   const searchConfig = useMemo(
@@ -424,14 +446,6 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({
     const hunkId = e.currentTarget.dataset.hunkId;
     if (hunkId) setSelectedHunkId(hunkId);
   }, []);
-
-  const handleHunkToggleRead = useCallback(
-    (e: React.MouseEvent<HTMLElement>) => {
-      const hunkId = e.currentTarget.dataset.hunkId;
-      if (hunkId) handleToggleRead(hunkId);
-    },
-    [handleToggleRead]
-  );
 
   const handleRegisterToggleExpand = useCallback((hunkId: string, toggleFn: () => void) => {
     toggleExpandFnsRef.current.set(hunkId, toggleFn);
@@ -674,7 +688,7 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({
                     </details>
                   )}
                 </div>
-              ) : filteredHunks.length === 0 ? (
+              ) : combinedHunks.length === 0 ? (
                 <div className="text-muted flex flex-col items-center justify-start gap-3 px-6 pt-12 pb-6 text-center">
                   <div className="text-[13px] leading-[1.5]">
                     {debouncedSearchTerm.trim()
@@ -685,23 +699,30 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({
                   </div>
                 </div>
               ) : (
-                filteredHunks.map((hunk) => {
-                  const isSelected = hunk.id === selectedHunkId;
-                  const hunkIsRead = isRead(hunk.id);
+                combinedHunks.map((combined) => {
+                  const isSelected = combined.combinedId === selectedHunkId;
+                  // Combined hunk is "read" if all source hunks are read
+                  const hunkIsRead = combined.sourceHunks.every((h) => isRead(h.hunkId));
 
                   return (
                     <HunkViewer
-                      key={hunk.id}
-                      hunk={hunk}
-                      hunkId={hunk.id}
+                      key={combined.combinedId}
+                      hunk={combined.displayHunk}
+                      hunkId={combined.combinedId}
                       workspaceId={workspaceId}
                       isSelected={isSelected}
                       isRead={hunkIsRead}
                       onClick={handleHunkClick}
-                      onToggleRead={handleHunkToggleRead}
+                      onToggleRead={(e) => {
+                        // When toggling a combined hunk, apply to all source hunks
+                        e.stopPropagation();
+                        combined.sourceHunks.forEach((h) => handleToggleRead(h.hunkId));
+                      }}
                       onRegisterToggleExpand={handleRegisterToggleExpand}
                       onReviewNote={onReviewNote}
                       searchConfig={searchConfig}
+                      diffBase={filters.diffBase}
+                      includeUncommitted={filters.includeUncommitted}
                     />
                   );
                 })
