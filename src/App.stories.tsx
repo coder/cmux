@@ -19,9 +19,6 @@ function setupMockAPI(options: {
   const mockWorkspaces = options.workspaces ?? [];
 
   const mockApi: IPCApi = {
-    dialog: {
-      selectDirectory: () => Promise.resolve(null),
-    },
     providers: {
       setProviderConfig: () => Promise.resolve({ success: true, data: undefined }),
       list: () => Promise.resolve([]),

@@ -26,9 +26,6 @@ import { IPC_CHANNELS, getChatChannel } from "./constants/ipc-constants";
 
 // Build the API implementation using the shared interface
 const api: IPCApi = {
-  dialog: {
-    selectDirectory: () => ipcRenderer.invoke(IPC_CHANNELS.DIALOG_SELECT_DIR),
-  },
   providers: {
     setProviderConfig: (provider, keyPath, value) =>
       ipcRenderer.invoke(IPC_CHANNELS.PROVIDERS_SET_CONFIG, provider, keyPath, value),

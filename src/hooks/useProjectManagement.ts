@@ -25,10 +25,18 @@ export function useProjectManagement() {
 
   const addProject = useCallback(async () => {
     setError(null);
-    try {
-      const selectedPath = await window.api.dialog.selectDirectory();
-      if (!selectedPath) return;
+    
+    // Request directory path via web dialog event
+    const selectedPath = await new Promise<string | null>((resolve) => {
+      const event = new CustomEvent("directory-select-request", {
+        detail: { resolve },
+      });
+      window.dispatchEvent(event);
+    });
 
+    if (!selectedPath) return;
+
+    try {
       const result = await window.api.projects.create(selectedPath);
       if (result.success) {
         // Use the normalized path returned from backend

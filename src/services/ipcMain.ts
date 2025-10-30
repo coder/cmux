@@ -217,33 +217,12 @@ export class IpcMain {
       return;
     }
 
-    this.registerDialogHandlers(ipcMain);
     this.registerWindowHandlers(ipcMain);
     this.registerWorkspaceHandlers(ipcMain);
     this.registerProviderHandlers(ipcMain);
     this.registerProjectHandlers(ipcMain);
     this.registerSubscriptionHandlers(ipcMain);
     this.registered = true;
-  }
-
-  private registerDialogHandlers(ipcMain: ElectronIpcMain): void {
-    ipcMain.handle(IPC_CHANNELS.DIALOG_SELECT_DIR, async () => {
-      if (!this.mainWindow) return null;
-
-      // Dynamic import to avoid issues with electron mocks in tests
-      // eslint-disable-next-line no-restricted-syntax
-      const { dialog } = await import("electron");
-
-      const result = await dialog.showOpenDialog(this.mainWindow, {
-        properties: ["openDirectory"],
-      });
-
-      if (result.canceled) {
-        return null;
-      }
-
-      return result.filePaths[0];
-    });
   }
 
   private registerWindowHandlers(ipcMain: ElectronIpcMain): void {
