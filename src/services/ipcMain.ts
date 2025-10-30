@@ -1159,10 +1159,10 @@ export class IpcMain {
   }
 
   private registerProjectHandlers(ipcMain: ElectronIpcMain): void {
-    ipcMain.handle(IPC_CHANNELS.PROJECT_CREATE, (_event, projectPath: string) => {
+    ipcMain.handle(IPC_CHANNELS.PROJECT_CREATE, async (_event, projectPath: string) => {
       try {
         // Validate and expand path (handles tilde, checks existence and directory status)
-        const validation = validateProjectPath(projectPath);
+        const validation = await validateProjectPath(projectPath);
         if (!validation.valid) {
           return Err(validation.error ?? "Invalid project path");
         }
@@ -1247,7 +1247,7 @@ export class IpcMain {
 
       try {
         // Validate and expand path (handles tilde)
-        const validation = validateProjectPath(projectPath);
+        const validation = await validateProjectPath(projectPath);
         if (!validation.valid) {
           throw new Error(validation.error ?? "Invalid project path");
         }

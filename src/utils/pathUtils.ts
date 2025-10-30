@@ -1,4 +1,4 @@
-import * as fs from "fs";
+import * as fs from "fs/promises";
 import * as os from "os";
 import * as path from "path";
 
@@ -46,16 +46,16 @@ export function expandTilde(inputPath: string): string {
  * @returns Validation result with expanded path or error
  *
  * @example
- * validateProjectPath("~/my-project")
+ * await validateProjectPath("~/my-project")
  * // => { valid: true, expandedPath: "/home/user/my-project" }
  *
- * validateProjectPath("~/nonexistent")
+ * await validateProjectPath("~/nonexistent")
  * // => { valid: false, error: "Path does not exist: /home/user/nonexistent" }
  *
- * validateProjectPath("~/not-a-git-repo")
+ * await validateProjectPath("~/not-a-git-repo")
  * // => { valid: false, error: "Not a git repository: /home/user/not-a-git-repo" }
  */
-export function validateProjectPath(inputPath: string): PathValidationResult {
+export async function validateProjectPath(inputPath: string): Promise<PathValidationResult> {
   // Expand tilde if present
   const expandedPath = expandTilde(inputPath);
 
@@ -63,32 +63,38 @@ export function validateProjectPath(inputPath: string): PathValidationResult {
   const normalizedPath = path.normalize(expandedPath);
 
   // Check if path exists
-  // eslint-disable-next-line local/no-sync-fs-methods -- Synchronous validation required for IPC handler
-  if (!fs.existsSync(normalizedPath)) {
-    return {
-      valid: false,
-      error: `Path does not exist: ${normalizedPath}`,
-    };
-  }
-
-  // Check if it's a directory
-  // eslint-disable-next-line local/no-sync-fs-methods -- Synchronous validation required for IPC handler
-  const stats = fs.statSync(normalizedPath);
-  if (!stats.isDirectory()) {
-    return {
-      valid: false,
-      error: `Path is not a directory: ${normalizedPath}`,
-    };
+  try {
+    const stats = await fs.stat(normalizedPath);
+    
+    // Check if it's a directory
+    if (!stats.isDirectory()) {
+      return {
+        valid: false,
+        error: `Path is not a directory: ${normalizedPath}`,
+      };
+    }
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === "ENOENT") {
+      return {
+        valid: false,
+        error: `Path does not exist: ${normalizedPath}`,
+      };
+    }
+    throw err;
   }
 
   // Check if it's a git repository
   const gitPath = path.join(normalizedPath, ".git");
-  // eslint-disable-next-line local/no-sync-fs-methods -- Synchronous validation required for IPC handler
-  if (!fs.existsSync(gitPath)) {
-    return {
-      valid: false,
-      error: `Not a git repository: ${normalizedPath}`,
-    };
+  try {
+    await fs.stat(gitPath);
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === "ENOENT") {
+      return {
+        valid: false,
+        error: `Not a git repository: ${normalizedPath}`,
+      };
+    }
+    throw err;
   }
 
   return {

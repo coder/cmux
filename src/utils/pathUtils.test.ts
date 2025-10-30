@@ -53,17 +53,17 @@ describe("pathUtils", () => {
       fs.rmSync(tempDir, { recursive: true, force: true });
     });
 
-    it("should return success for existing git directory", () => {
+    it("should return success for existing git directory", async () => {
       // Create .git directory
       // eslint-disable-next-line local/no-sync-fs-methods -- Test setup only
       fs.mkdirSync(path.join(tempDir, ".git"));
-      const result = validateProjectPath(tempDir);
+      const result = await validateProjectPath(tempDir);
       expect(result.valid).toBe(true);
       expect(result.expandedPath).toBe(tempDir);
       expect(result.error).toBeUndefined();
     });
 
-    it("should expand tilde and validate", () => {
+    it("should expand tilde and validate", async () => {
       // Create a test directory in home with .git
       const testDir = path.join(os.homedir(), `cmux-test-git-${Date.now()}`);
       // eslint-disable-next-line local/no-sync-fs-methods -- Test setup only
@@ -71,7 +71,7 @@ describe("pathUtils", () => {
       // eslint-disable-next-line local/no-sync-fs-methods -- Test setup only
       fs.mkdirSync(path.join(testDir, ".git"));
 
-      const result = validateProjectPath(`~/${path.basename(testDir)}`);
+      const result = await validateProjectPath(`~/${path.basename(testDir)}`);
       expect(result.valid).toBe(true);
       expect(result.expandedPath).toBe(testDir);
       expect(result.error).toBeUndefined();
@@ -80,52 +80,52 @@ describe("pathUtils", () => {
       fs.rmSync(testDir, { recursive: true, force: true });
     });
 
-    it("should return error for non-existent path", () => {
+    it("should return error for non-existent path", async () => {
       const nonExistentPath = "/this/path/definitely/does/not/exist/cmux-test-12345";
-      const result = validateProjectPath(nonExistentPath);
+      const result = await validateProjectPath(nonExistentPath);
       expect(result.valid).toBe(false);
       expect(result.error).toContain("does not exist");
     });
 
-    it("should return error for file path (not directory)", () => {
+    it("should return error for file path (not directory)", async () => {
       const filePath = path.join(tempDir, "test-file.txt");
       // eslint-disable-next-line local/no-sync-fs-methods -- Test setup only
       fs.writeFileSync(filePath, "test content");
 
-      const result = validateProjectPath(filePath);
+      const result = await validateProjectPath(filePath);
       expect(result.valid).toBe(false);
       expect(result.error).toContain("not a directory");
     });
 
-    it("should handle tilde path to non-existent directory", () => {
+    it("should handle tilde path to non-existent directory", async () => {
       const nonExistentTildePath = "~/this-directory-should-not-exist-cmux-test-12345";
-      const result = validateProjectPath(nonExistentTildePath);
+      const result = await validateProjectPath(nonExistentTildePath);
       expect(result.valid).toBe(false);
       expect(result.error).toContain("does not exist");
     });
 
-    it("should return normalized absolute path", () => {
+    it("should return normalized absolute path", async () => {
       const pathWithDots = path.join(tempDir, "..", path.basename(tempDir));
       // Add .git directory for validation
       // eslint-disable-next-line local/no-sync-fs-methods -- Test setup only
       fs.mkdirSync(path.join(tempDir, ".git"));
-      const result = validateProjectPath(pathWithDots);
+      const result = await validateProjectPath(pathWithDots);
       expect(result.valid).toBe(true);
       expect(result.expandedPath).toBe(tempDir);
     });
 
-    it("should reject directory without .git", () => {
-      const result = validateProjectPath(tempDir);
+    it("should reject directory without .git", async () => {
+      const result = await validateProjectPath(tempDir);
       expect(result.valid).toBe(false);
       expect(result.error).toContain("Not a git repository");
     });
 
-    it("should accept directory with .git", () => {
+    it("should accept directory with .git", async () => {
       const gitDir = path.join(tempDir, ".git");
       // eslint-disable-next-line local/no-sync-fs-methods -- Test setup only
       fs.mkdirSync(gitDir);
 
-      const result = validateProjectPath(tempDir);
+      const result = await validateProjectPath(tempDir);
       expect(result.valid).toBe(true);
       expect(result.expandedPath).toBe(tempDir);
     });
