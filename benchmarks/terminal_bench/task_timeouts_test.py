@@ -42,15 +42,15 @@ def test_max_timeout_for_tasks():
     # Mix of fast and slow
     tasks = ["hello-world", "count-dataset-tokens"]
     assert get_max_timeout_for_tasks(tasks) == SLOW_TIMEOUT
-    
+
     # Mix of fast, slow, and very slow
     tasks = ["hello-world", "count-dataset-tokens", "build-linux-kernel-qemu"]
     assert get_max_timeout_for_tasks(tasks) == VERY_SLOW_TIMEOUT
-    
+
     # All fast
     tasks = ["hello-world", "simple-web-scraper"]
     assert get_max_timeout_for_tasks(tasks) == FAST_TIMEOUT
-    
+
     # Empty list should return conservative default
     assert get_max_timeout_for_tasks([]) == VERY_SLOW_TIMEOUT
 
@@ -61,6 +61,6 @@ def test_timeout_values():
     assert NORMAL_TIMEOUT == 900  # 15 minutes
     assert SLOW_TIMEOUT == 1800  # 30 minutes
     assert VERY_SLOW_TIMEOUT == 3600  # 60 minutes
-    
+
     # Ensure proper ordering
     assert FAST_TIMEOUT < NORMAL_TIMEOUT < SLOW_TIMEOUT < VERY_SLOW_TIMEOUT

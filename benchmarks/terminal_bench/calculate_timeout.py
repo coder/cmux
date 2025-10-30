@@ -35,18 +35,18 @@ def main():
         default="flag",
         help="Output format: 'seconds' (just the number) or 'flag' (--global-agent-timeout-sec VALUE)",
     )
-    
+
     args = parser.parse_args()
-    
+
     if args.task_ids:
         timeout = get_max_timeout_for_tasks(args.task_ids)
     else:
         # No specific tasks - use conservative default for full suite
         timeout = VERY_SLOW_TIMEOUT
-    
+
     # Apply multiplier
     timeout = int(timeout * args.multiplier)
-    
+
     if args.format == "seconds":
         print(timeout)
     else:
