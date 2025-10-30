@@ -200,9 +200,6 @@ export interface SendMessageOptions {
 // Minimize the number of methods - use optional parameters for operation variants
 // (e.g. remove(id, force?) not remove(id) + removeForce(id)).
 export interface IPCApi {
-  dialog: {
-    selectDirectory(): Promise<string | null>;
-  };
   providers: {
     setProviderConfig(
       provider: string,
@@ -212,7 +209,9 @@ export interface IPCApi {
     list(): Promise<string[]>;
   };
   projects: {
-    create(projectPath: string): Promise<Result<ProjectConfig, string>>;
+    create(
+      projectPath: string
+    ): Promise<Result<{ projectConfig: ProjectConfig; normalizedPath: string }, string>>;
     remove(projectPath: string): Promise<Result<void, string>>;
     list(): Promise<Array<[string, ProjectConfig]>>;
     listBranches(projectPath: string): Promise<BranchListResult>;

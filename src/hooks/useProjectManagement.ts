@@ -13,12 +13,8 @@ export function useProjectManagement() {
 
   const loadProjects = async () => {
     try {
-      console.log("Loading projects...");
       const projectsList = await window.api.projects.list();
-      console.log("Received projects:", projectsList);
-
       const projectsMap = new Map<string, ProjectConfig>(projectsList);
-      console.log("Created projects map, size:", projectsMap.size);
       setProjects(projectsMap);
     } catch (error) {
       console.error("Failed to load projects:", error);
@@ -26,28 +22,15 @@ export function useProjectManagement() {
     }
   };
 
-  const addProject = useCallback(async () => {
-    try {
-      const selectedPath = await window.api.dialog.selectDirectory();
-      if (!selectedPath) return;
-
-      if (projects.has(selectedPath)) {
-        console.log("Project already exists:", selectedPath);
-        return;
-      }
-
-      const result = await window.api.projects.create(selectedPath);
-      if (result.success) {
-        const newProjects = new Map(projects);
-        newProjects.set(selectedPath, result.data);
-        setProjects(newProjects);
-      } else {
-        console.error("Failed to create project:", result.error);
-      }
-    } catch (error) {
-      console.error("Failed to add project:", error);
-    }
-  }, [projects]);
+  const addProject = useCallback(
+    (normalizedPath: string, projectConfig: ProjectConfig) => {
+      // Add successfully created project to local state
+      const newProjects = new Map(projects);
+      newProjects.set(normalizedPath, projectConfig);
+      setProjects(newProjects);
+    },
+    [projects]
+  );
 
   const removeProject = useCallback(
     async (path: string) => {
@@ -59,8 +42,7 @@ export function useProjectManagement() {
           setProjects(newProjects);
         } else {
           console.error("Failed to remove project:", result.error);
-          // Show error to user - they might need to remove workspaces first
-          alert(result.error);
+          // TODO: Show error to user in UI - they might need to remove workspaces first
         }
       } catch (error) {
         console.error("Failed to remove project:", error);

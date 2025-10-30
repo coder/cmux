@@ -4,9 +4,6 @@
  */
 
 export const IPC_CHANNELS = {
-  // Dialog channels
-  DIALOG_SELECT_DIR: "dialog:selectDirectory",
-
   // Provider channels
   PROVIDERS_SET_CONFIG: "providers:setConfig",
   PROVIDERS_LIST: "providers:list",

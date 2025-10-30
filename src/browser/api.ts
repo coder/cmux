@@ -184,27 +184,8 @@ class WebSocketManager {
 
 const wsManager = new WebSocketManager();
 
-// Directory selection via custom event (for browser mode)
-interface DirectorySelectEvent extends CustomEvent {
-  detail: {
-    resolve: (path: string | null) => void;
-  };
-}
-
-function requestDirectorySelection(): Promise<string | null> {
-  return new Promise((resolve) => {
-    const event = new CustomEvent("directory-select-request", {
-      detail: { resolve },
-    }) as DirectorySelectEvent;
-    window.dispatchEvent(event);
-  });
-}
-
 // Create the Web API implementation
 const webApi: IPCApi = {
-  dialog: {
-    selectDirectory: requestDirectorySelection,
-  },
   providers: {
     setProviderConfig: (provider, keyPath, value) =>
       invokeIPC(IPC_CHANNELS.PROVIDERS_SET_CONFIG, provider, keyPath, value),

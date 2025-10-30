@@ -26,6 +26,7 @@ import { BashExecutionService } from "@/services/bashExecutionService";
 import { InitStateManager } from "@/services/initStateManager";
 import { createRuntime } from "@/runtime/runtimeFactory";
 import type { RuntimeConfig } from "@/types/runtime";
+import { validateProjectPath } from "@/utils/pathUtils";
 /**
  * IpcMain - Manages all IPC handlers and service coordination
  *
@@ -216,33 +217,12 @@ export class IpcMain {
       return;
     }
 
-    this.registerDialogHandlers(ipcMain);
     this.registerWindowHandlers(ipcMain);
     this.registerWorkspaceHandlers(ipcMain);
     this.registerProviderHandlers(ipcMain);
     this.registerProjectHandlers(ipcMain);
     this.registerSubscriptionHandlers(ipcMain);
     this.registered = true;
-  }
-
-  private registerDialogHandlers(ipcMain: ElectronIpcMain): void {
-    ipcMain.handle(IPC_CHANNELS.DIALOG_SELECT_DIR, async () => {
-      if (!this.mainWindow) return null;
-
-      // Dynamic import to avoid issues with electron mocks in tests
-      // eslint-disable-next-line no-restricted-syntax
-      const { dialog } = await import("electron");
-
-      const result = await dialog.showOpenDialog(this.mainWindow, {
-        properties: ["openDirectory"],
-      });
-
-      if (result.canceled) {
-        return null;
-      }
-
-      return result.filePaths[0];
-    });
   }
 
   private registerWindowHandlers(ipcMain: ElectronIpcMain): void {
@@ -1179,12 +1159,21 @@ export class IpcMain {
   }
 
   private registerProjectHandlers(ipcMain: ElectronIpcMain): void {
-    ipcMain.handle(IPC_CHANNELS.PROJECT_CREATE, (_event, projectPath: string) => {
+    ipcMain.handle(IPC_CHANNELS.PROJECT_CREATE, async (_event, projectPath: string) => {
       try {
+        // Validate and expand path (handles tilde, checks existence and directory status)
+        const validation = await validateProjectPath(projectPath);
+        if (!validation.valid) {
+          return Err(validation.error ?? "Invalid project path");
+        }
+
+        // Use the expanded/normalized path
+        const normalizedPath = validation.expandedPath!;
+
         const config = this.config.loadConfigOrDefault();
 
-        // Check if project already exists
-        if (config.projects.has(projectPath)) {
+        // Check if project already exists (using normalized path)
+        if (config.projects.has(normalizedPath)) {
           return Err("Project already exists");
         }
 
@@ -1193,11 +1182,12 @@ export class IpcMain {
           workspaces: [],
         };
 
-        // Add to config
-        config.projects.set(projectPath, projectConfig);
+        // Add to config with normalized path
+        config.projects.set(normalizedPath, projectConfig);
         this.config.saveConfig(config);
 
-        return Ok(projectConfig);
+        // Return both the config and the normalized path so frontend can use it
+        return Ok({ projectConfig, normalizedPath });
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         return Err(`Failed to create project: ${message}`);
@@ -1256,8 +1246,15 @@ export class IpcMain {
       }
 
       try {
-        const branches = await listLocalBranches(projectPath);
-        const recommendedTrunk = await detectDefaultTrunkBranch(projectPath, branches);
+        // Validate and expand path (handles tilde)
+        const validation = await validateProjectPath(projectPath);
+        if (!validation.valid) {
+          throw new Error(validation.error ?? "Invalid project path");
+        }
+
+        const normalizedPath = validation.expandedPath!;
+        const branches = await listLocalBranches(normalizedPath);
+        const recommendedTrunk = await detectDefaultTrunkBranch(normalizedPath, branches);
         return { branches, recommendedTrunk };
       } catch (error) {
         log.error("Failed to list branches:", error);

@@ -5,7 +5,7 @@ import type { WorkspaceSelection } from "./components/ProjectSidebar";
 import type { FrontendWorkspaceMetadata } from "./types/workspace";
 import { LeftSidebar } from "./components/LeftSidebar";
 import NewWorkspaceModal from "./components/NewWorkspaceModal";
-import { DirectorySelectModal } from "./components/DirectorySelectModal";
+import { ProjectCreateModal } from "./components/ProjectCreateModal";
 import { AIView } from "./components/AIView";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { usePersistedState, updatePersistedState } from "./hooks/usePersistedState";
@@ -46,6 +46,7 @@ function AppInner() {
     selectedWorkspace,
     setSelectedWorkspace,
   } = useApp();
+  const [projectCreateModalOpen, setProjectCreateModalOpen] = useState(false);
   const [workspaceModalOpen, setWorkspaceModalOpen] = useState(false);
   const [workspaceModalProject, setWorkspaceModalProject] = useState<string | null>(null);
   const [workspaceModalProjectName, setWorkspaceModalProjectName] = useState<string>("");
@@ -218,8 +219,8 @@ function AppInner() {
 
   // Memoize callbacks to prevent LeftSidebar/ProjectSidebar re-renders
   const handleAddProjectCallback = useCallback(() => {
-    void addProject();
-  }, [addProject]);
+    setProjectCreateModalOpen(true);
+  }, []);
 
   const handleAddWorkspaceCallback = useCallback(
     (projectPath: string) => {
@@ -473,8 +474,8 @@ function AppInner() {
   );
 
   const addProjectFromPalette = useCallback(() => {
-    void addProject();
-  }, [addProject]);
+    setProjectCreateModalOpen(true);
+  }, []);
 
   const removeProjectFromPalette = useCallback(
     (path: string) => {
@@ -694,7 +695,11 @@ function AppInner() {
             onAdd={handleCreateWorkspace}
           />
         )}
-        <DirectorySelectModal />
+        <ProjectCreateModal
+          isOpen={projectCreateModalOpen}
+          onClose={() => setProjectCreateModalOpen(false)}
+          onSuccess={addProject}
+        />
       </div>
     </>
   );

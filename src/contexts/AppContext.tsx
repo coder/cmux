@@ -13,7 +13,7 @@ interface AppContextType {
   // Projects
   projects: Map<string, ProjectConfig>;
   setProjects: Dispatch<SetStateAction<Map<string, ProjectConfig>>>;
-  addProject: () => Promise<void>;
+  addProject: (normalizedPath: string, projectConfig: ProjectConfig) => void;
   removeProject: (path: string) => Promise<void>;
 
   // Workspaces

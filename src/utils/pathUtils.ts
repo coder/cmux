@@ -1,0 +1,104 @@
+import * as fs from "fs/promises";
+import * as os from "os";
+import * as path from "path";
+
+/**
+ * Result of path validation
+ */
+export interface PathValidationResult {
+  valid: boolean;
+  expandedPath?: string;
+  error?: string;
+}
+
+/**
+ * Expand tilde (~) in paths to the user's home directory
+ *
+ * @param inputPath - Path that may contain tilde
+ * @returns Path with tilde expanded to home directory
+ *
+ * @example
+ * expandTilde("~/Documents") // => "/home/user/Documents"
+ * expandTilde("~") // => "/home/user"
+ * expandTilde("/absolute/path") // => "/absolute/path"
+ */
+export function expandTilde(inputPath: string): string {
+  if (!inputPath) {
+    return inputPath;
+  }
+
+  if (inputPath === "~") {
+    return os.homedir();
+  }
+
+  if (inputPath.startsWith("~/") || inputPath.startsWith("~\\")) {
+    return path.join(os.homedir(), inputPath.slice(2));
+  }
+
+  return inputPath;
+}
+
+/**
+ * Validate that a project path exists, is a directory, and is a git repository
+ * Automatically expands tilde and normalizes the path
+ *
+ * @param inputPath - Path to validate (may contain tilde)
+ * @returns Validation result with expanded path or error
+ *
+ * @example
+ * await validateProjectPath("~/my-project")
+ * // => { valid: true, expandedPath: "/home/user/my-project" }
+ *
+ * await validateProjectPath("~/nonexistent")
+ * // => { valid: false, error: "Path does not exist: /home/user/nonexistent" }
+ *
+ * await validateProjectPath("~/not-a-git-repo")
+ * // => { valid: false, error: "Not a git repository: /home/user/not-a-git-repo" }
+ */
+export async function validateProjectPath(inputPath: string): Promise<PathValidationResult> {
+  // Expand tilde if present
+  const expandedPath = expandTilde(inputPath);
+
+  // Normalize to resolve any .. or . in the path
+  const normalizedPath = path.normalize(expandedPath);
+
+  // Check if path exists
+  try {
+    const stats = await fs.stat(normalizedPath);
+
+    // Check if it's a directory
+    if (!stats.isDirectory()) {
+      return {
+        valid: false,
+        error: `Path is not a directory: ${normalizedPath}`,
+      };
+    }
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === "ENOENT") {
+      return {
+        valid: false,
+        error: `Path does not exist: ${normalizedPath}`,
+      };
+    }
+    throw err;
+  }
+
+  // Check if it's a git repository
+  const gitPath = path.join(normalizedPath, ".git");
+  try {
+    await fs.stat(gitPath);
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === "ENOENT") {
+      return {
+        valid: false,
+        error: `Not a git repository: ${normalizedPath}`,
+      };
+    }
+    throw err;
+  }
+
+  return {
+    valid: true,
+    expandedPath: normalizedPath,
+  };
+}
