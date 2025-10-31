@@ -208,11 +208,11 @@ export class StreamingMessageAggregator {
   /**
    * Load historical messages in batch, preserving their historySequence numbers.
    * This is more efficient than calling addMessage() repeatedly.
-   * 
+   *
    * @param messages - Historical messages to load
    * @param hasActiveStream - Whether there's an active stream in buffered events (for reconnection scenario)
    */
-  loadHistoricalMessages(messages: CmuxMessage[], hasActiveStream: boolean = false): void {
+  loadHistoricalMessages(messages: CmuxMessage[], hasActiveStream = false): void {
     // First, add all messages to the map
     for (const message of messages) {
       this.messages.set(message.id, message);
@@ -235,7 +235,7 @@ export class StreamingMessageAggregator {
           // Reconstruct based on tool type and stream state
           const shouldReconstructTodos = part.toolName === "todo_write" && hasActiveStream;
           const shouldReconstructStatus = part.toolName === "status_set";
-          
+
           if (shouldReconstructTodos || shouldReconstructStatus) {
             this.processToolResult(part.toolName, part.input, part.output);
           }
