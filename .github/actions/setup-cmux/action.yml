@@ -18,6 +18,17 @@ runs:
       shell: bash
       run: echo "version=$(bun --version)" >> $GITHUB_OUTPUT
 
+    - name: Cache Homebrew downloads (macOS)
+      if: runner.os == 'macOS'
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/Library/Caches/Homebrew/downloads
+          ~/Library/Caches/Homebrew/Cask
+        key: ${{ runner.os }}-${{ runner.arch }}-homebrew-${{ hashFiles('**/bun.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-${{ runner.arch }}-homebrew-
+
     - name: Cache node_modules
       uses: actions/cache@v4
       with:
