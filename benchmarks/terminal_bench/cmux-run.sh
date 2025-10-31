@@ -102,7 +102,8 @@ cmd=(bun src/debug/agentSessionCli.ts
   --workspace-path "${project_path}"
   --workspace-id "${CMUX_WORKSPACE_ID}"
   --model "${CMUX_MODEL}"
-  --mode "${CMUX_MODE}")
+  --mode "${CMUX_MODE}"
+  --json-streaming)
 
 if [[ -n "${CMUX_TIMEOUT_MS}" ]]; then
   cmd+=(--timeout "${CMUX_TIMEOUT_MS}")
