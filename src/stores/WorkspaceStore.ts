@@ -910,9 +910,15 @@ export class WorkspaceStore {
     const historicalMsgs = this.historicalMessages.get(workspaceId) ?? [];
 
     if (isCaughtUpMessage(data)) {
+      // Check if there's an active stream in buffered events (reconnection scenario)
+      const pendingEvents = this.pendingStreamEvents.get(workspaceId) ?? [];
+      const hasActiveStream = pendingEvents.some(
+        (event) => "type" in event && event.type === "stream-start"
+      );
+
       // Load historical messages first
       if (historicalMsgs.length > 0) {
-        aggregator.loadHistoricalMessages(historicalMsgs);
+        aggregator.loadHistoricalMessages(historicalMsgs, hasActiveStream);
         this.historicalMessages.set(workspaceId, []);
       }
 
@@ -920,7 +926,6 @@ export class WorkspaceStore {
       this.replayingHistory.add(workspaceId);
 
       // Process buffered stream events now that history is loaded
-      const pendingEvents = this.pendingStreamEvents.get(workspaceId) ?? [];
       for (const event of pendingEvents) {
         this.processStreamEvent(workspaceId, aggregator, event);
       }

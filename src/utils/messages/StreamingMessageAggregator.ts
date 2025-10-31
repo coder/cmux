@@ -66,7 +66,9 @@ export class StreamingMessageAggregator {
   // Delta history for token counting and TPS calculation
   private deltaHistory = new Map<string, DeltaRecordStorage>();
 
-  // Current TODO list (updated when todo_write succeeds)
+  // Current TODO list (updated when todo_write succeeds, cleared on stream end)
+  // Stream-scoped: automatically reset when stream completes
+  // On reload: only reconstructed if reconnecting to active stream
   private currentTodos: TodoItem[] = [];
 
   // Current agent status (updated when status_set is called)
@@ -172,12 +174,18 @@ export class StreamingMessageAggregator {
    * Clean up stream-scoped state when stream ends (normally or abnormally).
    * Called by handleStreamEnd, handleStreamAbort, and handleStreamError.
    *
-   * NOTE: Does NOT clear todos or agentStatus - those are cleared when a new
-   * user message arrives (see handleMessage), ensuring consistent behavior
-   * whether loading from history or processing live events.
+   * Clears:
+   * - Active stream tracking (this.activeStreams)
+   * - Current TODOs (this.currentTodos) - reconstructed from history on reload
+   *
+   * Does NOT clear:
+   * - agentStatus - persists after stream completion to show last activity
    */
   private cleanupStreamState(messageId: string): void {
     this.activeStreams.delete(messageId);
+    // Clear todos when stream ends - they're stream-scoped state
+    // On reload, todos will be reconstructed from completed tool_write calls in history
+    this.currentTodos = [];
   }
 
   addMessage(message: CmuxMessage): void {
@@ -200,18 +208,33 @@ export class StreamingMessageAggregator {
   /**
    * Load historical messages in batch, preserving their historySequence numbers.
    * This is more efficient than calling addMessage() repeatedly.
+   *
+   * @param messages - Historical messages to load
+   * @param hasActiveStream - Whether there's an active stream in buffered events (for reconnection scenario)
    */
-  loadHistoricalMessages(messages: CmuxMessage[]): void {
+  loadHistoricalMessages(messages: CmuxMessage[], hasActiveStream = false): void {
+    // First, add all messages to the map
     for (const message of messages) {
       this.messages.set(message.id, message);
+    }
 
-      // Process completed tool calls to reconstruct derived state (todos, agentStatus)
-      // This ensures state persists across page reloads and workspace switches
-      if (message.role === "assistant") {
-        for (const part of message.parts) {
-          if (isDynamicToolPart(part) && part.state === "output-available") {
-            this.processToolResult(part.toolName, part.input, part.output);
-          }
+    // Then, reconstruct derived state from the most recent assistant message
+    // Use "streaming" context if there's an active stream (reconnection), otherwise "historical"
+    const context = hasActiveStream ? "streaming" : "historical";
+
+    const sortedMessages = [...messages].sort(
+      (a, b) => (b.metadata?.historySequence ?? 0) - (a.metadata?.historySequence ?? 0)
+    );
+
+    // Find the most recent assistant message
+    const lastAssistantMessage = sortedMessages.find((msg) => msg.role === "assistant");
+
+    if (lastAssistantMessage) {
+      // Process all tool results from the most recent assistant message
+      // processToolResult will decide what to do based on tool type and context
+      for (const part of lastAssistantMessage.parts) {
+        if (isDynamicToolPart(part) && part.state === "output-available") {
+          this.processToolResult(part.toolName, part.input, part.output, context);
         }
       }
     }
@@ -401,7 +424,7 @@ export class StreamingMessageAggregator {
         }
       }
 
-      // Clean up stream-scoped state (TODOs, active stream tracking)
+      // Clean up stream-scoped state (active stream tracking, TODOs)
       this.cleanupStreamState(data.messageId);
     } else {
       // Reconnection case: user reconnected after stream completed
@@ -422,7 +445,7 @@ export class StreamingMessageAggregator {
 
       this.messages.set(data.messageId, message);
 
-      // Clean up stream-scoped state (TODOs, active stream tracking)
+      // Clean up stream-scoped state (active stream tracking, TODOs)
       this.cleanupStreamState(data.messageId);
     }
     this.invalidateCache();
@@ -443,7 +466,7 @@ export class StreamingMessageAggregator {
         };
       }
 
-      // Clean up stream-scoped state (TODOs, active stream tracking)
+      // Clean up stream-scoped state (active stream tracking, TODOs)
       this.cleanupStreamState(data.messageId);
       this.invalidateCache();
     }
@@ -462,7 +485,7 @@ export class StreamingMessageAggregator {
         message.metadata.errorType = data.errorType;
       }
 
-      // Clean up stream-scoped state (TODOs, active stream tracking)
+      // Clean up stream-scoped state (active stream tracking, TODOs)
       this.cleanupStreamState(data.messageId);
       this.invalidateCache();
     }
@@ -512,10 +535,21 @@ export class StreamingMessageAggregator {
    *
    * This is the single source of truth for updating state from tool results,
    * ensuring consistency whether processing live events or historical messages.
+   *
+   * @param toolName - Name of the tool that was called
+   * @param input - Tool input arguments
+   * @param output - Tool output result
+   * @param context - Whether this is from live streaming or historical reload
    */
-  private processToolResult(toolName: string, input: unknown, output: unknown): void {
+  private processToolResult(
+    toolName: string,
+    input: unknown,
+    output: unknown,
+    context: "streaming" | "historical"
+  ): void {
     // Update TODO state if this was a successful todo_write
-    if (toolName === "todo_write" && hasSuccessResult(output)) {
+    // TODOs are stream-scoped: only update during live streaming, not on historical reload
+    if (toolName === "todo_write" && hasSuccessResult(output) && context === "streaming") {
       const args = input as { todos: TodoItem[] };
       // Only update if todos actually changed (prevents flickering from reference changes)
       if (!this.todosEqual(this.currentTodos, args.todos)) {
@@ -524,6 +558,7 @@ export class StreamingMessageAggregator {
     }
 
     // Update agent status if this was a successful status_set
+    // agentStatus persists: update both during streaming and on historical reload
     // Use output instead of input to get the truncated message
     if (toolName === "status_set" && hasSuccessResult(output)) {
       const result = output as Extract<StatusSetToolResult, { success: true }>;
@@ -557,7 +592,8 @@ export class StreamingMessageAggregator {
         (toolPart as DynamicToolPartAvailable).output = data.result;
 
         // Process tool result to update derived state (todos, agentStatus, etc.)
-        this.processToolResult(data.toolName, toolPart.input, data.result);
+        // This is from a live stream, so use "streaming" context
+        this.processToolResult(data.toolName, toolPart.input, data.result, "streaming");
       }
       this.invalidateCache();
     }
