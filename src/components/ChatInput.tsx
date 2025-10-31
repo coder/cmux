@@ -765,49 +765,55 @@ export const ChatInput: React.FC<ChatInputProps> = ({
             Editing message ({formatKeybind(KEYBINDS.CANCEL_EDIT)} to cancel)
           </div>
         )}
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-          {/* Model Selector - always visible */}
-          <div className="flex items-center" data-component="ModelSelectorGroup">
-            <ModelSelector
-              ref={modelSelectorRef}
-              value={preferredModel}
-              onChange={setPreferredModel}
-              recentModels={recentModels}
-              onComplete={() => inputRef.current?.focus()}
-            />
-            <TooltipWrapper inline>
-              <HelpIndicator>?</HelpIndicator>
-              <Tooltip className="tooltip" align="left" width="wide">
-                <strong>Click to edit</strong> or use {formatKeybind(KEYBINDS.OPEN_MODEL_SELECTOR)}
-                <br />
-                <br />
-                <strong>Abbreviations:</strong>
-                <br />• <code>/model opus</code> - Claude Opus 4.1
-                <br />• <code>/model sonnet</code> - Claude Sonnet 4.5
-                <br />
-                <br />
-                <strong>Full format:</strong>
-                <br />
-                <code>/model provider:model-name</code>
-                <br />
-                (e.g., <code>/model anthropic:claude-sonnet-4-5</code>)
-              </Tooltip>
-            </TooltipWrapper>
+        <div className="grid grid-cols-[1fr_auto] items-center gap-3">
+          {/* Left column: Model controls */}
+          <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2">
+            {/* Model Selector - always visible */}
+            <div className="flex items-center gap-1.5" data-component="ModelSelectorGroup">
+              <ModelSelector
+                ref={modelSelectorRef}
+                value={preferredModel}
+                onChange={setPreferredModel}
+                recentModels={recentModels}
+                onComplete={() => inputRef.current?.focus()}
+              />
+              <TooltipWrapper inline>
+                <HelpIndicator>?</HelpIndicator>
+                <Tooltip className="tooltip" align="left" width="wide">
+                  <strong>Click to edit</strong> or use{" "}
+                  {formatKeybind(KEYBINDS.OPEN_MODEL_SELECTOR)}
+                  <br />
+                  <br />
+                  <strong>Abbreviations:</strong>
+                  <br />• <code>/model opus</code> - Claude Opus 4.1
+                  <br />• <code>/model sonnet</code> - Claude Sonnet 4.5
+                  <br />
+                  <br />
+                  <strong>Full format:</strong>
+                  <br />
+                  <code>/model provider:model-name</code>
+                  <br />
+                  (e.g., <code>/model anthropic:claude-sonnet-4-5</code>)
+                </Tooltip>
+              </TooltipWrapper>
+            </div>
+
+            {/* Thinking Slider - hide on small viewports */}
+            <div
+              className="max-@[600px]:hidden flex items-center"
+              data-component="ThinkingSliderGroup"
+            >
+              <ThinkingSliderComponent modelString={preferredModel} />
+            </div>
+
+            {/* Context 1M Checkbox - hide on smaller viewports */}
+            <div className="max-@[500px]:hidden flex items-center" data-component="Context1MGroup">
+              <Context1MCheckbox modelString={preferredModel} />
+            </div>
           </div>
 
-          {/* Thinking Slider - hide on small viewports */}
-          <div
-            className="max-@[600px]:hidden flex items-center"
-            data-component="ThinkingSliderGroup"
-          >
-            <ThinkingSliderComponent modelString={preferredModel} />
-          </div>
-
-          {/* Context 1M Checkbox - hide on smaller viewports */}
-          <div className="max-@[500px]:hidden flex items-center" data-component="Context1MGroup">
-            <Context1MCheckbox modelString={preferredModel} />
-          </div>
-          <div className="max-@[700px]:hidden ml-auto flex items-center gap-1.5">
+          {/* Right column: Mode toggles */}
+          <div className="max-@[500px]:hidden flex items-center gap-1.5">
             <div
               className={cn(
                 "flex gap-0 bg-toggle-bg rounded",
