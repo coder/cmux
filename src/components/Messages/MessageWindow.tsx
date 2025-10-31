@@ -3,7 +3,7 @@ import React, { useState, useMemo } from "react";
 import type { CmuxMessage, DisplayedMessage } from "@/types/message";
 import { HeaderButton } from "../tools/shared/ToolPrimitives";
 import { formatTimestamp } from "@/utils/ui/dateTime";
-import { TooltipWrapper, Tooltip } from "../Tooltip";
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { KebabMenu, type KebabMenuItem } from "../KebabMenu";
 
 export interface ButtonConfig {
@@ -88,14 +88,16 @@ export const MessageWindow: React.FC<MessageWindowProps> = ({
           {rightLabel}
           {buttons.map((button, index) =>
             button.tooltip ? (
-              <TooltipWrapper key={index} inline>
-                <ButtonWithHoverEmoji
-                  button={button}
-                  active={button.active}
-                  disabled={button.disabled}
-                />
-                <Tooltip align="center">{button.tooltip}</Tooltip>
-              </TooltipWrapper>
+              <Tooltip key={index}>
+                <TooltipTrigger asChild>
+                  <ButtonWithHoverEmoji
+                    button={button}
+                    active={button.active}
+                    disabled={button.disabled}
+                  />
+                </TooltipTrigger>
+                <TooltipContent>{button.tooltip}</TooltipContent>
+              </Tooltip>
             ) : (
               <ButtonWithHoverEmoji
                 key={index}

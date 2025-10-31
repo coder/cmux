@@ -7,8 +7,7 @@ import { createCommandToast, createErrorToast } from "./ChatInputToasts";
 import { parseCommand } from "@/utils/slashCommands/parser";
 import { usePersistedState, updatePersistedState } from "@/hooks/usePersistedState";
 import { useMode } from "@/contexts/ModeContext";
-import { ThinkingSliderComponent } from "./ThinkingSlider";
-import { Context1MCheckbox } from "./Context1MCheckbox";
+import { ChatToggles } from "./ChatToggles";
 import { useSendMessageOptions } from "@/hooks/useSendMessageOptions";
 import { getModelKey, getInputKey, VIM_ENABLED_KEY } from "@/constants/storage";
 import {
@@ -18,14 +17,15 @@ import {
   prepareCompactionMessage,
   type CommandHandlerContext,
 } from "@/utils/chatCommands";
-import { ToggleGroup } from "./ToggleGroup";
+import { ToggleGroup, ToggleGroupItem } from "./ui/toggle-group";
 import { CUSTOM_EVENTS } from "@/constants/events";
 import type { UIMode } from "@/types/mode";
 import {
   getSlashCommandSuggestions,
   type SlashSuggestion,
 } from "@/utils/slashCommands/suggestions";
-import { TooltipWrapper, Tooltip, HelpIndicator } from "./Tooltip";
+import { Tooltip, TooltipTrigger, TooltipContent } from "./ui/tooltip";
+import { HelpIndicator } from "./HelpIndicator";
 import { matchesKeybind, formatKeybind, KEYBINDS, isEditableElement } from "@/utils/ui/keybinds";
 import { ModelSelector, type ModelSelectorRef } from "./ModelSelector";
 import { useModelLRU } from "@/hooks/useModelLRU";
@@ -765,50 +765,46 @@ export const ChatInput: React.FC<ChatInputProps> = ({
             Editing message ({formatKeybind(KEYBINDS.CANCEL_EDIT)} to cancel)
           </div>
         )}
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-          {/* Model Selector - always visible */}
-          <div className="flex items-center" data-component="ModelSelectorGroup">
-            <ModelSelector
-              ref={modelSelectorRef}
-              value={preferredModel}
-              onChange={setPreferredModel}
-              recentModels={recentModels}
-              onComplete={() => inputRef.current?.focus()}
-            />
-            <TooltipWrapper inline>
-              <HelpIndicator>?</HelpIndicator>
-              <Tooltip className="tooltip" align="left" width="wide">
-                <strong>Click to edit</strong> or use {formatKeybind(KEYBINDS.OPEN_MODEL_SELECTOR)}
-                <br />
-                <br />
-                <strong>Abbreviations:</strong>
-                <br />• <code>/model opus</code> - Claude Opus 4.1
-                <br />• <code>/model sonnet</code> - Claude Sonnet 4.5
-                <br />
-                <br />
-                <strong>Full format:</strong>
-                <br />
-                <code>/model provider:model-name</code>
-                <br />
-                (e.g., <code>/model anthropic:claude-sonnet-4-5</code>)
-              </Tooltip>
-            </TooltipWrapper>
-          </div>
-
-          {/* Thinking Slider - hide on small viewports */}
-          <div
-            className="max-@[600px]:hidden flex items-center"
-            data-component="ThinkingSliderGroup"
-          >
-            <ThinkingSliderComponent modelString={preferredModel} />
-          </div>
-
-          {/* Context 1M Checkbox - hide on smaller viewports */}
-          <div className="max-@[500px]:hidden flex items-center" data-component="Context1MGroup">
-            <Context1MCheckbox modelString={preferredModel} />
-          </div>
+        <div className="flex items-center">
+          <ChatToggles modelString={preferredModel}>
+            <div className="mr-3 flex h-[11px] items-center gap-1 @[700px]:[&_.help-indicator-wrapper]:hidden">
+              <ModelSelector
+                ref={modelSelectorRef}
+                value={preferredModel}
+                onChange={setPreferredModel}
+                recentModels={recentModels}
+                onComplete={() => inputRef.current?.focus()}
+              />
+              <span className="help-indicator-wrapper">
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <HelpIndicator>?</HelpIndicator>
+                  </TooltipTrigger>
+                  <TooltipContent side="left">
+                    <strong>Click to edit</strong> or use{" "}
+                    {formatKeybind(KEYBINDS.OPEN_MODEL_SELECTOR)}
+                    <br />
+                    <br />
+                    <strong>Abbreviations:</strong>
+                    <br />• <code>/model opus</code> - Claude Opus 4.1
+                    <br />• <code>/model sonnet</code> - Claude Sonnet 4.5
+                    <br />
+                    <br />
+                    <strong>Full format:</strong>
+                    <br />
+                    <code>/model provider:model-name</code>
+                    <br />
+                    (e.g., <code>/model anthropic:claude-sonnet-4-5</code>)
+                  </TooltipContent>
+                </Tooltip>
+              </span>
+            </div>
+          </ChatToggles>
           <div className="max-@[700px]:hidden ml-auto flex items-center gap-1.5">
-            <div
+            <ToggleGroup
+              type="single"
+              value={mode}
+              onValueChange={(value) => value && setMode(value as UIMode)}
               className={cn(
                 "flex gap-0 bg-toggle-bg rounded",
                 "[&>button:first-of-type]:rounded-l [&>button:last-of-type]:rounded-r",
@@ -818,27 +814,37 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                   "[&>button:last-of-type]:bg-plan-mode [&>button:last-of-type]:text-white [&>button:last-of-type]:hover:bg-plan-mode-hover"
               )}
             >
-              <ToggleGroup<UIMode>
-                options={[
-                  { value: "exec", label: "Exec", activeClassName: "bg-exec-mode text-white" },
-                  { value: "plan", label: "Plan", activeClassName: "bg-plan-mode text-white" },
-                ]}
-                value={mode}
-                onChange={setMode}
-              />
-            </div>
-            <TooltipWrapper inline>
-              <HelpIndicator>?</HelpIndicator>
-              <Tooltip className="tooltip" align="center" width="wide">
-                <strong>Exec Mode:</strong> AI edits files and execute commands
-                <br />
-                <br />
-                <strong>Plan Mode:</strong> AI proposes plans but does not edit files
-                <br />
-                <br />
-                Toggle with: {formatKeybind(KEYBINDS.TOGGLE_MODE)}
+              <ToggleGroupItem
+                value="exec"
+                aria-label="Exec mode"
+                className="data-[state=on]:bg-exec-mode data-[state=on]:hover:bg-exec-mode-hover text-toggle-text hover:text-toggle-text-hover hover:bg-toggle-hover cursor-pointer rounded-sm border-none bg-transparent px-2 py-1 font-sans text-[11px] font-normal transition-all duration-150 data-[state=on]:text-white"
+              >
+                Exec
+              </ToggleGroupItem>
+              <ToggleGroupItem
+                value="plan"
+                aria-label="Plan mode"
+                className="data-[state=on]:bg-plan-mode data-[state=on]:hover:bg-plan-mode-hover text-toggle-text hover:text-toggle-text-hover hover:bg-toggle-hover cursor-pointer rounded-sm border-none bg-transparent px-2 py-1 font-sans text-[11px] font-normal transition-all duration-150 data-[state=on]:text-white"
+              >
+                Plan
+              </ToggleGroupItem>
+            </ToggleGroup>
+            <span className="help-indicator-wrapper">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <HelpIndicator>?</HelpIndicator>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <strong>Exec Mode:</strong> AI edits files and execute commands
+                  <br />
+                  <br />
+                  <strong>Plan Mode:</strong> AI proposes plans but does not edit files
+                  <br />
+                  <br />
+                  Toggle with: {formatKeybind(KEYBINDS.TOGGLE_MODE)}
+                </TooltipContent>
               </Tooltip>
-            </TooltipWrapper>
+            </span>
           </div>
         </div>
       </div>

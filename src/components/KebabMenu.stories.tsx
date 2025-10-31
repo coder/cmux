@@ -1,6 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { KebabMenu } from "./KebabMenu";
-import { action } from "storybook/actions";
+import { action } from "@storybook/addon-actions";
+import { TooltipProvider } from "@/components/ui/tooltip";
 
 const meta = {
   title: "Components/KebabMenu",
@@ -9,6 +10,13 @@ const meta = {
     layout: "padded",
   },
   tags: ["autodocs"],
+  decorators: [
+    (Story) => (
+      <TooltipProvider>
+        <Story />
+      </TooltipProvider>
+    ),
+  ],
 } satisfies Meta<typeof KebabMenu>;
 
 export default meta;

@@ -1,6 +1,6 @@
 import React, { useEffect, useId, useState } from "react";
 import { Modal, ModalInfo, ModalActions, CancelButton, PrimaryButton } from "./Modal";
-import { TooltipWrapper, Tooltip } from "./Tooltip";
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { formatNewCommand } from "@/utils/chatCommands";
 import { useNewWorkspaceOptions } from "@/hooks/useNewWorkspaceOptions";
 import { RUNTIME_MODE } from "@/types/runtime";
@@ -130,11 +130,13 @@ const NewWorkspaceModal: React.FC<NewWorkspaceModalProps> = ({
       <form onSubmit={(event) => void handleSubmit(event)}>
         <div className={formFieldClasses}>
           <label htmlFor="branchName">
-            <TooltipWrapper inline>
-              <span className="cursor-help underline decoration-[#666] decoration-dotted underline-offset-2">
-                Workspace Branch Name:
-              </span>
-              <Tooltip width="wide" position="bottom" interactive>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="cursor-help underline decoration-[#666] decoration-dotted underline-offset-2">
+                  Workspace Branch Name:
+                </span>
+              </TooltipTrigger>
+              <TooltipContent className="max-w-md" side="bottom">
                 <strong>About Workspaces:</strong>
                 <ul className="my-1 pl-4">
                   <li>Isolated directories for parallel development</li>
@@ -146,8 +148,8 @@ const NewWorkspaceModal: React.FC<NewWorkspaceModalProps> = ({
                 <a href="https://cmux.io/workspaces.html" target="_blank" rel="noopener noreferrer">
                   Learn more
                 </a>
-              </Tooltip>
-            </TooltipWrapper>
+              </TooltipContent>
+            </Tooltip>
           </label>
           <input
             id="branchName"

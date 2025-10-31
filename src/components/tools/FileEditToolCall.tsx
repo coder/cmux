@@ -19,8 +19,7 @@ import {
   LoadingDots,
 } from "./shared/ToolPrimitives";
 import { useToolExpansion, getStatusDisplay, type ToolStatus } from "./shared/toolUtils";
-import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
-import { TooltipWrapper, Tooltip } from "../Tooltip";
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { DiffContainer, DiffRenderer, SelectableDiffRenderer } from "../shared/DiffRenderer";
 import { KebabMenu, type KebabMenuItem } from "../KebabMenu";
 
@@ -104,11 +103,21 @@ export const FileEditToolCall: React.FC<FileEditToolCallProps> = ({
 
   const { expanded, toggleExpanded } = useToolExpansion(initialExpanded);
   const [showRaw, setShowRaw] = React.useState(false);
+  const [copied, setCopied] = React.useState(false);
 
   const filePath = "file_path" in args ? args.file_path : undefined;
 
-  // Copy to clipboard with feedback
-  const { copied, copyToClipboard } = useCopyToClipboard();
+  const handleCopyPatch = async () => {
+    if (result && result.success && result.diff) {
+      try {
+        await navigator.clipboard.writeText(result.diff);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      } catch (err) {
+        console.error("Failed to copy:", err);
+      }
+    }
+  };
 
   // Build kebab menu items for successful edits with diffs
   const kebabMenuItems: KebabMenuItem[] =
@@ -116,7 +125,7 @@ export const FileEditToolCall: React.FC<FileEditToolCallProps> = ({
       ? [
           {
             label: copied ? "✓ Copied" : "Copy Patch",
-            onClick: () => void copyToClipboard(result.diff),
+            onClick: () => void handleCopyPatch(),
           },
           {
             label: showRaw ? "Show Parsed" : "Show Patch",
@@ -134,10 +143,12 @@ export const FileEditToolCall: React.FC<FileEditToolCallProps> = ({
           className="hover:text-text flex flex-1 cursor-pointer items-center gap-2"
         >
           <ExpandIcon expanded={expanded}>▶</ExpandIcon>
-          <TooltipWrapper inline>
-            <span>✏️</span>
-            <Tooltip>{toolName}</Tooltip>
-          </TooltipWrapper>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span>✏️</span>
+            </TooltipTrigger>
+            <TooltipContent>{toolName}</TooltipContent>
+          </Tooltip>
           <span className="text-text font-monospace max-w-96 truncate">{filePath}</span>
         </div>
         {!(result && result.success && result.diff) && (

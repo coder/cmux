@@ -1,7 +1,7 @@
 import React, { useEffect, useId } from "react";
 import type { ThinkingLevel, ThinkingLevelOn } from "@/types/thinking";
 import { useThinkingLevel } from "@/hooks/useThinkingLevel";
-import { TooltipWrapper, Tooltip } from "./Tooltip";
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { formatKeybind, KEYBINDS } from "@/utils/ui/keybinds";
 import { getThinkingPolicyForModel } from "@/utils/thinking/policy";
 import { updatePersistedState } from "@/hooks/usePersistedState";
@@ -94,19 +94,22 @@ export const ThinkingSliderComponent: React.FC<ThinkingControlProps> = ({ modelS
     const textStyle = getTextStyle(value);
 
     return (
-      <TooltipWrapper>
-        <div className="flex items-center gap-2">
-          <span
-            className="min-w-11 uppercase transition-all duration-200 select-none"
-            style={textStyle}
-            aria-live="polite"
-            aria-label={`Thinking level fixed to ${fixedLevel}`}
-          >
-            {fixedLevel}
-          </span>
-        </div>
-        <Tooltip align="center">{tooltipMessage}</Tooltip>
-      </TooltipWrapper>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <div className="ml-5 flex items-center gap-2">
+            <label className="text-subdued text-[10px] select-none">Thinking:</label>
+            <span
+              className="min-w-11 uppercase transition-all duration-200 select-none"
+              style={textStyle}
+              aria-live="polite"
+              aria-label={`Thinking level fixed to ${fixedLevel}`}
+            >
+              {fixedLevel}
+            </span>
+          </div>
+        </TooltipTrigger>
+        <TooltipContent>{tooltipMessage}</TooltipContent>
+      </Tooltip>
     );
   }
 
@@ -125,46 +128,48 @@ export const ThinkingSliderComponent: React.FC<ThinkingControlProps> = ({ modelS
   };
 
   return (
-    <TooltipWrapper>
-      <div className="flex items-center gap-2">
-        <input
-          type="range"
-          min="0"
-          max="3"
-          step="1"
-          value={value}
-          onChange={(e) =>
-            handleThinkingLevelChange(valueToThinkingLevel(parseInt(e.target.value)))
-          }
-          onMouseEnter={() => setIsHovering(true)}
-          onMouseLeave={() => setIsHovering(false)}
-          id={sliderId}
-          role="slider"
-          aria-valuemin={0}
-          aria-valuemax={3}
-          aria-valuenow={value}
-          aria-valuetext={thinkingLevel}
-          aria-label="Thinking level"
-          className="thinking-slider"
-          style={
-            {
-              "--track-shadow": sliderStyles.trackShadow,
-              "--thumb-shadow": sliderStyles.thumbShadow,
-              "--thumb-bg": sliderStyles.thumbBg,
-            } as React.CSSProperties
-          }
-        />
-        <span
-          className="min-w-11 uppercase transition-all duration-200 select-none"
-          style={textStyle}
-          aria-live="polite"
-        >
-          {thinkingLevel}
-        </span>
-      </div>
-      <Tooltip align="center">
-        Thinking: {formatKeybind(KEYBINDS.TOGGLE_THINKING)} to toggle
-      </Tooltip>
-    </TooltipWrapper>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <div className="ml-5 flex items-center gap-2">
+          <label htmlFor={sliderId} className="text-subdued text-[10px] select-none">
+            Thinking:
+          </label>
+          <input
+            type="range"
+            min="0"
+            max="3"
+            step="1"
+            value={value}
+            onChange={(e) =>
+              handleThinkingLevelChange(valueToThinkingLevel(parseInt(e.target.value)))
+            }
+            onMouseEnter={() => setIsHovering(true)}
+            onMouseLeave={() => setIsHovering(false)}
+            id={sliderId}
+            role="slider"
+            aria-valuemin={0}
+            aria-valuemax={3}
+            aria-valuenow={value}
+            aria-valuetext={thinkingLevel}
+            className="thinking-slider"
+            style={
+              {
+                "--track-shadow": sliderStyles.trackShadow,
+                "--thumb-shadow": sliderStyles.thumbShadow,
+                "--thumb-bg": sliderStyles.thumbBg,
+              } as React.CSSProperties
+            }
+          />
+          <span
+            className="min-w-11 uppercase transition-all duration-200 select-none"
+            style={textStyle}
+            aria-live="polite"
+          >
+            {thinkingLevel}
+          </span>
+        </div>
+      </TooltipTrigger>
+      <TooltipContent>{formatKeybind(KEYBINDS.TOGGLE_THINKING)} to toggle</TooltipContent>
+    </Tooltip>
   );
 };

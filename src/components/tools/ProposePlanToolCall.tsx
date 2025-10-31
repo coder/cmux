@@ -12,8 +12,7 @@ import { useToolExpansion, getStatusDisplay, type ToolStatus } from "./shared/to
 import { MarkdownRenderer } from "../Messages/MarkdownRenderer";
 import { formatKeybind, KEYBINDS } from "@/utils/ui/keybinds";
 import { useStartHere } from "@/hooks/useStartHere";
-import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
-import { TooltipWrapper, Tooltip } from "../Tooltip";
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
 interface ProposePlanToolCallProps {
@@ -31,6 +30,7 @@ export const ProposePlanToolCall: React.FC<ProposePlanToolCallProps> = ({
 }) => {
   const { expanded, toggleExpanded } = useToolExpansion(true); // Expand by default
   const [showRaw, setShowRaw] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   // Format: Title as H1 + plan content for "Start Here" functionality
   const startHereContent = `# ${args.title}\n\n${args.plan}`;
@@ -46,12 +46,19 @@ export const ProposePlanToolCall: React.FC<ProposePlanToolCallProps> = ({
     false // Plans are never already compacted
   );
 
-  // Copy to clipboard with feedback
-  const { copied, copyToClipboard } = useCopyToClipboard();
-
   const [isHovered, setIsHovered] = useState(false);
 
   const statusDisplay = getStatusDisplay(status);
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(args.plan);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error("Failed to copy:", err);
+    }
+  };
 
   return (
     <ToolContainer expanded={expanded}>
@@ -86,48 +93,52 @@ export const ProposePlanToolCall: React.FC<ProposePlanToolCallProps> = ({
               </div>
               <div className="flex items-center gap-1.5">
                 {workspaceId && (
-                  <TooltipWrapper inline>
-                    <button
-                      onClick={openModal}
-                      disabled={startHereDisabled}
-                      className={cn(
-                        "px-2 py-1 text-[10px] font-mono rounded-sm cursor-pointer transition-all duration-150",
-                        "active:translate-y-px",
-                        startHereDisabled ? "opacity-50 cursor-not-allowed" : "hover:text-plan-mode"
-                      )}
-                      style={{
-                        color: "var(--color-plan-mode)",
-                        background: "color-mix(in srgb, var(--color-plan-mode), transparent 90%)",
-                        border:
-                          "1px solid color-mix(in srgb, var(--color-plan-mode), transparent 70%)",
-                      }}
-                      onMouseEnter={(e) => {
-                        if (!startHereDisabled) {
-                          setIsHovered(true);
-                          (e.currentTarget as HTMLButtonElement).style.background =
-                            "color-mix(in srgb, var(--color-plan-mode), transparent 85%)";
-                          (e.currentTarget as HTMLButtonElement).style.borderColor =
-                            "color-mix(in srgb, var(--color-plan-mode), transparent 60%)";
-                        }
-                      }}
-                      onMouseLeave={(e) => {
-                        setIsHovered(false);
-                        if (!startHereDisabled) {
-                          (e.currentTarget as HTMLButtonElement).style.background =
-                            "color-mix(in srgb, var(--color-plan-mode), transparent 90%)";
-                          (e.currentTarget as HTMLButtonElement).style.borderColor =
-                            "color-mix(in srgb, var(--color-plan-mode), transparent 70%)";
-                        }
-                      }}
-                    >
-                      {isHovered && <span className="mr-1">{buttonEmoji}</span>}
-                      {buttonLabel}
-                    </button>
-                    <Tooltip align="center">Replace all chat history with this plan</Tooltip>
-                  </TooltipWrapper>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button
+                        onClick={openModal}
+                        disabled={startHereDisabled}
+                        className={cn(
+                          "px-2 py-1 text-[10px] font-mono rounded-sm cursor-pointer transition-all duration-150",
+                          "active:translate-y-px",
+                          startHereDisabled
+                            ? "opacity-50 cursor-not-allowed"
+                            : "hover:text-plan-mode"
+                        )}
+                        style={{
+                          color: "var(--color-plan-mode)",
+                          background: "color-mix(in srgb, var(--color-plan-mode), transparent 90%)",
+                          border:
+                            "1px solid color-mix(in srgb, var(--color-plan-mode), transparent 70%)",
+                        }}
+                        onMouseEnter={(e) => {
+                          if (!startHereDisabled) {
+                            setIsHovered(true);
+                            (e.currentTarget as HTMLButtonElement).style.background =
+                              "color-mix(in srgb, var(--color-plan-mode), transparent 85%)";
+                            (e.currentTarget as HTMLButtonElement).style.borderColor =
+                              "color-mix(in srgb, var(--color-plan-mode), transparent 60%)";
+                          }
+                        }}
+                        onMouseLeave={(e) => {
+                          setIsHovered(false);
+                          if (!startHereDisabled) {
+                            (e.currentTarget as HTMLButtonElement).style.background =
+                              "color-mix(in srgb, var(--color-plan-mode), transparent 90%)";
+                            (e.currentTarget as HTMLButtonElement).style.borderColor =
+                              "color-mix(in srgb, var(--color-plan-mode), transparent 70%)";
+                          }
+                        }}
+                      >
+                        {isHovered && <span className="mr-1">{buttonEmoji}</span>}
+                        {buttonLabel}
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent>Replace all chat history with this plan</TooltipContent>
+                  </Tooltip>
                 )}
                 <button
-                  onClick={() => void copyToClipboard(args.plan)}
+                  onClick={() => void handleCopy()}
                   className="text-muted hover:text-plan-mode cursor-pointer rounded-sm bg-transparent px-2 py-1 font-mono text-[10px] transition-all duration-150 active:translate-y-px"
                   style={{
                     border: "1px solid rgba(136, 136, 136, 0.3)",

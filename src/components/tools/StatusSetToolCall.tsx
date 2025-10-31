@@ -2,7 +2,7 @@ import React from "react";
 import type { StatusSetToolArgs, StatusSetToolResult } from "@/types/tools";
 import { ToolContainer, ToolHeader, StatusIndicator } from "./shared/ToolPrimitives";
 import { getStatusDisplay, type ToolStatus } from "./shared/toolUtils";
-import { TooltipWrapper, Tooltip } from "../Tooltip";
+import { Tooltip, TooltipTrigger, TooltipContent } from "../ui/tooltip";
 
 interface StatusSetToolCallProps {
   args: StatusSetToolArgs;
@@ -26,10 +26,12 @@ export const StatusSetToolCall: React.FC<StatusSetToolCallProps> = ({
   return (
     <ToolContainer expanded={false}>
       <ToolHeader>
-        <TooltipWrapper inline>
-          <span>{args.emoji}</span>
-          <Tooltip>status_set</Tooltip>
-        </TooltipWrapper>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span>{args.emoji}</span>
+          </TooltipTrigger>
+          <TooltipContent>status_set</TooltipContent>
+        </Tooltip>
         <span className="text-muted-foreground italic">{args.message}</span>
         {errorMessage && <span className="text-error-foreground">({errorMessage})</span>}
         <StatusIndicator status={status}>{statusDisplay}</StatusIndicator>

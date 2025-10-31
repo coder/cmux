@@ -12,7 +12,7 @@ import {
   LoadingDots,
 } from "./shared/ToolPrimitives";
 import { useToolExpansion, getStatusDisplay, type ToolStatus } from "./shared/toolUtils";
-import { TooltipWrapper, Tooltip } from "../Tooltip";
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 
 interface FileReadToolCallProps {
   args: FileReadToolArgs;
@@ -78,10 +78,12 @@ export const FileReadToolCall: React.FC<FileReadToolCallProps> = ({
     <ToolContainer expanded={expanded} className="@container">
       <ToolHeader onClick={toggleExpanded}>
         <ExpandIcon expanded={expanded}>▶</ExpandIcon>
-        <TooltipWrapper inline>
-          <span>📖</span>
-          <Tooltip>file_read</Tooltip>
-        </TooltipWrapper>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span>📖</span>
+          </TooltipTrigger>
+          <TooltipContent>file_read</TooltipContent>
+        </Tooltip>
         <span className="text-text font-monospace max-w-96 truncate">{filePath}</span>
         {result && result.success && parsedContent && (
           <span className="text-secondary ml-2 text-[10px] whitespace-nowrap">

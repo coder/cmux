@@ -1,9 +1,12 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useMemo } from "react";
 import type { FrontendWorkspaceMetadata } from "@/types/workspace";
+import { useWorkspaceSidebarState } from "@/stores/WorkspaceStore";
 import { useGitStatus } from "@/stores/GitStatusStore";
-import { TooltipWrapper, Tooltip } from "./Tooltip";
+import { formatRelativeTime } from "@/utils/ui/dateTime";
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { GitStatusIndicator } from "./GitStatusIndicator";
-import { AgentStatusIndicator } from "./AgentStatusIndicator";
+import { ModelDisplay } from "./Messages/ModelDisplay";
+import { StatusIndicator } from "./StatusIndicator";
 import { useRename } from "@/contexts/WorkspaceRenameContext";
 import { cn } from "@/lib/utils";
 import { RuntimeBadge } from "./RuntimeBadge";
@@ -39,6 +42,8 @@ const WorkspaceListItemInner: React.FC<WorkspaceListItemProps> = ({
 }) => {
   // Destructure metadata for convenience
   const { id: workspaceId, name: workspaceName, namedWorkspacePath } = metadata;
+  // Subscribe to this specific workspace's sidebar state (streaming status, model, recency)
+  const sidebarState = useWorkspaceSidebarState(workspaceId);
   const gitStatus = useGitStatus(workspaceId);
 
   // Get rename context
@@ -50,7 +55,15 @@ const WorkspaceListItemInner: React.FC<WorkspaceListItemProps> = ({
 
   // Use workspace name from metadata instead of deriving from path
   const displayName = workspaceName;
+  const isStreaming = sidebarState.canInterrupt;
+  const streamingModel = sidebarState.currentModel;
   const isEditing = editingWorkspaceId === workspaceId;
+
+  // Compute unread status locally based on recency vs last read timestamp
+  // Note: We don't check !isSelected here because user should be able to see
+  // and toggle unread status even for the selected workspace
+  const isUnread =
+    sidebarState.recencyTimestamp !== null && sidebarState.recencyTimestamp > lastReadTimestamp;
 
   const startRenaming = () => {
     if (requestRename(workspaceId, displayName)) {
@@ -89,11 +102,32 @@ const WorkspaceListItemInner: React.FC<WorkspaceListItemProps> = ({
     }
   };
 
-  // Memoize toggle unread handler to prevent AgentStatusIndicator re-renders
+  // Memoize toggle unread handler to prevent StatusIndicator re-renders
   const handleToggleUnread = useCallback(
     () => onToggleUnread(workspaceId),
     [onToggleUnread, workspaceId]
   );
+
+  // Memoize tooltip title to prevent creating new React elements on every render
+  const statusTooltipTitle = useMemo(() => {
+    if (isStreaming && streamingModel) {
+      return (
+        <span>
+          <ModelDisplay modelString={streamingModel} showTooltip={false} /> is responding
+        </span>
+      );
+    }
+    if (isStreaming) {
+      return "Assistant is responding";
+    }
+    if (isUnread) {
+      return "Unread messages";
+    }
+    if (sidebarState.recencyTimestamp) {
+      return `Idle • Last used ${formatRelativeTime(sidebarState.recencyTimestamp)}`;
+    }
+    return "Idle";
+  }, [isStreaming, streamingModel, isUnread, sidebarState.recencyTimestamp]);
 
   return (
     <React.Fragment>
@@ -127,22 +161,22 @@ const WorkspaceListItemInner: React.FC<WorkspaceListItemProps> = ({
         data-workspace-path={namedWorkspacePath}
         data-workspace-id={workspaceId}
       >
-        <TooltipWrapper inline>
-          <button
-            className="text-muted hover:text-foreground col-start-1 flex h-5 w-5 shrink-0 cursor-pointer items-center justify-center border-none bg-transparent p-0 text-base opacity-0 transition-all duration-200 hover:rounded-sm hover:bg-white/10"
-            onClick={(e) => {
-              e.stopPropagation();
-              void onRemoveWorkspace(workspaceId, e.currentTarget);
-            }}
-            aria-label={`Remove workspace ${displayName}`}
-            data-workspace-id={workspaceId}
-          >
-            ×
-          </button>
-          <Tooltip className="tooltip" align="right">
-            Remove workspace
-          </Tooltip>
-        </TooltipWrapper>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              className="text-muted hover:text-foreground col-start-1 flex h-5 w-5 shrink-0 cursor-pointer items-center justify-center border-none bg-transparent p-0 text-base opacity-0 transition-all duration-200 hover:rounded-sm hover:bg-white/10"
+              onClick={(e) => {
+                e.stopPropagation();
+                void onRemoveWorkspace(workspaceId, e.currentTarget);
+              }}
+              aria-label={`Remove workspace ${displayName}`}
+              data-workspace-id={workspaceId}
+            >
+              ×
+            </button>
+          </TooltipTrigger>
+          <TooltipContent side="right">Remove workspace</TooltipContent>
+        </Tooltip>
         <GitStatusIndicator
           gitStatus={gitStatus}
           workspaceId={workspaceId}
@@ -175,11 +209,12 @@ const WorkspaceListItemInner: React.FC<WorkspaceListItemProps> = ({
             </span>
           )}
         </div>
-        <AgentStatusIndicator
-          workspaceId={workspaceId}
-          lastReadTimestamp={lastReadTimestamp}
-          onClick={handleToggleUnread}
+        <StatusIndicator
           className="ml-2"
+          streaming={isStreaming}
+          unread={isUnread}
+          onClick={handleToggleUnread}
+          title={statusTooltipTitle}
         />
       </div>
       {renameError && isEditing && (
