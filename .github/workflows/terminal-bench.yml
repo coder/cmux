@@ -120,7 +120,7 @@ jobs:
             cat "$RESULTS_FILE" | jq '.' || cat "$RESULTS_FILE"
             echo ""
             echo "Per-task summary:"
-            cat "$RESULTS_FILE" | jq -r '.trials[] | "\(.task_id): \(if .resolved then "✓ PASS" else "✗ FAIL" end)"' 2>/dev/null || echo "Failed to parse task details"
+            cat "$RESULTS_FILE" | jq -r '.trials[] | "\(.task_id): \(if .is_resolved then "✓ PASS" else "✗ FAIL" end)"' 2>/dev/null || echo "Failed to parse task details"
           else
             echo "No results.json found in runs/"
             ls -la runs/

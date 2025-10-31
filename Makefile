@@ -295,8 +295,9 @@ chromatic: node_modules/.installed ## Run Chromatic for visual regression testin
 	@bun x chromatic --exit-zero-on-changes
 
 ## Benchmarks
-benchmark-terminal: ## Run Terminal-Bench with the cmux agent (use TB_DATASET/TB_SAMPLE_SIZE/TB_ARGS to customize)
+benchmark-terminal: ## Run Terminal-Bench with the cmux agent (use TB_DATASET/TB_SAMPLE_SIZE/TB_TIMEOUT/TB_ARGS to customize)
 	@TB_DATASET=$${TB_DATASET:-terminal-bench-core==0.1.1}; \
+	TB_TIMEOUT=$${TB_TIMEOUT:-1800}; \
 	CONCURRENCY_FLAG=$${TB_CONCURRENCY:+--n-concurrent $$TB_CONCURRENCY}; \
 	LIVESTREAM_FLAG=$${TB_LIVESTREAM:+--livestream}; \
 	TASK_ID_FLAGS=""; \
@@ -317,10 +318,12 @@ benchmark-terminal: ## Run Terminal-Bench with the cmux agent (use TB_DATASET/TB
 		done; \
 		echo "Selected task IDs: $$TASK_IDS"; \
 	fi; \
+	echo "Using timeout: $$TB_TIMEOUT seconds"; \
 	echo "Running Terminal-Bench with dataset $$TB_DATASET"; \
 	uvx terminal-bench run \
 		--dataset "$$TB_DATASET" \
 		--agent-import-path benchmarks.terminal_bench.cmux_agent:CmuxAgent \
+		--global-agent-timeout-sec $$TB_TIMEOUT \
 		$$CONCURRENCY_FLAG \
 		$$LIVESTREAM_FLAG \
 		$$TASK_ID_FLAGS \
