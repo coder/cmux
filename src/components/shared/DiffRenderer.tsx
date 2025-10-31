@@ -110,6 +110,9 @@ interface DiffRendererProps {
 /**
  * Hook to pre-process and highlight diff content in chunks
  * Runs once when content/language changes (NOT search - that's applied post-process)
+ *
+ * CACHING: Once highlighted with real language, result is cached even if enableHighlighting
+ * becomes false later. This prevents re-highlighting during scroll when hunks leave viewport.
  */
 function useHighlightedDiff(
   content: string,
@@ -118,8 +121,15 @@ function useHighlightedDiff(
   newStart: number
 ): HighlightedChunk[] | null {
   const [chunks, setChunks] = useState<HighlightedChunk[] | null>(null);
+  // Track if we've already highlighted with real syntax (to prevent downgrading)
+  const hasHighlightedRef = React.useRef(false);
 
   useEffect(() => {
+    // If already highlighted and trying to switch to plain text, keep the highlighted version
+    if (hasHighlightedRef.current && language === "text") {
+      return; // Keep cached highlighted chunks
+    }
+
     let cancelled = false;
 
     async function highlight() {
@@ -136,6 +146,10 @@ function useHighlightedDiff(
 
       if (!cancelled) {
         setChunks(highlighted);
+        // Mark as highlighted if using real language (not plain text)
+        if (language !== "text") {
+          hasHighlightedRef.current = true;
+        }
       }
     }
 
@@ -260,6 +274,8 @@ interface SelectableDiffRendererProps extends Omit<DiffRendererProps, "filePath"
   onLineClick?: () => void;
   /** Search highlight configuration (optional) */
   searchConfig?: SearchHighlightConfig;
+  /** Enable syntax highlighting (default: true). Set to false to skip highlighting for off-screen hunks */
+  enableHighlighting?: boolean;
 }
 
 interface LineSelection {
@@ -386,6 +402,7 @@ export const SelectableDiffRenderer = React.memo<SelectableDiffRendererProps>(
     onReviewNote,
     onLineClick,
     searchConfig,
+    enableHighlighting = true,
   }) => {
     const [selection, setSelection] = React.useState<LineSelection | null>(null);
 
@@ -395,7 +412,13 @@ export const SelectableDiffRenderer = React.memo<SelectableDiffRendererProps>(
       [filePath]
     );
 
-    const highlightedChunks = useHighlightedDiff(content, language, oldStart, newStart);
+    // Only highlight if enabled (for viewport optimization)
+    const highlightedChunks = useHighlightedDiff(
+      content,
+      enableHighlighting ? language : "text",
+      oldStart,
+      newStart
+    );
 
     // Build lineData from highlighted chunks (memoized to prevent repeated parsing)
     // Note: content field is NOT included - must be extracted from lines array when needed

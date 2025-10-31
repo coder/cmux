@@ -41,6 +41,48 @@ export const HunkViewer = React.memo<HunkViewerProps>(
     onReviewNote,
     searchConfig,
   }) => {
+    // Ref for the hunk container to track visibility
+    const hunkRef = React.useRef<HTMLDivElement>(null);
+
+    // Track if hunk is visible in viewport for lazy syntax highlighting
+    // Use ref for visibility to avoid re-renders when visibility changes
+    const isVisibleRef = React.useRef(true); // Start visible to avoid flash
+    const [isVisible, setIsVisible] = React.useState(true);
+
+    // Use IntersectionObserver to track visibility
+    React.useEffect(() => {
+      const element = hunkRef.current;
+      if (!element) return;
+
+      // Create observer with generous root margin for pre-loading
+      const observer = new IntersectionObserver(
+        (entries) => {
+          entries.forEach((entry) => {
+            const newVisibility = entry.isIntersecting;
+            // Only trigger re-render if transitioning from not-visible to visible
+            // (to start highlighting). Transitions from visible to not-visible don't
+            // need re-render because we cache the highlighting result.
+            if (newVisibility && !isVisibleRef.current) {
+              isVisibleRef.current = true;
+              setIsVisible(true);
+            } else if (!newVisibility && isVisibleRef.current) {
+              isVisibleRef.current = false;
+              // Don't update state when going invisible - keeps highlighted version
+            }
+          });
+        },
+        {
+          rootMargin: "600px", // Pre-load hunks 600px before they enter viewport
+        }
+      );
+
+      observer.observe(element);
+
+      return () => {
+        observer.disconnect();
+      };
+    }, []);
+
     // Parse diff lines (memoized - only recompute if hunk.content changes)
     // Must be done before state initialization to determine initial collapse state
     const { lineCount, additions, deletions, isLargeHunk } = React.useMemo(() => {
@@ -137,6 +179,7 @@ export const HunkViewer = React.memo<HunkViewerProps>(
 
     return (
       <div
+        ref={hunkRef}
         className={cn(
           "bg-dark border rounded mb-3 overflow-hidden cursor-pointer transition-all duration-200",
           "focus:outline-none focus-visible:outline-none",
@@ -215,6 +258,7 @@ export const HunkViewer = React.memo<HunkViewerProps>(
                 onClick?.(syntheticEvent);
               }}
               searchConfig={searchConfig}
+              enableHighlighting={isVisible}
             />
           </div>
         ) : (
