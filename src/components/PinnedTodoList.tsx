@@ -10,13 +10,14 @@ interface PinnedTodoListProps {
 
 /**
  * Pinned TODO list displayed at bottom of chat (before StreamingBarrier).
- * Shows current TODOs from active stream only.
+ * Shows current TODOs from active stream only - automatically cleared when stream ends.
  * Reuses TodoList component for consistent styling.
  *
  * Relies on natural reference stability from MapStore + Aggregator architecture:
  * - Aggregator.getCurrentTodos() returns direct reference (not a copy)
  * - Reference only changes when todos are actually modified
  * - MapStore caches WorkspaceState per version, avoiding unnecessary recomputation
+ * - Todos are cleared by StreamingMessageAggregator when stream completes
  */
 export const PinnedTodoList: React.FC<PinnedTodoListProps> = ({ workspaceId }) => {
   const [expanded, setExpanded] = usePersistedState("pinnedTodoExpanded", true);
@@ -27,17 +28,8 @@ export const PinnedTodoList: React.FC<PinnedTodoListProps> = ({ workspaceId }) =
     () => workspaceStore.getWorkspaceState(workspaceId).todos
   );
 
-  // Get streaming state
-  const canInterrupt = useSyncExternalStore(
-    (callback) => workspaceStore.subscribeKey(workspaceId, callback),
-    () => workspaceStore.getWorkspaceState(workspaceId).canInterrupt
-  );
-
-  // When idle (not streaming), only show completed todos for clean summary
-  // When streaming, show all todos so user can see active work
-  const displayTodos = canInterrupt ? todos : todos.filter((todo) => todo.status === "completed");
-
-  if (displayTodos.length === 0) {
+  // Todos are cleared when stream ends, so if there are todos they're from an active stream
+  if (todos.length === 0) {
     return null;
   }
 
@@ -57,7 +49,7 @@ export const PinnedTodoList: React.FC<PinnedTodoListProps> = ({ workspaceId }) =
         </span>
         TODO{expanded ? ":" : ""}
       </div>
-      {expanded && <TodoList todos={displayTodos} />}
+      {expanded && <TodoList todos={todos} />}
     </div>
   );
 };

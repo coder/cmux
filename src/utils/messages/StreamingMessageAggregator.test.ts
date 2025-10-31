@@ -137,4 +137,246 @@ describe("StreamingMessageAggregator", () => {
       expect(messages1).toBe(messages2);
     });
   });
+
+  describe("todo lifecycle", () => {
+    test("should clear todos when stream ends", () => {
+      const aggregator = new StreamingMessageAggregator(TEST_CREATED_AT);
+
+      // Start a stream
+      aggregator.handleStreamStart({
+        type: "stream-start",
+        workspaceId: "test-workspace",
+        messageId: "msg1",
+        historySequence: 1,
+        model: "claude-3-5-sonnet-20241022",
+      });
+
+      // Simulate todo_write tool call
+      aggregator.handleToolCallStart({
+        messageId: "msg1",
+        toolCallId: "tool1",
+        toolName: "todo_write",
+        args: {
+          todos: [
+            { content: "Do task 1", status: "in_progress" },
+            { content: "Do task 2", status: "pending" },
+          ],
+        },
+        tokens: 10,
+        timestamp: Date.now(),
+        type: "tool-call-start",
+        workspaceId: "test-workspace",
+      });
+
+      aggregator.handleToolCallEnd({
+        type: "tool-call-end",
+        workspaceId: "test-workspace",
+        messageId: "msg1",
+        toolCallId: "tool1",
+        toolName: "todo_write",
+        result: { success: true },
+      });
+
+      // Verify todos are set
+      expect(aggregator.getCurrentTodos()).toHaveLength(2);
+      expect(aggregator.getCurrentTodos()[0].content).toBe("Do task 1");
+
+      // End the stream
+      aggregator.handleStreamEnd({
+        type: "stream-end",
+        workspaceId: "test-workspace",
+        messageId: "msg1",
+        metadata: {
+          historySequence: 1,
+          timestamp: Date.now(),
+          model: "claude-3-5-sonnet-20241022",
+        },
+        parts: [],
+      });
+
+      // Todos should be cleared
+      expect(aggregator.getCurrentTodos()).toHaveLength(0);
+    });
+
+    test("should clear todos when stream aborts", () => {
+      const aggregator = new StreamingMessageAggregator(TEST_CREATED_AT);
+
+      aggregator.handleStreamStart({
+        type: "stream-start",
+        workspaceId: "test-workspace",
+        messageId: "msg1",
+        historySequence: 1,
+        model: "claude-3-5-sonnet-20241022",
+      });
+
+      // Simulate todo_write
+      aggregator.handleToolCallStart({
+        messageId: "msg1",
+        toolCallId: "tool1",
+        toolName: "todo_write",
+        args: {
+          todos: [{ content: "Task", status: "in_progress" }],
+        },
+        tokens: 10,
+        timestamp: Date.now(),
+        type: "tool-call-start",
+        workspaceId: "test-workspace",
+      });
+
+      aggregator.handleToolCallEnd({
+        type: "tool-call-end",
+        workspaceId: "test-workspace",
+        messageId: "msg1",
+        toolCallId: "tool1",
+        toolName: "todo_write",
+        result: { success: true },
+      });
+
+      expect(aggregator.getCurrentTodos()).toHaveLength(1);
+
+      // Abort the stream
+      aggregator.handleStreamAbort({
+        type: "stream-abort",
+        workspaceId: "test-workspace",
+        messageId: "msg1",
+        metadata: {},
+      });
+
+      // Todos should be cleared
+      expect(aggregator.getCurrentTodos()).toHaveLength(0);
+    });
+
+    test("should reconstruct todos on reload ONLY when reconnecting to active stream", () => {
+      const aggregator = new StreamingMessageAggregator(TEST_CREATED_AT);
+
+      const historicalMessage = {
+        id: "msg1",
+        role: "assistant" as const,
+        parts: [
+          {
+            type: "dynamic-tool" as const,
+            toolCallId: "tool1",
+            toolName: "todo_write",
+            state: "output-available" as const,
+            input: {
+              todos: [
+                { content: "Historical task 1", status: "completed" },
+                { content: "Historical task 2", status: "completed" },
+              ],
+            },
+            output: { success: true },
+          },
+        ],
+        metadata: {
+          historySequence: 1,
+          timestamp: Date.now(),
+          model: "claude-3-5-sonnet-20241022",
+        },
+      };
+
+      // Scenario 1: Reload with active stream (hasActiveStream = true)
+      aggregator.loadHistoricalMessages([historicalMessage], true);
+      expect(aggregator.getCurrentTodos()).toHaveLength(2);
+      expect(aggregator.getCurrentTodos()[0].content).toBe("Historical task 1");
+
+      // Reset for next scenario
+      const aggregator2 = new StreamingMessageAggregator(TEST_CREATED_AT);
+
+      // Scenario 2: Reload without active stream (hasActiveStream = false)
+      aggregator2.loadHistoricalMessages([historicalMessage], false);
+      expect(aggregator2.getCurrentTodos()).toHaveLength(0);
+    });
+
+    test("should reconstruct agentStatus but NOT todos when no active stream", () => {
+      const aggregator = new StreamingMessageAggregator(TEST_CREATED_AT);
+
+      const historicalMessage = {
+        id: "msg1",
+        role: "assistant" as const,
+        parts: [
+          {
+            type: "dynamic-tool" as const,
+            toolCallId: "tool1",
+            toolName: "todo_write",
+            state: "output-available" as const,
+            input: {
+              todos: [{ content: "Task 1", status: "completed" }],
+            },
+            output: { success: true },
+          },
+          {
+            type: "dynamic-tool" as const,
+            toolCallId: "tool2",
+            toolName: "status_set",
+            state: "output-available" as const,
+            input: { emoji: "🔧", message: "Working on it" },
+            output: { success: true, emoji: "🔧", message: "Working on it" },
+          },
+        ],
+        metadata: {
+          historySequence: 1,
+          timestamp: Date.now(),
+          model: "claude-3-5-sonnet-20241022",
+        },
+      };
+
+      // Load without active stream
+      aggregator.loadHistoricalMessages([historicalMessage], false);
+
+      // agentStatus should be reconstructed (persists across sessions)
+      expect(aggregator.getAgentStatus()).toEqual({ emoji: "🔧", message: "Working on it" });
+
+      // TODOs should NOT be reconstructed (stream-scoped)
+      expect(aggregator.getCurrentTodos()).toHaveLength(0);
+    });
+
+    test("should clear todos when new user message arrives during active stream", () => {
+      const aggregator = new StreamingMessageAggregator(TEST_CREATED_AT);
+
+      // Simulate an active stream with todos
+      aggregator.handleStreamStart({
+        type: "stream-start",
+        workspaceId: "test-workspace",
+        messageId: "msg1",
+        historySequence: 1,
+        model: "claude-3-5-sonnet-20241022",
+      });
+
+      aggregator.handleToolCallStart({
+        messageId: "msg1",
+        toolCallId: "tool1",
+        toolName: "todo_write",
+        args: {
+          todos: [{ content: "Task", status: "completed" }],
+        },
+        tokens: 10,
+        timestamp: Date.now(),
+        type: "tool-call-start",
+        workspaceId: "test-workspace",
+      });
+
+      aggregator.handleToolCallEnd({
+        type: "tool-call-end",
+        workspaceId: "test-workspace",
+        messageId: "msg1",
+        toolCallId: "tool1",
+        toolName: "todo_write",
+        result: { success: true },
+      });
+
+      // TODOs should be set
+      expect(aggregator.getCurrentTodos()).toHaveLength(1);
+
+      // Add new user message (simulating user sending a new message)
+      aggregator.handleMessage({
+        id: "msg2",
+        role: "user",
+        parts: [{ type: "text", text: "Hello" }],
+        metadata: { historySequence: 2, timestamp: Date.now() },
+      });
+
+      // Todos should be cleared when new user message arrives
+      expect(aggregator.getCurrentTodos()).toHaveLength(0);
+    });
+  });
 });
