@@ -219,8 +219,9 @@ export class StreamingMessageAggregator {
     }
 
     // Then, reconstruct derived state from the most recent assistant message
-    // TODOs: only if there's an active stream (stream-scoped, only during reconnection)
-    // agentStatus: always (persists across sessions)
+    // Use "streaming" context if there's an active stream (reconnection), otherwise "historical"
+    const context = hasActiveStream ? "streaming" : "historical";
+
     const sortedMessages = [...messages].sort(
       (a, b) => (b.metadata?.historySequence ?? 0) - (a.metadata?.historySequence ?? 0)
     );
@@ -229,16 +230,11 @@ export class StreamingMessageAggregator {
     const lastAssistantMessage = sortedMessages.find((msg) => msg.role === "assistant");
 
     if (lastAssistantMessage) {
-      // Only process tool results from the most recent assistant message
+      // Process all tool results from the most recent assistant message
+      // processToolResult will decide what to do based on tool type and context
       for (const part of lastAssistantMessage.parts) {
         if (isDynamicToolPart(part) && part.state === "output-available") {
-          // Reconstruct based on tool type and stream state
-          const shouldReconstructTodos = part.toolName === "todo_write" && hasActiveStream;
-          const shouldReconstructStatus = part.toolName === "status_set";
-
-          if (shouldReconstructTodos || shouldReconstructStatus) {
-            this.processToolResult(part.toolName, part.input, part.output);
-          }
+          this.processToolResult(part.toolName, part.input, part.output, context);
         }
       }
     }
@@ -539,10 +535,21 @@ export class StreamingMessageAggregator {
    *
    * This is the single source of truth for updating state from tool results,
    * ensuring consistency whether processing live events or historical messages.
+   *
+   * @param toolName - Name of the tool that was called
+   * @param input - Tool input arguments
+   * @param output - Tool output result
+   * @param context - Whether this is from live streaming or historical reload
    */
-  private processToolResult(toolName: string, input: unknown, output: unknown): void {
+  private processToolResult(
+    toolName: string,
+    input: unknown,
+    output: unknown,
+    context: "streaming" | "historical"
+  ): void {
     // Update TODO state if this was a successful todo_write
-    if (toolName === "todo_write" && hasSuccessResult(output)) {
+    // TODOs are stream-scoped: only update during live streaming, not on historical reload
+    if (toolName === "todo_write" && hasSuccessResult(output) && context === "streaming") {
       const args = input as { todos: TodoItem[] };
       // Only update if todos actually changed (prevents flickering from reference changes)
       if (!this.todosEqual(this.currentTodos, args.todos)) {
@@ -551,6 +558,7 @@ export class StreamingMessageAggregator {
     }
 
     // Update agent status if this was a successful status_set
+    // agentStatus persists: update both during streaming and on historical reload
     // Use output instead of input to get the truncated message
     if (toolName === "status_set" && hasSuccessResult(output)) {
       const result = output as Extract<StatusSetToolResult, { success: true }>;
@@ -584,7 +592,8 @@ export class StreamingMessageAggregator {
         (toolPart as DynamicToolPartAvailable).output = data.result;
 
         // Process tool result to update derived state (todos, agentStatus, etc.)
-        this.processToolResult(data.toolName, toolPart.input, data.result);
+        // This is from a live stream, so use "streaming" context
+        this.processToolResult(data.toolName, toolPart.input, data.result, "streaming");
       }
       this.invalidateCache();
     }
