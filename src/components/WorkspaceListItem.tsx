@@ -38,7 +38,7 @@ const WorkspaceListItemInner: React.FC<WorkspaceListItemProps> = ({
   onToggleUnread,
 }) => {
   // Destructure metadata for convenience
-  const { id: workspaceId, name: workspaceName, namedWorkspacePath } = metadata;
+  const { id: workspaceId, name: workspaceName, displayName: displayTitle, namedWorkspacePath } = metadata;
   const gitStatus = useGitStatus(workspaceId);
 
   // Get rename context
@@ -48,8 +48,8 @@ const WorkspaceListItemInner: React.FC<WorkspaceListItemProps> = ({
   const [editingName, setEditingName] = useState<string>("");
   const [renameError, setRenameError] = useState<string | null>(null);
 
-  // Use workspace name from metadata instead of deriving from path
-  const displayName = workspaceName;
+  // Prefer displayName (human-readable title) over name (branch name) for AI-generated workspaces
+  const displayName = displayTitle ?? workspaceName;
   const isEditing = editingWorkspaceId === workspaceId;
 
   const startRenaming = () => {

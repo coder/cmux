@@ -6,6 +6,7 @@ import { z } from "zod";
 export const WorkspaceMetadataSchema = z.object({
   id: z.string().min(1, "Workspace ID is required"),
   name: z.string().min(1, "Workspace name is required"),
+  displayName: z.string().optional(), // Optional human-readable title (for AI-generated workspaces)
   projectName: z.string().min(1, "Project name is required"),
   projectPath: z.string().min(1, "Project path is required"),
   createdAt: z.string().optional(), // ISO 8601 timestamp (optional for backward compatibility)
@@ -40,8 +41,11 @@ export interface WorkspaceMetadata {
   /** Stable unique identifier (10 hex chars for new workspaces, legacy format for old) */
   id: string;
 
-  /** User-facing workspace name (e.g., "feature-branch") */
+  /** Git branch / directory name (e.g., "feature-branch") - used for path computation */
   name: string;
+
+  /** Optional human-readable display title (e.g., "Building feature X") - for AI-generated workspaces */
+  displayName?: string;
 
   /** Project name extracted from project path (for display) */
   projectName: string;

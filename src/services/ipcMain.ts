@@ -825,10 +825,11 @@ export class IpcMain {
           const projectName =
             projectPath.split("/").pop() ?? projectPath.split("\\").pop() ?? "unknown";
 
-          // Initialize workspace metadata with human-readable title
+          // Initialize workspace metadata with branch name and optional display title
           const metadata = {
             id: workspaceId,
-            name: title, // Use AI-generated title for display
+            name: branchName, // Git branch name (used for directory path)
+            displayName: title, // Human-readable title for display
             projectName,
             projectPath,
             createdAt: new Date().toISOString(),
@@ -844,7 +845,8 @@ export class IpcMain {
             projectConfig.workspaces.push({
               path: createResult.workspacePath!,
               id: workspaceId,
-              name: title, // Store title in config
+              name: branchName, // Git branch name (used for directory)
+              displayName: title, // Human-readable title
               createdAt: metadata.createdAt,
               runtimeConfig: finalRuntimeConfig,
             });

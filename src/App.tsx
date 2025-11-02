@@ -127,9 +127,9 @@ function AppInner() {
         window.history.replaceState(null, "", newHash);
       }
 
-      // Update window title with workspace name
-      const workspaceName =
-        workspaceMetadata.get(selectedWorkspace.workspaceId)?.name ?? selectedWorkspace.workspaceId;
+      // Update window title with workspace name (prefer displayName if available)
+      const metadata = workspaceMetadata.get(selectedWorkspace.workspaceId);
+      const workspaceName = metadata?.displayName ?? metadata?.name ?? selectedWorkspace.workspaceId;
       const title = `${workspaceName} - ${selectedWorkspace.projectName} - cmux`;
       void window.api.window.setTitle(title);
     } else {
