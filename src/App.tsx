@@ -669,7 +669,7 @@ function AppInner() {
               />
             ) : (
               <div
-                className="mx-auto w-full max-w-3xl text-center [&_h2]:mb-4 [&_h2]:font-bold [&_h2]:tracking-tight [&_h2]:text-white [&_p]:leading-[1.6] [&_p]:text-muted"
+                className="[&_p]:text-muted mx-auto w-full max-w-3xl text-center [&_h2]:mb-4 [&_h2]:font-bold [&_h2]:tracking-tight [&_h2]:text-white [&_p]:leading-[1.6]"
                 style={{
                   padding: "clamp(40px, 10vh, 100px) 20px",
                   fontSize: "clamp(14px, 2vw, 16px)",
