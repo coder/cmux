@@ -2,9 +2,9 @@ import React, { useState, useRef, useCallback } from "react";
 import { cn } from "@/lib/utils";
 import type { FrontendWorkspaceMetadata } from "@/types/workspace";
 import type { RuntimeConfig } from "@/types/runtime";
-import { useSendMessageOptions } from "@/hooks/useSendMessageOptions";
 import { parseRuntimeString } from "@/utils/chatCommands";
-import { getRuntimeKey } from "@/constants/storage";
+import { getRuntimeKey, getModelKey } from "@/constants/storage";
+import { useModelLRU } from "@/hooks/useModelLRU";
 
 interface FirstMessageInputProps {
   projectPath: string;
@@ -25,8 +25,9 @@ export function FirstMessageInput({ projectPath, onWorkspaceCreated }: FirstMess
   const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
-  // Get send message options (uses placeholder since no workspace exists yet)
-  const sendMessageOptions = useSendMessageOptions("__no_workspace__");
+  // Get most recent model from LRU (no workspace-specific model yet)
+  const { recentModels } = useModelLRU();
+  const model = recentModels[0]; // Most recently used model
 
   const handleSend = useCallback(async () => {
     if (!input.trim() || isSending) return;
@@ -43,7 +44,7 @@ export function FirstMessageInput({ projectPath, onWorkspaceCreated }: FirstMess
         : undefined;
 
       const result = await window.api.workspace.sendFirstMessage(projectPath, input, {
-        ...sendMessageOptions,
+        model, // Use most recent model from LRU
         runtimeConfig,
       });
 
@@ -63,7 +64,7 @@ export function FirstMessageInput({ projectPath, onWorkspaceCreated }: FirstMess
       setError(`Failed to create workspace: ${errorMessage}`);
       setIsSending(false);
     }
-  }, [input, isSending, projectPath, sendMessageOptions, onWorkspaceCreated]);
+  }, [input, isSending, projectPath, model, onWorkspaceCreated]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
