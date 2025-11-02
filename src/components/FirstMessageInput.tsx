@@ -3,7 +3,7 @@ import { cn } from "@/lib/utils";
 import type { FrontendWorkspaceMetadata } from "@/types/workspace";
 import type { RuntimeConfig } from "@/types/runtime";
 import { parseRuntimeString } from "@/utils/chatCommands";
-import { getRuntimeKey, getModelKey } from "@/constants/storage";
+import { getRuntimeKey } from "@/constants/storage";
 import { useModelLRU } from "@/hooks/useModelLRU";
 
 interface FirstMessageInputProps {
