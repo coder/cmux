@@ -755,7 +755,8 @@ export class IpcMain {
 
           // 2. Get recommended trunk
           const branches = await listLocalBranches(projectPath);
-          const recommendedTrunk = (await detectDefaultTrunkBranch(projectPath, branches)) ?? "main";
+          const recommendedTrunk =
+            (await detectDefaultTrunkBranch(projectPath, branches)) ?? "main";
 
           // 3. Create workspace with git-safe branch name
           const finalRuntimeConfig: RuntimeConfig = options.runtimeConfig ?? {
