@@ -14,7 +14,6 @@ import { useResumeManager } from "./hooks/useResumeManager";
 import { useUnreadTracking } from "./hooks/useUnreadTracking";
 import { useAutoCompactContinue } from "./hooks/useAutoCompactContinue";
 import { useWorkspaceStoreRaw, useWorkspaceRecency } from "./stores/WorkspaceStore";
-import { ProjectSelector } from "./components/ProjectSelector";
 import { FirstMessageInput } from "./components/FirstMessageInput";
 
 import { useStableReference, compareMaps } from "./hooks/useStableReference";
@@ -58,17 +57,6 @@ function AppInner() {
   );
   const [workspaceModalLoadError, setWorkspaceModalLoadError] = useState<string | null>(null);
   const workspaceModalProjectRef = useRef<string | null>(null);
-
-  // Track selected project for empty workspace state
-  const [selectedProject, setSelectedProject] = useState<string | null>(null);
-
-  // Auto-select single project when no workspace exists
-  useEffect(() => {
-    if (!selectedWorkspace && projects.size === 1) {
-      const [singleProject] = Array.from(projects.keys());
-      setSelectedProject(singleProject);
-    }
-  }, [selectedWorkspace, projects]);
 
   // Auto-collapse sidebar on mobile by default
   const isMobile = typeof window !== "undefined" && window.innerWidth <= 768;
