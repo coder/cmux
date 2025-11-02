@@ -256,6 +256,17 @@ export interface IPCApi {
       message: string,
       options?: SendMessageOptions & { imageParts?: Array<{ url: string; mediaType: string }> }
     ): Promise<Result<void, SendMessageError>>;
+    sendFirstMessage(
+      projectPath: string,
+      message: string,
+      options: SendMessageOptions & {
+        imageParts?: Array<{ url: string; mediaType: string }>;
+        runtimeConfig?: RuntimeConfig;
+      }
+    ): Promise<
+      | { success: true; workspaceId: string; metadata: FrontendWorkspaceMetadata }
+      | { success: false; error: string }
+    >;
     resumeStream(
       workspaceId: string,
       options: SendMessageOptions

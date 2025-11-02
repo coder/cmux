@@ -221,6 +221,8 @@ const webApi: IPCApi = {
       invokeIPC(IPC_CHANNELS.WORKSPACE_FORK, sourceWorkspaceId, newName),
     sendMessage: (workspaceId, message, options) =>
       invokeIPC(IPC_CHANNELS.WORKSPACE_SEND_MESSAGE, workspaceId, message, options),
+    sendFirstMessage: (projectPath, message, options) =>
+      invokeIPC(IPC_CHANNELS.WORKSPACE_SEND_FIRST_MESSAGE, projectPath, message, options),
     resumeStream: (workspaceId, options) =>
       invokeIPC(IPC_CHANNELS.WORKSPACE_RESUME_STREAM, workspaceId, options),
     interruptStream: (workspaceId, options) =>

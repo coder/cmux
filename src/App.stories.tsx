@@ -63,6 +63,19 @@ function setupMockAPI(options: {
       onChat: () => () => undefined,
       onMetadata: () => () => undefined,
       sendMessage: () => Promise.resolve({ success: true, data: undefined }),
+      sendFirstMessage: () =>
+        Promise.resolve({
+          success: true,
+          workspaceId: Math.random().toString(36).substring(2, 12),
+          metadata: {
+            id: Math.random().toString(36).substring(2, 12),
+            name: "mock-workspace",
+            projectPath: "/mock/project",
+            projectName: "project",
+            namedWorkspacePath: "/mock/workspace/mock-workspace",
+            createdAt: new Date().toISOString(),
+          },
+        }),
       resumeStream: () => Promise.resolve({ success: true, data: undefined }),
       interruptStream: () => Promise.resolve({ success: true, data: undefined }),
       truncateHistory: () => Promise.resolve({ success: true, data: undefined }),
@@ -653,6 +666,19 @@ export const ActiveWorkspaceWithChat: Story = {
               },
               onMetadata: () => () => undefined,
               sendMessage: () => Promise.resolve({ success: true, data: undefined }),
+              sendFirstMessage: () =>
+                Promise.resolve({
+                  success: true,
+                  workspaceId: Math.random().toString(36).substring(2, 12),
+                  metadata: {
+                    id: Math.random().toString(36).substring(2, 12),
+                    name: "mock-workspace",
+                    projectPath: "/mock/project",
+                    projectName: "project",
+                    namedWorkspacePath: "/mock/workspace/mock-workspace",
+                    createdAt: new Date().toISOString(),
+                  },
+                }),
               resumeStream: () => Promise.resolve({ success: true, data: undefined }),
               interruptStream: () => Promise.resolve({ success: true, data: undefined }),
               truncateHistory: () => Promise.resolve({ success: true, data: undefined }),

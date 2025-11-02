@@ -70,6 +70,8 @@ const api: IPCApi = {
       ipcRenderer.invoke(IPC_CHANNELS.WORKSPACE_FORK, sourceWorkspaceId, newName),
     sendMessage: (workspaceId, message, options) =>
       ipcRenderer.invoke(IPC_CHANNELS.WORKSPACE_SEND_MESSAGE, workspaceId, message, options),
+    sendFirstMessage: (projectPath, message, options) =>
+      ipcRenderer.invoke(IPC_CHANNELS.WORKSPACE_SEND_FIRST_MESSAGE, projectPath, message, options),
     resumeStream: (workspaceId, options) =>
       ipcRenderer.invoke(IPC_CHANNELS.WORKSPACE_RESUME_STREAM, workspaceId, options),
     interruptStream: (workspaceId: string, options?: { abandonPartial?: boolean }) =>

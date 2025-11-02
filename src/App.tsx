@@ -14,6 +14,8 @@ import { useResumeManager } from "./hooks/useResumeManager";
 import { useUnreadTracking } from "./hooks/useUnreadTracking";
 import { useAutoCompactContinue } from "./hooks/useAutoCompactContinue";
 import { useWorkspaceStoreRaw, useWorkspaceRecency } from "./stores/WorkspaceStore";
+import { ProjectSelector } from "./components/ProjectSelector";
+import { FirstMessageInput } from "./components/FirstMessageInput";
 
 import { useStableReference, compareMaps } from "./hooks/useStableReference";
 import { CommandRegistryProvider, useCommandRegistry } from "./contexts/CommandRegistryContext";
@@ -56,6 +58,17 @@ function AppInner() {
   );
   const [workspaceModalLoadError, setWorkspaceModalLoadError] = useState<string | null>(null);
   const workspaceModalProjectRef = useRef<string | null>(null);
+
+  // Track selected project for empty workspace state
+  const [selectedProject, setSelectedProject] = useState<string | null>(null);
+
+  // Auto-select single project when no workspace exists
+  useEffect(() => {
+    if (!selectedWorkspace && projects.size === 1) {
+      const [singleProject] = Array.from(projects.keys());
+      setSelectedProject(singleProject);
+    }
+  }, [selectedWorkspace, projects]);
 
   // Auto-collapse sidebar on mobile by default
   const isMobile = typeof window !== "undefined" && window.innerWidth <= 768;
@@ -647,17 +660,45 @@ function AppInner() {
                 />
               </ErrorBoundary>
             ) : (
-              <div
-                className="[&_p]:text-muted mx-auto w-full max-w-3xl text-center [&_h2]:mb-4 [&_h2]:font-bold [&_h2]:tracking-tight [&_h2]:text-white [&_p]:leading-[1.6]"
-                style={{
-                  padding: "clamp(40px, 10vh, 100px) 20px",
-                  fontSize: "clamp(14px, 2vw, 16px)",
-                }}
-              >
-                <h2 style={{ fontSize: "clamp(24px, 5vw, 36px)", letterSpacing: "-1px" }}>
-                  Welcome to Cmux
-                </h2>
-                <p>Select a workspace from the sidebar or add a new one to get started.</p>
+              <div className="flex flex-1 flex-col overflow-hidden">
+                <ProjectSelector
+                  projects={projects}
+                  selectedProject={selectedProject}
+                  onSelect={setSelectedProject}
+                />
+                {selectedProject ? (
+                  <FirstMessageInput
+                    projectPath={selectedProject}
+                    onWorkspaceCreated={(metadata) => {
+                      // Add to workspace metadata map
+                      setWorkspaceMetadata((prev) => new Map(prev).set(metadata.id, metadata));
+
+                      // Switch to new workspace
+                      handleWorkspaceSwitch({
+                        workspaceId: metadata.id,
+                        projectPath: metadata.projectPath,
+                        projectName: metadata.projectName,
+                        namedWorkspacePath: metadata.namedWorkspacePath,
+                      });
+
+                      // Track telemetry
+                      telemetry.workspaceCreated(metadata.id);
+                    }}
+                  />
+                ) : (
+                  <div
+                    className="[&_p]:text-muted mx-auto w-full max-w-3xl text-center [&_h2]:mb-4 [&_h2]:font-bold [&_h2]:tracking-tight [&_h2]:text-white [&_p]:leading-[1.6]"
+                    style={{
+                      padding: "clamp(40px, 10vh, 100px) 20px",
+                      fontSize: "clamp(14px, 2vw, 16px)",
+                    }}
+                  >
+                    <h2 style={{ fontSize: "clamp(24px, 5vw, 36px)", letterSpacing: "-1px" }}>
+                      Welcome to Cmux
+                    </h2>
+                    <p>Select a project to get started or add a new one from the sidebar.</p>
+                  </div>
+                )}
               </div>
             )}
           </div>
