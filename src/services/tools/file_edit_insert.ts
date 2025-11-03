@@ -24,16 +24,16 @@ export const createFileEditInsertTool: ToolFactory = (config: ToolConfiguration)
     ): Promise<FileEditInsertToolResult> => {
       try {
         // Validate no redundant path prefix (must come first to catch absolute paths)
+        // If redundant prefix found, auto-correct to relative path with warning
+        let pathWarning: string | undefined;
         const redundantPrefixValidation = validateNoRedundantPrefix(
           file_path,
           config.cwd,
           config.runtime
         );
         if (redundantPrefixValidation) {
-          return {
-            success: false,
-            error: redundantPrefixValidation.error,
-          };
+          file_path = redundantPrefixValidation.correctedPath;
+          pathWarning = redundantPrefixValidation.warning;
         }
 
         const pathValidation = validatePathInCwd(file_path, config.cwd, config.runtime);
@@ -81,7 +81,7 @@ export const createFileEditInsertTool: ToolFactory = (config: ToolConfiguration)
           }
         }
 
-        return executeFileEditOperation({
+        const result = await executeFileEditOperation({
           config,
           filePath: file_path,
           abortSignal,
@@ -119,6 +119,15 @@ export const createFileEditInsertTool: ToolFactory = (config: ToolConfiguration)
             };
           },
         });
+
+        // Add path warning if present
+        if (pathWarning && result.success) {
+          return {
+            ...result,
+            warning: pathWarning,
+          };
+        }
+        return result;
       } catch (error) {
         if (error && typeof error === "object" && "code" in error && error.code === "EACCES") {
           return {

@@ -23,16 +23,16 @@ export const createFileReadTool: ToolFactory = (config: ToolConfiguration) => {
 
       try {
         // Validate no redundant path prefix (must come first to catch absolute paths)
+        // If redundant prefix found, auto-correct to relative path with warning
+        let pathWarning: string | undefined;
         const redundantPrefixValidation = validateNoRedundantPrefix(
           filePath,
           config.cwd,
           config.runtime
         );
         if (redundantPrefixValidation) {
-          return {
-            success: false,
-            error: redundantPrefixValidation.error,
-          };
+          filePath = redundantPrefixValidation.correctedPath;
+          pathWarning = redundantPrefixValidation.warning;
         }
 
         // Validate that the path is within the working directory
@@ -172,6 +172,7 @@ export const createFileReadTool: ToolFactory = (config: ToolConfiguration) => {
           modifiedTime: fileStat.modifiedTime.toISOString(),
           lines_read: numberedLines.length,
           content,
+          ...(pathWarning && { warning: pathWarning }),
         };
       } catch (error) {
         // Handle specific errors

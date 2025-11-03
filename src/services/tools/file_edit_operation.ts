@@ -44,16 +44,16 @@ export async function executeFileEditOperation<TMetadata>({
 > {
   try {
     // Validate no redundant path prefix (must come first to catch absolute paths)
+    // If redundant prefix found, auto-correct to relative path with warning
+    let pathWarning: string | undefined;
     const redundantPrefixValidation = validateNoRedundantPrefix(
       filePath,
       config.cwd,
       config.runtime
     );
     if (redundantPrefixValidation) {
-      return {
-        success: false,
-        error: redundantPrefixValidation.error,
-      };
+      filePath = redundantPrefixValidation.correctedPath;
+      pathWarning = redundantPrefixValidation.warning;
     }
 
     const pathValidation = validatePathInCwd(filePath, config.cwd, config.runtime);
@@ -139,6 +139,7 @@ export async function executeFileEditOperation<TMetadata>({
       success: true,
       diff,
       ...operationResult.metadata,
+      ...(pathWarning && { warning: pathWarning }),
     };
   } catch (error) {
     if (error && typeof error === "object" && "code" in error) {

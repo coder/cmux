@@ -147,19 +147,20 @@ describe("fileCommon", () => {
       expect(validateNoRedundantPrefix("file.ts", cwd, runtime)).toBeNull();
     });
 
-    it("should reject absolute paths that contain the cwd prefix", () => {
+    it("should auto-correct absolute paths that contain the cwd prefix", () => {
       const result = validateNoRedundantPrefix("/workspace/project/src/file.ts", cwd, runtime);
       expect(result).not.toBeNull();
-      expect(result?.error).toContain("Redundant path prefix detected");
-      expect(result?.error).toContain("Please use relative paths to save tokens");
-      expect(result?.error).toContain("src/file.ts"); // Should suggest the relative path
+      expect(result?.correctedPath).toBe("src/file.ts");
+      expect(result?.warning).toContain("Using relative paths");
+      expect(result?.warning).toContain("saves tokens");
+      expect(result?.warning).toContain("auto-corrected");
     });
 
-    it("should reject absolute paths at the cwd root", () => {
+    it("should auto-correct absolute paths at the cwd root", () => {
       const result = validateNoRedundantPrefix("/workspace/project/file.ts", cwd, runtime);
       expect(result).not.toBeNull();
-      expect(result?.error).toContain("Redundant path prefix detected");
-      expect(result?.error).toContain("file.ts"); // Should suggest the relative path
+      expect(result?.correctedPath).toBe("file.ts");
+      expect(result?.warning).toContain("auto-corrected");
     });
 
     it("should allow absolute paths outside cwd (they will be caught by validatePathInCwd)", () => {
@@ -182,7 +183,8 @@ describe("fileCommon", () => {
         runtime
       );
       expect(result).not.toBeNull();
-      expect(result?.error).toContain("src/file.ts");
+      expect(result?.correctedPath).toBe("src/file.ts");
+      expect(result?.warning).toContain("auto-corrected");
     });
 
     it("should handle nested paths correctly", () => {
@@ -192,14 +194,15 @@ describe("fileCommon", () => {
         runtime
       );
       expect(result).not.toBeNull();
-      expect(result?.error).toContain("src/components/Button/index.ts");
+      expect(result?.correctedPath).toBe("src/components/Button/index.ts");
+      expect(result?.warning).toContain("auto-corrected");
     });
 
-    it("should reject path that equals cwd exactly", () => {
+    it("should auto-correct path that equals cwd exactly", () => {
       const result = validateNoRedundantPrefix("/workspace/project", cwd, runtime);
       expect(result).not.toBeNull();
-      expect(result?.error).toContain("Redundant path prefix detected");
-      expect(result?.error).toContain("."); // Should suggest current directory
+      expect(result?.correctedPath).toBe(".");
+      expect(result?.warning).toContain("auto-corrected");
     });
 
     it("should not match partial directory names", () => {
@@ -217,15 +220,15 @@ describe("fileCommon", () => {
       });
       const sshCwd = "/home/user/cmux/project/branch";
 
-      // Should reject absolute paths with redundant prefix on SSH too
+      // Should auto-correct absolute paths with redundant prefix on SSH too
       const result = validateNoRedundantPrefix(
         "/home/user/cmux/project/branch/src/file.ts",
         sshCwd,
         sshRuntime
       );
       expect(result).not.toBeNull();
-      expect(result?.error).toContain("Redundant path prefix detected");
-      expect(result?.error).toContain("src/file.ts");
+      expect(result?.correctedPath).toBe("src/file.ts");
+      expect(result?.warning).toContain("auto-corrected");
 
       // Should allow relative paths on SSH
       expect(validateNoRedundantPrefix("src/file.ts", sshCwd, sshRuntime)).toBeNull();
