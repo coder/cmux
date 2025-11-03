@@ -1,4 +1,5 @@
 import * as os from "os";
+import * as path from "path";
 import { getControlPath } from "./sshConnectionPool";
 import type { SSHRuntimeConfig } from "./SSHRuntime";
 
@@ -127,6 +128,9 @@ describe("username isolation", () => {
 
     // The path should be deterministic for this user
     expect(controlPath).toBe(getControlPath(config));
-    expect(controlPath).toMatch(/^\/tmp\/cmux-ssh-[a-f0-9]{12}$/);
+
+    const expectedPrefix = path.join(os.tmpdir(), "cmux-ssh-");
+    expect(controlPath.startsWith(expectedPrefix)).toBe(true);
+    expect(controlPath).toMatch(/cmux-ssh-[a-f0-9]{12}$/);
   });
 });

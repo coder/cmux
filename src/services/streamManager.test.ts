@@ -379,7 +379,7 @@ describe("StreamManager - Unavailable Tool Handling", () => {
       messageId: "test-message-1",
       token: "test-token",
       startTime: Date.now(),
-      model: "test-model",
+      model: "anthropic:claude-sonnet-4-5",
       historySequence: 1,
       parts: [],
       lastPartialWriteTime: 0,

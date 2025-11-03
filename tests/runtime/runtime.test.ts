@@ -6,6 +6,7 @@
  */
 
 // Jest globals are available automatically - no need to import
+import * as os from "os";
 import * as path from "path";
 import { shouldRunIntegrationTests } from "../testUtils";
 import {
@@ -53,7 +54,8 @@ describeIntegration("Runtime integration tests", () => {
     ({ type }) => {
       // Helper to create runtime for this test type
       // Use a base working directory - TestWorkspace will create subdirectories as needed
-      const getBaseWorkdir = () => (type === "ssh" ? sshConfig!.workdir : "/tmp");
+      // For local runtime, use os.tmpdir() which matches where TestWorkspace creates directories
+      const getBaseWorkdir = () => (type === "ssh" ? sshConfig!.workdir : os.tmpdir());
       const createRuntime = (): Runtime => createTestRuntime(type, getBaseWorkdir(), sshConfig);
 
       describe("exec() - Command execution", () => {

@@ -74,6 +74,9 @@ jobs:
 
       - uses: ./.github/actions/setup-cmux
 
+      - name: Build worker files
+        run: make build-main
+
       - name: Run tests with coverage
         run: bun test --coverage --coverage-reporter=lcov ${{ github.event.inputs.test_filter || 'src' }}
 
@@ -95,6 +98,9 @@ jobs:
           fetch-depth: 0 # Required for git describe to find tags
 
       - uses: ./.github/actions/setup-cmux
+
+      - name: Build worker files
+        run: make build-main
 
       - name: Run integration tests with coverage
         # --silent suppresses per-test output (17 test files × 32 workers = overwhelming logs)

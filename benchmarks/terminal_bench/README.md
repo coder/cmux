@@ -36,6 +36,7 @@ The benchmark uses a **global timeout** applied to all tasks. The default is **3
 **Design Rationale:**
 
 Based on analysis of Oct 30, 2025 nightly runs:
+
 - Longest successful task: `blind-maze-explorer-algorithm.hard` at 20 minutes
 - 95th percentile: ~15 minutes
 - Mean duration: ~6 minutes

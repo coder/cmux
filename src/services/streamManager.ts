@@ -272,11 +272,11 @@ export class StreamManager extends EventEmitter {
    * Usage is only available after stream completes naturally.
    * On abort, the usage promise may hang - we use a timeout to return quickly.
    */
-  private emitToolCallDeltaIfPresent(
+  private async emitToolCallDeltaIfPresent(
     workspaceId: WorkspaceId,
     streamInfo: WorkspaceStreamInfo,
     part: unknown
-  ): boolean {
+  ): Promise<boolean> {
     const maybeDelta = part as { type?: string } | undefined;
     if (maybeDelta?.type !== "tool-call-delta") {
       return false;
@@ -293,7 +293,7 @@ export class StreamManager extends EventEmitter {
       return true;
     }
 
-    const tokens = this.tokenTracker.countTokens(deltaText);
+    const tokens = await this.tokenTracker.countTokens(deltaText);
     const timestamp = Date.now();
 
     this.emit("tool-call-delta", {
@@ -347,15 +347,15 @@ export class StreamManager extends EventEmitter {
    * @param messageId - Message identifier
    * @param part - The part to emit (text, reasoning, or tool)
    */
-  private emitPartAsEvent(
+  private async emitPartAsEvent(
     workspaceId: WorkspaceId,
     messageId: string,
     part: CompletedMessagePart
-  ): void {
+  ): Promise<void> {
     const timestamp = part.timestamp ?? Date.now();
 
     if (part.type === "text") {
-      const tokens = this.tokenTracker.countTokens(part.text);
+      const tokens = await this.tokenTracker.countTokens(part.text);
       this.emit("stream-delta", {
         type: "stream-delta",
         workspaceId: workspaceId as string,
@@ -365,7 +365,7 @@ export class StreamManager extends EventEmitter {
         timestamp,
       });
     } else if (part.type === "reasoning") {
-      const tokens = this.tokenTracker.countTokens(part.text);
+      const tokens = await this.tokenTracker.countTokens(part.text);
       this.emit("reasoning-delta", {
         type: "reasoning-delta",
         workspaceId: workspaceId as string,
@@ -376,7 +376,7 @@ export class StreamManager extends EventEmitter {
       });
     } else if (part.type === "dynamic-tool") {
       const inputText = JSON.stringify(part.input);
-      const tokens = this.tokenTracker.countTokens(inputText);
+      const tokens = await this.tokenTracker.countTokens(inputText);
       this.emit("tool-call-start", {
         type: "tool-call-start",
         workspaceId: workspaceId as string,
@@ -615,7 +615,7 @@ export class StreamManager extends EventEmitter {
       } as StreamStartEvent);
 
       // Initialize token tracker for this model
-      this.tokenTracker.setModel(streamInfo.model);
+      await this.tokenTracker.setModel(streamInfo.model);
 
       // Use fullStream to capture all events including tool calls
       const toolCalls = new Map<
@@ -649,7 +649,7 @@ export class StreamManager extends EventEmitter {
             streamInfo.parts.push(textPart);
 
             // Emit using shared logic (ensures replay consistency)
-            this.emitPartAsEvent(workspaceId, streamInfo.messageId, textPart);
+            await this.emitPartAsEvent(workspaceId, streamInfo.messageId, textPart);
 
             // Schedule partial write (throttled, fire-and-forget to not block stream)
             void this.schedulePartialWrite(workspaceId, streamInfo);
@@ -657,7 +657,7 @@ export class StreamManager extends EventEmitter {
           }
 
           default: {
-            if (this.emitToolCallDeltaIfPresent(workspaceId, streamInfo, part)) {
+            if (await this.emitToolCallDeltaIfPresent(workspaceId, streamInfo, part)) {
               break;
             }
             break;
@@ -676,7 +676,7 @@ export class StreamManager extends EventEmitter {
             streamInfo.parts.push(reasoningPart);
 
             // Emit using shared logic (ensures replay consistency)
-            this.emitPartAsEvent(workspaceId, streamInfo.messageId, reasoningPart);
+            await this.emitPartAsEvent(workspaceId, streamInfo.messageId, reasoningPart);
 
             void this.schedulePartialWrite(workspaceId, streamInfo);
             break;
@@ -721,7 +721,7 @@ export class StreamManager extends EventEmitter {
             log.debug(
               `[StreamManager] tool-call: toolName=${part.toolName}, input length=${inputText.length}`
             );
-            this.emitPartAsEvent(workspaceId, streamInfo.messageId, toolPart);
+            await this.emitPartAsEvent(workspaceId, streamInfo.messageId, toolPart);
             break;
           }
 
@@ -1271,7 +1271,7 @@ export class StreamManager extends EventEmitter {
    * Emits the same events (stream-start, stream-delta, etc.) that would be emitted during live streaming
    * This allows replay to flow through the same event path as live streaming (no duplication)
    */
-  replayStream(workspaceId: string): void {
+  async replayStream(workspaceId: string): Promise<void> {
     const typedWorkspaceId = workspaceId as WorkspaceId;
     const streamInfo = this.workspaceStreams.get(typedWorkspaceId);
 
@@ -1284,7 +1284,7 @@ export class StreamManager extends EventEmitter {
     }
 
     // Initialize token tracker for this model (required for tokenization)
-    this.tokenTracker.setModel(streamInfo.model);
+    await this.tokenTracker.setModel(streamInfo.model);
 
     // Emit stream-start event
     this.emit("stream-start", {
@@ -1298,7 +1298,7 @@ export class StreamManager extends EventEmitter {
     // Replay accumulated parts as events using shared emission logic
     // This guarantees replay produces identical events to the original stream
     for (const part of streamInfo.parts) {
-      this.emitPartAsEvent(typedWorkspaceId, streamInfo.messageId, part);
+      await this.emitPartAsEvent(typedWorkspaceId, streamInfo.messageId, part);
     }
   }
 

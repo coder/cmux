@@ -19,7 +19,7 @@ const fileReadTurn: ScenarioTurn = {
   assistant: {
     messageId: "msg-tool-file-read",
     events: [
-      { kind: "stream-start", delay: 0, messageId: "msg-tool-file-read", model: "mock:executor" },
+      { kind: "stream-start", delay: 0, messageId: "msg-tool-file-read", model: "openai:gpt-5" },
       {
         kind: "tool-start",
         delay: STREAM_BASE_DELAY,
@@ -55,7 +55,7 @@ const fileReadTurn: ScenarioTurn = {
         kind: "stream-end",
         delay: STREAM_BASE_DELAY * 3,
         metadata: {
-          model: "mock:executor",
+          model: "openai:gpt-5",
           inputTokens: 92,
           outputTokens: 64,
           systemMessageTokens: 18,
@@ -78,7 +78,7 @@ const listDirectoryTurn: ScenarioTurn = {
   assistant: {
     messageId: "msg-tool-bash-ls",
     events: [
-      { kind: "stream-start", delay: 0, messageId: "msg-tool-bash-ls", model: "mock:executor" },
+      { kind: "stream-start", delay: 0, messageId: "msg-tool-bash-ls", model: "openai:gpt-5" },
       {
         kind: "tool-start",
         delay: STREAM_BASE_DELAY,
@@ -110,19 +110,19 @@ const listDirectoryTurn: ScenarioTurn = {
       },
       {
         kind: "stream-delta",
-        delay: STREAM_BASE_DELAY * 2 + 300,
+        delay: STREAM_BASE_DELAY * 3 + 50,
         text: "- package.json\n",
       },
       {
         kind: "stream-delta",
-        delay: STREAM_BASE_DELAY * 2 + 400,
+        delay: STREAM_BASE_DELAY * 3 + 150,
         text: "- src",
       },
       {
         kind: "stream-end",
-        delay: STREAM_BASE_DELAY * 3,
+        delay: STREAM_BASE_DELAY * 3 + 500,
         metadata: {
-          model: "mock:executor",
+          model: "openai:gpt-5",
           inputTokens: 74,
           outputTokens: 58,
           systemMessageTokens: 16,
@@ -151,7 +151,7 @@ const createTestFileTurn: ScenarioTurn = {
         kind: "stream-start",
         delay: 0,
         messageId: "msg-tool-create-test-file",
-        model: "mock:executor",
+        model: "openai:gpt-5",
       },
       {
         kind: "tool-start",
@@ -181,7 +181,7 @@ const createTestFileTurn: ScenarioTurn = {
         kind: "stream-end",
         delay: STREAM_BASE_DELAY * 3,
         metadata: {
-          model: "mock:executor",
+          model: "openai:gpt-5",
           inputTokens: 80,
           outputTokens: 40,
           systemMessageTokens: 12,
@@ -205,7 +205,7 @@ const readTestFileTurn: ScenarioTurn = {
         kind: "stream-start",
         delay: 0,
         messageId: "msg-tool-read-test-file",
-        model: "mock:executor",
+        model: "openai:gpt-5",
       },
       {
         kind: "tool-start",
@@ -242,7 +242,7 @@ const readTestFileTurn: ScenarioTurn = {
         kind: "stream-end",
         delay: STREAM_BASE_DELAY * 3,
         metadata: {
-          model: "mock:executor",
+          model: "openai:gpt-5",
           inputTokens: 76,
           outputTokens: 52,
           systemMessageTokens: 12,
@@ -269,7 +269,7 @@ const recallTestFileTurn: ScenarioTurn = {
         kind: "stream-start",
         delay: 0,
         messageId: "msg-tool-recall-test-file",
-        model: "mock:planner",
+        model: "openai:gpt-5",
       },
       {
         kind: "stream-delta",
@@ -280,7 +280,7 @@ const recallTestFileTurn: ScenarioTurn = {
         kind: "stream-end",
         delay: STREAM_BASE_DELAY * 2,
         metadata: {
-          model: "mock:planner",
+          model: "openai:gpt-5",
           inputTokens: 60,
           outputTokens: 34,
           systemMessageTokens: 10,

@@ -19,7 +19,7 @@ const planRefactorTurn: ScenarioTurn = {
         kind: "stream-start",
         delay: 0,
         messageId: "msg-plan-refactor",
-        model: "mock:planner",
+        model: "openai:gpt-5",
       },
       {
         kind: "stream-delta",
@@ -45,7 +45,7 @@ const planRefactorTurn: ScenarioTurn = {
         kind: "stream-end",
         delay: STREAM_BASE_DELAY * 5,
         metadata: {
-          model: "mock:planner",
+          model: "openai:gpt-5",
           inputTokens: 180,
           outputTokens: 130,
           systemMessageTokens: 24,
@@ -74,7 +74,7 @@ const executePlanTurn: ScenarioTurn = {
         kind: "stream-start",
         delay: 0,
         messageId: "msg-exec-refactor",
-        model: "mock:executor",
+        model: "openai:gpt-5",
       },
       {
         kind: "tool-start",
@@ -118,7 +118,7 @@ const executePlanTurn: ScenarioTurn = {
         kind: "stream-end",
         delay: STREAM_BASE_DELAY * 3,
         metadata: {
-          model: "mock:executor",
+          model: "openai:gpt-5",
           inputTokens: 220,
           outputTokens: 110,
           systemMessageTokens: 18,

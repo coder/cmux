@@ -16,7 +16,7 @@ const summarizeBranchesTurn: ScenarioTurn = {
   assistant: {
     messageId: "msg-plan-1",
     events: [
-      { kind: "stream-start", delay: 0, messageId: "msg-plan-1", model: "mock:planner" },
+      { kind: "stream-start", delay: 0, messageId: "msg-plan-1", model: "openai:gpt-5" },
       {
         kind: "reasoning-delta",
         delay: STREAM_BASE_DELAY,
@@ -61,7 +61,7 @@ const summarizeBranchesTurn: ScenarioTurn = {
         kind: "stream-end",
         delay: STREAM_BASE_DELAY * 6,
         metadata: {
-          model: "mock:planner",
+          model: "openai:gpt-5",
           inputTokens: 128,
           outputTokens: 85,
           systemMessageTokens: 32,
@@ -86,7 +86,7 @@ const openOnboardingDocTurn: ScenarioTurn = {
   assistant: {
     messageId: "msg-exec-1",
     events: [
-      { kind: "stream-start", delay: 0, messageId: "msg-exec-1", model: "mock:executor" },
+      { kind: "stream-start", delay: 0, messageId: "msg-exec-1", model: "openai:gpt-5" },
       {
         kind: "tool-start",
         delay: STREAM_BASE_DELAY,
@@ -114,7 +114,7 @@ const showOnboardingDocTurn: ScenarioTurn = {
   assistant: {
     messageId: "msg-exec-2",
     events: [
-      { kind: "stream-start", delay: 0, messageId: "msg-exec-2", model: "mock:executor" },
+      { kind: "stream-start", delay: 0, messageId: "msg-exec-2", model: "openai:gpt-5" },
       {
         kind: "tool-start",
         delay: STREAM_BASE_DELAY,
@@ -153,7 +153,7 @@ const showOnboardingDocTurn: ScenarioTurn = {
         kind: "stream-end",
         delay: STREAM_BASE_DELAY * 3,
         metadata: {
-          model: "mock:executor",
+          model: "openai:gpt-5",
           inputTokens: 96,
           outputTokens: 142,
           systemMessageTokens: 32,

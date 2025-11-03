@@ -17,10 +17,11 @@ import * as path from "path";
 import type { Config } from "./config";
 import type { IpcMain } from "./services/ipcMain";
 import { VERSION } from "./version";
-import type { loadTokenizerModules } from "./utils/main/tokenizer";
 import { IPC_CHANNELS } from "./constants/ipc-constants";
 import { log } from "./services/log";
 import { parseDebugUpdater } from "./utils/env";
+import assert from "./utils/assert";
+import { loadTokenizerModules } from "./utils/main/tokenizer";
 
 // React DevTools for development profiling
 // Using require() instead of import since it's dev-only and conditionally loaded
@@ -66,7 +67,6 @@ if (!app.isPackaged) {
 // These will be loaded on-demand when createWindow() is called
 let config: Config | null = null;
 let ipcMain: IpcMain | null = null;
-let loadTokenizerModulesFn: typeof loadTokenizerModules | null = null;
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 let updaterService: typeof import("./services/updater").UpdaterService.prototype | null = null;
 const isE2ETest = process.env.CMUX_E2E === "1";
@@ -294,7 +294,7 @@ function closeSplashScreen() {
  * the splash still provides visual feedback that the app is loading.
  */
 async function loadServices(): Promise<void> {
-  if (config && ipcMain && loadTokenizerModulesFn) return; // Already loaded
+  if (config && ipcMain) return; // Already loaded
 
   const startTime = Date.now();
   console.log(`[${timestamp()}] Loading services...`);
@@ -307,18 +307,19 @@ async function loadServices(): Promise<void> {
   const [
     { Config: ConfigClass },
     { IpcMain: IpcMainClass },
-    { loadTokenizerModules: loadTokenizerFn },
     { UpdaterService: UpdaterServiceClass },
   ] = await Promise.all([
     import("./config"),
     import("./services/ipcMain"),
-    import("./utils/main/tokenizer"),
     import("./services/updater"),
   ]);
   /* eslint-enable no-restricted-syntax */
   config = new ConfigClass();
   ipcMain = new IpcMainClass(config);
-  loadTokenizerModulesFn = loadTokenizerFn;
+
+  loadTokenizerModules().catch((error) => {
+    console.error("Failed to preload tokenizer modules:", error);
+  });
 
   // Initialize updater service in packaged builds or when DEBUG_UPDATER is set
   const debugConfig = parseDebugUpdater(process.env.DEBUG_UPDATER);
@@ -342,9 +343,7 @@ async function loadServices(): Promise<void> {
 }
 
 function createWindow() {
-  if (!ipcMain) {
-    throw new Error("Services must be loaded before creating window");
-  }
+  assert(ipcMain, "Services must be loaded before creating window");
 
   // Calculate window size based on screen dimensions (80% of available space)
   const primaryDisplay = screen.getPrimaryDisplay();
@@ -354,7 +353,6 @@ function createWindow() {
   const windowHeight = Math.max(800, Math.floor(screenHeight * 0.8));
 
   console.log(`[${timestamp()}] [window] Creating BrowserWindow...`);
-  console.time("[window] BrowserWindow creation");
 
   mainWindow = new BrowserWindow({
     width: windowWidth,
@@ -371,13 +369,9 @@ function createWindow() {
     show: false, // Don't show until ready-to-show event
   });
 
-  console.timeEnd("[window] BrowserWindow creation");
-
   // Register IPC handlers with the main window
   console.log(`[${timestamp()}] [window] Registering IPC handlers...`);
-  console.time("[window] IPC registration");
   ipcMain.register(electronIpcMain, mainWindow);
-  console.timeEnd("[window] IPC registration");
 
   // Register updater IPC handlers (available in both dev and prod)
   electronIpcMain.handle(IPC_CHANNELS.UPDATE_CHECK, () => {

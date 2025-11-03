@@ -1,78 +1,46 @@
-import { beforeEach, describe, expect, test } from "bun:test";
+import { beforeAll, beforeEach, describe, expect, jest, test } from "@jest/globals";
 
 import {
   __resetTokenizerForTests,
+  countTokens,
+  countTokensBatch,
   getTokenizerForModel,
-  loadTokenizerForModel,
   loadTokenizerModules,
-  onTokenizerEncodingLoaded,
 } from "./tokenizer";
+
+jest.setTimeout(20000);
+
+const model = "openai:gpt-5";
+beforeAll(async () => {
+  // warm up the worker_thread and tokenizer before running tests
+  await expect(loadTokenizerModules([model])).resolves.toHaveLength(1);
+});
 
 beforeEach(() => {
   __resetTokenizerForTests();
 });
 
-describe("tokenizer caching", () => {
-  test("does not cache fallback approximations", async () => {
-    await loadTokenizerModules();
-
-    const model = "openai:gpt-4-turbo";
-    const tokenizer = getTokenizerForModel(model);
-    const text = "cmux-fallback-check-" + "a".repeat(40);
-
-    const fallbackCount = tokenizer.countTokens(text);
-    const approximation = Math.ceil(text.length / 4);
-    expect(fallbackCount).toBe(approximation);
-
-    await loadTokenizerForModel(model);
-
-    const accurateCount = tokenizer.countTokens(text);
-
-    expect(accurateCount).not.toBe(fallbackCount);
-    expect(accurateCount).toBeGreaterThan(0);
+describe("tokenizer", () => {
+  test("loadTokenizerModules warms known encodings", async () => {
+    const tokenizer = await getTokenizerForModel(model);
+    expect(typeof tokenizer.encoding).toBe("string");
+    expect(tokenizer.encoding.length).toBeGreaterThan(0);
   });
 
-  test("replays loaded encodings for late listeners", async () => {
-    const model = "openai:gpt-4o";
-    await loadTokenizerForModel(model);
-
-    const received: string[] = [];
-    const unsubscribe = onTokenizerEncodingLoaded((encodingName) => {
-      received.push(encodingName);
-    });
-    unsubscribe();
-
-    expect(received.length).toBeGreaterThan(0);
-    expect(received).toContain("o200k_base");
+  test("countTokens returns stable values", async () => {
+    const text = "cmux-tokenizer-smoke-test";
+    const first = await countTokens(model, text);
+    const second = await countTokens(model, text);
+    expect(first).toBeGreaterThan(0);
+    expect(second).toBe(first);
   });
 
-  test("accurate counts replace fallback approximations", async () => {
-    const model = "openai:gpt-4-turbo";
-    const tokenizer = getTokenizerForModel(model);
-    const text = "cmux-accuracy-check-" + "b".repeat(80);
+  test("countTokensBatch matches individual calls", async () => {
+    const texts = ["alpha", "beta", "gamma"];
+    const batch = await countTokensBatch(model, texts);
+    expect(batch).toHaveLength(texts.length);
 
-    let unsubscribe: () => void = () => undefined;
-    const encodingReady = new Promise<void>((resolve) => {
-      unsubscribe = onTokenizerEncodingLoaded((encodingName) => {
-        if (encodingName === "cl100k_base") {
-          unsubscribe();
-          resolve();
-        }
-      });
-    });
-
-    const fallbackCount = tokenizer.countTokens(text);
-    const approximation = Math.ceil(text.length / 4);
-    expect(fallbackCount).toBe(approximation);
-
-    await encodingReady;
-    await Promise.resolve();
-
-    const accurateCount = tokenizer.countTokens(text);
-    expect(accurateCount).not.toBe(fallbackCount);
-    expect(accurateCount).toBeGreaterThan(0);
-
-    const cachedCount = tokenizer.countTokens(text);
-    expect(cachedCount).toBe(accurateCount);
+    const individual = await Promise.all(texts.map((text) => countTokens(model, text)));
+    expect(batch).toEqual(individual);
   });
 });

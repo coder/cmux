@@ -5,7 +5,7 @@ on:
     branches:
       - main
     tags:
-      - 'v*'
+      - "v*"
   workflow_dispatch:
 
 permissions:
@@ -24,12 +24,12 @@ jobs:
 
       - uses: ./.github/actions/setup-cmux
         with:
-          install-imagemagick: 'true'
+          install-imagemagick: "true"
 
       # Sets up .npmrc with the auth token
       - uses: actions/setup-node@v4
         with:
-          registry-url: 'https://registry.npmjs.org'
+          registry-url: "https://registry.npmjs.org"
 
       - run: sudo npm i -g npm@latest
 
@@ -38,10 +38,10 @@ jobs:
         run: |
           # Get base version from package.json
           BASE_VERSION=$(node -p "require('./package.json').version")
-          
+
           # Generate git describe version
           GIT_DESCRIBE=$(git describe --tags --always --dirty 2>/dev/null || echo "unknown")
-          
+
           if [[ $GITHUB_REF == refs/tags/* ]]; then
             # For tags, use the base version as-is (stable release)
             NPM_VERSION="${BASE_VERSION}"
@@ -56,13 +56,13 @@ jobs:
             NPM_TAG="next"
             echo "Publishing pre-release: ${NPM_VERSION}"
           fi
-          
+
           echo "version=${NPM_VERSION}" >> $GITHUB_OUTPUT
           echo "tag=${NPM_TAG}" >> $GITHUB_OUTPUT
-          
+
           # Update package.json with the new version
           node -e "const fs = require('fs'); const pkg = JSON.parse(fs.readFileSync('package.json')); pkg.version = '${NPM_VERSION}'; fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');"
-          
+
           echo "Updated package.json to version ${NPM_VERSION}"
 
       - name: Generate version file
@@ -76,7 +76,7 @@ jobs:
         run: |
           PACKAGE_NAME=$(node -p "require('./package.json').name")
           VERSION="${{ steps.version.outputs.version }}"
-          
+
           if npm view "${PACKAGE_NAME}@${VERSION}" version &>/dev/null; then
             echo "exists=true" >> $GITHUB_OUTPUT
             echo "Version ${VERSION} already exists on npm"
@@ -95,7 +95,7 @@ jobs:
           PACKAGE_NAME=$(node -p "require('./package.json').name")
           VERSION="${{ steps.version.outputs.version }}"
           TAG="${{ steps.version.outputs.tag }}"
-          
+
           echo "Version ${VERSION} already published, updating dist-tag to ${TAG}"
           npm dist-tag add "${PACKAGE_NAME}@${VERSION}" "${TAG}"
 

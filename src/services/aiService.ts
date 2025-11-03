@@ -540,8 +540,8 @@ export class AIService extends EventEmitter {
       );
 
       // Count system message tokens for cost tracking
-      const tokenizer = getTokenizerForModel(modelString);
-      const systemMessageTokens = tokenizer.countTokens(systemMessage);
+      const tokenizer = await getTokenizerForModel(modelString);
+      const systemMessageTokens = await tokenizer.countTokens(systemMessage);
 
       // Load project secrets
       const projectSecrets = this.config.getProjectSecrets(metadata.projectPath);
@@ -798,12 +798,12 @@ export class AIService extends EventEmitter {
    * Replay stream events
    * Emits the same events that would be emitted during live streaming
    */
-  replayStream(workspaceId: string): void {
+  async replayStream(workspaceId: string): Promise<void> {
     if (this.mockModeEnabled && this.mockScenarioPlayer) {
-      this.mockScenarioPlayer.replayStream(workspaceId);
+      await this.mockScenarioPlayer.replayStream(workspaceId);
       return;
     }
-    this.streamManager.replayStream(workspaceId);
+    await this.streamManager.replayStream(workspaceId);
   }
 
   async deleteWorkspace(workspaceId: string): Promise<Result<void>> {

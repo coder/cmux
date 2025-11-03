@@ -1,10 +1,49 @@
-import assert from "@/utils/assert";
 import type { WorkspaceConsumersState } from "./WorkspaceStore";
-import { TokenStatsWorker } from "@/utils/tokens/TokenStatsWorker";
 import type { StreamingMessageAggregator } from "@/utils/messages/StreamingMessageAggregator";
+import type { ChatStats } from "@/types/chatStats";
+import type { CmuxMessage } from "@/types/message";
+import assert from "@/utils/assert";
 
-// Timeout for Web Worker calculations (10 seconds - generous but responsive)
-const CALCULATION_TIMEOUT_MS = 10_000;
+const TOKENIZER_CANCELLED_MESSAGE = "Cancelled by newer request";
+
+let globalTokenStatsRequestId = 0;
+const latestRequestByWorkspace = new Map<string, number>();
+
+function getTokenizerApi() {
+  if (typeof window === "undefined") {
+    return null;
+  }
+  return window.api?.tokenizer ?? null;
+}
+
+async function calculateTokenStatsLatest(
+  workspaceId: string,
+  messages: CmuxMessage[],
+  model: string
+): Promise<ChatStats> {
+  const tokenizer = getTokenizerApi();
+  assert(tokenizer, "Tokenizer IPC bridge unavailable");
+
+  const requestId = ++globalTokenStatsRequestId;
+  latestRequestByWorkspace.set(workspaceId, requestId);
+
+  try {
+    const stats = await tokenizer.calculateStats(messages, model);
+    const latestRequestId = latestRequestByWorkspace.get(workspaceId);
+    if (latestRequestId !== requestId) {
+      throw new Error(TOKENIZER_CANCELLED_MESSAGE);
+    }
+    return stats;
+  } catch (error) {
+    if (error instanceof Error) {
+      throw error;
+    }
+    throw new Error(String(error));
+  }
+}
+
+// Timeout for Web Worker calculations (60 seconds - generous but responsive)
+const CALCULATION_TIMEOUT_MS = 60_000;
 
 /**
  * Manages consumer token calculations for workspaces.
@@ -28,9 +67,6 @@ const CALCULATION_TIMEOUT_MS = 10_000;
  *   (components subscribe to workspace changes, delegates to manager for state)
  */
 export class WorkspaceConsumerManager {
-  // Web Worker for tokenization (shared across workspaces)
-  private readonly tokenWorker: TokenStatsWorker;
-
   // Track scheduled calculations (in debounce window, not yet executing)
   private scheduledCalcs = new Set<string>();
 
@@ -53,18 +89,7 @@ export class WorkspaceConsumerManager {
   private pendingNotifications = new Set<string>();
 
   constructor(onCalculationComplete: (workspaceId: string) => void) {
-    this.tokenWorker = new TokenStatsWorker();
     this.onCalculationComplete = onCalculationComplete;
-  }
-
-  onTokenizerReady(listener: () => void): () => void {
-    assert(typeof listener === "function", "Tokenizer ready listener must be a function");
-    return this.tokenWorker.onTokenizerReady(listener);
-  }
-
-  onTokenizerEncodingLoaded(listener: (encodingName: string) => void): () => void {
-    assert(typeof listener === "function", "Tokenizer encoding listener must be a function");
-    return this.tokenWorker.onEncodingLoaded(listener);
   }
 
   /**
@@ -165,13 +190,13 @@ export class WorkspaceConsumerManager {
         const messages = aggregator.getAllMessages();
         const model = aggregator.getCurrentModel() ?? "unknown";
 
-        // Calculate in Web Worker with timeout protection
+        // Calculate in piscina pool with timeout protection
         const timeoutPromise = new Promise<never>((_, reject) =>
           setTimeout(() => reject(new Error("Calculation timeout")), CALCULATION_TIMEOUT_MS)
         );
 
         const fullStats = await Promise.race([
-          this.tokenWorker.calculate(messages, model),
+          calculateTokenStatsLatest(workspaceId, messages, model),
           timeoutPromise,
         ]);
 
@@ -188,7 +213,7 @@ export class WorkspaceConsumerManager {
       } catch (error) {
         // Cancellations are expected during rapid events - don't cache, don't log
         // This allows lazy trigger to retry on next access
-        if (error instanceof Error && error.message === "Cancelled by newer request") {
+        if (error instanceof Error && error.message === TOKENIZER_CANCELLED_MESSAGE) {
           return;
         }
 
@@ -262,9 +287,6 @@ export class WorkspaceConsumerManager {
       clearTimeout(timer);
     }
     this.debounceTimers.clear();
-
-    // Terminate worker
-    this.tokenWorker.terminate();
 
     // Clear state
     this.cache.clear();

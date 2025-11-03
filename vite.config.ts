@@ -30,9 +30,7 @@ const reactCompilerConfig = {
 };
 
 // Babel plugins configuration (shared between dev and production)
-const babelPlugins = [
-  ["babel-plugin-react-compiler", reactCompilerConfig],
-];
+const babelPlugins = [["babel-plugin-react-compiler", reactCompilerConfig]];
 
 // Base plugins for both dev and production
 const basePlugins = [
@@ -81,7 +79,7 @@ export default defineConfig(({ mode }) => ({
   },
   worker: {
     format: "es",
-    plugins: [topLevelAwait()],
+    plugins: () => [topLevelAwait()],
   },
   server: {
     host: devServerHost, // Configurable via CMUX_VITE_HOST (defaults to 127.0.0.1 for security)

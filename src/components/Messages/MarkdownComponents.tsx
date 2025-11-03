@@ -77,11 +77,22 @@ const CodeBlock: React.FC<CodeBlockProps> = ({ code, language }) => {
         const highlighter = await getShikiHighlighter();
         const shikiLang = mapToShikiLang(language);
 
-        // Load language on-demand
+        // Load language on-demand if not already loaded
+        // This is race-safe: concurrent loads of the same language are idempotent
         const loadedLangs = highlighter.getLoadedLanguages();
         if (!loadedLangs.includes(shikiLang)) {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-argument
-          await highlighter.loadLanguage(shikiLang as any);
+          try {
+            // TypeScript doesn't know shikiLang is valid, but we handle errors gracefully
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-argument
+            await highlighter.loadLanguage(shikiLang as any);
+          } catch {
+            // Language not available in Shiki bundle - fall back to plain text
+            console.warn(`Language '${shikiLang}' not available in Shiki, using plain text`);
+            if (!cancelled) {
+              setHighlightedLines(null);
+            }
+            return;
+          }
         }
 
         const html = highlighter.codeToHtml(code, {

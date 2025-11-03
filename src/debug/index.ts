@@ -32,7 +32,7 @@ switch (command) {
       process.exit(1);
     }
     console.profile("costs");
-    costsCommand(workspaceId);
+    await costsCommand(workspaceId);
     console.profileEnd("costs");
     break;
   }

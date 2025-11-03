@@ -12,6 +12,7 @@
     "src/main-desktop.ts",
     "src/constants/**/*",
     "src/web/**/*",
+    "src/utils/main/**/*",
     "src/types/**/*.d.ts"
   ],
   "exclude": ["src/App.tsx", "src/main.tsx"]

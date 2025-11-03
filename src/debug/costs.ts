@@ -9,7 +9,7 @@ import { getDefaultModelFromLRU } from "@/hooks/useModelLRU";
  * Debug command to display cost/token statistics for a workspace
  * Usage: bun debug costs <workspace-id>
  */
-export function costsCommand(workspaceId: string) {
+export async function costsCommand(workspaceId: string) {
   console.log(`\n=== Cost Statistics for workspace: ${workspaceId} ===\n`);
 
   // Load chat history
@@ -38,7 +38,7 @@ export function costsCommand(workspaceId: string) {
   const model = firstAssistantMessage?.metadata?.model ?? getDefaultModelFromLRU();
 
   // Calculate stats using shared logic (now synchronous)
-  const stats = calculateTokenStats(messages, model);
+  const stats = await calculateTokenStats(messages, model);
 
   // Display results
   console.log(`Model: ${stats.model}`);

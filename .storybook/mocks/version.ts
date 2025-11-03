@@ -6,4 +6,3 @@ export const VERSION = {
   git_describe: "v1.0.0",
   buildTime: "2024-01-24T17:41:00Z", // 9:41 AM PST
 };
-

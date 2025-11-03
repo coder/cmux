@@ -21,6 +21,7 @@ describe("createWorktree", () => {
     await execAsync(`git init`, { cwd: tempGitRepo });
     await execAsync(`git config user.email "test@example.com"`, { cwd: tempGitRepo });
     await execAsync(`git config user.name "Test User"`, { cwd: tempGitRepo });
+    await execAsync(`git config commit.gpgsign false`, { cwd: tempGitRepo });
     await execAsync(`echo "test" > README.md`, { cwd: tempGitRepo });
     await execAsync(`git add .`, { cwd: tempGitRepo });
     await execAsync(`git commit -m "Initial commit"`, { cwd: tempGitRepo });

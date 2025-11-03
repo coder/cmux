@@ -14,16 +14,16 @@ coverage:
     # Project coverage status - informational only
     project:
       default:
-        target: auto           # Compare to base commit
-        threshold: 5%          # Allow 5% drop without changing status
-        informational: true    # Won't block PRs
+        target: auto # Compare to base commit
+        threshold: 5% # Allow 5% drop without changing status
+        informational: true # Won't block PRs
 
-    # Patch coverage status - informational only  
+    # Patch coverage status - informational only
     patch:
       default:
-        target: auto           # Compare to base commit
-        threshold: 5%          # Allow 5% drop without changing status
-        informational: true    # Won't block PRs
+        target: auto # Compare to base commit
+        threshold: 5% # Allow 5% drop without changing status
+        informational: true # Won't block PRs
 
 # Flag configuration to track unit vs integration test coverage
 flags:

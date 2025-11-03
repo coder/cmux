@@ -6,7 +6,7 @@ export default defineConfig({
   testDir: "./tests/e2e",
   timeout: 120_000,
   expect: {
-    timeout: 5_000,
+    timeout: 15_000, // Increased to allow worker thread encoding import (~10s)
   },
   fullyParallel: true,
   forbidOnly: isCI,
