@@ -9,9 +9,8 @@ import { VERSION } from "../version";
  * Get base telemetry properties included with all events
  */
 export function getBaseTelemetryProperties(): BaseTelemetryProperties {
-  const gitDescribe: string = VERSION.git_describe;
   return {
-    version: gitDescribe,
+    version: String(VERSION.git_describe),
     platform: window.api?.platform || "unknown",
     electronVersion: window.api?.versions?.electron || "unknown",
   };

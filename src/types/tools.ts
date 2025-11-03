@@ -52,6 +52,7 @@ export type FileReadToolResult =
       modifiedTime: string;
       lines_read: number;
       content: string;
+      warning?: string;
     }
   | {
       success: false;
@@ -61,6 +62,7 @@ export type FileReadToolResult =
 export interface FileEditDiffSuccessBase {
   success: true;
   diff: string;
+  warning?: string;
 }
 
 export interface FileEditErrorResult {

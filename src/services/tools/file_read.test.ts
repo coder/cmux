@@ -318,7 +318,7 @@ describe("file_read tool", () => {
     }
   });
 
-  it("should reject absolute paths containing the workspace directory", async () => {
+  it("should auto-correct absolute paths containing the workspace directory", async () => {
     // Setup
     const content = "test content";
     await fs.writeFile(testFilePath, content);
@@ -332,12 +332,12 @@ describe("file_read tool", () => {
     // Execute
     const result = (await tool.execute!(args, mockToolCallOptions)) as FileReadToolResult;
 
-    // Assert
-    expect(result.success).toBe(false);
-    if (!result.success) {
-      expect(result.error).toContain("Redundant path prefix detected");
-      expect(result.error).toContain("Please use relative paths to save tokens");
-      expect(result.error).toContain("test.txt"); // Should suggest the relative path
+    // Assert - Should succeed with auto-correction warning
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.warning).toContain("auto-corrected");
+      expect(result.warning).toContain("test.txt"); // Should mention the relative path
+      expect(result.content).toContain("test content");
     }
   });
 

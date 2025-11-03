@@ -4,7 +4,7 @@ import {
   generateDiff,
   validateFileSize,
   validatePathInCwd,
-  validateNoRedundantPrefix,
+  validateAndCorrectPath,
 } from "./fileCommon";
 import { RuntimeError } from "@/runtime/Runtime";
 import { readFileString, writeFileString } from "@/utils/runtime/helpers";
@@ -43,18 +43,13 @@ export async function executeFileEditOperation<TMetadata>({
   FileEditErrorResult | (FileEditDiffSuccessBase & TMetadata)
 > {
   try {
-    // Validate no redundant path prefix (must come first to catch absolute paths)
-    const redundantPrefixValidation = validateNoRedundantPrefix(
+    // Validate and auto-correct redundant path prefix
+    const { correctedPath: validatedPath, warning: pathWarning } = validateAndCorrectPath(
       filePath,
       config.cwd,
       config.runtime
     );
-    if (redundantPrefixValidation) {
-      return {
-        success: false,
-        error: redundantPrefixValidation.error,
-      };
-    }
+    filePath = validatedPath;
 
     const pathValidation = validatePathInCwd(filePath, config.cwd, config.runtime);
     if (pathValidation) {
@@ -139,6 +134,7 @@ export async function executeFileEditOperation<TMetadata>({
       success: true,
       diff,
       ...operationResult.metadata,
+      ...(pathWarning && { warning: pathWarning }),
     };
   } catch (error) {
     if (error && typeof error === "object" && "code" in error) {
