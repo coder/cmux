@@ -114,12 +114,8 @@ const RightSidebarComponent: React.FC<RightSidebarProps> = ({
         setSelectedTab("costs");
       } else if (matchesKeybind(e, KEYBINDS.REVIEW_TAB)) {
         e.preventDefault();
-        // If already on Review tab, focus the panel
-        if (selectedTab === "review") {
-          setFocusTrigger((prev) => prev + 1);
-        } else {
-          setSelectedTab("review");
-        }
+        setSelectedTab("review");
+        setFocusTrigger((prev) => prev + 1);
       }
     };
 
