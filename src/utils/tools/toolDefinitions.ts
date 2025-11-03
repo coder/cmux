@@ -68,6 +68,30 @@ export const TOOL_DEFINITIONS = {
         .describe("Number of lines to return from offset (optional, returns all if not specified)"),
     }),
   },
+  file_search: {
+    description:
+      "Search for a pattern in a file and return matching lines with surrounding context. " +
+      "Use this to find specific code sections, verify current content before editing, or confirm changes after editing. " +
+      "The pattern is treated as a literal string (not regex) and search is case-sensitive.",
+    schema: z.object({
+      file_path: z.string().describe("The absolute path to the file to search"),
+      pattern: z.string().describe("The literal string pattern to search for (case-sensitive)"),
+      context_lines: z
+        .number()
+        .int()
+        .min(0)
+        .max(10)
+        .optional()
+        .describe("Number of lines to show before and after each match (default: 3, max: 10)"),
+      max_results: z
+        .number()
+        .int()
+        .min(1)
+        .max(1000)
+        .optional()
+        .describe("Maximum number of matches to return (default: 100, max: 1000)"),
+    }),
+  },
   file_edit_replace_string: {
     description:
       "Apply one or more edits to a file by replacing exact text matches. All edits are applied sequentially. Each old_string must be unique in the file unless replace_count > 1 or replace_count is -1. " +
@@ -249,6 +273,7 @@ export function getAvailableTools(modelString: string): string[] {
   const baseTools = [
     "bash",
     "file_read",
+    "file_search",
     "file_edit_replace_string",
     // "file_edit_replace_lines", // DISABLED: causes models to break repo state
     "file_edit_insert",

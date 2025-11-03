@@ -5,6 +5,7 @@ import { GenericToolCall } from "../tools/GenericToolCall";
 import { BashToolCall } from "../tools/BashToolCall";
 import { FileEditToolCall } from "../tools/FileEditToolCall";
 import { FileReadToolCall } from "../tools/FileReadToolCall";
+import { FileSearchToolCall } from "../tools/FileSearchToolCall";
 import { ProposePlanToolCall } from "../tools/ProposePlanToolCall";
 import { TodoToolCall } from "../tools/TodoToolCall";
 import { StatusSetToolCall } from "../tools/StatusSetToolCall";
@@ -13,6 +14,8 @@ import type {
   BashToolResult,
   FileReadToolArgs,
   FileReadToolResult,
+  FileSearchToolArgs,
+  FileSearchToolResult,
   FileEditInsertToolArgs,
   FileEditInsertToolResult,
   FileEditReplaceStringToolArgs,
@@ -43,6 +46,11 @@ function isBashTool(toolName: string, args: unknown): args is BashToolArgs {
 function isFileReadTool(toolName: string, args: unknown): args is FileReadToolArgs {
   if (toolName !== "file_read") return false;
   return TOOL_DEFINITIONS.file_read.schema.safeParse(args).success;
+}
+
+function isFileSearchTool(toolName: string, args: unknown): args is FileSearchToolArgs {
+  if (toolName !== "file_search") return false;
+  return TOOL_DEFINITIONS.file_search.schema.safeParse(args).success;
 }
 
 function isFileEditReplaceStringTool(
@@ -102,6 +110,18 @@ export const ToolMessage: React.FC<ToolMessageProps> = ({ message, className, wo
         <FileReadToolCall
           args={message.args}
           result={message.result as FileReadToolResult | undefined}
+          status={message.status}
+        />
+      </div>
+    );
+  }
+
+  if (isFileSearchTool(message.toolName, message.args)) {
+    return (
+      <div className={className}>
+        <FileSearchToolCall
+          args={message.args}
+          result={message.result as FileSearchToolResult | undefined}
           status={message.status}
         />
       </div>

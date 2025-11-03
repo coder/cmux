@@ -58,6 +58,35 @@ export type FileReadToolResult =
       error: string;
     };
 
+// File Search Tool Types
+export interface FileSearchToolArgs {
+  file_path: string;
+  pattern: string;
+  context_lines?: number; // lines before/after match (default: 3)
+  max_results?: number; // maximum number of matches to return (default: 100)
+}
+
+export interface FileSearchMatch {
+  line_number: number; // 1-indexed line number
+  line_content: string; // the matching line
+  context_before: string[]; // lines before the match
+  context_after: string[]; // lines after the match
+}
+
+export type FileSearchToolResult =
+  | {
+      success: true;
+      file_path: string;
+      pattern: string;
+      matches: FileSearchMatch[];
+      total_matches: number; // may be > matches.length if max_results exceeded
+      file_size: number;
+    }
+  | {
+      success: false;
+      error: string;
+    };
+
 export interface FileEditDiffSuccessBase {
   success: true;
   diff: string;

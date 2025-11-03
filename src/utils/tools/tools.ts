@@ -1,5 +1,6 @@
 import { type Tool } from "ai";
 import { createFileReadTool } from "@/services/tools/file_read";
+import { createFileSearchTool } from "@/services/tools/file_search";
 import { createBashTool } from "@/services/tools/bash";
 import { createFileEditReplaceStringTool } from "@/services/tools/file_edit_replace_string";
 // DISABLED: import { createFileEditReplaceLinesTool } from "@/services/tools/file_edit_replace_lines";
@@ -64,6 +65,7 @@ export async function getToolsForModel(
   // Wrap them to handle init waiting centrally instead of in each tool
   const runtimeTools: Record<string, Tool> = {
     file_read: wrap(createFileReadTool(config)),
+    file_search: wrap(createFileSearchTool(config)),
     file_edit_replace_string: wrap(createFileEditReplaceStringTool(config)),
     // DISABLED: file_edit_replace_lines - causes models (particularly GPT-5-Codex)
     // to leave repository in broken state due to issues with concurrent file modifications
