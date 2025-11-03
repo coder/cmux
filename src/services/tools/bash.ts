@@ -147,9 +147,11 @@ export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
           abortSignal.addEventListener("abort", abortListener);
         }
 
-        // Close stdin immediately - we don't need to send any input
-        // This is critical: not closing stdin can cause the runtime to wait forever
-        execStream.stdin.close().catch(() => {
+        // Force-close stdin immediately - we don't need to send any input
+        // Use abort() instead of close() for immediate, synchronous closure
+        // close() is async and waits for acknowledgment, which can hang over SSH
+        // abort() immediately marks stream as errored and releases locks
+        execStream.stdin.abort().catch(() => {
           // Ignore errors - stream might already be closed
         });
 
