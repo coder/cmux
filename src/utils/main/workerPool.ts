@@ -1,5 +1,5 @@
 import { Worker } from "node:worker_threads";
-import { join } from "node:path";
+import { join, dirname, sep } from "node:path";
 
 interface WorkerRequest {
   messageId: number;
@@ -28,9 +28,23 @@ const pendingPromises = new Map<
   { resolve: (value: unknown) => void; reject: (error: Error) => void }
 >();
 
-// Resolve worker path - both workerPool.js and tokenizer.worker.js compile to dist/utils/main/
-// Using __dirname ensures we always get the correct compiled location
-const workerPath = join(__dirname, "tokenizer.worker.js");
+// Resolve worker path
+// In production: both workerPool.js and tokenizer.worker.js are in dist/utils/main/
+// During tests: workerPool.ts is in src/utils/main/ but worker is in dist/utils/main/
+const currentDir = dirname(__filename);
+const pathParts = currentDir.split(sep);
+const srcIndex = pathParts.lastIndexOf("src");
+
+let workerDir: string;
+if (srcIndex !== -1) {
+  // Replace 'src' with 'dist' in the path
+  pathParts[srcIndex] = "dist";
+  workerDir = pathParts.join(sep);
+} else {
+  workerDir = currentDir;
+}
+
+const workerPath = join(workerDir, "tokenizer.worker.js");
 const worker = new Worker(workerPath);
 
 // Handle messages from worker
