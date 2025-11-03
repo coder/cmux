@@ -266,6 +266,83 @@ describeIntegration("Runtime Bash Execution", () => {
         },
         type === "ssh" ? TEST_TIMEOUT_SSH_MS : TEST_TIMEOUT_LOCAL_MS
       );
+
+      test.concurrent(
+        "should not hang on commands that read stdin without input",
+        async () => {
+          const env = await createTestEnvironment();
+          const tempGitRepo = await createTempGitRepo();
+
+          try {
+            // Setup provider
+            await setupProviders(env.mockIpcRenderer, {
+              anthropic: {
+                apiKey: getApiKey("ANTHROPIC_API_KEY"),
+              },
+            });
+
+            // Create workspace
+            const branchName = generateBranchName("bash-stdin");
+            const runtimeConfig = getRuntimeConfig(branchName);
+            const { workspaceId, cleanup } = await createWorkspaceWithInit(
+              env,
+              tempGitRepo,
+              branchName,
+              runtimeConfig,
+              true, // waitForInit
+              type === "ssh"
+            );
+
+            try {
+              // Create a test file with JSON content
+              await sendMessageAndWait(
+                env,
+                workspaceId,
+                'Run bash: echo \'{"test": "data"}\' > /tmp/test.json',
+                HAIKU_MODEL,
+                BASH_ONLY
+              );
+
+              // Test command that pipes file through stdin-reading command (jq)
+              // This would hang forever if stdin.close() was used instead of stdin.abort()
+              // Regression test for: https://github.com/coder/cmux/issues/503
+              const startTime = Date.now();
+              const events = await sendMessageAndWait(
+                env,
+                workspaceId,
+                "Run bash with 3s timeout: cat /tmp/test.json | jq '.'",
+                HAIKU_MODEL,
+                BASH_ONLY,
+                15000 // 15s max wait - should complete in < 5s
+              );
+              const duration = Date.now() - startTime;
+
+              // Extract response text
+              const responseText = extractTextFromEvents(events);
+
+              // Verify command completed successfully (not timeout)
+              expect(responseText).toContain("test");
+              expect(responseText).toContain("data");
+
+              // Verify command completed quickly (not hanging until timeout)
+              // Should complete in under 5 seconds for SSH, 3 seconds for local
+              const maxDuration = type === "ssh" ? 8000 : 5000;
+              expect(duration).toBeLessThan(maxDuration);
+
+              // Verify bash tool was called
+              const toolCallStarts = events.filter((e: any) => e.type === "tool-call-start");
+              const bashCalls = toolCallStarts.filter((e: any) => e.toolName === "bash");
+              expect(bashCalls.length).toBeGreaterThan(0);
+            } finally {
+              await cleanup();
+            }
+          } finally {
+            await cleanupTempGitRepo(tempGitRepo);
+            await cleanupTestEnvironment(env);
+          }
+        },
+        type === "ssh" ? TEST_TIMEOUT_SSH_MS : TEST_TIMEOUT_LOCAL_MS
+      );
     }
   );
 });
