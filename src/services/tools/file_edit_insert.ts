@@ -2,7 +2,7 @@ import { tool } from "ai";
 import type { FileEditInsertToolResult } from "@/types/tools";
 import type { ToolConfiguration, ToolFactory } from "@/utils/tools/tools";
 import { TOOL_DEFINITIONS } from "@/utils/tools/toolDefinitions";
-import { validatePathInCwd, validateNoRedundantPrefix } from "./fileCommon";
+import { validatePathInCwd, validateAndCorrectPath } from "./fileCommon";
 import { EDIT_FAILED_NOTE_PREFIX, NOTE_READ_FILE_RETRY } from "@/types/tools";
 import { executeFileEditOperation } from "./file_edit_operation";
 import { RuntimeError } from "@/runtime/Runtime";
@@ -23,18 +23,13 @@ export const createFileEditInsertTool: ToolFactory = (config: ToolConfiguration)
       { abortSignal }
     ): Promise<FileEditInsertToolResult> => {
       try {
-        // Validate no redundant path prefix (must come first to catch absolute paths)
-        // If redundant prefix found, auto-correct to relative path with warning
-        let pathWarning: string | undefined;
-        const redundantPrefixValidation = validateNoRedundantPrefix(
+        // Validate and auto-correct redundant path prefix
+        const { correctedPath: validatedPath, warning: pathWarning } = validateAndCorrectPath(
           file_path,
           config.cwd,
           config.runtime
         );
-        if (redundantPrefixValidation) {
-          file_path = redundantPrefixValidation.correctedPath;
-          pathWarning = redundantPrefixValidation.warning;
-        }
+        file_path = validatedPath;
 
         const pathValidation = validatePathInCwd(file_path, config.cwd, config.runtime);
         if (pathValidation) {

@@ -136,3 +136,30 @@ export function validatePathInCwd(
 
   return null;
 }
+
+/**
+ * Validates and auto-corrects redundant path prefixes in file paths.
+ * Returns the corrected path and an optional warning message.
+ * 
+ * This is a convenience wrapper around validateNoRedundantPrefix that handles
+ * the common pattern of auto-correcting paths and returning warnings.
+ * 
+ * @param filePath - The file path to validate (may be modified if redundant prefix found)
+ * @param cwd - The working directory
+ * @param runtime - The runtime to use for path normalization
+ * @returns Object with correctedPath and optional warning
+ */
+export function validateAndCorrectPath(
+  filePath: string,
+  cwd: string,
+  runtime: Runtime
+): { correctedPath: string; warning?: string } {
+  const redundantPrefixValidation = validateNoRedundantPrefix(filePath, cwd, runtime);
+  if (redundantPrefixValidation) {
+    return {
+      correctedPath: redundantPrefixValidation.correctedPath,
+      warning: redundantPrefixValidation.warning,
+    };
+  }
+  return { correctedPath: filePath };
+}
