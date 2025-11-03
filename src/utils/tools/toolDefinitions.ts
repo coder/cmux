@@ -70,8 +70,8 @@ export const TOOL_DEFINITIONS = {
   },
   file_edit_replace_string: {
     description:
-      "Apply one or more edits to a file by replacing exact text matches. All edits are applied sequentially. Each old_string must be unique in the file unless replace_count > 1 or replace_count is -1. " +
-      `IMPORTANT: Edits may fail if old_string is not found or not unique. ${TOOL_EDIT_WARNING}`,
+      "⚠️ CRITICAL: Always check tool results - edits WILL fail if old_string is not found or unique. Do not proceed with dependent operations (commits, pushes, builds) until confirming success.\n\n" +
+      "Apply one or more edits to a file by replacing exact text matches. All edits are applied sequentially. Each old_string must be unique in the file unless replace_count > 1 or replace_count is -1.",
     schema: z.object({
       file_path: z.string().describe("The absolute path to the file to edit"),
       old_string: z
@@ -91,8 +91,8 @@ export const TOOL_DEFINITIONS = {
   },
   file_edit_replace_lines: {
     description:
-      "Replace a range of lines in a file. Use this for line-based edits when you know the exact line numbers to modify. " +
-      `IMPORTANT: Edits may fail if line numbers are invalid or file content has changed. ${TOOL_EDIT_WARNING}`,
+      "⚠️ CRITICAL: Always check tool results - edits WILL fail if line numbers are invalid or file content has changed. Do not proceed with dependent operations (commits, pushes, builds) until confirming success.\n\n" +
+      "Replace a range of lines in a file. Use this for line-based edits when you know the exact line numbers to modify.",
     schema: z.object({
       file_path: z.string().describe("The absolute path to the file to edit"),
       start_line: z.number().int().min(1).describe("1-indexed start line (inclusive) to replace"),
