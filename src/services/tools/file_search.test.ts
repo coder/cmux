@@ -30,9 +30,13 @@ describe("file_search tool", () => {
 
   test("finds single match in file", async () => {
     using testEnv = createTestTool();
-    
+
     const testFilePath = `${testEnv.workspacePath}/test-search.txt`;
-    await writeFileString(testEnv.runtime, testFilePath, "line 1\nline 2\ntarget line\nline 4\nline 5");
+    await writeFileString(
+      testEnv.runtime,
+      testFilePath,
+      "line 1\nline 2\ntarget line\nline 4\nline 5"
+    );
 
     const args: FileSearchToolArgs = {
       file_path: "test-search.txt",
@@ -55,7 +59,7 @@ describe("file_search tool", () => {
 
   test("finds multiple matches in file", async () => {
     using testEnv = createTestTool();
-    
+
     const testFilePath = `${testEnv.workspacePath}/multi-match.txt`;
     await writeFileString(testEnv.runtime, testFilePath, "foo bar\nbaz foo\nqux\nfoo baz\nend");
 
@@ -78,7 +82,7 @@ describe("file_search tool", () => {
 
   test("returns empty matches when pattern not found", async () => {
     using testEnv = createTestTool();
-    
+
     const testFilePath = `${testEnv.workspacePath}/no-match.txt`;
     await writeFileString(testEnv.runtime, testFilePath, "line 1\nline 2\nline 3");
 
@@ -98,7 +102,7 @@ describe("file_search tool", () => {
 
   test("respects max_results limit", async () => {
     using testEnv = createTestTool();
-    
+
     const testFilePath = `${testEnv.workspacePath}/many-matches.txt`;
     const lines = Array.from({ length: 100 }, (_, i) => `line ${i} with target`).join("\n");
     await writeFileString(testEnv.runtime, testFilePath, lines);
@@ -120,7 +124,7 @@ describe("file_search tool", () => {
 
   test("handles context_lines at file boundaries", async () => {
     using testEnv = createTestTool();
-    
+
     const testFilePath = `${testEnv.workspacePath}/boundary.txt`;
     await writeFileString(testEnv.runtime, testFilePath, "target at start\nline 2\nline 3");
 
@@ -141,7 +145,7 @@ describe("file_search tool", () => {
 
   test("handles zero context_lines", async () => {
     using testEnv = createTestTool();
-    
+
     const testFilePath = `${testEnv.workspacePath}/no-context.txt`;
     await writeFileString(testEnv.runtime, testFilePath, "line 1\ntarget\nline 3");
 
@@ -162,7 +166,7 @@ describe("file_search tool", () => {
 
   test("fails when file does not exist", async () => {
     using testEnv = createTestTool();
-    
+
     const args: FileSearchToolArgs = {
       file_path: "nonexistent.txt",
       pattern: "anything",
@@ -178,7 +182,7 @@ describe("file_search tool", () => {
 
   test("fails when path is directory", async () => {
     using testEnv = createTestTool();
-    
+
     const dirPath = `${testEnv.workspacePath}/testdir`;
     await fs.mkdir(dirPath);
 
@@ -197,7 +201,7 @@ describe("file_search tool", () => {
 
   test("case-sensitive search", async () => {
     using testEnv = createTestTool();
-    
+
     const testFilePath = `${testEnv.workspacePath}/case-test.txt`;
     await writeFileString(testEnv.runtime, testFilePath, "Target\ntarget\nTARGET");
 
@@ -220,9 +224,13 @@ describe("file_search tool", () => {
 
   test("searches for exact substring", async () => {
     using testEnv = createTestTool();
-    
+
     const testFilePath = `${testEnv.workspacePath}/substring.txt`;
-    await writeFileString(testEnv.runtime, testFilePath, "function foo() {\n  return bar;\n}\nfoo()");
+    await writeFileString(
+      testEnv.runtime,
+      testFilePath,
+      "function foo() {\n  return bar;\n}\nfoo()"
+    );
 
     const args: FileSearchToolArgs = {
       file_path: "substring.txt",

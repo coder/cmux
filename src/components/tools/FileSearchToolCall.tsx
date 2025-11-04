@@ -139,8 +139,8 @@ export const FileSearchToolCall: React.FC<FileSearchToolCallProps> = ({
               {hasMore && (
                 <DetailSection>
                   <div className="text-secondary text-xs">
-                    Showing first {matchCount} of {totalMatches} matches. Increase max_results to see
-                    more.
+                    Showing first {matchCount} of {totalMatches} matches. Increase max_results to
+                    see more.
                   </div>
                 </DetailSection>
               )}
