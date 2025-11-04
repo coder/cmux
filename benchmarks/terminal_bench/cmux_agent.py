@@ -33,6 +33,7 @@ class CmuxAgent(AbstractInstalledAgent):
         "tsconfig.json",
         "tsconfig.main.json",
         "src",
+        "dist",
     )
 
     _PROVIDER_ENV_KEYS: Sequence[str] = (
