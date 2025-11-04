@@ -167,7 +167,7 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({
   );
 
   // Initialize review state hook
-  const { isRead, toggleRead } = useReviewState(workspaceId);
+  const { isRead, toggleRead, markAsRead, markAsUnread } = useReviewState(workspaceId);
 
   const [filters, setFilters] = useState<ReviewFiltersType>({
     showReadHunks: showReadHunks,
@@ -419,6 +419,39 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({
     [isRead, toggleRead, filters.showReadHunks, hunks, selectedHunkId]
   );
 
+  // Handle marking hunk as read with auto-navigation
+  const handleMarkAsRead = useCallback(
+    (hunkId: string) => {
+      const wasRead = isRead(hunkId);
+      markAsRead(hunkId);
+
+      // If marking the selected hunk as read and it will be filtered out, navigate
+      if (hunkId === selectedHunkId && !wasRead && !filters.showReadHunks) {
+        // Hunk will be filtered out - move to next visible hunk
+        const currentFiltered = hunks.filter((h) => !isRead(h.id));
+        const currentIndex = currentFiltered.findIndex((h) => h.id === hunkId);
+        if (currentIndex !== -1) {
+          if (currentIndex < currentFiltered.length - 1) {
+            setSelectedHunkId(currentFiltered[currentIndex + 1].id);
+          } else if (currentIndex > 0) {
+            setSelectedHunkId(currentFiltered[currentIndex - 1].id);
+          } else {
+            setSelectedHunkId(null);
+          }
+        }
+      }
+    },
+    [isRead, markAsRead, filters.showReadHunks, hunks, selectedHunkId]
+  );
+
+  // Handle marking hunk as unread (no navigation needed - unread hunks are always visible)
+  const handleMarkAsUnread = useCallback(
+    (hunkId: string) => {
+      markAsUnread(hunkId);
+    },
+    [markAsUnread]
+  );
+
   // Stable callbacks for HunkViewer (single callback shared across all hunks)
   const handleHunkClick = useCallback((e: React.MouseEvent<HTMLElement>) => {
     const hunkId = e.currentTarget.dataset.hunkId;
@@ -496,6 +529,14 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({
         // Toggle read state of selected hunk
         e.preventDefault();
         handleToggleRead(selectedHunkId);
+      } else if (matchesKeybind(e, KEYBINDS.MARK_HUNK_READ)) {
+        // Mark selected hunk as read
+        e.preventDefault();
+        handleMarkAsRead(selectedHunkId);
+      } else if (matchesKeybind(e, KEYBINDS.MARK_HUNK_UNREAD)) {
+        // Mark selected hunk as unread
+        e.preventDefault();
+        handleMarkAsUnread(selectedHunkId);
       } else if (matchesKeybind(e, KEYBINDS.TOGGLE_HUNK_COLLAPSE)) {
         // Toggle expand/collapse state of selected hunk
         e.preventDefault();
@@ -508,7 +549,7 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isPanelFocused, selectedHunkId, filteredHunks, handleToggleRead]);
+  }, [isPanelFocused, selectedHunkId, filteredHunks, handleToggleRead, handleMarkAsRead, handleMarkAsUnread]);
 
   // Global keyboard shortcuts (Ctrl+R / Cmd+R for refresh, Ctrl+F / Cmd+F for search)
   useEffect(() => {
