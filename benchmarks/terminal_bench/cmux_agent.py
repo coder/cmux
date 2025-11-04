@@ -142,7 +142,12 @@ class CmuxAgent(AbstractInstalledAgent):
             raise ValueError("CMUX_MODE must be one of plan, exec, or execute")
 
         # These env vars are all set with defaults above, no need to validate
-        for key in ("CMUX_CONFIG_ROOT", "CMUX_APP_ROOT", "CMUX_WORKSPACE_ID", "CMUX_PROJECT_CANDIDATES"):
+        for key in (
+            "CMUX_CONFIG_ROOT",
+            "CMUX_APP_ROOT",
+            "CMUX_WORKSPACE_ID",
+            "CMUX_PROJECT_CANDIDATES",
+        ):
             env[key] = env[key].strip()
 
         if timeout_value := env.get("CMUX_TIMEOUT_MS"):
@@ -176,9 +181,13 @@ class CmuxAgent(AbstractInstalledAgent):
             return
 
         if not self._archive_bytes:
-            self._archive_bytes = build_app_archive(self._repo_root, self._INCLUDE_PATHS)
+            self._archive_bytes = build_app_archive(
+                self._repo_root, self._INCLUDE_PATHS
+            )
 
-        stage_payload(session, self._archive_bytes, self._ARCHIVE_NAME, self._runner_path)
+        stage_payload(
+            session, self._archive_bytes, self._ARCHIVE_NAME, self._runner_path
+        )
         self._staged_container_id = container_id
 
     def _run_agent_commands(self, instruction: str) -> list[TerminalCommand]:
