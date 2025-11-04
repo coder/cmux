@@ -37,23 +37,15 @@ CMUX_APP_ROOT="${CMUX_APP_ROOT:-/opt/cmux-app}"
 CMUX_CONFIG_ROOT="${CMUX_CONFIG_ROOT:-/root/.cmux}"
 CMUX_AGENT_VERSION="{{ version if version is not none else '' }}"
 
-mkdir -p "$CMUX_APP_ROOT"
-
+rm -rf "${CMUX_APP_ROOT}"
 if [[ -n "${CMUX_AGENT_VERSION}" ]]; then
-  : "${CMUX_AGENT_GIT_URL:?CMUX_AGENT_GIT_URL must be set when version is provided}"
+  : "${CMUX_AGENT_GIT_URL:?CMUX_AGENT_GIT_URL required when version is set}"
   log "cloning cmux from ${CMUX_AGENT_GIT_URL} @ ${CMUX_AGENT_VERSION}"
-  rm -rf "${CMUX_APP_ROOT}"
   git clone --depth 1 --branch "${CMUX_AGENT_VERSION}" "${CMUX_AGENT_GIT_URL}" "${CMUX_APP_ROOT}"
 else
-  ARCHIVE_PATH="/installed-agent/cmux-app.tar.gz"
-  if [[ ! -s "${ARCHIVE_PATH}" ]]; then
-    printf 'Expected cmux archive at %s\n' "${ARCHIVE_PATH}" >&2
-    exit 1
-  fi
   log "extracting cmux archive"
-  rm -rf "${CMUX_APP_ROOT}"
   mkdir -p "${CMUX_APP_ROOT}"
-  tar -xzf "${ARCHIVE_PATH}" -C "${CMUX_APP_ROOT}"
+  tar -xzf "/installed-agent/cmux-app.tar.gz" -C "${CMUX_APP_ROOT}"
 fi
 
 cd "${CMUX_APP_ROOT}"

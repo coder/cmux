@@ -30,12 +30,6 @@ CMUX_WORKSPACE_ID="${CMUX_WORKSPACE_ID:-cmux-bench}"
 CMUX_THINKING_LEVEL="${CMUX_THINKING_LEVEL:-high}"
 CMUX_MODE="${CMUX_MODE:-exec}"
 
-ensure_bun() {
-  if ! command -v bun >/dev/null 2>&1; then
-    fatal "bun must be installed before running the cmux agent"
-  fi
-}
-
 resolve_project_path() {
   if [[ -n "${CMUX_PROJECT_PATH}" ]]; then
     if [[ -d "${CMUX_PROJECT_PATH}" ]]; then
@@ -59,39 +53,26 @@ resolve_project_path() {
 ensure_git_repo() {
   local project_path=$1
 
-  if command -v git >/dev/null 2>&1; then
-    if git -C "${project_path}" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
-      # Ensure trunk branch exists even on pre-existing repos.
-      if ! git -C "${project_path}" rev-parse --verify "${CMUX_TRUNK}" >/dev/null 2>&1; then
-        git -C "${project_path}" checkout -b "${CMUX_TRUNK}" >/dev/null 2>&1 || true
-      else
-        git -C "${project_path}" checkout "${CMUX_TRUNK}" >/dev/null 2>&1 || true
-      fi
-      return 0
-    fi
+  command -v git >/dev/null 2>&1 || return 0
 
-    log "initialising git repository at ${project_path}"
-    if git -C "${project_path}" init --initial-branch="${CMUX_TRUNK}" >/dev/null 2>&1; then
-      :
-    else
-      git -C "${project_path}" init >/dev/null
-      git -C "${project_path}" checkout -B "${CMUX_TRUNK}" >/dev/null
-    fi
-    git -C "${project_path}" config user.name "cmux-bench"
-    git -C "${project_path}" config user.email "bench@cmux.local"
-    git -C "${project_path}" add -A >/dev/null
-    git -C "${project_path}" commit -m "chore: initial snapshot" --allow-empty >/dev/null
-    git -C "${project_path}" branch -M "${CMUX_TRUNK}" >/dev/null
-  else
-    log "git not available; skipping repository initialisation"
+  if git -C "${project_path}" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+    git -C "${project_path}" checkout "${CMUX_TRUNK}" 2>/dev/null || \
+      git -C "${project_path}" checkout -b "${CMUX_TRUNK}" 2>/dev/null || true
+    return 0
   fi
+
+  log "initialising git repository at ${project_path}"
+  git -C "${project_path}" init --initial-branch="${CMUX_TRUNK}" 2>/dev/null || \
+    (git -C "${project_path}" init && git -C "${project_path}" checkout -B "${CMUX_TRUNK}") >/dev/null
+  git -C "${project_path}" config user.name "cmux-bench"
+  git -C "${project_path}" config user.email "bench@cmux.local"
+  git -C "${project_path}" add -A >/dev/null
+  git -C "${project_path}" commit -m "chore: initial snapshot" --allow-empty >/dev/null
 }
 
-ensure_bun
+command -v bun >/dev/null 2>&1 || fatal "bun is not installed"
 project_path=$(resolve_project_path)
 ensure_git_repo "${project_path}"
-
-bun --version >/dev/null 2>&1 || fatal "bun not available after ensure_bun"
 
 log "starting cmux agent session for ${project_path}"
 cd "${CMUX_APP_ROOT}"
