@@ -211,7 +211,7 @@ const RightSidebarComponent: React.FC<RightSidebarProps> = ({
       {/* Backdrop overlay - only on mobile when sidebar is expanded */}
       {!showCollapsed && (
         <div
-          className="hidden max-md:block fixed inset-0 bg-black/50 z-[998] backdrop-blur-sm"
+          className="fixed inset-0 z-[998] hidden bg-black/50 backdrop-blur-sm max-md:block"
           onClick={() => setShowCollapsed(true)}
           aria-hidden="true"
         />
@@ -247,7 +247,7 @@ const RightSidebarComponent: React.FC<RightSidebarProps> = ({
 
           <div className="flex min-w-0 flex-1 flex-col">
             <div
-              className="bg-background-secondary border-border flex border-b [&>*]:flex-1 relative"
+              className="bg-background-secondary border-border relative flex border-b [&>*]:flex-1"
               role="tablist"
               aria-label="Metadata views"
             >
