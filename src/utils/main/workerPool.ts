@@ -33,11 +33,12 @@ const pendingPromises = new Map<
 // During tests: workerPool.ts is in src/utils/main/ but worker is in dist/utils/main/
 const currentDir = dirname(__filename);
 const pathParts = currentDir.split(sep);
+const hasDist = pathParts.includes("dist");
 const srcIndex = pathParts.lastIndexOf("src");
 
 let workerDir: string;
-if (srcIndex !== -1) {
-  // Replace 'src' with 'dist' in the path
+if (srcIndex !== -1 && !hasDist) {
+  // Replace 'src' with 'dist' in the path (only if not already in dist)
   pathParts[srcIndex] = "dist";
   workerDir = pathParts.join(sep);
 } else {
