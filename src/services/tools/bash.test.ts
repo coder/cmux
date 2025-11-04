@@ -637,7 +637,8 @@ describe("bash tool", () => {
     const startTime = performance.now();
 
     // cat without input should complete immediately
-    // This used to hang because cat would wait for stdin
+    // This used to hang because stdin.close() would wait for acknowledgment
+    // Fixed by using stdin.abort() for immediate closure
     const args: BashToolArgs = {
       script: "echo test | cat",
       timeout_secs: 5,

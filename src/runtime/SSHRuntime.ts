@@ -929,7 +929,8 @@ export class SSHRuntime implements Runtime {
         abortSignal,
       });
 
-      await stream.stdin.close();
+      // Command doesn't use stdin - abort to close immediately without waiting
+      await stream.stdin.abort();
       const exitCode = await stream.exitCode;
 
       if (exitCode !== 0) {
@@ -999,7 +1000,8 @@ export class SSHRuntime implements Runtime {
         abortSignal,
       });
 
-      await checkStream.stdin.close();
+      // Command doesn't use stdin - abort to close immediately without waiting
+      await checkStream.stdin.abort();
       const checkExitCode = await checkStream.exitCode;
 
       // Handle check results
@@ -1072,7 +1074,8 @@ export class SSHRuntime implements Runtime {
         abortSignal,
       });
 
-      await stream.stdin.close();
+      // Command doesn't use stdin - abort to close immediately without waiting
+      await stream.stdin.abort();
       const exitCode = await stream.exitCode;
 
       if (exitCode !== 0) {
