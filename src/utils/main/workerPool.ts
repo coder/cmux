@@ -28,17 +28,16 @@ const pendingPromises = new Map<
   { resolve: (value: unknown) => void; reject: (error: Error) => void }
 >();
 
-// Resolve worker path - explicitly use .js extension as worker threads require compiled files
-// When running tests from src/, __filename is src/utils/main/workerPool.ts
-// We need to resolve to dist/utils/main/tokenizer.worker.js
-// Use platform-aware path component manipulation to handle Windows backslashes
+// Resolve worker path
+// In production: both workerPool.js and tokenizer.worker.js are in dist/utils/main/
+// During tests: workerPool.ts is in src/utils/main/ but worker is in dist/utils/main/
 const currentDir = dirname(__filename);
 const pathParts = currentDir.split(sep);
-const srcIndex = pathParts.indexOf("src");
+const srcIndex = pathParts.lastIndexOf("src");
 
 let workerDir: string;
 if (srcIndex !== -1) {
-  // Replace 'src' with 'dist' in the path (works on Windows and Unix)
+  // Replace 'src' with 'dist' in the path
   pathParts[srcIndex] = "dist";
   workerDir = pathParts.join(sep);
 } else {
