@@ -141,33 +141,17 @@ class CmuxAgent(AbstractInstalledAgent):
         else:
             raise ValueError("CMUX_MODE must be one of plan, exec, or execute")
 
-        config_root = env["CMUX_CONFIG_ROOT"].strip()
-        app_root = env["CMUX_APP_ROOT"].strip()
-        workspace_id = env["CMUX_WORKSPACE_ID"].strip()
-        project_candidates = env["CMUX_PROJECT_CANDIDATES"].strip()
-        if not config_root:
-            raise ValueError("CMUX_CONFIG_ROOT must be set")
-        if not app_root:
-            raise ValueError("CMUX_APP_ROOT must be set")
-        if not workspace_id:
-            raise ValueError("CMUX_WORKSPACE_ID must be set")
-        if not project_candidates:
-            raise ValueError("CMUX_PROJECT_CANDIDATES must be set")
-        env["CMUX_CONFIG_ROOT"] = config_root
-        env["CMUX_APP_ROOT"] = app_root
-        env["CMUX_WORKSPACE_ID"] = workspace_id
-        env["CMUX_PROJECT_CANDIDATES"] = project_candidates
+        # These env vars are all set with defaults above, no need to validate
+        for key in ("CMUX_CONFIG_ROOT", "CMUX_APP_ROOT", "CMUX_WORKSPACE_ID", "CMUX_PROJECT_CANDIDATES"):
+            env[key] = env[key].strip()
 
-        timeout_value = env.get("CMUX_TIMEOUT_MS")
-        if timeout_value:
-            timeout_value = timeout_value.strip()
-            if not timeout_value.isdigit():
-                raise ValueError("CMUX_TIMEOUT_MS must be an integer expressed in ms")
-            env["CMUX_TIMEOUT_MS"] = timeout_value
+        if timeout_value := env.get("CMUX_TIMEOUT_MS"):
+            if not timeout_value.strip().isdigit():
+                raise ValueError("CMUX_TIMEOUT_MS must be an integer")
 
-        project_path = env.get("CMUX_PROJECT_PATH")
-        if project_path is not None and not project_path.strip():
-            raise ValueError("CMUX_PROJECT_PATH must be non-empty when provided")
+        if project_path := env.get("CMUX_PROJECT_PATH"):
+            if not project_path.strip():
+                raise ValueError("CMUX_PROJECT_PATH must be non-empty when provided")
 
         return env
 
@@ -181,37 +165,21 @@ class CmuxAgent(AbstractInstalledAgent):
         session: TmuxSession,
         logging_dir=None,
     ) -> AgentResult:
-        if not instruction or not instruction.strip():
+        if not instruction.strip():
             raise ValueError("instruction must be a non-empty string")
-
         self._ensure_payload_staged(session)
-        return super().perform_task(
-            instruction=instruction, session=session, logging_dir=logging_dir
-        )
+        return super().perform_task(instruction, session, logging_dir)
 
     def _ensure_payload_staged(self, session: TmuxSession) -> None:
         container_id = getattr(session.container, "id", None)
-        if container_id and container_id == self._staged_container_id:
+        if container_id == self._staged_container_id:
             return
 
-        archive = self._build_archive()
-        stage_payload(
-            session=session,
-            archive_bytes=archive,
-            archive_name=self._ARCHIVE_NAME,
-            runner_path=self._runner_path,
-        )
+        if not self._archive_bytes:
+            self._archive_bytes = build_app_archive(self._repo_root, self._INCLUDE_PATHS)
 
-        if container_id:
-            self._staged_container_id = container_id
-
-    def _build_archive(self) -> bytes:
-        if self._archive_bytes is not None:
-            return self._archive_bytes
-
-        archive = build_app_archive(self._repo_root, self._INCLUDE_PATHS)
-        self._archive_bytes = archive
-        return archive
+        stage_payload(session, self._archive_bytes, self._ARCHIVE_NAME, self._runner_path)
+        self._staged_container_id = container_id
 
     def _run_agent_commands(self, instruction: str) -> list[TerminalCommand]:
         escaped = shlex.quote(instruction)
