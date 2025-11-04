@@ -52,9 +52,11 @@ const SidebarContainer: React.FC<SidebarContainerProps> = ({
         "bg-separator border-l border-border-light flex flex-col overflow-hidden flex-shrink-0",
         customWidth ? "" : "transition-[width] duration-200",
         collapsed && "sticky right-0 z-10 shadow-[-2px_0_4px_rgba(0,0,0,0.2)]",
-        "max-md:border-l-0 max-md:border-t max-md:border-border-light",
-        collapsed && "max-md:w-0 max-md:absolute max-md:bottom-0",
-        !collapsed && "max-md:w-full max-md:relative max-md:max-h-[50vh]"
+        // Mobile: slide in from right (similar to left sidebar pattern)
+        "max-md:fixed max-md:right-0 max-md:top-0 max-md:h-screen max-md:transition-transform max-md:duration-300",
+        collapsed && "max-md:translate-x-full max-md:shadow-none",
+        !collapsed &&
+          "max-md:translate-x-0 max-md:w-full max-md:max-w-md max-md:z-[999] max-md:shadow-[-2px_0_8px_rgba(0,0,0,0.5)] max-md:border-l max-md:border-border-light"
       )}
       style={{ width }}
       role={role}
@@ -186,112 +188,161 @@ const RightSidebarComponent: React.FC<RightSidebarProps> = ({
   const verticalMeter = showMeter ? <VerticalTokenMeter data={verticalMeterData} /> : null;
 
   return (
-    <SidebarContainer
-      collapsed={showCollapsed}
-      wide={selectedTab === "review" && !width} // Auto-wide only if not drag-resizing
-      customWidth={width} // Drag-resized width from AIView (Review tab only)
-      role="complementary"
-      aria-label="Workspace insights"
-    >
-      {/* Full view when not collapsed */}
-      <div className={cn("flex-row h-full", !showCollapsed ? "flex" : "hidden")}>
-        {/* Render meter when Review tab is active */}
-        {selectedTab === "review" && (
-          <div className="bg-separator border-border-light flex w-5 shrink-0 flex-col border-r">
-            {verticalMeter}
-          </div>
-        )}
+    <>
+      {/* FAB - Floating Action Button for mobile, only visible when collapsed */}
+      {showCollapsed && (
+        <button
+          onClick={() => setShowCollapsed(false)}
+          title={`Open ${selectedTab} panel`}
+          aria-label={`Open ${selectedTab} panel`}
+          className={cn(
+            "hidden max-md:flex fixed bottom-20 right-4 z-[998]",
+            "w-12 h-12 bg-accent border border-accent rounded-full cursor-pointer",
+            "items-center justify-center text-white text-lg transition-all duration-200",
+            "shadow-[0_4px_12px_rgba(0,0,0,0.4)]",
+            "hover:bg-accent-hover hover:scale-105",
+            "active:scale-95"
+          )}
+        >
+          {selectedTab === "costs" ? "💰" : "📋"}
+        </button>
+      )}
 
-        {/* Render resize handle to right of meter when Review tab is active */}
-        {selectedTab === "review" && onStartResize && (
-          <div
-            className={cn(
-              "w-1 flex-shrink-0 z-10 transition-[background] duration-150",
-              "bg-border-light cursor-col-resize hover:bg-accent",
-              isResizing && "bg-accent"
-            )}
-            onMouseDown={(e) => onStartResize(e as unknown as React.MouseEvent)}
-          />
-        )}
+      {/* Backdrop overlay - only on mobile when sidebar is expanded */}
+      {!showCollapsed && (
+        <div
+          className="hidden max-md:block fixed inset-0 bg-black/50 z-[998] backdrop-blur-sm"
+          onClick={() => setShowCollapsed(true)}
+          aria-hidden="true"
+        />
+      )}
 
-        <div className="flex min-w-0 flex-1 flex-col">
-          <div
-            className="bg-background-secondary border-border flex border-b [&>*]:flex-1"
-            role="tablist"
-            aria-label="Metadata views"
-          >
-            <TooltipWrapper inline>
+      <SidebarContainer
+        collapsed={showCollapsed}
+        wide={selectedTab === "review" && !width} // Auto-wide only if not drag-resizing
+        customWidth={width} // Drag-resized width from AIView (Review tab only)
+        role="complementary"
+        aria-label="Workspace insights"
+      >
+        {/* Full view when not collapsed */}
+        <div className={cn("flex-row h-full", !showCollapsed ? "flex" : "hidden")}>
+          {/* Render meter when Review tab is active */}
+          {selectedTab === "review" && (
+            <div className="bg-separator border-border-light flex w-5 shrink-0 flex-col border-r">
+              {verticalMeter}
+            </div>
+          )}
+
+          {/* Render resize handle to right of meter when Review tab is active */}
+          {selectedTab === "review" && onStartResize && (
+            <div
+              className={cn(
+                "w-1 flex-shrink-0 z-10 transition-[background] duration-150",
+                "bg-border-light cursor-col-resize hover:bg-accent",
+                isResizing && "bg-accent"
+              )}
+              onMouseDown={(e) => onStartResize(e as unknown as React.MouseEvent)}
+            />
+          )}
+
+          <div className="flex min-w-0 flex-1 flex-col">
+            <div
+              className="bg-background-secondary border-border flex border-b [&>*]:flex-1 relative"
+              role="tablist"
+              aria-label="Metadata views"
+            >
+              {/* Close button - only visible on mobile */}
               <button
+                onClick={() => setShowCollapsed(true)}
+                title="Close panel"
+                aria-label="Close panel"
                 className={cn(
-                  "w-full py-2.5 px-[15px] border-none border-solid cursor-pointer font-primary text-[13px] font-medium transition-all duration-200",
-                  selectedTab === "costs"
-                    ? "text-white bg-separator border-b-2 border-b-plan-mode"
-                    : "bg-transparent text-secondary border-b-2 border-b-transparent hover:bg-background-secondary hover:text-foreground"
+                  "hidden max-md:flex absolute top-2 right-2 z-10",
+                  "w-8 h-8 bg-separator border border-border-light rounded cursor-pointer",
+                  "items-center justify-center text-foreground transition-all duration-200",
+                  "hover:bg-hover hover:border-bg-light",
+                  "active:scale-95"
                 )}
-                onClick={() => setSelectedTab("costs")}
-                id={costsTabId}
-                role="tab"
-                type="button"
-                aria-selected={selectedTab === "costs"}
-                aria-controls={costsPanelId}
               >
-                Costs
+                ✕
               </button>
-              <Tooltip className="tooltip" position="bottom" align="center">
-                {formatKeybind(KEYBINDS.COSTS_TAB)}
-              </Tooltip>
-            </TooltipWrapper>
-            <TooltipWrapper inline>
-              <button
-                className={cn(
-                  "w-full py-2.5 px-[15px] border-none border-solid cursor-pointer font-primary text-[13px] font-medium transition-all duration-200",
-                  selectedTab === "review"
-                    ? "text-white bg-separator border-b-2 border-b-plan-mode"
-                    : "bg-transparent text-secondary border-b-2 border-b-transparent hover:bg-background-secondary hover:text-foreground"
-                )}
-                onClick={() => setSelectedTab("review")}
-                id={reviewTabId}
-                role="tab"
-                type="button"
-                aria-selected={selectedTab === "review"}
-                aria-controls={reviewPanelId}
-              >
-                Review
-              </button>
-              <Tooltip className="tooltip" position="bottom" align="center">
-                {formatKeybind(KEYBINDS.REVIEW_TAB)}
-              </Tooltip>
-            </TooltipWrapper>
-          </div>
-          <div
-            className={cn("flex-1 overflow-y-auto", selectedTab === "review" ? "p-0" : "p-[15px]")}
-          >
-            {selectedTab === "costs" && (
-              <div role="tabpanel" id={costsPanelId} aria-labelledby={costsTabId}>
-                <CostsTab workspaceId={workspaceId} />
-              </div>
-            )}
-            {selectedTab === "review" && (
-              <div
-                role="tabpanel"
-                id={reviewPanelId}
-                aria-labelledby={reviewTabId}
-                className="h-full"
-              >
-                <ReviewPanel
-                  workspaceId={workspaceId}
-                  workspacePath={workspacePath}
-                  onReviewNote={onReviewNote}
-                  focusTrigger={focusTrigger}
-                />
-              </div>
-            )}
+
+              <TooltipWrapper inline>
+                <button
+                  className={cn(
+                    "w-full py-2.5 px-[15px] border-none border-solid cursor-pointer font-primary text-[13px] font-medium transition-all duration-200",
+                    selectedTab === "costs"
+                      ? "text-white bg-separator border-b-2 border-b-plan-mode"
+                      : "bg-transparent text-secondary border-b-2 border-b-transparent hover:bg-background-secondary hover:text-foreground"
+                  )}
+                  onClick={() => setSelectedTab("costs")}
+                  id={costsTabId}
+                  role="tab"
+                  type="button"
+                  aria-selected={selectedTab === "costs"}
+                  aria-controls={costsPanelId}
+                >
+                  Costs
+                </button>
+                <Tooltip className="tooltip" position="bottom" align="center">
+                  {formatKeybind(KEYBINDS.COSTS_TAB)}
+                </Tooltip>
+              </TooltipWrapper>
+              <TooltipWrapper inline>
+                <button
+                  className={cn(
+                    "w-full py-2.5 px-[15px] border-none border-solid cursor-pointer font-primary text-[13px] font-medium transition-all duration-200",
+                    selectedTab === "review"
+                      ? "text-white bg-separator border-b-2 border-b-plan-mode"
+                      : "bg-transparent text-secondary border-b-2 border-b-transparent hover:bg-background-secondary hover:text-foreground"
+                  )}
+                  onClick={() => setSelectedTab("review")}
+                  id={reviewTabId}
+                  role="tab"
+                  type="button"
+                  aria-selected={selectedTab === "review"}
+                  aria-controls={reviewPanelId}
+                >
+                  Review
+                </button>
+                <Tooltip className="tooltip" position="bottom" align="center">
+                  {formatKeybind(KEYBINDS.REVIEW_TAB)}
+                </Tooltip>
+              </TooltipWrapper>
+            </div>
+            <div
+              className={cn(
+                "flex-1 overflow-y-auto",
+                selectedTab === "review" ? "p-0" : "p-[15px]"
+              )}
+            >
+              {selectedTab === "costs" && (
+                <div role="tabpanel" id={costsPanelId} aria-labelledby={costsTabId}>
+                  <CostsTab workspaceId={workspaceId} />
+                </div>
+              )}
+              {selectedTab === "review" && (
+                <div
+                  role="tabpanel"
+                  id={reviewPanelId}
+                  aria-labelledby={reviewTabId}
+                  className="h-full"
+                >
+                  <ReviewPanel
+                    workspaceId={workspaceId}
+                    workspacePath={workspacePath}
+                    onReviewNote={onReviewNote}
+                    focusTrigger={focusTrigger}
+                  />
+                </div>
+              )}
+            </div>
           </div>
         </div>
-      </div>
-      {/* Render meter in collapsed view when sidebar is collapsed */}
-      <div className={cn("h-full", showCollapsed ? "flex" : "hidden")}>{verticalMeter}</div>
-    </SidebarContainer>
+        {/* Render meter in collapsed view when sidebar is collapsed */}
+        <div className={cn("h-full", showCollapsed ? "flex" : "hidden")}>{verticalMeter}</div>
+      </SidebarContainer>
+    </>
   );
 };
 
