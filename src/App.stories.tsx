@@ -57,6 +57,19 @@ function setupMockAPI(options: {
         }),
       remove: () => Promise.resolve({ success: true }),
       fork: () => Promise.resolve({ success: false, error: "Not implemented in mock" }),
+      executeScript: () =>
+        Promise.resolve({
+          success: true,
+          data: { success: true, output: "Mock script output", exitCode: 0, wall_duration_ms: 100 },
+        }),
+      listScripts: () =>
+        Promise.resolve({
+          success: true,
+          data: [
+            { name: "deploy", description: "Deploy to staging", isExecutable: true },
+            { name: "test", description: "Run tests", isExecutable: true },
+          ],
+        }),
       openTerminal: () => Promise.resolve(undefined),
       onChat: () => () => undefined,
       onMetadata: () => () => undefined,
@@ -398,6 +411,24 @@ export const ActiveWorkspaceWithChat: Story = {
                 }),
               remove: () => Promise.resolve({ success: true }),
               fork: () => Promise.resolve({ success: false, error: "Not implemented in mock" }),
+              executeScript: () =>
+                Promise.resolve({
+                  success: true,
+                  data: {
+                    success: true,
+                    output: "Mock script output",
+                    exitCode: 0,
+                    wall_duration_ms: 100,
+                  },
+                }),
+              listScripts: () =>
+                Promise.resolve({
+                  success: true,
+                  data: [
+                    { name: "deploy", description: "Deploy to staging", isExecutable: true },
+                    { name: "test", description: "Run tests", isExecutable: true },
+                  ],
+                }),
               openTerminal: () => Promise.resolve(undefined),
               onChat: (workspaceId, callback) => {
                 // Send chat history immediately when subscribed

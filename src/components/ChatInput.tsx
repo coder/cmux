@@ -124,6 +124,9 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   const [showCommandSuggestions, setShowCommandSuggestions] = useState(false);
   const [commandSuggestions, setCommandSuggestions] = useState<SlashSuggestion[]>([]);
   const [providerNames, setProviderNames] = useState<string[]>([]);
+  const [availableScripts, setAvailableScripts] = useState<
+    Array<{ name: string; description?: string }>
+  >([]);
   const [toast, setToast] = useState<Toast | null>(null);
   const [imageAttachments, setImageAttachments] = useState<ImageAttachment[]>([]);
   const handleToastDismiss = useCallback(() => {
@@ -257,10 +260,10 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 
   // Watch input for slash commands
   useEffect(() => {
-    const suggestions = getSlashCommandSuggestions(input, { providerNames });
+    const suggestions = getSlashCommandSuggestions(input, { providerNames, availableScripts });
     setCommandSuggestions(suggestions);
     setShowCommandSuggestions(suggestions.length > 0);
-  }, [input, providerNames]);
+  }, [input, providerNames, availableScripts]);
 
   // Load provider names for suggestions
   useEffect(() => {
@@ -283,6 +286,39 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       isMounted = false;
     };
   }, []);
+
+  // Load available scripts for suggestions
+  useEffect(() => {
+    if (!workspaceId) {
+      setAvailableScripts([]);
+      return;
+    }
+
+    let isMounted = true;
+
+    const loadScripts = async () => {
+      try {
+        const result = await window.api.workspace.listScripts(workspaceId);
+        if (isMounted && result.success) {
+          const executableScripts = result.data
+            .filter((s) => s.isExecutable)
+            .map((s) => ({ name: s.name, description: s.description }));
+          setAvailableScripts(executableScripts);
+        }
+      } catch (error) {
+        console.error("Failed to load scripts:", error);
+        if (isMounted) {
+          setAvailableScripts([]);
+        }
+      }
+    };
+
+    void loadScripts();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [workspaceId]);
 
   // Allow external components (e.g., CommandPalette) to insert text
   useEffect(() => {
@@ -576,6 +612,85 @@ export const ChatInput: React.FC<ChatInputProps> = ({
           const result = await handleNewCommand(parsed, context);
           if (!result.clearInput) {
             setInput(messageText); // Restore input on error
+          }
+          return;
+        }
+
+        // Handle /script command
+        if (parsed.type === "script") {
+          setInput(""); // Clear input immediately
+          setIsSending(true);
+
+          try {
+            const result = await window.api.workspace.executeScript(
+              workspaceId,
+              parsed.scriptName,
+              parsed.args
+            );
+
+            if (!result.success) {
+              setToast({
+                id: Date.now().toString(),
+                type: "error",
+                title: "Script Execution Failed",
+                message: result.error,
+              });
+              setInput(messageText); // Restore input on error
+              return;
+            }
+
+            // Display script result
+            const toolResult = result.data;
+            const exitCode = toolResult.exitCode;
+
+            // Use CMUX_OUTPUT content if present, otherwise fall back to default message
+            const toastMessage =
+              toolResult.outputFile ??
+              (exitCode === 0
+                ? `Script completed successfully`
+                : `Script exited with code ${exitCode}`);
+
+            // If CMUX_PROMPT has content, send it as a new user message to the agent
+            if (toolResult.promptFile && toolResult.promptFile.trim().length > 0) {
+              const sendResult = await window.api.workspace.sendMessage(
+                workspaceId,
+                toolResult.promptFile,
+                sendMessageOptions
+              );
+
+              if (!sendResult.success) {
+                console.error("Failed to send prompt from script:", sendResult.error);
+                const errorToast = createErrorToast(sendResult.error);
+                errorToast.title = "Failed to Send Prompt";
+                setToast(errorToast);
+                setIsSending(false);
+                return; // Exit early, don't show success toast
+              }
+            }
+
+            // Only show success toast if prompt sent successfully (or no prompt to send)
+            setToast({
+              id: Date.now().toString(),
+              type: exitCode === 0 ? "success" : "warning",
+              message: toastMessage,
+            });
+
+            // Log the full output to console for debugging
+            if (toolResult.output) {
+              console.log(`Script ${parsed.scriptName} output:`, toolResult.output);
+            }
+          } catch (error) {
+            const errorMsg = error instanceof Error ? error.message : "Failed to execute script";
+            console.error("Script execution error:", error);
+            setToast({
+              id: Date.now().toString(),
+              type: "error",
+              title: "Script Execution Failed",
+              message: errorMsg,
+            });
+            setInput(messageText); // Restore input on error
+          } finally {
+            setIsSending(false);
           }
           return;
         }

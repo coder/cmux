@@ -30,6 +30,8 @@ export const IPC_CHANNELS = {
   WORKSPACE_STREAM_HISTORY: "workspace:streamHistory",
   WORKSPACE_GET_INFO: "workspace:getInfo",
   WORKSPACE_EXECUTE_BASH: "workspace:executeBash",
+  WORKSPACE_EXECUTE_SCRIPT: "workspace:executeScript",
+  WORKSPACE_LIST_SCRIPTS: "workspace:listScripts",
   WORKSPACE_OPEN_TERMINAL: "workspace:openTerminal",
 
   // Window channels

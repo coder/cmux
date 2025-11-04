@@ -23,6 +23,8 @@ export interface ToolConfiguration {
   runtime: Runtime;
   /** Environment secrets to inject (optional) */
   secrets?: Record<string, string>;
+  /** Additional environment variables to inject (optional) */
+  env?: Record<string, string>;
   /** Process niceness level (optional, -20 to 19, lower = higher priority) */
   niceness?: number;
   /** Temporary directory for tool outputs in runtime's context (local or remote) */
