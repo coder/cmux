@@ -549,7 +549,14 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isPanelFocused, selectedHunkId, filteredHunks, handleToggleRead, handleMarkAsRead, handleMarkAsUnread]);
+  }, [
+    isPanelFocused,
+    selectedHunkId,
+    filteredHunks,
+    handleToggleRead,
+    handleMarkAsRead,
+    handleMarkAsUnread,
+  ]);
 
   // Global keyboard shortcuts (Ctrl+R / Cmd+R for refresh, Ctrl+F / Cmd+F for search)
   useEffect(() => {
