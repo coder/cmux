@@ -20,6 +20,7 @@ interface SidebarContainerProps {
   role: string;
   "aria-label": string;
 }
+const MOBILE_DEFAULT_WIDTH = 360;
 
 /**
  * SidebarContainer - Main sidebar wrapper with dynamic width
@@ -30,42 +31,40 @@ interface SidebarContainerProps {
  * 3. wide - Auto-calculated max width for Review tab (when not resizing)
  * 4. default (300px) - Costs/Tools tabs
  */
-const SidebarContainer: React.FC<SidebarContainerProps> = ({
-  collapsed,
-  wide,
-  customWidth,
-  children,
-  role,
-  "aria-label": ariaLabel,
-}) => {
-  const width = collapsed
-    ? "20px"
-    : customWidth
-      ? `${customWidth}px`
-      : wide
-        ? "min(1200px, calc(100vw - 400px))"
-        : "300px";
+const SidebarContainer = React.forwardRef<HTMLDivElement, SidebarContainerProps>(
+  ({ collapsed, wide, customWidth, children, role, "aria-label": ariaLabel }, ref) => {
+    const width = collapsed
+      ? "20px"
+      : customWidth
+        ? `${customWidth}px`
+        : wide
+          ? "min(1200px, calc(100vw - 400px))"
+          : "300px";
 
-  return (
-    <div
-      className={cn(
-        "bg-separator border-l border-border-light flex flex-col overflow-hidden flex-shrink-0",
-        customWidth ? "" : "transition-[width] duration-200",
-        collapsed && "sticky right-0 z-10 shadow-[-2px_0_4px_rgba(0,0,0,0.2)]",
-        // Mobile: slide in from right (similar to left sidebar pattern)
-        "max-md:fixed max-md:right-0 max-md:top-0 max-md:h-screen max-md:transition-transform max-md:duration-300",
-        collapsed && "max-md:translate-x-full max-md:shadow-none",
-        !collapsed &&
-          "max-md:translate-x-0 max-md:w-full max-md:max-w-md max-md:z-[999] max-md:shadow-[-2px_0_8px_rgba(0,0,0,0.5)] max-md:border-l max-md:border-border-light"
-      )}
-      style={{ width }}
-      role={role}
-      aria-label={ariaLabel}
-    >
-      {children}
-    </div>
-  );
-};
+    return (
+      <div
+        ref={ref}
+        className={cn(
+          "bg-separator border-l border-border-light flex flex-col overflow-hidden flex-shrink-0",
+          customWidth ? "" : "transition-[width] duration-200",
+          collapsed && "sticky right-0 z-10 shadow-[-2px_0_4px_rgba(0,0,0,0.2)]",
+          // Mobile: slide in from right (similar to left sidebar pattern)
+          "max-md:fixed max-md:right-0 max-md:top-0 max-md:h-screen max-md:transition-transform max-md:duration-300",
+          collapsed && "max-md:translate-x-full max-md:shadow-none",
+          !collapsed &&
+            "max-md:translate-x-0 max-md:w-full max-md:max-w-md max-md:z-[999] max-md:shadow-[-2px_0_8px_rgba(0,0,0,0.5)] max-md:border-l max-md:border-border-light"
+        )}
+        style={{ width }}
+        role={role}
+        aria-label={ariaLabel}
+      >
+        {children}
+      </div>
+    );
+  }
+);
+
+SidebarContainer.displayName = "SidebarContainer";
 
 type TabType = "costs" | "review";
 
@@ -174,6 +173,9 @@ const RightSidebarComponent: React.FC<RightSidebarProps> = ({
 
   // Track manual expansion to prevent auto-collapse immediately after user opens sidebar
   const manualExpandRef = React.useRef(false);
+  const sidebarRef = React.useRef<HTMLDivElement | null>(null);
+  const [measuredSidebarWidth, setMeasuredSidebarWidth] = React.useState<number>(0);
+  const [viewportWidth, setViewportWidth] = React.useState<number>(0);
 
   const openSidebar = React.useCallback(
     (manual: boolean) => {
@@ -226,6 +228,68 @@ const RightSidebarComponent: React.FC<RightSidebarProps> = ({
   }, [chatAreaWidth, selectedTab, showCollapsed, closeSidebar, openSidebarAuto]);
 
   // Swipe gesture detection for mobile - right-to-left swipe to open sidebar
+  React.useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const updateViewportWidth = () => {
+      setViewportWidth(window.innerWidth);
+    };
+
+    updateViewportWidth();
+    window.addEventListener("resize", updateViewportWidth);
+    return () => window.removeEventListener("resize", updateViewportWidth);
+  }, []);
+
+  React.useEffect(() => {
+    const element = sidebarRef.current;
+    if (!element) {
+      return;
+    }
+
+    const updateMeasuredWidth = () => {
+      setMeasuredSidebarWidth(element.getBoundingClientRect().width);
+    };
+
+    updateMeasuredWidth();
+
+    if (typeof ResizeObserver === "undefined") {
+      return;
+    }
+
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        setMeasuredSidebarWidth(entry.contentRect.width);
+      }
+    });
+
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [showCollapsed, selectedTab, width]);
+
+  const effectiveSidebarWidth = React.useMemo(() => {
+    if (!viewportWidth) {
+      return null;
+    }
+
+    const candidate =
+      (measuredSidebarWidth > 0 ? measuredSidebarWidth : undefined) ??
+      (typeof width === "number" && width > 0 ? width : undefined) ??
+      MOBILE_DEFAULT_WIDTH;
+    const sanitized = candidate > 0 ? candidate : MOBILE_DEFAULT_WIDTH;
+    return Math.min(sanitized, viewportWidth);
+  }, [measuredSidebarWidth, width, viewportWidth]);
+
+  const overlayClickableWidth = React.useMemo(() => {
+    if (showCollapsed || !viewportWidth) {
+      return 0;
+    }
+
+    const sidebarWidthForCalc = effectiveSidebarWidth ?? MOBILE_DEFAULT_WIDTH;
+    return Math.max(viewportWidth - sidebarWidthForCalc, 0);
+  }, [effectiveSidebarWidth, showCollapsed, viewportWidth]);
+
   React.useEffect(() => {
     // Only enable swipe on mobile when sidebar is collapsed
     if (typeof window === "undefined") return;
@@ -292,14 +356,22 @@ const RightSidebarComponent: React.FC<RightSidebarProps> = ({
     <>
       {/* Backdrop overlay - only on mobile when sidebar is expanded */}
       {!showCollapsed && (
-        <div
-          className="fixed inset-0 z-[998] hidden bg-black/50 backdrop-blur-sm max-md:block"
-          onClick={closeSidebar}
-          aria-hidden="true"
-        />
+        <div className="fixed inset-0 z-[998] hidden max-md:block" aria-hidden="true">
+          <div className="pointer-events-none absolute inset-0 bg-black/50 backdrop-blur-sm" />
+          {overlayClickableWidth > 1 && (
+            <button
+              type="button"
+              className="absolute top-0 left-0 h-full bg-transparent"
+              style={{ width: overlayClickableWidth }}
+              onClick={closeSidebar}
+              aria-label="Close review panel"
+            />
+          )}
+        </div>
       )}
 
       <SidebarContainer
+        ref={sidebarRef}
         collapsed={showCollapsed}
         wide={selectedTab === "review" && !width} // Auto-wide only if not drag-resizing
         customWidth={width} // Drag-resized width from AIView (Review tab only)
