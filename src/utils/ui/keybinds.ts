@@ -270,6 +270,12 @@ export const KEYBINDS = {
   /** Mark selected hunk as read/unread in Code Review panel */
   TOGGLE_HUNK_READ: { key: "m" },
 
+  /** Mark selected hunk as read in Code Review panel */
+  MARK_HUNK_READ: { key: "l" },
+
+  /** Mark selected hunk as unread in Code Review panel */
+  MARK_HUNK_UNREAD: { key: "h" },
+
   /** Toggle hunk expand/collapse in Code Review panel */
   TOGGLE_HUNK_COLLAPSE: { key: " " },
 } as const;
