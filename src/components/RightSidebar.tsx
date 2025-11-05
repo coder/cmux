@@ -85,6 +85,8 @@ interface RightSidebarProps {
   isResizing?: boolean;
   /** Callback when user adds a review note from Code Review tab */
   onReviewNote?: (note: string) => void;
+  /** Callback to expose the open sidebar function (for mobile header button) */
+  onMountOpenCallback?: (openFn: () => void) => void;
 }
 
 const RightSidebarComponent: React.FC<RightSidebarProps> = ({
@@ -96,6 +98,7 @@ const RightSidebarComponent: React.FC<RightSidebarProps> = ({
   onStartResize,
   isResizing = false,
   onReviewNote,
+  onMountOpenCallback,
 }) => {
   // Global tab preference (not per-workspace)
   const [selectedTab, setSelectedTab] = usePersistedState<TabType>("right-sidebar-tab", "costs");
@@ -187,6 +190,13 @@ const RightSidebarComponent: React.FC<RightSidebarProps> = ({
   const showMeter = showCollapsed || selectedTab === "review";
   const verticalMeter = showMeter ? <VerticalTokenMeter data={verticalMeterData} /> : null;
 
+  // Expose open function to parent (for mobile header button)
+  React.useEffect(() => {
+    if (onMountOpenCallback) {
+      onMountOpenCallback(() => setShowCollapsed(false));
+    }
+  }, [onMountOpenCallback, setShowCollapsed]);
+
   // Swipe gesture detection for mobile - right-to-left swipe to open sidebar
   React.useEffect(() => {
     // Only enable swipe on mobile when sidebar is collapsed
@@ -252,25 +262,6 @@ const RightSidebarComponent: React.FC<RightSidebarProps> = ({
 
   return (
     <>
-      {/* FAB - Floating Action Button for mobile, only visible when collapsed */}
-      {showCollapsed && (
-        <button
-          onClick={() => setShowCollapsed(false)}
-          title={`Open ${selectedTab} panel`}
-          aria-label={`Open ${selectedTab} panel`}
-          className={cn(
-            "hidden max-md:flex fixed bottom-20 right-4 z-[998]",
-            "w-12 h-12 bg-accent border border-accent rounded-full cursor-pointer",
-            "items-center justify-center text-white text-lg transition-all duration-200",
-            "shadow-[0_4px_12px_rgba(0,0,0,0.4)]",
-            "hover:bg-accent-hover hover:scale-105",
-            "active:scale-95"
-          )}
-        >
-          {selectedTab === "costs" ? "💰" : "📋"}
-        </button>
-      )}
-
       {/* Backdrop overlay - only on mobile when sidebar is expanded */}
       {!showCollapsed && (
         <div
