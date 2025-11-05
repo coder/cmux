@@ -187,6 +187,69 @@ const RightSidebarComponent: React.FC<RightSidebarProps> = ({
   const showMeter = showCollapsed || selectedTab === "review";
   const verticalMeter = showMeter ? <VerticalTokenMeter data={verticalMeterData} /> : null;
 
+  // Swipe gesture detection for mobile - right-to-left swipe to open sidebar
+  React.useEffect(() => {
+    // Only enable swipe on mobile when sidebar is collapsed
+    if (typeof window === "undefined") return;
+
+    let touchStartX = 0;
+    let touchStartY = 0;
+    let touchStartTime = 0;
+
+    const handleTouchStart = (e: TouchEvent) => {
+      // Only detect swipes from right edge (last ~50px of screen)
+      const touch = e.touches[0];
+      if (!touch) return;
+
+      const screenWidth = window.innerWidth;
+      if (touch.clientX < screenWidth - 50) return; // Not from right edge
+
+      touchStartX = touch.clientX;
+      touchStartY = touch.clientY;
+      touchStartTime = Date.now();
+    };
+
+    const handleTouchEnd = (e: TouchEvent) => {
+      const touch = e.changedTouches[0];
+      if (!touch) return;
+
+      const touchEndX = touch.clientX;
+      const touchEndY = touch.clientY;
+      const touchEndTime = Date.now();
+
+      // Calculate swipe distance and direction
+      const deltaX = touchEndX - touchStartX;
+      const deltaY = touchEndY - touchStartY;
+      const duration = touchEndTime - touchStartTime;
+
+      // Swipe must be:
+      // 1. Horizontal (more X movement than Y)
+      // 2. At least 50px distance
+      // 3. Fast enough (< 300ms)
+      const isLeftSwipe = deltaX < -50; // Right to left
+      const isRightSwipe = deltaX > 50; // Left to right
+      const isHorizontal = Math.abs(deltaX) > Math.abs(deltaY);
+      const isFastEnough = duration < 300;
+
+      // Open sidebar on left swipe from right edge when collapsed
+      if (isLeftSwipe && isHorizontal && isFastEnough && showCollapsed) {
+        setShowCollapsed(false);
+      }
+      // Close sidebar on right swipe when open (from anywhere on screen)
+      else if (isRightSwipe && isHorizontal && isFastEnough && !showCollapsed) {
+        setShowCollapsed(true);
+      }
+    };
+
+    window.addEventListener("touchstart", handleTouchStart, { passive: true });
+    window.addEventListener("touchend", handleTouchEnd, { passive: true });
+
+    return () => {
+      window.removeEventListener("touchstart", handleTouchStart);
+      window.removeEventListener("touchend", handleTouchEnd);
+    };
+  }, [showCollapsed, setShowCollapsed]);
+
   return (
     <>
       {/* FAB - Floating Action Button for mobile, only visible when collapsed */}
