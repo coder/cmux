@@ -22,8 +22,13 @@ export const SSH_INIT_WAIT_MS = 7000; // SSH init includes sync + checkout + hoo
 export const HAIKU_MODEL = "anthropic:claude-haiku-4-5"; // Fast model for tests
 export const TEST_TIMEOUT_LOCAL_MS = 25000; // Recommended timeout for local runtime tests
 export const TEST_TIMEOUT_SSH_MS = 60000; // Recommended timeout for SSH runtime tests
-export const STREAM_TIMEOUT_LOCAL_MS = 15000; // Stream timeout for local runtime
-export const STREAM_TIMEOUT_SSH_MS = 25000; // Stream timeout for SSH runtime
+// Stream timeouts: CI environments need longer timeouts due to API rate limits and slower execution
+// Local development typically completes faster
+const CI_TIMEOUT_MULTIPLIER = 2.5;
+const isCI = process.env.CI === "true" || process.env.CI === "1";
+
+export const STREAM_TIMEOUT_LOCAL_MS = isCI ? 37500 : 15000; // 37.5s in CI, 15s locally
+export const STREAM_TIMEOUT_SSH_MS = isCI ? 62500 : 25000; // 62.5s in CI, 25s locally
 
 /**
  * Generate a unique branch name
@@ -613,7 +618,7 @@ export async function waitForInitEnd(
 export async function waitForStreamSuccess(
   sentEvents: Array<{ channel: string; data: unknown }>,
   workspaceId: string,
-  timeoutMs = 30000
+  timeoutMs = isCI ? 75000 : 30000 // Use longer timeout in CI (75s vs 30s)
 ): Promise<EventCollector> {
   const collector = createEventCollector(sentEvents, workspaceId);
   await collector.waitForEvent("stream-end", timeoutMs);
