@@ -618,7 +618,7 @@ function AppInner() {
 
   return (
     <>
-      <div className="bg-bg-dark flex h-screen overflow-hidden [@media(max-width:768px)]:flex-col">
+      <div className="bg-bg-dark mobile-layout flex h-screen overflow-hidden">
         <LeftSidebar
           onSelectWorkspace={handleWorkspaceSwitch}
           onAddProject={handleAddProjectCallback}
@@ -633,8 +633,8 @@ function AppInner() {
           sortedWorkspacesByProject={sortedWorkspacesByProject}
           workspaceRecency={workspaceRecency}
         />
-        <div className="flex min-w-0 flex-1 flex-col overflow-hidden [@media(max-width:768px)]:w-full">
-          <div className="flex flex-1 overflow-hidden [@media(max-width:768px)]:flex-col">
+        <div className="mobile-main-content flex min-w-0 flex-1 flex-col overflow-hidden">
+          <div className="mobile-layout flex flex-1 overflow-hidden">
             {selectedWorkspace ? (
               <ErrorBoundary
                 workspaceInfo={`${selectedWorkspace.projectName}/${selectedWorkspace.namedWorkspacePath?.split("/").pop() ?? selectedWorkspace.workspaceId}`}

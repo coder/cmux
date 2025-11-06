@@ -777,7 +777,6 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   return (
     <div
       className="bg-separator border-border-light relative flex flex-col gap-1 border-t px-[15px] pt-[5px] pb-[15px]"
-      style={{ containerType: "inline-size" }}
       data-component="ChatInputSection"
     >
       <ChatInputToast toast={toast} onDismiss={handleToastDismiss} />
@@ -850,14 +849,14 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 
           {/* Thinking Slider - hide on small viewports */}
           <div
-            className="max-@[600px]:hidden flex items-center"
+            className="flex items-center max-[550px]:hidden"
             data-component="ThinkingSliderGroup"
           >
             <ThinkingSliderComponent modelString={preferredModel} />
           </div>
 
           {/* Context 1M Checkbox - hide on smaller viewports */}
-          <div className="max-@[500px]:hidden flex items-center" data-component="Context1MGroup">
+          <div className="flex items-center max-[450px]:hidden" data-component="Context1MGroup">
             <Context1MCheckbox modelString={preferredModel} />
           </div>
           {preferredModel && (
@@ -876,7 +875,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
               </Suspense>
             </div>
           )}
-          <div className="max-@[700px]:hidden ml-auto flex items-center gap-1.5">
+          <div className="ml-auto flex items-center gap-1.5 max-[550px]:hidden">
             <div
               className={cn(
                 "flex gap-0 bg-toggle-bg rounded",

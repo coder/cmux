@@ -38,7 +38,7 @@ export function LeftSidebar(props: LeftSidebarProps) {
           title="Open sidebar"
           aria-label="Open sidebar menu"
           className={cn(
-            "hidden max-md:flex fixed top-3 left-3 z-[998]",
+            "hidden mobile-menu-btn fixed top-3 left-3 z-[998]",
             "w-10 h-10 bg-separator border border-border-light rounded-md cursor-pointer",
             "items-center justify-center text-foreground text-xl transition-all duration-200",
             "shadow-[0_2px_4px_rgba(0,0,0,0.3)]",
@@ -53,8 +53,8 @@ export function LeftSidebar(props: LeftSidebarProps) {
       {/* Overlay backdrop - only visible on mobile when sidebar is open */}
       <div
         className={cn(
-          "hidden max-md:block fixed inset-0 bg-black/50 z-[999] backdrop-blur-sm",
-          collapsed && "max-md:hidden"
+          "hidden mobile-overlay fixed inset-0 bg-black/50 z-[999] backdrop-blur-sm",
+          collapsed && "!hidden"
         )}
         onClick={onToggleCollapsed}
       />
@@ -65,11 +65,8 @@ export function LeftSidebar(props: LeftSidebarProps) {
           "h-screen bg-separator border-r border-dark flex flex-col shrink-0",
           "transition-all duration-200 overflow-hidden relative z-[100]",
           collapsed ? "w-8" : "w-72",
-          "max-md:fixed max-md:left-0 max-md:top-0 max-md:w-72 max-md:z-[1000]",
-          "max-md:transition-transform max-md:duration-300",
-          collapsed
-            ? "max-md:-translate-x-full max-md:shadow-none"
-            : "max-md:translate-x-0 max-md:shadow-[2px_0_8px_rgba(0,0,0,0.5)]"
+          "mobile-sidebar",
+          collapsed && "mobile-sidebar-collapsed"
         )}
       >
         {!collapsed && <TitleBar />}
