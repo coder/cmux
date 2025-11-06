@@ -847,18 +847,19 @@ export const ChatInput: React.FC<ChatInputProps> = ({
             </TooltipWrapper>
           </div>
 
-          {/* Thinking Slider - hide on small viewports */}
+          {/* Thinking Slider - slider hidden on narrow viewports, label always clickable */}
           <div
-            className="flex items-center max-[550px]:hidden"
+            className="flex items-center [&_.thinking-slider]:max-[550px]:hidden"
             data-component="ThinkingSliderGroup"
           >
             <ThinkingSliderComponent modelString={preferredModel} />
           </div>
 
-          {/* Context 1M Checkbox - hide on smaller viewports */}
-          <div className="flex items-center max-[450px]:hidden" data-component="Context1MGroup">
+          {/* Context 1M Checkbox - always visible */}
+          <div className="flex items-center" data-component="Context1MGroup">
             <Context1MCheckbox modelString={preferredModel} />
           </div>
+
           {preferredModel && (
             <div className={hasTypedText ? "block" : "hidden"}>
               <Suspense
@@ -875,6 +876,8 @@ export const ChatInput: React.FC<ChatInputProps> = ({
               </Suspense>
             </div>
           )}
+
+          {/* Mode Switch - full version for wide viewports */}
           <div className="ml-auto flex items-center gap-1.5 max-[550px]:hidden">
             <div
               className={cn(
@@ -893,6 +896,38 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                 ]}
                 value={mode}
                 onChange={setMode}
+              />
+            </div>
+            <TooltipWrapper inline>
+              <HelpIndicator>?</HelpIndicator>
+              <Tooltip className="tooltip" align="center" width="wide">
+                <strong>Exec Mode:</strong> AI edits files and execute commands
+                <br />
+                <br />
+                <strong>Plan Mode:</strong> AI proposes plans but does not edit files
+                <br />
+                <br />
+                Toggle with: {formatKeybind(KEYBINDS.TOGGLE_MODE)}
+              </Tooltip>
+            </TooltipWrapper>
+          </div>
+
+          {/* Mode Switch - compact version for narrow viewports */}
+          <div className="ml-auto hidden items-center gap-1.5 max-[550px]:flex">
+            <div
+              className={cn(
+                mode === "exec" && "bg-exec-mode text-white",
+                mode === "plan" && "bg-plan-mode text-white"
+              )}
+            >
+              <ToggleGroup<UIMode>
+                options={[
+                  { value: "exec", label: "Exec", activeClassName: "bg-exec-mode text-white" },
+                  { value: "plan", label: "Plan", activeClassName: "bg-plan-mode text-white" },
+                ]}
+                value={mode}
+                onChange={setMode}
+                compact
               />
             </div>
             <TooltipWrapper inline>

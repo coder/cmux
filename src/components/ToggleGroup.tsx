@@ -10,9 +10,32 @@ interface ToggleGroupProps<T extends string> {
   options: Array<ToggleOption<T>>;
   value: T;
   onChange: (value: T) => void;
+  compact?: boolean; // If true, show only active option as clickable badge
 }
 
-export function ToggleGroup<T extends string>({ options, value, onChange }: ToggleGroupProps<T>) {
+export function ToggleGroup<T extends string>({ options, value, onChange, compact = false }: ToggleGroupProps<T>) {
+  // Compact mode: show only active option, click cycles to next option
+  if (compact) {
+    const currentIndex = options.findIndex(opt => opt.value === value);
+    const activeOption = options[currentIndex];
+    const nextOption = options[(currentIndex + 1) % options.length];
+    
+    return (
+      <button
+        onClick={() => onChange(nextOption.value)}
+        type="button"
+        className={cn(
+          "px-2 py-1 text-[11px] font-sans rounded border-none cursor-pointer transition-all duration-150",
+          "text-toggle-text-active bg-toggle-active font-medium",
+          activeOption?.activeClassName
+        )}
+        aria-label={`${activeOption.label} mode. Click to switch to ${nextOption.label}.`}
+      >
+        {activeOption.label}
+      </button>
+    );
+  }
+
   return (
     <div className="bg-toggle-bg flex gap-0 rounded">
       {options.map((option) => {

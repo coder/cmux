@@ -124,6 +124,13 @@ export const ThinkingSliderComponent: React.FC<ThinkingControlProps> = ({ modelS
     }
   };
 
+  // Cycle through allowed thinking levels: off → low → medium → high → off
+  const cycleThinkingLevel = () => {
+    const currentIndex = THINKING_LEVELS.indexOf(thinkingLevel);
+    const nextIndex = (currentIndex + 1) % THINKING_LEVELS.length;
+    handleThinkingLevelChange(THINKING_LEVELS[nextIndex]);
+  };
+
   return (
     <TooltipWrapper>
       <div className="flex items-center gap-2">
@@ -154,16 +161,23 @@ export const ThinkingSliderComponent: React.FC<ThinkingControlProps> = ({ modelS
             } as React.CSSProperties
           }
         />
-        <span
-          className="min-w-11 uppercase transition-all duration-200 select-none"
-          style={textStyle}
-          aria-live="polite"
+        <button
+          type="button"
+          onClick={cycleThinkingLevel}
+          className="cursor-pointer border-none bg-transparent p-0"
+          aria-label={`Thinking level: ${thinkingLevel}. Click to cycle.`}
         >
-          {thinkingLevel}
-        </span>
+          <span
+            className="min-w-11 uppercase transition-all duration-200 select-none"
+            style={textStyle}
+            aria-live="polite"
+          >
+            {thinkingLevel}
+          </span>
+        </button>
       </div>
       <Tooltip align="center">
-        Thinking: {formatKeybind(KEYBINDS.TOGGLE_THINKING)} to toggle
+        Thinking: {formatKeybind(KEYBINDS.TOGGLE_THINKING)} to toggle. Click level to cycle.
       </Tooltip>
     </TooltipWrapper>
   );
