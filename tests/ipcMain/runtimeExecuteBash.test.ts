@@ -13,6 +13,7 @@ import {
   validateApiKeys,
   getApiKey,
   setupProviders,
+  preloadTestModules,
 } from "./setup";
 import { IPC_CHANNELS } from "../../src/constants/ipc-constants";
 import {
@@ -54,6 +55,9 @@ let sshConfig: SSHServerConfig | undefined;
 
 describeIntegration("Runtime Bash Execution", () => {
   beforeAll(async () => {
+    // Preload tokenizer and AI SDK providers to avoid initialization delays during tests
+    await preloadTestModules();
+
     // Check if Docker is available (required for SSH tests)
     if (!(await isDockerAvailable())) {
       throw new Error(
@@ -314,7 +318,7 @@ describeIntegration("Runtime Bash Execution", () => {
                 "Run bash: cat /tmp/test.json | grep test",
                 GPT_5_MINI_MODEL,
                 BASH_ONLY,
-                15000 // 15s max wait - should complete quickly
+                10000 // 10s timeout - should complete in ~4s per API call
               );
               const duration = Date.now() - startTime;
 
@@ -326,9 +330,9 @@ describeIntegration("Runtime Bash Execution", () => {
               expect(responseText).toContain("data");
 
               // Verify command completed quickly (not hanging until timeout)
-              // SSH typically 3-6s, local 5-8s, but allow headroom for CI variance
-              // (actual hangs would hit bash tool's 180s timeout)
-              const maxDuration = type === "ssh" ? 15000 : 15000;
+              // With tokenizer preloading, both local and SSH complete in ~8s total
+              // Actual hangs would hit bash tool's 180s timeout
+              const maxDuration = 10000;
               expect(duration).toBeLessThan(maxDuration);
 
               // Verify bash tool was called
