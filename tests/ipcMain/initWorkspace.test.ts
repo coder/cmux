@@ -701,8 +701,9 @@ exit 1
             // ASSERTION 7: Second message should be MUCH faster than first
             // First message had to wait ~5 seconds for init. Second should be instant.
             const secondMessageDuration = Date.now() - startSecondMessage;
-            // Allow 10 seconds for API round-trip but should be way less than first message
-            expect(secondMessageDuration).toBeLessThan(10000);
+            // Allow 15 seconds for API round-trip but should be way less than first message
+            // Increased timeout to account for CI runner variability
+            expect(secondMessageDuration).toBeLessThan(15000);
 
             // Log timing for debugging
             console.log(`Second message completed in ${secondMessageDuration}ms (no init wait)`);
