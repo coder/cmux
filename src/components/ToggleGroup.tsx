@@ -13,13 +13,18 @@ interface ToggleGroupProps<T extends string> {
   compact?: boolean; // If true, show only active option as clickable badge
 }
 
-export function ToggleGroup<T extends string>({ options, value, onChange, compact = false }: ToggleGroupProps<T>) {
+export function ToggleGroup<T extends string>({
+  options,
+  value,
+  onChange,
+  compact = false,
+}: ToggleGroupProps<T>) {
   // Compact mode: show only active option, click cycles to next option
   if (compact) {
-    const currentIndex = options.findIndex(opt => opt.value === value);
+    const currentIndex = options.findIndex((opt) => opt.value === value);
     const activeOption = options[currentIndex];
     const nextOption = options[(currentIndex + 1) % options.length];
-    
+
     return (
       <button
         onClick={() => onChange(nextOption.value)}
