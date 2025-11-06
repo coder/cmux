@@ -22,7 +22,7 @@ import {
   createWorkspaceWithInit,
   sendMessageAndWait,
   extractTextFromEvents,
-  HAIKU_MODEL,
+  GPT_5_MINI_MODEL,
   TEST_TIMEOUT_LOCAL_MS,
   TEST_TIMEOUT_SSH_MS,
 } from "./helpers";
@@ -46,7 +46,7 @@ const describeIntegration = shouldRunIntegrationTests() ? describe : describe.sk
 
 // Validate API keys before running tests
 if (shouldRunIntegrationTests()) {
-  validateApiKeys(["ANTHROPIC_API_KEY"]);
+  validateApiKeys(["OPENAI_API_KEY"]);
 }
 
 // SSH server config (shared across all SSH tests)
@@ -101,8 +101,8 @@ describeIntegration("Runtime Bash Execution", () => {
           try {
             // Setup provider
             await setupProviders(env.mockIpcRenderer, {
-              anthropic: {
-                apiKey: getApiKey("ANTHROPIC_API_KEY"),
+              openai: {
+                apiKey: getApiKey("OPENAI_API_KEY"),
               },
             });
 
@@ -124,7 +124,7 @@ describeIntegration("Runtime Bash Execution", () => {
                 env,
                 workspaceId,
                 'Run the bash command "echo Hello World"',
-                HAIKU_MODEL,
+                GPT_5_MINI_MODEL,
                 BASH_ONLY
               );
 
@@ -159,8 +159,8 @@ describeIntegration("Runtime Bash Execution", () => {
           try {
             // Setup provider
             await setupProviders(env.mockIpcRenderer, {
-              anthropic: {
-                apiKey: getApiKey("ANTHROPIC_API_KEY"),
+              openai: {
+                apiKey: getApiKey("OPENAI_API_KEY"),
               },
             });
 
@@ -182,7 +182,7 @@ describeIntegration("Runtime Bash Execution", () => {
                 env,
                 workspaceId,
                 'Run bash command: export TEST_VAR="test123" && echo "Value: $TEST_VAR"',
-                HAIKU_MODEL,
+                GPT_5_MINI_MODEL,
                 BASH_ONLY
               );
 
@@ -217,8 +217,8 @@ describeIntegration("Runtime Bash Execution", () => {
           try {
             // Setup provider
             await setupProviders(env.mockIpcRenderer, {
-              anthropic: {
-                apiKey: getApiKey("ANTHROPIC_API_KEY"),
+              openai: {
+                apiKey: getApiKey("OPENAI_API_KEY"),
               },
             });
 
@@ -240,7 +240,7 @@ describeIntegration("Runtime Bash Execution", () => {
                 env,
                 workspaceId,
                 'Run bash: echo "Test with $dollar and \\"quotes\\" and `backticks`"',
-                HAIKU_MODEL,
+                GPT_5_MINI_MODEL,
                 BASH_ONLY
               );
 
@@ -276,8 +276,8 @@ describeIntegration("Runtime Bash Execution", () => {
           try {
             // Setup provider
             await setupProviders(env.mockIpcRenderer, {
-              anthropic: {
-                apiKey: getApiKey("ANTHROPIC_API_KEY"),
+              openai: {
+                apiKey: getApiKey("OPENAI_API_KEY"),
               },
             });
 
@@ -295,25 +295,26 @@ describeIntegration("Runtime Bash Execution", () => {
 
             try {
               // Create a test file with JSON content
+              // Using gpt-5-mini for speed (bash tool tests don't need reasoning power)
               await sendMessageAndWait(
                 env,
                 workspaceId,
                 'Run bash: echo \'{"test": "data"}\' > /tmp/test.json',
-                HAIKU_MODEL,
+                GPT_5_MINI_MODEL,
                 BASH_ONLY
               );
 
-              // Test command that pipes file through stdin-reading command (jq)
+              // Test command that pipes file through stdin-reading command (grep)
               // This would hang forever if stdin.close() was used instead of stdin.abort()
               // Regression test for: https://github.com/coder/cmux/issues/503
               const startTime = Date.now();
               const events = await sendMessageAndWait(
                 env,
                 workspaceId,
-                "Run bash with 3s timeout: cat /tmp/test.json | jq '.'",
-                HAIKU_MODEL,
+                "Run bash: cat /tmp/test.json | grep test",
+                GPT_5_MINI_MODEL,
                 BASH_ONLY,
-                15000 // 15s max wait - should complete in < 5s
+                15000 // 15s max wait - should complete quickly
               );
               const duration = Date.now() - startTime;
 
@@ -325,10 +326,9 @@ describeIntegration("Runtime Bash Execution", () => {
               expect(responseText).toContain("data");
 
               // Verify command completed quickly (not hanging until timeout)
-              // Should complete in under 15 seconds for SSH, 10 seconds for local
-              // Generous timeouts to account for CI runner variability
+              // SSH typically 3-6s, local 5-8s, but allow headroom for CI variance
               // (actual hangs would hit bash tool's 180s timeout)
-              const maxDuration = type === "ssh" ? 15000 : 10000;
+              const maxDuration = type === "ssh" ? 15000 : 15000;
               expect(duration).toBeLessThan(maxDuration);
 
               // Verify bash tool was called
