@@ -914,22 +914,15 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 
           {/* Mode Switch - compact version for narrow viewports */}
           <div className="ml-auto hidden items-center gap-1.5 max-[550px]:flex">
-            <div
-              className={cn(
-                mode === "exec" && "bg-exec-mode text-white",
-                mode === "plan" && "bg-plan-mode text-white"
-              )}
-            >
-              <ToggleGroup<UIMode>
-                options={[
-                  { value: "exec", label: "Exec", activeClassName: "bg-exec-mode text-white" },
-                  { value: "plan", label: "Plan", activeClassName: "bg-plan-mode text-white" },
-                ]}
-                value={mode}
-                onChange={setMode}
-                compact
-              />
-            </div>
+            <ToggleGroup<UIMode>
+              options={[
+                { value: "exec", label: "Exec", activeClassName: "bg-exec-mode text-white" },
+                { value: "plan", label: "Plan", activeClassName: "bg-plan-mode text-white" },
+              ]}
+              value={mode}
+              onChange={setMode}
+              compact
+            />
             <TooltipWrapper inline>
               <HelpIndicator>?</HelpIndicator>
               <Tooltip className="tooltip" align="center" width="wide">
