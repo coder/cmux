@@ -23,3 +23,18 @@ if (typeof globalThis.File === "undefined") {
     lastModified: number;
   };
 }
+
+// Preload tokenizer and AI SDK modules for integration tests
+// This eliminates ~10s initialization delay on first use
+if (process.env.TEST_INTEGRATION === "1") {
+  // Store promise globally to ensure it blocks subsequent test execution
+  (globalThis as any).__cmuxPreloadPromise = (async () => {
+    const { preloadTestModules } = await import("./ipcMain/setup");
+    await preloadTestModules();
+  })();
+
+  // Add a global beforeAll to block until preload completes
+  beforeAll(async () => {
+    await (globalThis as any).__cmuxPreloadPromise;
+  }, 30000); // 30s timeout for preload
+}

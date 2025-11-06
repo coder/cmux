@@ -16,7 +16,6 @@ import {
   validateApiKeys,
   getApiKey,
   setupProviders,
-  preloadTestModules,
   type TestEnvironment,
 } from "./setup";
 import { IPC_CHANNELS } from "../../src/constants/ipc-constants";
@@ -65,9 +64,6 @@ let sshConfig: SSHServerConfig | undefined;
 
 describeIntegration("Runtime File Editing Tools", () => {
   beforeAll(async () => {
-    // Preload AI SDK providers and tokenizers to avoid race conditions in concurrent tests
-    await preloadTestModules();
-
     // Check if Docker is available (required for SSH tests)
     if (!(await isDockerAvailable())) {
       throw new Error(

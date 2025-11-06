@@ -5,7 +5,6 @@ import {
   validateApiKeys,
   getApiKey,
   setupProviders,
-  preloadTestModules,
   type TestEnvironment,
 } from "./setup";
 import { IPC_CHANNELS, getChatChannel } from "../../src/constants/ipc-constants";
@@ -460,9 +459,6 @@ let sshConfig: SSHServerConfig | undefined;
 
 describeIntegration("Init Queue - Runtime Matrix", () => {
   beforeAll(async () => {
-    // Preload AI SDK providers and tokenizers
-    await preloadTestModules();
-
     // Only start SSH server if Docker is available
     if (await isDockerAvailable()) {
       console.log("Starting SSH server container for init queue tests...");
