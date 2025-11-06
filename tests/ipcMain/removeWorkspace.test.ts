@@ -11,7 +11,6 @@ import {
   createTestEnvironment,
   cleanupTestEnvironment,
   shouldRunIntegrationTests,
-  preloadTestModules,
   type TestEnvironment,
 } from "./setup";
 import { IPC_CHANNELS } from "../../src/constants/ipc-constants";
@@ -104,8 +103,6 @@ async function makeWorkspaceDirty(env: TestEnvironment, workspaceId: string): Pr
 
 describeIntegration("Workspace deletion integration tests", () => {
   beforeAll(async () => {
-    await preloadTestModules();
-
     // Check if Docker is available (required for SSH tests)
     if (!(await isDockerAvailable())) {
       throw new Error(
