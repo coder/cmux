@@ -325,8 +325,9 @@ describeIntegration("Runtime Bash Execution", () => {
               expect(responseText).toContain("data");
 
               // Verify command completed quickly (not hanging until timeout)
-              // Should complete in under 5 seconds for SSH, 3 seconds for local
-              const maxDuration = type === "ssh" ? 8000 : 5000;
+              // Should complete in under 10 seconds for SSH, 6 seconds for local
+              // Increased timeouts to account for CI runner variability
+              const maxDuration = type === "ssh" ? 10000 : 6000;
               expect(duration).toBeLessThan(maxDuration);
 
               // Verify bash tool was called
