@@ -256,8 +256,8 @@ body,
   overflow: hidden;
 }
 
-/* Mobile improvements */
-@media (max-width: 768px) {
+/* Mobile improvements - only apply to touch devices */
+@media (max-width: 768px) and (pointer: coarse) {
   html {
     -webkit-text-size-adjust: 100%;
     touch-action: manipulation;
@@ -272,6 +272,41 @@ body,
   [role="button"] {
     min-height: 44px;
     min-width: 44px;
+  }
+
+  /* Show mobile menu button only on touch devices */
+  .mobile-menu-btn {
+    display: flex !important;
+  }
+
+  /* Show mobile overlay only on touch devices */
+  .mobile-overlay {
+    display: block !important;
+  }
+
+  /* Mobile sidebar positioning only on touch devices */
+  .mobile-sidebar {
+    position: fixed !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 18rem !important;
+    z-index: 1000 !important;
+    transition: transform 0.3s !important;
+    box-shadow: 2px 0 8px rgba(0, 0, 0, 0.5) !important;
+  }
+
+  .mobile-sidebar-collapsed {
+    transform: translateX(-100%) !important;
+    box-shadow: none !important;
+  }
+
+  /* Mobile layout - stack vertically on touch devices */
+  .mobile-layout {
+    flex-direction: column !important;
+  }
+
+  .mobile-main-content {
+    width: 100% !important;
   }
 }
 

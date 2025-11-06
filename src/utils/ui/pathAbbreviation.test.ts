@@ -1,4 +1,4 @@
-import { abbreviatePath } from "./pathAbbreviation";
+import { abbreviatePath, splitAbbreviatedPath } from "./pathAbbreviation";
 
 describe("abbreviatePath", () => {
   it("should abbreviate all directory components except the last one", () => {
@@ -30,5 +30,53 @@ describe("abbreviatePath", () => {
     expect(abbreviatePath("/Users/ammar/very-long-project-name")).toBe(
       "/U/a/very-long-project-name"
     );
+  });
+});
+
+describe("splitAbbreviatedPath", () => {
+  it("should split abbreviated path into directory and basename", () => {
+    expect(splitAbbreviatedPath("/U/a/P/c/cmux")).toEqual({
+      dirPath: "/U/a/P/c/",
+      basename: "cmux",
+    });
+  });
+
+  it("should handle paths without leading slash", () => {
+    expect(splitAbbreviatedPath("U/a/P/c/cmux")).toEqual({
+      dirPath: "U/a/P/c/",
+      basename: "cmux",
+    });
+  });
+
+  it("should handle single directory paths", () => {
+    expect(splitAbbreviatedPath("/Users")).toEqual({
+      dirPath: "/",
+      basename: "Users",
+    });
+    expect(splitAbbreviatedPath("Users")).toEqual({
+      dirPath: "",
+      basename: "Users",
+    });
+  });
+
+  it("should handle root path", () => {
+    expect(splitAbbreviatedPath("/")).toEqual({
+      dirPath: "/",
+      basename: "",
+    });
+  });
+
+  it("should handle empty string", () => {
+    expect(splitAbbreviatedPath("")).toEqual({
+      dirPath: "",
+      basename: "",
+    });
+  });
+
+  it("should handle paths with long basenames", () => {
+    expect(splitAbbreviatedPath("/U/a/very-long-project-name")).toEqual({
+      dirPath: "/U/a/",
+      basename: "very-long-project-name",
+    });
   });
 });

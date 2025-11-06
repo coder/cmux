@@ -31,3 +31,23 @@ export function abbreviatePath(path: string): string {
 
   return abbreviated.join("/");
 }
+
+/**
+ * Split an abbreviated path into directory path and basename
+ * Example: /U/a/P/c/cmux -> { dirPath: "/U/a/P/c/", basename: "cmux" }
+ */
+export function splitAbbreviatedPath(path: string): { dirPath: string; basename: string } {
+  if (!path || typeof path !== "string") {
+    return { dirPath: "", basename: path };
+  }
+
+  const lastSlashIndex = path.lastIndexOf("/");
+  if (lastSlashIndex === -1) {
+    return { dirPath: "", basename: path };
+  }
+
+  return {
+    dirPath: path.slice(0, lastSlashIndex + 1), // Include the trailing slash
+    basename: path.slice(lastSlashIndex + 1),
+  };
+}

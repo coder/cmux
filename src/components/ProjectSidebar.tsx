@@ -9,7 +9,7 @@ import { HTML5Backend, getEmptyImage } from "react-dnd-html5-backend";
 import { useDrag, useDrop, useDragLayer } from "react-dnd";
 import { sortProjectsByOrder, reorderProjects, normalizeOrder } from "@/utils/projectOrdering";
 import { matchesKeybind, formatKeybind, KEYBINDS } from "@/utils/ui/keybinds";
-import { abbreviatePath } from "@/utils/ui/pathAbbreviation";
+import { abbreviatePath, splitAbbreviatedPath } from "@/utils/ui/pathAbbreviation";
 import {
   partitionWorkspacesByAge,
   formatOldWorkspaceThreshold,
@@ -78,7 +78,7 @@ const DraggableProjectItemBase: React.FC<DraggableProjectItemProps> = ({
     <div
       ref={(node) => drag(drop(node))}
       className={cn(
-        "py-1 px-3 flex items-center border-l-transparent transition-all duration-150 bg-separator",
+        "py-2 px-3 flex items-center border-l-transparent transition-all duration-150 bg-separator",
         isDragging ? "cursor-grabbing opacity-40 [&_*]:!cursor-grabbing" : "cursor-grab",
         isOver && "bg-accent/[0.08]",
         selected && "bg-hover border-l-accent",
@@ -130,21 +130,19 @@ const ProjectDragLayer: React.FC = () => {
 
   if (!isDragging || !currentOffset || !item?.projectPath) return null;
 
-  const name = item.projectPath.split("/").pop() ?? item.projectPath;
   const abbrevPath = abbreviatePath(item.projectPath);
+  const { dirPath, basename } = splitAbbreviatedPath(abbrevPath);
 
   return (
     <div className="pointer-events-none fixed inset-0 z-[9999] cursor-grabbing">
       <div style={{ transform: `translate(${currentOffset.x + 10}px, ${currentOffset.y + 10}px)` }}>
         <div className="bg-hover/95 text-foreground border-l-accent flex w-fit max-w-72 min-w-44 items-center rounded border-l-[3px] px-3 py-1.5 shadow-[0_6px_24px_rgba(0,0,0,0.4)]">
           <span className="text-dim mr-1.5 text-xs">⠿</span>
-          <span className="text-muted mr-2 text-[10px]">▶</span>
+          <span className="text-muted mr-2 text-xs">▶</span>
           <div className="min-w-0 flex-1">
-            <div className="text-foreground truncate text-sm font-medium tracking-[0.2px]">
-              {name}
-            </div>
-            <div className="text-muted-dark font-monospace mt-0.5 truncate text-[11px]">
-              {abbrevPath}
+            <div className="text-muted-dark font-monospace truncate text-sm leading-none">
+              <span>{dirPath}</span>
+              <span className="text-foreground font-medium">{basename}</span>
             </div>
           </div>
         </div>
@@ -489,18 +487,26 @@ const ProjectSidebarInner: React.FC<ProjectSidebarProps> = ({
                           <span
                             data-project-path={projectPath}
                             aria-hidden="true"
-                            className="text-muted mr-2 shrink-0 text-[10px] transition-transform duration-200"
+                            className="text-muted mr-2 shrink-0 text-xs transition-transform duration-200"
                             style={{ transform: isExpanded ? "rotate(90deg)" : "rotate(0deg)" }}
                           >
                             ▶
                           </span>
-                          <div className="min-w-0 flex-1 pr-2">
-                            <div className="text-foreground truncate text-sm font-medium tracking-[0.2px]">
-                              {projectName}
-                            </div>
+                          <div className="flex min-w-0 flex-1 items-center pr-2">
                             <TooltipWrapper inline>
-                              <div className="text-muted-dark font-monospace mt-px truncate text-[11px]">
-                                {abbreviatePath(projectPath)}
+                              <div className="text-muted-dark font-monospace truncate text-sm leading-none">
+                                {(() => {
+                                  const abbrevPath = abbreviatePath(projectPath);
+                                  const { dirPath, basename } = splitAbbreviatedPath(abbrevPath);
+                                  return (
+                                    <>
+                                      <span>{dirPath}</span>
+                                      <span className="text-foreground font-medium">
+                                        {basename}
+                                      </span>
+                                    </>
+                                  );
+                                })()}
                               </div>
                               <Tooltip className="tooltip" align="left">
                                 {projectPath}
