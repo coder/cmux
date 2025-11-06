@@ -30,6 +30,10 @@ const isCI = process.env.CI === "true" || process.env.CI === "1";
 export const STREAM_TIMEOUT_LOCAL_MS = isCI ? 37500 : 15000; // 37.5s in CI, 15s locally
 export const STREAM_TIMEOUT_SSH_MS = isCI ? 62500 : 25000; // 62.5s in CI, 25s locally
 
+// Additional stream timeout constants for tests (also CI-aware)
+export const STREAM_TIMEOUT_SHORT_MS = isCI ? 25000 : 10000; // For quick operations
+export const STREAM_TIMEOUT_MEDIUM_MS = isCI ? 75000 : 30000; // For standard operations
+
 /**
  * Generate a unique branch name
  * Uses high-resolution time (nanosecond precision) to prevent collisions
@@ -618,7 +622,7 @@ export async function waitForInitEnd(
 export async function waitForStreamSuccess(
   sentEvents: Array<{ channel: string; data: unknown }>,
   workspaceId: string,
-  timeoutMs = isCI ? 75000 : 30000 // Use longer timeout in CI (75s vs 30s)
+  timeoutMs = STREAM_TIMEOUT_MEDIUM_MS // Use CI-aware timeout (75s in CI, 30s locally)
 ): Promise<EventCollector> {
   const collector = createEventCollector(sentEvents, workspaceId);
   await collector.waitForEvent("stream-end", timeoutMs);

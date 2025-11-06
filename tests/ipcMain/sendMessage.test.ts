@@ -18,6 +18,8 @@ import {
   readChatHistory,
   TEST_IMAGES,
   modelString,
+  STREAM_TIMEOUT_SHORT_MS,
+  STREAM_TIMEOUT_MEDIUM_MS,
 } from "./helpers";
 import type { StreamDeltaEvent } from "../../src/types/stream";
 import { IPC_CHANNELS } from "../../src/constants/ipc-constants";
@@ -611,7 +613,7 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
           const collector = await waitForStreamSuccess(
             env.sentEvents,
             workspaceId,
-            provider === "openai" ? 30000 : 10000
+            provider === "openai" ? STREAM_TIMEOUT_MEDIUM_MS : STREAM_TIMEOUT_SHORT_MS
           );
 
           // Get the final assistant message
@@ -858,7 +860,11 @@ These are general instructions that apply to all modes.
           );
 
           // Collect response
-          const collector = await waitForStreamSuccess(env.sentEvents, workspaceId, 10000);
+          const collector = await waitForStreamSuccess(
+            env.sentEvents,
+            workspaceId,
+            STREAM_TIMEOUT_SHORT_MS
+          );
 
           results[provider] = {
             success: result.success,
@@ -1257,7 +1263,11 @@ These are general instructions that apply to all modes.
           expect(result.success).toBe(true);
 
           // Wait for stream to complete
-          const collector = await waitForStreamSuccess(env.sentEvents, workspaceId, 10000);
+          const collector = await waitForStreamSuccess(
+            env.sentEvents,
+            workspaceId,
+            STREAM_TIMEOUT_SHORT_MS
+          );
 
           // Get the final assistant message
           const finalMessage = collector.getFinalMessage();
@@ -1531,7 +1541,11 @@ describe.each(PROVIDER_CONFIGS)("%s:%s image support", (provider, model) => {
         expect(result.success).toBe(true);
 
         // Wait for stream to complete
-        const collector = await waitForStreamSuccess(env.sentEvents, workspaceId, 30000);
+        const collector = await waitForStreamSuccess(
+          env.sentEvents,
+          workspaceId,
+          STREAM_TIMEOUT_MEDIUM_MS
+        );
 
         // Verify we got a response about the image
         const deltas = collector.getDeltas();
@@ -1568,7 +1582,7 @@ describe.each(PROVIDER_CONFIGS)("%s:%s image support", (provider, model) => {
         expect(result.success).toBe(true);
 
         // Wait for stream to complete
-        await waitForStreamSuccess(env.sentEvents, workspaceId, 30000);
+        await waitForStreamSuccess(env.sentEvents, workspaceId, STREAM_TIMEOUT_MEDIUM_MS);
 
         // Read history from disk
         const messages = await readChatHistory(env.tempDir, workspaceId);
