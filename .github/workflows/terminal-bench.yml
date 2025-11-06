@@ -97,8 +97,8 @@ jobs:
       - name: Generate version file
         run: ./scripts/generate-version.sh
 
-      - name: Build dist/
-        run: make build
+      - name: Build dist/ (skip icons - not needed for benchmark)
+        run: make build-main build-preload
 
       - name: Run Terminal-Bench
         run: make benchmark-terminal
