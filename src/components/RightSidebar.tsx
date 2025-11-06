@@ -173,22 +173,30 @@ const RightSidebarComponent: React.FC<RightSidebarProps> = ({
 
   // Track manual expansion to prevent auto-collapse immediately after user opens sidebar
   const manualExpandRef = React.useRef(false);
+  const manualCollapseRef = React.useRef(false);
   const sidebarRef = React.useRef<HTMLDivElement | null>(null);
   const [measuredSidebarWidth, setMeasuredSidebarWidth] = React.useState<number>(0);
   const [viewportWidth, setViewportWidth] = React.useState<number>(0);
 
   const openSidebar = React.useCallback(
     (manual: boolean) => {
+      manualCollapseRef.current = false;
       manualExpandRef.current = manual;
       setShowCollapsed(false);
     },
     [setShowCollapsed]
   );
 
-  const closeSidebar = React.useCallback(() => {
-    manualExpandRef.current = false;
-    setShowCollapsed(true);
-  }, [setShowCollapsed]);
+  const closeSidebar = React.useCallback(
+    (manual: boolean) => {
+      if (manual) {
+        manualCollapseRef.current = true;
+      }
+      manualExpandRef.current = false;
+      setShowCollapsed(true);
+    },
+    [setShowCollapsed]
+  );
 
   // Expose open function to parent (for mobile header button)
   React.useEffect(() => {
@@ -203,12 +211,19 @@ const RightSidebarComponent: React.FC<RightSidebarProps> = ({
   React.useEffect(() => {
     // Never collapse when Review tab is active - code review needs space
     if (selectedTab === "review") {
+      if (manualCollapseRef.current) {
+        return;
+      }
+
       if (showCollapsed) {
         openSidebarAuto();
       }
       manualExpandRef.current = false;
       return;
     }
+
+    // Reset manual collapse guard once user leaves the review tab
+    manualCollapseRef.current = false;
 
     // If user manually expanded on mobile, keep sidebar open until they close it
     if (manualExpandRef.current) {
@@ -217,7 +232,7 @@ const RightSidebarComponent: React.FC<RightSidebarProps> = ({
 
     if (chatAreaWidth <= COLLAPSE_THRESHOLD) {
       if (!showCollapsed) {
-        closeSidebar();
+        closeSidebar(false);
       }
     } else if (chatAreaWidth >= EXPAND_THRESHOLD) {
       if (showCollapsed) {
@@ -339,7 +354,7 @@ const RightSidebarComponent: React.FC<RightSidebarProps> = ({
       }
       // Close sidebar on right swipe when open (from anywhere on screen)
       else if (isRightSwipe && isHorizontal && isFastEnough && !showCollapsed) {
-        closeSidebar();
+        closeSidebar(true);
       }
     };
 
@@ -363,7 +378,7 @@ const RightSidebarComponent: React.FC<RightSidebarProps> = ({
               type="button"
               className="absolute top-0 left-0 h-full bg-transparent"
               style={{ width: overlayClickableWidth }}
-              onClick={closeSidebar}
+              onClick={() => closeSidebar(true)}
               aria-label="Close review panel"
             />
           )}
@@ -407,7 +422,7 @@ const RightSidebarComponent: React.FC<RightSidebarProps> = ({
             >
               {/* Close button - only visible on mobile */}
               <button
-                onClick={closeSidebar}
+                onClick={() => closeSidebar(true)}
                 title="Close panel"
                 aria-label="Close panel"
                 className={cn(
