@@ -25,7 +25,7 @@ export function ToggleGroup<T extends string>({ options, value, onChange, compac
         onClick={() => onChange(nextOption.value)}
         type="button"
         className={cn(
-          "px-2 py-1 text-[11px] font-sans rounded border-none cursor-pointer transition-all duration-150",
+          "px-2 py-1 text-[11px] font-sans rounded-sm border-none cursor-pointer transition-all duration-150",
           "text-toggle-text-active bg-toggle-active font-medium",
           activeOption?.activeClassName
         )}
