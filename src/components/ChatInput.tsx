@@ -836,7 +836,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
             Editing message ({formatKeybind(KEYBINDS.CANCEL_EDIT)} to cancel)
           </div>
         )}
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+        <div className="@container flex flex-wrap items-center gap-x-3 gap-y-2">
           {/* Model Selector - always visible */}
           <div className="flex items-center" data-component="ModelSelectorGroup">
             <ModelSelector
@@ -866,9 +866,9 @@ export const ChatInput: React.FC<ChatInputProps> = ({
             </TooltipWrapper>
           </div>
 
-          {/* Thinking Slider - slider hidden on narrow viewports, label always clickable */}
+          {/* Thinking Slider - slider hidden on narrow containers, label always clickable */}
           <div
-            className="flex items-center [&_.thinking-slider]:max-[550px]:hidden"
+            className="flex items-center [&_.thinking-slider]:[@container(max-width:550px)]:hidden"
             data-component="ThinkingSliderGroup"
           >
             <ThinkingSliderComponent modelString={preferredModel} />
@@ -896,8 +896,8 @@ export const ChatInput: React.FC<ChatInputProps> = ({
             </div>
           )}
 
-          {/* Mode Switch - full version for wide viewports */}
-          <div className="ml-auto flex items-center gap-1.5 max-[550px]:hidden">
+          {/* Mode Switch - full version for wide containers */}
+          <div className="ml-auto flex items-center gap-1.5 [@container(max-width:550px)]:hidden">
             <div
               className={cn(
                 "flex gap-0 bg-toggle-bg rounded",
@@ -913,8 +913,8 @@ export const ChatInput: React.FC<ChatInputProps> = ({
             <ModeHelpTooltip />
           </div>
 
-          {/* Mode Switch - compact version for narrow viewports */}
-          <div className="ml-auto hidden items-center gap-1.5 max-[550px]:flex">
+          {/* Mode Switch - compact version for narrow containers */}
+          <div className="ml-auto hidden items-center gap-1.5 [@container(max-width:550px)]:flex">
             <ToggleGroup<UIMode> options={MODE_OPTIONS} value={mode} onChange={setMode} compact />
             <ModeHelpTooltip />
           </div>
