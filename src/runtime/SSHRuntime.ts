@@ -985,46 +985,34 @@ export class SSHRuntime implements Runtime {
             cd ${shescape.quote(deletedPath)} || exit 1
             git diff --quiet --exit-code && git diff --quiet --cached --exit-code || exit 1
             if git remote | grep -q .; then
-              # Get current branch
-              BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null)
-              
-              # Get default branch (try origin/HEAD, fallback to main, then master)
-              DEFAULT=$(git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's@^refs/remotes/origin/@@')
-              if [ -z "$DEFAULT" ]; then
-                if git rev-parse --verify origin/main >/dev/null 2>&1; then
-                  DEFAULT="main"
-                elif git rev-parse --verify origin/master >/dev/null 2>&1; then
-                  DEFAULT="master"
-                fi
-              fi
-              
-              # If we have both branch and default, use show-branch for better output
-              if [ -n "$BRANCH" ] && [ -n "$DEFAULT" ]; then
-                if git show-branch "$BRANCH" "origin/$DEFAULT" >/dev/null 2>&1; then
-                  # Check if there are commits not in the default branch
-                  if ! git merge-base --is-ancestor "$BRANCH" "origin/$DEFAULT" 2>/dev/null; then
-                    echo "Branch status compared to origin/$DEFAULT:" >&2
-                    echo "" >&2
-                    git show-branch "$BRANCH" "origin/$DEFAULT" 2>&1 | head -20 >&2
-                    echo "" >&2
-                    echo "Note: If your PR was squash-merged, these commits are already in origin/$DEFAULT and safe to delete." >&2
-                    exit 2
+              # First, check the original condition: any commits not in any remote
+              unpushed=$(git log --branches --not --remotes --oneline)
+              if [ -n "$unpushed" ]; then
+                # Get current branch for better error messaging
+                BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null)
+                
+                # Get default branch (try origin/HEAD, fallback to main, then master)
+                DEFAULT=$(git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's@^refs/remotes/origin/@@')
+                if [ -z "$DEFAULT" ]; then
+                  if git rev-parse --verify origin/main >/dev/null 2>&1; then
+                    DEFAULT="main"
+                  elif git rev-parse --verify origin/master >/dev/null 2>&1; then
+                    DEFAULT="master"
                   fi
+                fi
+                
+                # If we have both branch and default, use show-branch for better output
+                if [ -n "$BRANCH" ] && [ -n "$DEFAULT" ] && git show-branch "$BRANCH" "origin/$DEFAULT" >/dev/null 2>&1; then
+                  echo "Branch status compared to origin/$DEFAULT:" >&2
+                  echo "" >&2
+                  git show-branch "$BRANCH" "origin/$DEFAULT" 2>&1 | head -20 >&2
+                  echo "" >&2
+                  echo "Note: If your PR was squash-merged, these commits are already in origin/$DEFAULT and safe to delete." >&2
                 else
-                  # Fallback to git log if show-branch fails
-                  unpushed=$(git log --branches --not --remotes --oneline)
-                  if [ -n "$unpushed" ]; then
-                    echo "$unpushed" | head -10 >&2
-                    exit 2
-                  fi
-                fi
-              else
-                # Fallback to git log if we can't determine branches
-                unpushed=$(git log --branches --not --remotes --oneline)
-                if [ -n "$unpushed" ]; then
+                  # Fallback to just showing the commit list
                   echo "$unpushed" | head -10 >&2
-                  exit 2
                 fi
+                exit 2
               fi
             fi
             exit 0
