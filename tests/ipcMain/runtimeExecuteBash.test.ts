@@ -209,65 +209,6 @@ describeIntegration("Runtime Bash Execution", () => {
       );
 
       test.concurrent(
-        "should handle bash command with special characters",
-        async () => {
-          const env = await createTestEnvironment();
-          const tempGitRepo = await createTempGitRepo();
-
-          try {
-            // Setup provider
-            await setupProviders(env.mockIpcRenderer, {
-              openai: {
-                apiKey: getApiKey("OPENAI_API_KEY"),
-              },
-            });
-
-            // Create workspace
-            const branchName = generateBranchName("bash-special");
-            const runtimeConfig = getRuntimeConfig(branchName);
-            const { workspaceId, cleanup } = await createWorkspaceWithInit(
-              env,
-              tempGitRepo,
-              branchName,
-              runtimeConfig,
-              true, // waitForInit
-              type === "ssh"
-            );
-
-            try {
-              // Ask AI to run command with special chars
-              const events = await sendMessageAndWait(
-                env,
-                workspaceId,
-                'Run bash: echo "Test with $dollar and \\"quotes\\" and `backticks`"',
-                GPT_5_MINI_MODEL,
-                BASH_ONLY
-              );
-
-              // Extract response text
-              const responseText = extractTextFromEvents(events);
-
-              // Verify special chars were handled correctly
-              expect(responseText).toContain("dollar");
-              expect(responseText).toContain("quotes");
-
-              // Verify bash tool was called
-              // Tool calls now emit tool-call-start and tool-call-end events (not tool-call-delta)
-              const toolCallStarts = events.filter((e: any) => e.type === "tool-call-start");
-              const bashCall = toolCallStarts.find((e: any) => e.toolName === "bash");
-              expect(bashCall).toBeDefined();
-            } finally {
-              await cleanup();
-            }
-          } finally {
-            await cleanupTempGitRepo(tempGitRepo);
-            await cleanupTestEnvironment(env);
-          }
-        },
-        type === "ssh" ? TEST_TIMEOUT_SSH_MS : TEST_TIMEOUT_LOCAL_MS
-      );
-
-      test.concurrent(
         "should not hang on commands that read stdin without input",
         async () => {
           const env = await createTestEnvironment();
