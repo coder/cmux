@@ -10,7 +10,7 @@ import type { WorkspaceMetadata } from "@/types/workspace";
 
 import type { CmuxMessage, CmuxTextPart } from "@/types/message";
 import { createCmuxMessage } from "@/types/message";
-import type { Config, ProviderConfig } from "@/config";
+import type { Config } from "@/config";
 import { StreamManager } from "./streamManager";
 import type { InitStateManager } from "./initStateManager";
 import type { SendMessageError } from "@/types/errors";
@@ -102,62 +102,6 @@ if (typeof globalFetchWithExtras.certificate === "function") {
 export async function preloadAISDKProviders(): Promise<void> {
   // Preload providers to ensure they're in the module cache before concurrent tests run
   await Promise.all([import("@ai-sdk/anthropic"), import("@ai-sdk/openai")]);
-}
-
-export function normalizeProviderConfigForAISDK(
-  providerConfig: ProviderConfig | undefined
-): Record<string, unknown> {
-  const normalized: Record<string, unknown> = {};
-
-  if (providerConfig) {
-    for (const [key, value] of Object.entries(providerConfig)) {
-      normalized[key] = value;
-    }
-  }
-
-  // Normalize baseURL casing (SDK expects camel-case with uppercase L)
-  const existingBaseURL = normalized["baseURL"];
-  if (typeof existingBaseURL === "string") {
-    const trimmedBaseURL = existingBaseURL.trim();
-    if (trimmedBaseURL.length > 0) {
-      normalized["baseURL"] = trimmedBaseURL;
-    } else {
-      delete normalized["baseURL"];
-    }
-  }
-
-  const fallbackBaseUrl = normalized["baseUrl"];
-  if (typeof fallbackBaseUrl === "string") {
-    const trimmed = fallbackBaseUrl.trim();
-    if (
-      trimmed.length > 0 &&
-      (typeof normalized["baseURL"] !== "string" || (normalized["baseURL"] as string).length === 0)
-    ) {
-      normalized["baseURL"] = trimmed;
-    }
-  }
-  delete normalized["baseUrl"];
-
-  const apiKey = normalized["apiKey"];
-  if (typeof apiKey === "string") {
-    const trimmed = apiKey.trim();
-    if (trimmed.length > 0) {
-      normalized["apiKey"] = trimmed;
-    } else {
-      delete normalized["apiKey"];
-    }
-  }
-
-  const apiToken = normalized["apiToken"];
-  if (typeof apiToken === "string") {
-    const trimmed = apiToken.trim();
-    if (trimmed.length > 0 && typeof normalized["apiKey"] !== "string") {
-      normalized["apiKey"] = trimmed;
-    }
-  }
-  delete normalized["apiToken"];
-
-  return normalized;
 }
 
 export class AIService extends EventEmitter {
@@ -296,14 +240,12 @@ export class AIService extends EventEmitter {
       // Load providers configuration - the ONLY source of truth
       const providersConfig = this.config.loadProvidersConfig();
       const providerConfig = providersConfig?.[providerName] ?? {};
-      const normalizedProviderConfig = normalizeProviderConfigForAISDK(providerConfig);
-      const normalizedApiKey = normalizedProviderConfig["apiKey"];
-      const hasApiKey = typeof normalizedApiKey === "string" && normalizedApiKey.length > 0;
 
       // Handle Anthropic provider
       if (providerName === "anthropic") {
-        // Check for API key in config
-        if (!hasApiKey) {
+        const { apiKey, baseUrl, ...anthropicConfigRest } = providerConfig;
+        const trimmedApiKey = typeof apiKey === "string" ? apiKey.trim() : "";
+        if (!trimmedApiKey) {
           return Err({
             type: "api_key_not_found",
             provider: providerName,
@@ -312,7 +254,7 @@ export class AIService extends EventEmitter {
 
         // Add 1M context beta header if requested
         const use1MContext = cmuxProviderOptions?.anthropic?.use1MContext;
-        const existingHeaders = providerConfig.headers as Record<string, string> | undefined;
+        const existingHeaders = anthropicConfigRest.headers as Record<string, string> | undefined;
         const headers =
           use1MContext && existingHeaders
             ? { ...existingHeaders, "anthropic-beta": "context-1m-2025-08-07" }
@@ -320,24 +262,37 @@ export class AIService extends EventEmitter {
               ? { "anthropic-beta": "context-1m-2025-08-07" }
               : existingHeaders;
 
+        const trimmedAnthropicBaseUrl = typeof baseUrl === "string" ? baseUrl.trim() : "";
+        const anthropicOptionsBase =
+          trimmedAnthropicBaseUrl && !("baseURL" in anthropicConfigRest)
+            ? { ...anthropicConfigRest, baseURL: trimmedAnthropicBaseUrl }
+            : { ...anthropicConfigRest };
+
         // Lazy-load Anthropic provider to reduce startup time
         const { createAnthropic } = await import("@ai-sdk/anthropic");
-        const provider = createAnthropic({ ...normalizedProviderConfig, headers });
+        const provider = createAnthropic({
+          ...anthropicOptionsBase,
+          apiKey: trimmedApiKey,
+          headers,
+        });
         return Ok(provider(modelId));
       }
 
       // Handle OpenAI provider (using Responses API)
       if (providerName === "openai") {
-        if (!hasApiKey) {
+        const { apiKey, baseUrl, ...openAIConfigRest } = providerConfig;
+        const trimmedApiKey = typeof apiKey === "string" ? apiKey.trim() : "";
+        if (!trimmedApiKey) {
           return Err({
             type: "api_key_not_found",
             provider: providerName,
           });
         }
+
         // Use custom fetch if provided, otherwise default with unlimited timeout
         const baseFetch =
-          typeof providerConfig.fetch === "function"
-            ? (providerConfig.fetch as typeof fetch)
+          typeof openAIConfigRest.fetch === "function"
+            ? (openAIConfigRest.fetch as typeof fetch)
             : defaultFetchWithUnlimitedTimeout;
 
         // Wrap fetch to force truncation: "auto" for OpenAI Responses API calls.
@@ -412,10 +367,17 @@ export class AIService extends EventEmitter {
             : {}
         );
 
+        const trimmedOpenAIBaseUrl = typeof baseUrl === "string" ? baseUrl.trim() : "";
+        const openAIOptionsBase =
+          trimmedOpenAIBaseUrl && !("baseURL" in openAIConfigRest)
+            ? { ...openAIConfigRest, baseURL: trimmedOpenAIBaseUrl }
+            : { ...openAIConfigRest };
+
         // Lazy-load OpenAI provider to reduce startup time
         const { createOpenAI } = await import("@ai-sdk/openai");
         const provider = createOpenAI({
-          ...normalizedProviderConfig,
+          ...openAIOptionsBase,
+          apiKey: trimmedApiKey,
           // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
           fetch: fetchWithOpenAITruncation as any,
         });
