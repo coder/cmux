@@ -124,6 +124,7 @@ const WorkspaceListItemInner: React.FC<WorkspaceListItemProps> = ({
         role="button"
         tabIndex={0}
         aria-current={isSelected ? "true" : undefined}
+        aria-label={`Select workspace ${displayName}`}
         data-workspace-path={namedWorkspacePath}
         data-workspace-id={workspaceId}
       >
