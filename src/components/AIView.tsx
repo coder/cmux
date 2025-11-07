@@ -102,6 +102,12 @@ const AIViewInner: React.FC<AIViewProps> = ({
     chatInputAPI.current?.appendText(note);
   }, []);
 
+  // Ref to store the sidebar open function (for mobile header button)
+  const openRightSidebarRef = useRef<(() => void) | null>(null);
+  const handleOpenRightSidebar = useCallback(() => {
+    openRightSidebarRef.current?.();
+  }, []);
+
   // Thinking level state from context
   const { thinkingLevel: currentWorkspaceThinking, setThinkingLevel } = useThinking();
 
@@ -328,6 +334,7 @@ const AIViewInner: React.FC<AIViewProps> = ({
           branch={branch}
           namedWorkspacePath={namedWorkspacePath}
           runtimeConfig={runtimeConfig}
+          onOpenRightSidebar={handleOpenRightSidebar}
         />
 
         <div className="relative flex-1 overflow-hidden">
@@ -482,6 +489,9 @@ const AIViewInner: React.FC<AIViewProps> = ({
         onStartResize={isReviewTabActive ? startResize : undefined} // Pass resize handler when Review active
         isResizing={isResizing} // Pass resizing state
         onReviewNote={handleReviewNote} // Pass review note handler to append to chat
+        onMountOpenCallback={(openFn) => {
+          openRightSidebarRef.current = openFn;
+        }}
       />
     </div>
   );

@@ -13,6 +13,7 @@ interface WorkspaceHeaderProps {
   branch: string;
   namedWorkspacePath: string;
   runtimeConfig?: RuntimeConfig;
+  onOpenRightSidebar?: () => void;
 }
 
 export const WorkspaceHeader: React.FC<WorkspaceHeaderProps> = ({
@@ -21,6 +22,7 @@ export const WorkspaceHeader: React.FC<WorkspaceHeaderProps> = ({
   branch,
   namedWorkspacePath,
   runtimeConfig,
+  onOpenRightSidebar,
 }) => {
   const gitStatus = useGitStatus(workspaceId);
   const handleOpenTerminal = useCallback(() => {
@@ -56,6 +58,24 @@ export const WorkspaceHeader: React.FC<WorkspaceHeaderProps> = ({
             Open in terminal ({formatKeybind(KEYBINDS.OPEN_TERMINAL)})
           </Tooltip>
         </TooltipWrapper>
+
+        {/* Open sidebar button - only visible on mobile */}
+        {onOpenRightSidebar && (
+          <TooltipWrapper inline>
+            <button
+              onClick={onOpenRightSidebar}
+              className="text-muted hover:text-foreground hidden cursor-pointer items-center justify-center border-none bg-transparent p-1 transition-colors max-md:flex [&_svg]:h-4 [&_svg]:w-4"
+              aria-label="Open costs and review panel"
+            >
+              <svg viewBox="0 0 16 16" fill="currentColor">
+                <path d="M0 1.75C0 .784.784 0 1.75 0h12.5C15.216 0 16 .784 16 1.75v12.5A1.75 1.75 0 0114.25 16H1.75A1.75 1.75 0 010 14.25V1.75zm1.75-.25a.25.25 0 00-.25.25v12.5c0 .138.112.25.25.25H9.5v-13H1.75zm12.5 13H11v-13h3.25a.25.25 0 01.25.25v12.5a.25.25 0 01-.25.25z" />
+              </svg>
+            </button>
+            <Tooltip className="tooltip" position="bottom" align="center">
+              Open review panel
+            </Tooltip>
+          </TooltipWrapper>
+        )}
       </div>
     </div>
   );
