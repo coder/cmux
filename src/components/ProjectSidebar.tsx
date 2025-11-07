@@ -551,7 +551,11 @@ const ProjectSidebarInner: React.FC<ProjectSidebarProps> = ({
                         </DraggableProjectItem>
 
                         {isExpanded && (
-                          <div id={workspaceListId} role="region" aria-label={`Workspaces for ${projectName}`}>
+                          <div
+                            id={workspaceListId}
+                            role="region"
+                            aria-label={`Workspaces for ${projectName}`}
+                          >
                             <div className="border-hover border-b px-3 py-2 pl-[22px]">
                               <button
                                 onClick={() => onAddWorkspace(projectPath)}
