@@ -37,6 +37,7 @@ type DraggableProjectItemProps = React.PropsWithChildren<{
   tabIndex?: number;
   "aria-expanded"?: boolean;
   "aria-controls"?: string;
+  "aria-label"?: string;
   "data-project-path"?: string;
 }>;
 
@@ -140,7 +141,7 @@ const ProjectDragLayer: React.FC = () => {
           <span className="text-dim mr-1.5 text-xs">⠿</span>
           <span className="text-muted mr-2 text-xs">▶</span>
           <div className="min-w-0 flex-1">
-            <div className="text-muted-dark font-monospace truncate text-sm leading-none">
+            <div className="text-muted-dark font-monospace truncate text-sm leading-tight">
               <span>{dirPath}</span>
               <span className="text-foreground font-medium">{basename}</span>
             </div>
@@ -475,6 +476,7 @@ const ProjectSidebarInner: React.FC<ProjectSidebarProps> = ({
                           tabIndex={0}
                           aria-expanded={isExpanded}
                           aria-controls={workspaceListId}
+                          aria-label={`${isExpanded ? "Collapse" : "Expand"} project ${projectName}`}
                           data-project-path={projectPath}
                         >
                           <span
@@ -494,7 +496,7 @@ const ProjectSidebarInner: React.FC<ProjectSidebarProps> = ({
                           </span>
                           <div className="flex min-w-0 flex-1 items-center pr-2">
                             <TooltipWrapper inline>
-                              <div className="text-muted-dark font-monospace truncate text-sm leading-none">
+                              <div className="text-muted-dark font-monospace truncate text-sm leading-tight">
                                 {(() => {
                                   const abbrevPath = abbreviatePath(projectPath);
                                   const { dirPath, basename } = splitAbbreviatedPath(abbrevPath);
@@ -549,7 +551,7 @@ const ProjectSidebarInner: React.FC<ProjectSidebarProps> = ({
                         </DraggableProjectItem>
 
                         {isExpanded && (
-                          <div id={workspaceListId}>
+                          <div id={workspaceListId} role="region" aria-label={`Workspaces for ${projectName}`}>
                             <div className="border-hover border-b px-3 py-2 pl-[22px]">
                               <button
                                 onClick={() => onAddWorkspace(projectPath)}
@@ -635,6 +637,7 @@ const ProjectSidebarInner: React.FC<ProjectSidebarProps> = ({
           <TooltipWrapper inline>
             <button
               onClick={onToggleCollapsed}
+              aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
               className="text-muted border-dark hover:bg-hover hover:text-foreground mt-auto flex h-9 w-full cursor-pointer items-center justify-center border-t border-none bg-transparent p-0 text-sm transition-all duration-200"
             >
               {collapsed ? "»" : "«"}
