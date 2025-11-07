@@ -239,7 +239,13 @@ export class AIService extends EventEmitter {
 
       // Load providers configuration - the ONLY source of truth
       const providersConfig = this.config.loadProvidersConfig();
-      const providerConfig = providersConfig?.[providerName] ?? {};
+      let providerConfig = providersConfig?.[providerName] ?? {};
+
+      // Map baseUrl to baseURL if present (SDK expects baseURL)
+      const { baseUrl, ...configWithoutBaseUrl } = providerConfig;
+      providerConfig = baseUrl
+        ? { ...configWithoutBaseUrl, baseURL: baseUrl }
+        : configWithoutBaseUrl;
 
       // Handle Anthropic provider
       if (providerName === "anthropic") {
