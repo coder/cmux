@@ -489,7 +489,9 @@ async function main(): Promise<void> {
 }
 
 // Keep process alive explicitly - Bun may exit when stdin closes even if async work is pending
-const keepAliveInterval = setInterval(() => {}, 1000000);
+const keepAliveInterval = setInterval(() => {
+  // No-op to keep event loop alive
+}, 1000000);
 
 (async () => {
   try {
