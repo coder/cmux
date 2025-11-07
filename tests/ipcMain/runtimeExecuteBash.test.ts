@@ -22,7 +22,7 @@ import {
   createWorkspaceWithInit,
   sendMessageAndWait,
   extractTextFromEvents,
-  GPT_5_MINI_MODEL,
+  HAIKU_MODEL,
   TEST_TIMEOUT_LOCAL_MS,
   TEST_TIMEOUT_SSH_MS,
 } from "./helpers";
@@ -46,7 +46,7 @@ const describeIntegration = shouldRunIntegrationTests() ? describe : describe.sk
 
 // Validate API keys before running tests
 if (shouldRunIntegrationTests()) {
-  validateApiKeys(["OPENAI_API_KEY"]);
+  validateApiKeys(["ANTHROPIC_API_KEY"]);
 }
 
 // SSH server config (shared across all SSH tests)
@@ -101,8 +101,8 @@ describeIntegration("Runtime Bash Execution", () => {
           try {
             // Setup provider
             await setupProviders(env.mockIpcRenderer, {
-              openai: {
-                apiKey: getApiKey("OPENAI_API_KEY"),
+              anthropic: {
+                apiKey: getApiKey("ANTHROPIC_API_KEY"),
               },
             });
 
@@ -124,7 +124,7 @@ describeIntegration("Runtime Bash Execution", () => {
                 env,
                 workspaceId,
                 'Run the bash command "echo Hello World"',
-                GPT_5_MINI_MODEL,
+                HAIKU_MODEL,
                 BASH_ONLY
               );
 
@@ -159,8 +159,8 @@ describeIntegration("Runtime Bash Execution", () => {
           try {
             // Setup provider
             await setupProviders(env.mockIpcRenderer, {
-              openai: {
-                apiKey: getApiKey("OPENAI_API_KEY"),
+              anthropic: {
+                apiKey: getApiKey("ANTHROPIC_API_KEY"),
               },
             });
 
@@ -182,7 +182,7 @@ describeIntegration("Runtime Bash Execution", () => {
                 env,
                 workspaceId,
                 'Run bash command: export TEST_VAR="test123" && echo "Value: $TEST_VAR"',
-                GPT_5_MINI_MODEL,
+                HAIKU_MODEL,
                 BASH_ONLY
               );
 
@@ -217,8 +217,8 @@ describeIntegration("Runtime Bash Execution", () => {
           try {
             // Setup provider
             await setupProviders(env.mockIpcRenderer, {
-              openai: {
-                apiKey: getApiKey("OPENAI_API_KEY"),
+              anthropic: {
+                apiKey: getApiKey("ANTHROPIC_API_KEY"),
               },
             });
 
@@ -241,7 +241,7 @@ describeIntegration("Runtime Bash Execution", () => {
                 env,
                 workspaceId,
                 'Run bash: echo \'{"test": "data"}\' > /tmp/test.json',
-                GPT_5_MINI_MODEL,
+                HAIKU_MODEL,
                 BASH_ONLY
               );
 
@@ -253,7 +253,7 @@ describeIntegration("Runtime Bash Execution", () => {
                 env,
                 workspaceId,
                 "Run bash: cat /tmp/test.json | grep test",
-                GPT_5_MINI_MODEL,
+                HAIKU_MODEL,
                 BASH_ONLY,
                 10000 // 10s timeout - should complete in ~4s per API call
               );
