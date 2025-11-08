@@ -320,6 +320,7 @@ benchmark-terminal: ## Run Terminal-Bench with the cmux agent (use TB_DATASET/TB
 	fi; \
 	echo "Using timeout: $$TB_TIMEOUT seconds"; \
 	echo "Running Terminal-Bench with dataset $$TB_DATASET"; \
+	export CMUX_TIMEOUT_MS=$$((TB_TIMEOUT * 1000)); \
 	uvx terminal-bench run \
 		--dataset "$$TB_DATASET" \
 		--agent-import-path benchmarks.terminal_bench.cmux_agent:CmuxAgent \

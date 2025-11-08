@@ -34,6 +34,11 @@ on:
         description: 'Additional arguments to pass to terminal-bench'
         required: false
         type: string
+      task_timeout:
+        description: 'Per-task timeout in seconds (default: 1800 = 30 min)'
+        required: false
+        type: string
+        default: '1800'
     secrets:
       ANTHROPIC_API_KEY:
         required: true
@@ -72,14 +77,20 @@ on:
         description: 'Additional arguments to pass to terminal-bench'
         required: false
         type: string
+      task_timeout:
+        description: 'Per-task timeout in seconds (default: 1800 = 30 min)'
+        required: false
+        type: string
+        default: '1800'
 
 jobs:
   benchmark:
     name: Run Terminal-Bench${{ inputs.model_name && format(' ({0})', inputs.model_name) || '' }}
     runs-on: ${{ github.repository_owner == 'coder' && 'depot-ubuntu-22.04-16' || 'ubuntu-latest' }}
-    # Full suite (~80 tasks) at concurrency=4 takes ~60-90 minutes
-    # Allow 3 hours for safety margin and slower tasks
-    timeout-minutes: 180
+    # Full suite (~80 tasks) at concurrency=4 takes ~60-90 minutes typically
+    # Set 4-hour timeout to handle occasional API slowdowns while preventing infinite hangs
+    # If consistently hitting this timeout, investigate task-level issues
+    timeout-minutes: 240
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -107,6 +118,7 @@ jobs:
           TB_CONCURRENCY: ${{ inputs.concurrency }}
           TB_LIVESTREAM: ${{ inputs.livestream && '1' || '' }}
           TB_SAMPLE_SIZE: ${{ inputs.sample_size }}
+          TB_TIMEOUT: ${{ inputs.task_timeout }}
           TB_ARGS: ${{ inputs.model_name && format('--agent-kwarg model_name={0} --agent-kwarg thinking_level={1} {2}', inputs.model_name, inputs.thinking_level, inputs.extra_args) || inputs.extra_args }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
@@ -115,7 +127,7 @@ jobs:
         if: always()
         run: |
           echo "=== Terminal-Bench Results Summary ==="
-          if [ -f "$(find runs -name 'results.json' | head -1)" ]; then
+          if [ -f "$(find runs -name 'results.json' 2>/dev/null | head -1)" ]; then
             RESULTS_FILE=$(find runs -name 'results.json' | head -1)
             echo "Results file: $RESULTS_FILE"
             echo ""
@@ -124,9 +136,25 @@ jobs:
             echo ""
             echo "Per-task summary:"
             cat "$RESULTS_FILE" | jq -r '.trials[] | "\(.task_id): \(if .resolved then "✓ PASS" else "✗ FAIL" end)"' 2>/dev/null || echo "Failed to parse task details"
+            echo ""
+            echo "Pass rate:"
+            TOTAL=$(cat "$RESULTS_FILE" | jq '.trials | length')
+            PASSED=$(cat "$RESULTS_FILE" | jq '[.trials[] | select(.resolved)] | length')
+            echo "$PASSED/$TOTAL tasks passed ($(echo "scale=1; $PASSED * 100 / $TOTAL" | bc)%)"
+            
+            # Check for timeout indicators
+            TIMED_OUT=$(cat "$RESULTS_FILE" | jq '[.trials[] | select(.resolved == false and (.error // "" | contains("timeout") or contains("Timed out")))] | length')
+            if [ "$TIMED_OUT" -gt 0 ]; then
+              echo "⚠️  WARNING: $TIMED_OUT tasks failed due to timeout"
+              echo "Consider investigating task performance or increasing task_timeout"
+            fi
           else
-            echo "No results.json found in runs/"
-            ls -la runs/
+            echo "❌ No results.json found in runs/"
+            if [ -d "runs" ]; then
+              ls -laR runs/ || echo "Failed to list runs directory"
+            else
+              echo "runs/ directory does not exist"
+            fi
           fi
 
       - name: Set artifact name
