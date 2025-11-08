@@ -31,16 +31,15 @@ TODO: add issue link here.
 
 Run models locally with Ollama. No API key required:
 
-- `ollama:llama3.2:7b`
-- `ollama:llama3.2:13b`
-- `ollama:codellama:7b`
-- `ollama:qwen2.5:7b`
+- `ollama:gpt-oss:20b`
+- `ollama:gpt-oss:120b`
+- `ollama:qwen3-coder:30b`
 - Any model from the [Ollama Library](https://ollama.com/library)
 
 **Setup:**
 
 1. Install Ollama from [ollama.com](https://ollama.com)
-2. Pull a model: `ollama pull llama3.2:7b`
+2. Pull a model: `ollama pull gpt-oss:20b`
 3. Configure in `~/.cmux/providers.jsonc`:
 
 ```jsonc

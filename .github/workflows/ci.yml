@@ -99,25 +99,37 @@ jobs:
 
       - uses: ./.github/actions/setup-cmux
 
+      - name: Cache Ollama binary
+        id: cache-ollama-binary
+        uses: actions/cache@v4
+        with:
+          path: /usr/local/bin/ollama
+          key: ${{ runner.os }}-ollama-binary-v1
+          restore-keys: |
+            ${{ runner.os }}-ollama-binary-
+
       - name: Cache Ollama models
         id: cache-ollama-models
         uses: actions/cache@v4
         with:
           path: ~/.ollama/models
-          key: ${{ runner.os }}-ollama-gpt-oss-20b-v1
+          key: ${{ runner.os }}-ollama-models-v1
           restore-keys: |
-            ${{ runner.os }}-ollama-gpt-oss-
+            ${{ runner.os }}-ollama-models-
 
       - name: Install Ollama
+        if: steps.cache-ollama-binary.outputs.cache-hit != 'true'
         run: |
           curl -fsSL https://ollama.com/install.sh | sh
+
+      - name: Start Ollama and pull models
+        run: |
           # Start Ollama service in background
           ollama serve &
           # Wait for Ollama to be ready
           timeout 30 sh -c 'until curl -s http://localhost:11434/api/tags > /dev/null 2>&1; do sleep 1; done'
           echo "Ollama is ready"
-          # Pull the gpt-oss:20b model for tests (this may take a few minutes on first run)
-          # Subsequent runs will use cached model
+          # Pull the gpt-oss:20b model for tests (cached after first run)
           ollama pull gpt-oss:20b
           echo "Model pulled successfully"
 
