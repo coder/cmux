@@ -1,10 +1,5 @@
 name: Setup Ollama
-description: Install Ollama and pull required models with caching
-inputs:
-  model:
-    description: 'Ollama model to pull'
-    required: false
-    default: 'gpt-oss:20b'
+description: Install Ollama binary and restore model cache (tests pull models idempotently)
 
 runs:
   using: composite
@@ -21,7 +16,7 @@ runs:
       uses: actions/cache@v4
       with:
         path: ~/.ollama
-        key: ${{ runner.os }}-ollama-${{ inputs.model }}-v2
+        key: ${{ runner.os }}-ollama-models-v2
 
     - name: Install Ollama binary (cache miss)
       if: steps.cache-ollama-binary.outputs.cache-hit != 'true'
@@ -57,18 +52,14 @@ runs:
       shell: bash
       run: |
         ollama --version
+        echo "Ollama binary ready - tests will pull models idempotently"
 
-    - name: Pull model (cache miss)
-      if: steps.cache-ollama-models.outputs.cache-hit != 'true'
+    - name: Verify cache status
       shell: bash
       run: |
-        echo "Cache miss - pulling model ${{ inputs.model }}..."
-        ollama pull ${{ inputs.model }}
-        echo "Model pulled successfully"
-
-    - name: Verify cache (cache hit)
-      if: steps.cache-ollama-models.outputs.cache-hit == 'true'
-      shell: bash
-      run: |
-        echo "Cache hit - models restored from cache"
-        ls -lh "$HOME/.ollama" || echo "Warning: .ollama directory not found"
+        if [[ "${{ steps.cache-ollama-models.outputs.cache-hit }}" == "true" ]]; then
+          echo "Model cache restored - available for tests"
+          ls -lh "$HOME/.ollama" || echo "Warning: .ollama directory not found"
+        else
+          echo "Model cache miss - tests will pull models on first run"
+        fi

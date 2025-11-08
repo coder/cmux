@@ -5,12 +5,73 @@ import {
   assertStreamSuccess,
   extractTextFromEvents,
 } from "./helpers";
+import { spawn } from "child_process";
 
 // Skip all tests if TEST_INTEGRATION is not set
 const describeIntegration = shouldRunIntegrationTests() ? describe : describe.skip;
 
 // Ollama doesn't require API keys - it's a local service
-// Tests require Ollama to be running with the gpt-oss:20b model installed
+// Tests require Ollama to be running and will pull models idempotently
+
+const OLLAMA_MODEL = "gpt-oss:20b";
+
+/**
+ * Ensure Ollama model is available (idempotent).
+ * Checks if model exists, pulls it if not.
+ * Multiple tests can call this in parallel - Ollama handles deduplication.
+ */
+async function ensureOllamaModel(model: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    // Check if model exists: ollama list | grep <model>
+    const checkProcess = spawn("ollama", ["list"]);
+    let stdout = "";
+    let stderr = "";
+
+    checkProcess.stdout.on("data", (data) => {
+      stdout += data.toString();
+    });
+
+    checkProcess.stderr.on("data", (data) => {
+      stderr += data.toString();
+    });
+
+    checkProcess.on("close", (code) => {
+      if (code !== 0) {
+        return reject(new Error(`Failed to check Ollama models: ${stderr}`));
+      }
+
+      // Check if model is in the list
+      const modelLines = stdout.split("\n");
+      const modelExists = modelLines.some((line) => line.includes(model));
+
+      if (modelExists) {
+        console.log(`✓ Ollama model ${model} already available`);
+        return resolve();
+      }
+
+      // Model doesn't exist, pull it
+      console.log(`Pulling Ollama model ${model}...`);
+      const pullProcess = spawn("ollama", ["pull", model], {
+        stdio: ["ignore", "inherit", "inherit"],
+      });
+
+      const timeout = setTimeout(() => {
+        pullProcess.kill();
+        reject(new Error(`Timeout pulling Ollama model ${model}`));
+      }, 120000); // 2 minute timeout for model pull
+
+      pullProcess.on("close", (pullCode) => {
+        clearTimeout(timeout);
+        if (pullCode !== 0) {
+          reject(new Error(`Failed to pull Ollama model ${model}`));
+        } else {
+          console.log(`✓ Ollama model ${model} pulled successfully`);
+          resolve();
+        }
+      });
+    });
+  });
+}
 
 describeIntegration("IpcMain Ollama integration tests", () => {
   // Enable retries in CI for potential network flakiness with Ollama
@@ -18,12 +79,15 @@ describeIntegration("IpcMain Ollama integration tests", () => {
     jest.retryTimes(3, { logErrorsBeforeRetry: true });
   }
 
-  // Load tokenizer modules once before all tests (takes ~14s)
-  // This ensures accurate token counts for API calls without timing out individual tests
+  // Load tokenizer modules and ensure model is available before all tests
   beforeAll(async () => {
+    // Load tokenizers (takes ~14s)
     const { loadTokenizerModules } = await import("../../src/utils/main/tokenizer");
     await loadTokenizerModules();
-  }, 30000); // 30s timeout for tokenizer loading
+
+    // Ensure Ollama model is available (idempotent - fast if cached)
+    await ensureOllamaModel(OLLAMA_MODEL);
+  }, 150000); // 150s timeout for tokenizer loading + potential model pull
 
   test("should successfully send message to Ollama and receive response", async () => {
     // Setup test environment
@@ -35,7 +99,7 @@ describeIntegration("IpcMain Ollama integration tests", () => {
         workspaceId,
         "Say 'hello' and nothing else",
         "ollama",
-        "gpt-oss:20b"
+        OLLAMA_MODEL
       );
 
       // Verify the IPC call succeeded
@@ -69,7 +133,7 @@ describeIntegration("IpcMain Ollama integration tests", () => {
         workspaceId,
         "What is the current date and time? Use the bash tool to find out.",
         "ollama",
-        "gpt-oss:20b"
+        OLLAMA_MODEL
       );
 
       expect(result.success).toBe(true);
@@ -108,7 +172,7 @@ describeIntegration("IpcMain Ollama integration tests", () => {
         workspaceId,
         "Read the README.md file and tell me what the first heading says.",
         "ollama",
-        "gpt-oss:20b"
+        OLLAMA_MODEL
       );
 
       expect(result.success).toBe(true);
@@ -146,7 +210,7 @@ describeIntegration("IpcMain Ollama integration tests", () => {
         workspaceId,
         "This should fail",
         "ollama",
-        "gpt-oss:20b",
+        OLLAMA_MODEL,
         {
           providerOptions: {
             ollama: {},

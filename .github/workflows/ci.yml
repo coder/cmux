@@ -101,16 +101,14 @@ jobs:
 
       - name: Setup Ollama
         uses: ./.github/actions/setup-ollama
-        with:
-          model: gpt-oss:20b
 
-      # Ollama server already started by setup-ollama action
-      # Just verify it's ready
+      # Ollama server started by setup-ollama action
+      # Tests will pull models idempotently
       - name: Verify Ollama server
         run: |
           echo "Verifying Ollama server..."
           timeout 5 sh -c 'until curl -sf http://localhost:11434/api/tags > /dev/null 2>&1; do sleep 0.2; done'
-          echo "Ollama ready"
+          echo "Ollama ready - integration tests will pull models on demand"
 
       - name: Build worker files
         run: make build-main
