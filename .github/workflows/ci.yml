@@ -99,55 +99,64 @@ jobs:
 
       - uses: ./.github/actions/setup-cmux
 
-      - name: Cache Ollama installation
-        id: cache-ollama
+      - name: Cache Ollama models
+        id: cache-ollama-models
         uses: actions/cache@v4
         with:
-          path: |
-            /usr/local/bin/ollama
-            /usr/local/lib/ollama
-            /usr/share/ollama
-          # Stable cache key - only bump v3 when invalidation needed (version upgrade, different model)
-          key: ${{ runner.os }}-ollama-complete-v3
+          path: /tmp/ollama-models
+          # Stable cache key - only bump v4 when model changes
+          key: ${{ runner.os }}-ollama-models-v4-gpt-oss-20b
           restore-keys: |
-            ${{ runner.os }}-ollama-complete-
+            ${{ runner.os }}-ollama-models-v4-
 
-      - name: Install Ollama
-        if: steps.cache-ollama.outputs.cache-hit != 'true'
+      - name: Install Ollama and setup models
         run: |
-          echo "Cache miss - installing Ollama and pulling model..."
+          echo "Installing Ollama binary..."
           curl -fsSL https://ollama.com/install.sh | sh
           
-          # Start Ollama service in background
+          # Restore models from cache if available
+          if [ -d "/tmp/ollama-models" ]; then
+            echo "Restoring cached models..."
+            sudo mkdir -p /usr/share/ollama/.ollama/models
+            sudo cp -r /tmp/ollama-models/* /usr/share/ollama/.ollama/models/ || true
+          fi
+          
+          # Start Ollama service
           ollama serve &
           OLLAMA_PID=$!
           
-          # Wait for Ollama to be ready (fast check with shorter timeout)
+          # Wait for Ollama to be ready
           timeout 10 sh -c 'until curl -sf http://localhost:11434/api/tags > /dev/null 2>&1; do sleep 0.5; done' || {
             echo "Ollama failed to start"
             exit 1
           }
           
-          echo "Ollama started, pulling gpt-oss:20b model..."
-          ollama pull gpt-oss:20b
+          # Pull model if not already present
+          if ! ollama list | grep -q "gpt-oss:20b"; then
+            echo "Pulling gpt-oss:20b model..."
+            ollama pull gpt-oss:20b
+            
+            # Cache the models for next run
+            sudo mkdir -p /tmp/ollama-models
+            sudo cp -r /usr/share/ollama/.ollama/models/* /tmp/ollama-models/ || true
+            sudo chmod -R a+r /tmp/ollama-models
+          else
+            echo "Model already present, skipping pull"
+          fi
           
-          # Stop Ollama to complete installation
+          # Stop Ollama
           kill $OLLAMA_PID 2>/dev/null || true
           wait $OLLAMA_PID 2>/dev/null || true
           
-          # Fix permissions so cache can read the model directory
-          sudo chmod -R a+r /usr/share/ollama
-          sudo find /usr/share/ollama -type d -exec chmod a+x {} \;
-          
-          echo "Ollama installation and model pull complete"
+          echo "Ollama setup complete"
 
       - name: Start Ollama server
         run: |
-          echo "Starting Ollama server (models cached: ${{ steps.cache-ollama.outputs.cache-hit }})"
+          echo "Starting Ollama server (models cached: ${{ steps.cache-ollama-models.outputs.cache-hit }})"
           ollama serve &
-          # Fast readiness check - model is already cached
+          # Fast readiness check
           timeout 5 sh -c 'until curl -sf http://localhost:11434/api/tags > /dev/null 2>&1; do sleep 0.2; done'
-          echo "Ollama ready in under 5s"
+          echo "Ollama ready"
 
       - name: Build worker files
         run: make build-main
