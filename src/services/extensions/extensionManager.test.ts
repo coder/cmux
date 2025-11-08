@@ -1,29 +1,12 @@
 /* eslint-disable local/no-sync-fs-methods -- Test file uses sync fs for simplicity */
-/* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-return, @typescript-eslint/no-explicit-any -- Mock setup requires any types */
-import { describe, test, beforeEach, afterEach, mock } from "bun:test";
+import { describe, test, beforeEach, afterEach } from "bun:test";
 import { ExtensionManager } from "./extensionManager";
 import type { WorkspaceMetadata } from "@/types/workspace";
 import type { RuntimeConfig } from "@/types/runtime";
-import { EventEmitter } from "events";
 import * as fs from "fs";
 import * as path from "path";
 import * as os from "os";
 
-// Mock child_process (not actually used in tests since we test the real thing)
-const mockChildProcess = {
-  fork: mock((_scriptPath: string, _options?: unknown) => {
-    const mockProcess = new EventEmitter() as any;
-    mockProcess.send = mock(() => true);
-    mockProcess.kill = mock(() => true);
-    mockProcess.killed = false;
-    mockProcess.stdout = new EventEmitter();
-    mockProcess.stderr = new EventEmitter();
-    return mockProcess;
-  }),
-};
-
-// Mock the discovery function (not actually used in tests)
-const mockDiscoverExtensions = mock(() => Promise.resolve([]));
 
 describe("ExtensionManager", () => {
   let manager: ExtensionManager;
@@ -33,9 +16,6 @@ describe("ExtensionManager", () => {
   let runtimeConfig: RuntimeConfig;
 
   beforeEach(() => {
-    // Reset all mocks
-    mockChildProcess.fork.mockClear();
-    mockDiscoverExtensions.mockClear();
 
     // Create temp directory for test
     tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "ext-mgr-test-"));
