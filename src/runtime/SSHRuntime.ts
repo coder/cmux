@@ -179,18 +179,8 @@ export class SSHRuntime implements Runtime {
     const stderr = Readable.toWeb(sshProcess.stderr) as unknown as ReadableStream<Uint8Array>;
     const stdin = Writable.toWeb(sshProcess.stdin) as unknown as WritableStream<Uint8Array>;
 
-    // Register cleanup for streams when process exits
-    // CRITICAL: These streams MUST be cancelled when process exits to prevent hangs
-    // from waiting for stream 'close' events that don't reliably propagate over SSH
-    disposable.addCleanup(() => {
-      // Cancel streams to immediately signal EOF
-      // Use catch to ignore errors if streams are already closed
-      // eslint-disable-next-line @typescript-eslint/no-empty-function
-      stdout.cancel().catch(() => {});
-      // eslint-disable-next-line @typescript-eslint/no-empty-function
-      stderr.cancel().catch(() => {});
-      // Don't abort stdin - it's already closed/aborted by bash tool
-    });
+    // No stream cleanup in DisposableProcess - streams close naturally when process exits
+    // bash.ts handles cleanup after waiting for exitCode
 
     // Track if we killed the process due to timeout or abort
     let timedOut = false;

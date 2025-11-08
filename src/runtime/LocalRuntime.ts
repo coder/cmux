@@ -88,14 +88,8 @@ export class LocalRuntime implements Runtime {
     const stderr = Readable.toWeb(childProcess.stderr) as unknown as ReadableStream<Uint8Array>;
     const stdin = Writable.toWeb(childProcess.stdin) as unknown as WritableStream<Uint8Array>;
 
-    // Register cleanup for streams when process exits
-    // CRITICAL: These streams MUST be cancelled when process exits to prevent hangs
-    disposable.addCleanup(() => {
-      // eslint-disable-next-line @typescript-eslint/no-empty-function
-      stdout.cancel().catch(() => {});
-      // eslint-disable-next-line @typescript-eslint/no-empty-function
-      stderr.cancel().catch(() => {});
-    });
+    // No stream cleanup in DisposableProcess - streams close naturally when process exits
+    // bash.ts handles cleanup after waiting for exitCode
 
     // Track if we killed the process due to timeout or abort
     let timedOut = false;
