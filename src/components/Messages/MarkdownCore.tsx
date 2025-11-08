@@ -54,6 +54,7 @@ export const MarkdownCore = React.memo<MarkdownCoreProps>(({ content, children }
         rehypePlugins={REHYPE_PLUGINS}
         parseIncompleteMarkdown={true}
         className="space-y-2" // Reduce from default space-y-4 (16px) to space-y-2 (8px)
+        controls={{ table: false, code: true, mermaid: true }} // Disable table copy/download, keep code/mermaid controls
       >
         {normalizedContent}
       </Streamdown>

@@ -676,3 +676,197 @@ export const ActiveWorkspaceWithChat: Story = {
     return <AppWithChatMocks />;
   },
 };
+
+/**
+ * Story demonstrating markdown table rendering
+ * Shows various table formats without disruptive copy/download actions
+ */
+export const MarkdownTables: Story = {
+  render: () => {
+    const AppWithTableMocks = () => {
+      const initialized = useRef(false);
+
+      if (!initialized.current) {
+        const workspaceId = "my-app-feature";
+
+        const workspaces: FrontendWorkspaceMetadata[] = [
+          {
+            id: workspaceId,
+            name: "feature",
+            projectPath: "/home/user/projects/my-app",
+            projectName: "my-app",
+            namedWorkspacePath: "/home/user/.cmux/src/my-app/feature",
+          },
+        ];
+
+        setupMockAPI({
+          projects: new Map([
+            [
+              "/home/user/projects/my-app",
+              {
+                workspaces: [
+                  { path: "/home/user/.cmux/src/my-app/feature", id: workspaceId, name: "feature" },
+                ],
+              },
+            ],
+          ]),
+          workspaces,
+          selectedWorkspaceId: workspaceId,
+          apiOverrides: {
+            workspace: {
+              create: (projectPath: string, branchName: string) =>
+                Promise.resolve({
+                  success: true,
+                  metadata: {
+                    id: Math.random().toString(36).substring(2, 12),
+                    name: branchName,
+                    projectPath,
+                    projectName: projectPath.split("/").pop() ?? "project",
+                    namedWorkspacePath: `/mock/workspace/${branchName}`,
+                  },
+                }),
+              list: () => Promise.resolve(workspaces),
+              rename: (workspaceId: string) =>
+                Promise.resolve({
+                  success: true,
+                  data: { newWorkspaceId: workspaceId },
+                }),
+              remove: () => Promise.resolve({ success: true }),
+              fork: () => Promise.resolve({ success: false, error: "Not implemented in mock" }),
+              openTerminal: () => Promise.resolve(undefined),
+              onChat: (workspaceId, callback) => {
+                setTimeout(() => {
+                  // User message
+                  callback({
+                    id: "msg-1",
+                    role: "user",
+                    parts: [{ type: "text", text: "Show me some table examples" }],
+                    metadata: {
+                      historySequence: 1,
+                      timestamp: STABLE_TIMESTAMP,
+                    },
+                  });
+
+                  // Assistant message with tables
+                  callback({
+                    id: "msg-2",
+                    role: "assistant",
+                    parts: [
+                      {
+                        type: "text",
+                        text: `Here are various markdown table examples:
+
+## Simple Table
+
+| Column 1 | Column 2 | Column 3 |
+|----------|----------|----------|
+| Value A  | Value B  | Value C  |
+| Value D  | Value E  | Value F  |
+| Value G  | Value H  | Value I  |
+
+## Table with Different Alignments
+
+| Left Aligned | Center Aligned | Right Aligned |
+|:-------------|:--------------:|--------------:|
+| Left         | Center         | Right         |
+| Text         | Text           | Text          |
+| More         | Data           | Here          |
+
+## Code and Links in Tables
+
+| Feature | Status | Notes |
+|---------|--------|-------|
+| \`markdown\` support | ✅ Done | Full GFM support |
+| [Links](https://example.com) | ✅ Done | Opens externally |
+| **Bold** and _italic_ | ✅ Done | Standard formatting |
+
+## Large Table with Many Rows
+
+| ID | Name | Email | Status | Role | Last Login |
+|----|------|-------|--------|------|------------|
+| 1 | Alice Smith | alice@example.com | Active | Admin | 2024-01-20 |
+| 2 | Bob Jones | bob@example.com | Active | User | 2024-01-19 |
+| 3 | Carol White | carol@example.com | Inactive | User | 2024-01-15 |
+| 4 | David Brown | david@example.com | Active | Moderator | 2024-01-21 |
+| 5 | Eve Wilson | eve@example.com | Active | User | 2024-01-18 |
+| 6 | Frank Miller | frank@example.com | Pending | User | 2024-01-10 |
+| 7 | Grace Lee | grace@example.com | Active | Admin | 2024-01-22 |
+| 8 | Henry Davis | henry@example.com | Active | User | 2024-01-17 |
+
+## Narrow Table
+
+| #  | Item |
+|----|------|
+| 1  | First |
+| 2  | Second |
+| 3  | Third |
+
+## Wide Table with Long Content
+
+| Configuration Key | Default Value | Description | Environment Variable |
+|-------------------|---------------|-------------|---------------------|
+| \`api.timeout\` | 30000 | Request timeout in milliseconds | \`API_TIMEOUT\` |
+| \`cache.enabled\` | true | Enable response caching | \`CACHE_ENABLED\` |
+| \`logging.level\` | info | Log verbosity level (debug, info, warn, error) | \`LOG_LEVEL\` |
+| \`server.port\` | 3000 | Port number for HTTP server | \`PORT\` |
+
+These tables should render cleanly without any disruptive copy or download actions.`,
+                      },
+                    ],
+                    metadata: {
+                      historySequence: 2,
+                      timestamp: STABLE_TIMESTAMP + 1000,
+                      model: "claude-sonnet-4-20250514",
+                      usage: {
+                        inputTokens: 100,
+                        outputTokens: 500,
+                        totalTokens: 600,
+                      },
+                      duration: 2000,
+                    },
+                  });
+
+                  // Mark as caught up
+                  callback({ type: "caught-up" });
+                }, 100);
+
+                return () => {
+                  // Cleanup
+                };
+              },
+              onMetadata: () => () => undefined,
+              sendMessage: () => Promise.resolve({ success: true, data: undefined }),
+              resumeStream: () => Promise.resolve({ success: true, data: undefined }),
+              interruptStream: () => Promise.resolve({ success: true, data: undefined }),
+              truncateHistory: () => Promise.resolve({ success: true, data: undefined }),
+              replaceChatHistory: () => Promise.resolve({ success: true, data: undefined }),
+              getInfo: () => Promise.resolve(null),
+              executeBash: () =>
+                Promise.resolve({
+                  success: true,
+                  data: { success: true, output: "", exitCode: 0, wall_duration_ms: 0 },
+                }),
+            },
+          },
+        });
+
+        // Set initial workspace selection
+        localStorage.setItem(
+          "selectedWorkspace",
+          JSON.stringify({
+            workspaceId: workspaceId,
+            projectPath: "/home/user/projects/my-app",
+            projectName: "my-app",
+            namedWorkspacePath: "/home/user/.cmux/src/my-app/feature",
+          })
+        );
+
+        initialized.current = true;
+      }
+
+      return <AppLoader />;
+    };
+
+    return <AppWithTableMocks />;
+  },
+};
