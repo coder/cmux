@@ -54,6 +54,16 @@ When documentation shows `Ctrl`, it means:
 | Open command palette | `Ctrl+Shift+P` |
 | Toggle sidebar       | `Ctrl+P`       |
 
+### Command Palette
+
+The command palette (`Ctrl+Shift+P`) has two modes:
+
+- **Default (no prefix)**: Workspace switcher - shows only switching commands
+- **`>` prefix**: Command mode - shows all other commands (create/delete/rename workspaces, navigation, chat, modes, projects, etc.)
+- **`/` prefix**: Slash commands - shows slash command suggestions for inserting into chat
+
+This separation keeps the switcher clean and fast while making all other commands easily accessible via `>`.
+
 ## Tips
 
 - **Vim-inspired navigation**: We use `J`/`K` for next/previous navigation, similar to Vim

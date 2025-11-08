@@ -5,6 +5,7 @@ import type { CommandAction } from "@/contexts/CommandRegistryContext";
 import { formatKeybind, KEYBINDS, isEditableElement, matchesKeybind } from "@/utils/ui/keybinds";
 import { getSlashCommandSuggestions } from "@/utils/slashCommands/suggestions";
 import { CUSTOM_EVENTS, createCustomEvent } from "@/constants/events";
+import { filterCommandsByPrefix } from "@/utils/commandPaletteFiltering";
 
 interface CommandPaletteProps {
   getSlashContext?: () => { providerNames: string[]; workspaceId?: string };
@@ -42,32 +43,34 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ getSlashContext 
   }>(null);
   const [promptError, setPromptError] = useState<string | null>(null);
 
+  const resetPaletteState = useCallback(() => {
+    setActivePrompt(null);
+    setPromptError(null);
+    setQuery("");
+  }, []);
+
   // Close palette with Escape
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (matchesKeybind(e, KEYBINDS.CANCEL) && isOpen) {
         e.preventDefault();
-        setActivePrompt(null);
-        setPromptError(null);
-        setQuery("");
+        resetPaletteState();
         close();
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [isOpen, close]);
+  }, [isOpen, close, resetPaletteState]);
 
   // Reset state whenever palette visibility changes
   useEffect(() => {
     if (!isOpen) {
-      setActivePrompt(null);
-      setPromptError(null);
-      setQuery("");
+      resetPaletteState();
     } else {
       setPromptError(null);
       setQuery("");
     }
-  }, [isOpen]);
+  }, [isOpen, resetPaletteState]);
 
   const rawActions = getActions();
 
@@ -200,7 +203,10 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ getSlashContext 
       } satisfies { groups: PaletteGroup[]; emptyText: string | undefined };
     }
 
-    const filtered = [...rawActions].sort((a, b) => {
+    // Filter actions based on prefix (extracted to utility for testing)
+    const actionsToShow = filterCommandsByPrefix(q, rawActions);
+
+    const filtered = [...actionsToShow].sort((a, b) => {
       const ai = recentIndex.has(a.id) ? recentIndex.get(a.id)! : 9999;
       const bi = recentIndex.has(b.id) ? recentIndex.get(b.id)! : 9999;
       if (ai !== bi) return ai - bi;
@@ -298,6 +304,8 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ getSlashContext 
   }, [currentField, activePrompt]);
 
   const isSlashQuery = !currentField && query.trim().startsWith("/");
+  const isCommandQuery = !currentField && query.trim().startsWith(">");
+  // Enable cmdk filtering for all cases except slash queries (which we handle manually)
   const shouldUseCmdkFilter = currentField ? currentField.type === "select" : !isSlashQuery;
 
   let groups: PaletteGroup[] = generalResults.groups;
@@ -355,9 +363,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ getSlashContext 
     <div
       className="fixed inset-0 z-[2000] flex items-start justify-center bg-black/40 pt-[10vh]"
       onMouseDown={() => {
-        setActivePrompt(null);
-        setPromptError(null);
-        setQuery("");
+        resetPaletteState();
         close();
       }}
     >
@@ -365,6 +371,18 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ getSlashContext 
         className="bg-separator border-border text-lighter font-primary w-[min(720px,92vw)] overflow-hidden rounded-lg border shadow-[0_10px_40px_rgba(0,0,0,0.4)]"
         onMouseDown={(e: React.MouseEvent) => e.stopPropagation()}
         shouldFilter={shouldUseCmdkFilter}
+        filter={(value, search) => {
+          // When using ">" prefix, filter using the text after ">"
+          if (isCommandQuery && search.startsWith(">")) {
+            const actualSearch = search.slice(1).trim().toLowerCase();
+            if (!actualSearch) return 1;
+            if (value.toLowerCase().includes(actualSearch)) return 1;
+            return 0;
+          }
+          // Default cmdk filtering for other cases
+          if (value.toLowerCase().includes(search.toLowerCase())) return 1;
+          return 0;
+        }}
       >
         <Command.Input
           className="bg-darker text-lighter border-hover w-full border-b border-none px-3.5 py-3 text-sm outline-none"
@@ -375,7 +393,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ getSlashContext 
               ? currentField.type === "text"
                 ? (currentField.placeholder ?? "Type value…")
                 : (currentField.placeholder ?? "Search options…")
-              : `Type a command… (${formatKeybind(KEYBINDS.CANCEL)} to close, ${formatKeybind(KEYBINDS.SEND_MESSAGE)} to send in chat)`
+              : `Switch workspaces or type > for all commands, / for slash commands…`
           }
           autoFocus
           onKeyDown={(e: React.KeyboardEvent) => {
@@ -389,9 +407,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ getSlashContext 
               } else if (e.key === "Escape") {
                 e.preventDefault();
                 e.stopPropagation();
-                setActivePrompt(null);
-                setPromptError(null);
-                setQuery("");
+                resetPaletteState();
                 close();
               }
               return;
