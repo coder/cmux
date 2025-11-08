@@ -21,10 +21,8 @@ export class DisposableProcess implements Disposable {
   private disposed = false;
 
   constructor(private readonly process: ChildProcess) {
-    // Auto-cleanup when process exits
-    process.once("close", () => {
-      this[Symbol.dispose]();
-    });
+    // No auto-cleanup - callers explicitly dispose via timeout/abort handlers
+    // Process streams close naturally when process exits
   }
 
   /**
