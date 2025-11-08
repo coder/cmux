@@ -627,12 +627,11 @@ export class StreamManager extends EventEmitter {
         // Check if stream was cancelled BEFORE processing any parts
         // This improves interruption responsiveness by catching aborts earlier
         if (streamInfo.abortController.signal.aborted) {
-          log.debug("streamManager: Stream aborted, breaking from loop");
           break;
         }
 
         // Log all stream parts to debug reasoning (commented out - too spammy)
-        // log.debug("streamManager: Stream part", {
+        // console.log("[DEBUG streamManager]: Stream part", {
         //   type: part.type,
         //   hasText: "text" in part,
         //   preview: "text" in part ? (part as StreamPartWithText).text?.substring(0, 50) : undefined,

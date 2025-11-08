@@ -170,7 +170,7 @@ export async function setupWorkspace(
   if (provider === "ollama") {
     await setupProviders(env.mockIpcRenderer, {
       [provider]: {
-        baseUrl: process.env.OLLAMA_BASE_URL || "http://localhost:11434",
+        baseUrl: process.env.OLLAMA_BASE_URL || "http://localhost:11434/api",
       },
     });
   } else {

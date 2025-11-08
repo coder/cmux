@@ -432,7 +432,7 @@ export class Config {
 //     "apiKey": "sk-..."
 //   },
 //   "ollama": {
-//     "baseUrl": "http://localhost:11434"
+//     "baseUrl": "http://localhost:11434/api"
 //   }
 // }
 ${jsonString}`;

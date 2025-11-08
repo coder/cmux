@@ -232,7 +232,17 @@ export class AIService extends EventEmitter {
   ): Promise<Result<LanguageModel, SendMessageError>> {
     try {
       // Parse model string (format: "provider:model-id")
-      const [providerName, modelId] = modelString.split(":");
+      // Only split on the first colon to support model IDs with colons (e.g., "ollama:gpt-oss:20b")
+      const colonIndex = modelString.indexOf(":");
+      if (colonIndex === -1) {
+        return Err({
+          type: "invalid_model_string",
+          message: `Invalid model string format: "${modelString}". Expected "provider:model-id"`,
+        });
+      }
+
+      const providerName = modelString.slice(0, colonIndex);
+      const modelId = modelString.slice(colonIndex + 1);
 
       if (!providerName || !modelId) {
         return Err({
@@ -391,6 +401,8 @@ export class AIService extends EventEmitter {
           ...providerConfig,
           // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
           fetch: baseFetch as any,
+          // Use strict mode for better compatibility with Ollama API
+          compatibility: "strict",
         });
         return Ok(provider(modelId));
       }

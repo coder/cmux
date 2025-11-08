@@ -235,6 +235,7 @@ export class EventCollector {
    * Collect all events for this workspace from the sent events array
    */
   collect(): WorkspaceChatMessage[] {
+    const before = this.events.length;
     this.events = this.sentEvents
       .filter((e) => e.channel === this.chatChannel)
       .map((e) => e.data as WorkspaceChatMessage);
