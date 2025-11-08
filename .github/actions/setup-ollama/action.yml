@@ -15,7 +15,7 @@ runs:
       with:
         path: |
           /home/runner/.ollama
-        key: ${{ runner.os }}-ollama-${{ inputs.model }}-v2
+        key: ${{ runner.os }}-ollama-${{ inputs.model }}-v3
         restore-keys: |
           ${{ runner.os }}-ollama-${{ inputs.model }}-
           ${{ runner.os }}-ollama-
