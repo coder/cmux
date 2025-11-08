@@ -85,6 +85,23 @@ export function formatModelDisplayName(modelName: string): string {
     }
   }
 
+  // Ollama models - handle format like "llama3.2:7b" or "codellama:13b"
+  // Split by colon to handle quantization/size suffix
+  const [baseName, size] = modelName.split(":");
+  if (size) {
+    // "llama3.2:7b" -> "Llama 3.2 (7B)"
+    // "codellama:13b" -> "Codellama (13B)"
+    const formatted = baseName
+      .split(/(\d+\.?\d*)/)
+      .map((part, idx) => {
+        if (idx === 0) return capitalize(part);
+        if (/^\d+\.?\d*$/.test(part)) return ` ${part}`;
+        return part;
+      })
+      .join("");
+    return `${formatted.trim()} (${size.toUpperCase()})`;
+  }
+
   // Fallback: capitalize first letter of each dash-separated part
   return modelName.split("-").map(capitalize).join(" ");
 }

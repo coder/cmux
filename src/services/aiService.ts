@@ -93,15 +93,19 @@ if (typeof globalFetchWithExtras.certificate === "function") {
 
 /**
  * Preload AI SDK provider modules to avoid race conditions in concurrent test environments.
- * This function loads @ai-sdk/anthropic and @ai-sdk/openai eagerly so that subsequent
- * dynamic imports in createModel() hit the module cache instead of racing.
+ * This function loads @ai-sdk/anthropic, @ai-sdk/openai, and ollama-ai-provider-v2 eagerly
+ * so that subsequent dynamic imports in createModel() hit the module cache instead of racing.
  *
  * In production, providers are lazy-loaded on first use to optimize startup time.
  * In tests, we preload them once during setup to ensure reliable concurrent execution.
  */
 export async function preloadAISDKProviders(): Promise<void> {
   // Preload providers to ensure they're in the module cache before concurrent tests run
-  await Promise.all([import("@ai-sdk/anthropic"), import("@ai-sdk/openai")]);
+  await Promise.all([
+    import("@ai-sdk/anthropic"),
+    import("@ai-sdk/openai"),
+    import("ollama-ai-provider-v2"),
+  ]);
 }
 
 export class AIService extends EventEmitter {
@@ -370,6 +374,25 @@ export class AIService extends EventEmitter {
         // OpenAI manages reasoning state via previousResponseId - no middleware needed
         const model = provider.responses(modelId);
         return Ok(model);
+      }
+
+      // Handle Ollama provider
+      if (providerName === "ollama") {
+        // Ollama doesn't require API key - it's a local service
+        // Use custom fetch if provided, otherwise default with unlimited timeout
+        const baseFetch =
+          typeof providerConfig.fetch === "function"
+            ? (providerConfig.fetch as typeof fetch)
+            : defaultFetchWithUnlimitedTimeout;
+
+        // Lazy-load Ollama provider to reduce startup time
+        const { createOllama } = await import("ollama-ai-provider-v2");
+        const provider = createOllama({
+          ...providerConfig,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
+          fetch: baseFetch as any,
+        });
+        return Ok(provider(modelId));
       }
 
       return Err({

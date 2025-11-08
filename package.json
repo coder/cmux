@@ -69,6 +69,7 @@
     "lru-cache": "^11.2.2",
     "markdown-it": "^14.1.0",
     "minimist": "^1.2.8",
+    "ollama-ai-provider-v2": "^1.5.3",
     "rehype-harden": "^1.1.5",
     "shescape": "^2.1.6",
     "source-map-support": "^0.5.21",
