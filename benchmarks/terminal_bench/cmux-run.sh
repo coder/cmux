@@ -94,6 +94,7 @@ if [[ -n "${CMUX_THINKING_LEVEL}" ]]; then
   cmd+=(--thinking-level "${CMUX_THINKING_LEVEL}")
 fi
 
+# Terminal-bench enforces timeouts via --global-agent-timeout-sec
 if ! printf '%s' "${instruction}" | "${cmd[@]}"; then
   fatal "cmux agent session failed"
 fi

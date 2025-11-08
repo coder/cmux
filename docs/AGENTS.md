@@ -107,6 +107,7 @@ Use these prefixes based on what best describes the PR:
 - **fix:** (conforming behavior to user expectations)
 - **feat:** (net new functionality)
 - **ci:** (concerned with build process or CI)
+- **bench:** (benchmarking infrastructure or Terminal-Bench integration)
 
 Examples:
 
@@ -115,6 +116,7 @@ Examples:
 - `🤖 fix: handle workspace rename edge cases`
 - `🤖 feat: add keyboard shortcuts for workspace navigation`
 - `🤖 ci: update wait_pr_checks script timeout`
+- `🤖 bench: simplify timeout handling in terminal-bench integration`
 
 ## Project Structure
 

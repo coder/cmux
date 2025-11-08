@@ -22,10 +22,10 @@ on:
         type: string
         default: '4'
       livestream:
-        description: 'Enable livestream mode'
+        description: 'Enable livestream mode (verbose output to console)'
         required: false
         type: boolean
-        default: true
+        default: false
       sample_size:
         description: 'Number of random tasks to run (empty = all tasks)'
         required: false
@@ -52,9 +52,9 @@ on:
         default: '4'
         type: string
       livestream:
-        description: 'Enable livestream mode'
+        description: 'Enable livestream mode (verbose output to console)'
         required: false
-        default: true
+        default: false
         type: boolean
       sample_size:
         description: 'Number of random tasks to run (empty = all tasks)'
@@ -77,9 +77,10 @@ jobs:
   benchmark:
     name: Run Terminal-Bench${{ inputs.model_name && format(' ({0})', inputs.model_name) || '' }}
     runs-on: ${{ github.repository_owner == 'coder' && 'depot-ubuntu-22.04-16' || 'ubuntu-latest' }}
-    # Full suite (~80 tasks) at concurrency=4 takes ~60-90 minutes
-    # Allow 3 hours for safety margin and slower tasks
-    timeout-minutes: 180
+    # Full suite (~80 tasks) at concurrency=4 takes ~60-90 minutes typically
+    # Set 4-hour timeout to handle occasional API slowdowns while preventing infinite hangs
+    # If consistently hitting this timeout, investigate task-level issues
+    timeout-minutes: 240
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -101,7 +102,7 @@ jobs:
         run: make build-main build-preload
 
       - name: Run Terminal-Bench
-        run: make benchmark-terminal
+        run: make benchmark-terminal 2>&1 | tee benchmark.log
         env:
           TB_DATASET: ${{ inputs.dataset }}
           TB_CONCURRENCY: ${{ inputs.concurrency }}
@@ -115,18 +116,12 @@ jobs:
         if: always()
         run: |
           echo "=== Terminal-Bench Results Summary ==="
-          if [ -f "$(find runs -name 'results.json' | head -1)" ]; then
+          if [ -f "$(find runs -name 'results.json' 2>/dev/null | head -1)" ]; then
             RESULTS_FILE=$(find runs -name 'results.json' | head -1)
-            echo "Results file: $RESULTS_FILE"
-            echo ""
-            echo "Full results.json:"
-            cat "$RESULTS_FILE" | jq '.' || cat "$RESULTS_FILE"
-            echo ""
-            echo "Per-task summary:"
-            cat "$RESULTS_FILE" | jq -r '.trials[] | "\(.task_id): \(if .resolved then "✓ PASS" else "✗ FAIL" end)"' 2>/dev/null || echo "Failed to parse task details"
+            cat "$RESULTS_FILE" | jq '{n_resolved, n_unresolved, accuracy}' 2>/dev/null || cat "$RESULTS_FILE"
           else
-            echo "No results.json found in runs/"
-            ls -la runs/
+            echo "❌ No results.json found"
+            ls -laR runs/ 2>/dev/null || echo "runs/ directory missing"
           fi
 
       - name: Set artifact name
@@ -149,6 +144,7 @@ jobs:
           name: ${{ steps.artifact-name.outputs.name }}
           path: |
             runs/
+            benchmark.log
           if-no-files-found: warn
           retention-days: 30
 
