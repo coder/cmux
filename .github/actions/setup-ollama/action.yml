@@ -14,14 +14,14 @@ runs:
       uses: actions/cache@v4
       with:
         path: ./.ollama-install
-        key: ${{ runner.os }}-ollama-binary-v1
+        key: ${{ runner.os }}-ollama-binary-v2
 
     - name: Cache Ollama models
       id: cache-ollama-models
       uses: actions/cache@v4
       with:
         path: ~/.ollama
-        key: ${{ runner.os }}-ollama-${{ inputs.model }}-v1
+        key: ${{ runner.os }}-ollama-${{ inputs.model }}-v2
 
     - name: Install Ollama binary (cache miss)
       if: steps.cache-ollama-binary.outputs.cache-hit != 'true'
