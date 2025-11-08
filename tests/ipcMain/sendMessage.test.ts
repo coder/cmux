@@ -36,6 +36,16 @@ const PROVIDER_CONFIGS: Array<[string, string]> = [
   ["anthropic", "claude-sonnet-4-5"],
 ];
 
+// Vision-capable models for image support tests
+const VISION_MODEL_CONFIGS: Array<[string, string]> = [
+  ["openai", "gpt-4o"],
+  ["anthropic", "claude-sonnet-4-5"],
+];
+
+// Use Anthropic by default for provider-agnostic tests (faster and cheaper)
+const DEFAULT_PROVIDER = "anthropic";
+const DEFAULT_MODEL = "claude-sonnet-4-5";
+
 // Integration test timeout guidelines:
 // - Individual tests should complete within 10 seconds when possible
 // - Use tight timeouts (5-10s) for event waiting to fail fast
@@ -54,8 +64,9 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
     const { loadTokenizerModules } = await import("../../src/utils/main/tokenizer");
     await loadTokenizerModules();
   }, 30000); // 30s timeout for tokenizer loading
-  // Run tests for each provider concurrently
-  describe.each(PROVIDER_CONFIGS)("%s:%s provider tests", (provider, model) => {
+
+  // Smoke test - verify each provider works
+  describe.each(PROVIDER_CONFIGS)("%s:%s smoke test", (provider, model) => {
     test.concurrent(
       "should successfully send message and receive response",
       async () => {
@@ -90,6 +101,12 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
       },
       15000
     );
+  });
+
+  // Core functionality tests - using single provider (these test IPC/streaming, not provider-specific behavior)
+  describe("core functionality", () => {
+    const provider = DEFAULT_PROVIDER;
+    const model = DEFAULT_MODEL;
 
     test.concurrent(
       "should interrupt streaming with interruptStream()",
@@ -193,12 +210,12 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
         // Setup test environment
         const { env, workspaceId, cleanup } = await setupWorkspace(provider);
         try {
-          // Send a message that will generate text deltas
+          // Send a simple message to generate text deltas
           // Disable reasoning for this test to avoid flakiness and encrypted content issues in CI
           void sendMessageWithModel(
             env.mockIpcRenderer,
             workspaceId,
-            "Write a short paragraph about TypeScript",
+            "Say 'test' and nothing else",
             provider,
             model,
             { thinkingLevel: "off" }
@@ -323,11 +340,6 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
     test.concurrent(
       "should handle reconnection during active stream",
       async () => {
-        // Only test with Anthropic (faster and more reliable for this test)
-        if (provider === "openai") {
-          return;
-        }
-
         const { env, workspaceId, cleanup } = await setupWorkspace(provider);
         try {
           // Start a stream with tool call that takes a long time
@@ -584,9 +596,48 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
       30000
     );
 
-    test.concurrent(
-      "should handle tool calls and return file contents",
-      async () => {
+    test.concurrent("should return error when model is not provided", async () => {
+      const { env, workspaceId, cleanup } = await setupWorkspace(provider);
+      try {
+        // Send message without model
+        const result = await sendMessage(
+          env.mockIpcRenderer,
+          workspaceId,
+          "Hello",
+          {} as { model: string }
+        );
+
+        // Should fail with appropriate error
+        assertError(result, "unknown");
+        if (!result.success && result.error.type === "unknown") {
+          expect(result.error.raw).toContain("No model specified");
+        }
+      } finally {
+        await cleanup();
+      }
+    });
+
+    test.concurrent("should return error for invalid model string", async () => {
+      const { env, workspaceId, cleanup } = await setupWorkspace(provider);
+      try {
+        // Send message with invalid model format
+        const result = await sendMessage(env.mockIpcRenderer, workspaceId, "Hello", {
+          model: "invalid-format",
+        });
+
+        // Should fail with invalid_model_string error
+        assertError(result, "invalid_model_string");
+      } finally {
+        await cleanup();
+      }
+    });
+  });
+
+  // Matrix tests - test across both providers for features that may have provider-specific behavior
+  describe("matrix tests", () => {
+    test.each(PROVIDER_CONFIGS)(
+      "%s:%s should handle tool calls and return file contents",
+      async (provider, model) => {
         const { env, workspaceId, workspacePath, cleanup } = await setupWorkspace(provider);
         try {
           // Generate a random string
@@ -608,11 +659,7 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
           expect(result.success).toBe(true);
 
           // Wait for stream to complete
-          const collector = await waitForStreamSuccess(
-            env.sentEvents,
-            workspaceId,
-            provider === "openai" ? 30000 : 10000
-          );
+          const collector = await waitForStreamSuccess(env.sentEvents, workspaceId, 10000);
 
           // Get the final assistant message
           const finalMessage = collector.getFinalMessage();
@@ -629,9 +676,9 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
       20000
     );
 
-    test.concurrent(
-      "should maintain conversation continuity across messages",
-      async () => {
+    test.each(PROVIDER_CONFIGS)(
+      "%s:%s should maintain conversation continuity across messages",
+      async (provider, model) => {
         const { env, workspaceId, cleanup } = await setupWorkspace(provider);
         try {
           // First message: Ask for a random word
@@ -714,45 +761,9 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
       20000
     );
 
-    test.concurrent("should return error when model is not provided", async () => {
-      const { env, workspaceId, cleanup } = await setupWorkspace(provider);
-      try {
-        // Send message without model
-        const result = await sendMessage(
-          env.mockIpcRenderer,
-          workspaceId,
-          "Hello",
-          {} as { model: string }
-        );
-
-        // Should fail with appropriate error
-        assertError(result, "unknown");
-        if (!result.success && result.error.type === "unknown") {
-          expect(result.error.raw).toContain("No model specified");
-        }
-      } finally {
-        await cleanup();
-      }
-    });
-
-    test.concurrent("should return error for invalid model string", async () => {
-      const { env, workspaceId, cleanup } = await setupWorkspace(provider);
-      try {
-        // Send message with invalid model format
-        const result = await sendMessage(env.mockIpcRenderer, workspaceId, "Hello", {
-          model: "invalid-format",
-        });
-
-        // Should fail with invalid_model_string error
-        assertError(result, "invalid_model_string");
-      } finally {
-        await cleanup();
-      }
-    });
-
-    test.concurrent(
-      "should include mode-specific instructions in system message",
-      async () => {
+    test.each(PROVIDER_CONFIGS)(
+      "%s:%s should include mode-specific instructions in system message",
+      async (provider, model) => {
         // Setup test environment
         const { env, workspaceId, tempGitRepo, cleanup } = await setupWorkspace(provider);
         try {
@@ -835,148 +846,24 @@ These are general instructions that apply to all modes.
       },
       25000
     );
-  });
 
-  // Provider parity tests - ensure both providers handle the same scenarios
-  describe("provider parity", () => {
-    test.concurrent(
-      "both providers should handle the same message",
-      async () => {
-        const results: Record<string, { success: boolean; responseLength: number }> = {};
-
-        for (const [provider, model] of PROVIDER_CONFIGS) {
-          // Create fresh environment with provider setup
-          const { env, workspaceId, cleanup } = await setupWorkspace(provider);
-
-          // Send same message to both providers
-          const result = await sendMessageWithModel(
-            env.mockIpcRenderer,
-            workspaceId,
-            "Say 'parity test' and nothing else",
-            provider,
-            model
-          );
-
-          // Collect response
-          const collector = await waitForStreamSuccess(env.sentEvents, workspaceId, 10000);
-
-          results[provider] = {
-            success: result.success,
-            responseLength: collector.getDeltas().length,
-          };
-
-          // Cleanup
-          await cleanup();
-        }
-
-        // Verify both providers succeeded
-        expect(results.openai.success).toBe(true);
-        expect(results.anthropic.success).toBe(true);
-
-        // Verify both providers generated responses (non-zero deltas)
-        expect(results.openai.responseLength).toBeGreaterThan(0);
-        expect(results.anthropic.responseLength).toBeGreaterThan(0);
-      },
-      30000
-    );
-  });
-
-  // Error handling tests for API key issues
-  describe("API key error handling", () => {
     test.each(PROVIDER_CONFIGS)(
-      "%s should return api_key_not_found error when API key is missing",
-      async (provider, model) => {
-        const { env, workspaceId, cleanup } = await setupWorkspaceWithoutProvider(
-          `noapi-${provider}`
-        );
-        try {
-          // Try to send message without API key configured
-          const result = await sendMessageWithModel(
-            env.mockIpcRenderer,
-            workspaceId,
-            "Hello",
-            provider,
-            model
-          );
-
-          // Should fail with api_key_not_found error
-          assertError(result, "api_key_not_found");
-          if (!result.success && result.error.type === "api_key_not_found") {
-            expect(result.error.provider).toBe(provider);
-          }
-        } finally {
-          await cleanup();
-        }
-      }
-    );
-  });
-
-  // Non-existent model error handling tests
-  describe("non-existent model error handling", () => {
-    test.each(PROVIDER_CONFIGS)(
-      "%s should return stream error when model does not exist",
-      async (provider) => {
-        const { env, workspaceId, cleanup } = await setupWorkspace(provider);
-        try {
-          // Use a clearly non-existent model name
-          const nonExistentModel = "definitely-not-a-real-model-12345";
-          const result = await sendMessageWithModel(
-            env.mockIpcRenderer,
-            workspaceId,
-            "Hello, world!",
-            provider,
-            nonExistentModel
-          );
-
-          // IPC call should succeed (errors come through stream events)
-          expect(result.success).toBe(true);
-
-          // Wait for stream-error event
-          const collector = createEventCollector(env.sentEvents, workspaceId);
-          const errorEvent = await collector.waitForEvent("stream-error", 10000);
-
-          // Should have received a stream-error event
-          expect(errorEvent).toBeDefined();
-          expect(collector.hasError()).toBe(true);
-
-          // Verify error message is the enhanced user-friendly version
-          if (errorEvent && "error" in errorEvent) {
-            const errorMsg = String(errorEvent.error);
-            // Should have the enhanced error message format
-            expect(errorMsg).toContain("definitely-not-a-real-model-12345");
-            expect(errorMsg).toContain("does not exist or is not available");
-          }
-
-          // Verify error type is properly categorized
-          if (errorEvent && "errorType" in errorEvent) {
-            expect(errorEvent.errorType).toBe("model_not_found");
-          }
-        } finally {
-          await cleanup();
-        }
-      }
-    );
-  });
-
-  // Token limit error handling tests
-  describe("token limit error handling", () => {
-    test.each(PROVIDER_CONFIGS)(
-      "%s should return error when accumulated history exceeds token limit",
+      "%s:%s should return error when accumulated history exceeds token limit",
       async (provider, model) => {
         const { env, workspaceId, cleanup } = await setupWorkspace(provider);
         try {
           // Build up large conversation history to exceed context limits
           // Different providers have different limits:
-          // - Anthropic: 200k tokens → need ~40 messages of 50k chars (2M chars total)
-          // - OpenAI: varies by model, use ~80 messages (4M chars total) to ensure we hit the limit
+          // - Anthropic: 200k tokens → need ~15 messages of 50k chars (750k chars total)
+          // - OpenAI: gpt-5-codex has large context, use 30 messages to ensure we hit limit
           await buildLargeHistory(workspaceId, env.config, {
             messageSize: 50_000,
-            messageCount: provider === "anthropic" ? 40 : 80,
+            messageCount: provider === "anthropic" ? 15 : 30,
           });
 
           // Now try to send a new message - should trigger token limit error
           // due to accumulated history
-          // Disable auto-truncation to force context error
+          // Disable auto-truncation for OpenAI to force context error
           const sendOptions =
             provider === "openai"
               ? {
@@ -1081,168 +968,9 @@ These are general instructions that apply to all modes.
       },
       30000
     );
-  });
-
-  // Tool policy tests
-  describe("tool policy", () => {
-    // Retry tool policy tests in CI (they depend on external API behavior)
-    if (process.env.CI && typeof jest !== "undefined" && jest.retryTimes) {
-      jest.retryTimes(2, { logErrorsBeforeRetry: true });
-    }
 
     test.each(PROVIDER_CONFIGS)(
-      "%s should respect tool policy that disables bash",
-      async (provider, model) => {
-        const { env, workspaceId, workspacePath, cleanup } = await setupWorkspace(provider);
-        try {
-          // Create a test file in the workspace
-          const testFilePath = path.join(workspacePath, "bash-test-file.txt");
-          await fs.writeFile(testFilePath, "original content", "utf-8");
-
-          // Verify file exists
-          expect(
-            await fs.access(testFilePath).then(
-              () => true,
-              () => false
-            )
-          ).toBe(true);
-
-          // Ask AI to delete the file using bash (which should be disabled)
-          const result = await sendMessageWithModel(
-            env.mockIpcRenderer,
-            workspaceId,
-            "Delete the file bash-test-file.txt using bash rm command",
-            provider,
-            model,
-            {
-              toolPolicy: [{ regex_match: "bash", action: "disable" }],
-              ...(provider === "openai"
-                ? { providerOptions: { openai: { simulateToolPolicyNoop: true } } }
-                : {}),
-            }
-          );
-
-          // IPC call should succeed
-          expect(result.success).toBe(true);
-
-          // Wait for stream to complete (longer timeout for tool policy tests)
-          const collector = createEventCollector(env.sentEvents, workspaceId);
-
-          // Wait for either stream-end or stream-error
-          // (helpers will log diagnostic info on failure)
-          const streamTimeout = provider === "openai" ? 90000 : 30000;
-          await Promise.race([
-            collector.waitForEvent("stream-end", streamTimeout),
-            collector.waitForEvent("stream-error", streamTimeout),
-          ]);
-
-          // This will throw with detailed error info if stream didn't complete successfully
-          assertStreamSuccess(collector);
-
-          if (provider === "openai") {
-            const deltas = collector.getDeltas();
-            const noopDelta = deltas.find(
-              (event): event is StreamDeltaEvent =>
-                "type" in event &&
-                event.type === "stream-delta" &&
-                typeof (event as StreamDeltaEvent).delta === "string"
-            );
-            expect(noopDelta?.delta).toContain(
-              "Tool execution skipped because the requested tool is disabled by policy."
-            );
-          }
-
-          // Verify file still exists (bash tool was disabled, so deletion shouldn't have happened)
-          const fileStillExists = await fs.access(testFilePath).then(
-            () => true,
-            () => false
-          );
-          expect(fileStillExists).toBe(true);
-
-          // Verify content unchanged
-          const content = await fs.readFile(testFilePath, "utf-8");
-          expect(content).toBe("original content");
-        } finally {
-          await cleanup();
-        }
-      },
-      90000
-    );
-
-    test.each(PROVIDER_CONFIGS)(
-      "%s should respect tool policy that disables file_edit tools",
-      async (provider, model) => {
-        const { env, workspaceId, workspacePath, cleanup } = await setupWorkspace(provider);
-        try {
-          // Create a test file with known content
-          const testFilePath = path.join(workspacePath, "edit-test-file.txt");
-          const originalContent = "original content line 1\noriginal content line 2";
-          await fs.writeFile(testFilePath, originalContent, "utf-8");
-
-          // Ask AI to edit the file (which should be disabled)
-          // Disable both file_edit tools AND bash to prevent workarounds
-          const result = await sendMessageWithModel(
-            env.mockIpcRenderer,
-            workspaceId,
-            "Edit the file edit-test-file.txt and replace 'original' with 'modified'",
-            provider,
-            model,
-            {
-              toolPolicy: [
-                { regex_match: "file_edit_.*", action: "disable" },
-                { regex_match: "bash", action: "disable" },
-              ],
-              ...(provider === "openai"
-                ? { providerOptions: { openai: { simulateToolPolicyNoop: true } } }
-                : {}),
-            }
-          );
-
-          // IPC call should succeed
-          expect(result.success).toBe(true);
-
-          // Wait for stream to complete (longer timeout for tool policy tests)
-          const collector = createEventCollector(env.sentEvents, workspaceId);
-
-          // Wait for either stream-end or stream-error
-          // (helpers will log diagnostic info on failure)
-          const streamTimeout = provider === "openai" ? 90000 : 30000;
-          await Promise.race([
-            collector.waitForEvent("stream-end", streamTimeout),
-            collector.waitForEvent("stream-error", streamTimeout),
-          ]);
-
-          // This will throw with detailed error info if stream didn't complete successfully
-          assertStreamSuccess(collector);
-
-          if (provider === "openai") {
-            const deltas = collector.getDeltas();
-            const noopDelta = deltas.find(
-              (event): event is StreamDeltaEvent =>
-                "type" in event &&
-                event.type === "stream-delta" &&
-                typeof (event as StreamDeltaEvent).delta === "string"
-            );
-            expect(noopDelta?.delta).toContain(
-              "Tool execution skipped because the requested tool is disabled by policy."
-            );
-          }
-
-          // Verify file content unchanged (file_edit tools and bash were disabled)
-          const content = await fs.readFile(testFilePath, "utf-8");
-          expect(content).toBe(originalContent);
-        } finally {
-          await cleanup();
-        }
-      },
-      90000
-    );
-  });
-
-  // Additional system instructions tests
-  describe("additional system instructions", () => {
-    test.each(PROVIDER_CONFIGS)(
-      "%s should pass additionalSystemInstructions through to system message",
+      "%s:%s should pass additionalSystemInstructions through to system message",
       async (provider, model) => {
         const { env, workspaceId, cleanup } = await setupWorkspace(provider);
         try {
@@ -1280,10 +1008,305 @@ These are general instructions that apply to all modes.
     );
   });
 
+  // Image support tests - test across both providers (vision models behave differently)
+  describe.each(VISION_MODEL_CONFIGS)("%s:%s image support", (provider, model) => {
+    /**
+     * Helper to send a message with an image and return the stream collector
+     */
+    async function sendImageMessage(
+      provider: string,
+      model: string,
+      imageUrl: string,
+      prompt: string
+    ) {
+      const { env, workspaceId, cleanup } = await setupWorkspace(provider);
+
+      const result = await sendMessage(env.mockIpcRenderer, workspaceId, prompt, {
+        model: modelString(provider, model),
+        imageParts: [{ url: imageUrl, mediaType: "image/png" }],
+      });
+
+      expect(result.success).toBe(true);
+
+      // Wait for stream to complete
+      const collector = await waitForStreamSuccess(env.sentEvents, workspaceId, 30000);
+
+      return { env, workspaceId, cleanup, collector };
+    }
+
+    test.concurrent(
+      "should send images to AI model and get response",
+      async () => {
+        const { cleanup, collector } = await sendImageMessage(
+          provider,
+          model,
+          TEST_IMAGES.RED_PIXEL,
+          "What color is this?"
+        );
+
+        try {
+          // Verify we got a response about the image
+          const deltas = collector.getDeltas();
+          expect(deltas.length).toBeGreaterThan(0);
+
+          // Combine all text deltas
+          const fullResponse = deltas
+            .map((d) => (d as StreamDeltaEvent).delta)
+            .join("")
+            .toLowerCase();
+
+          // Should mention red color in some form
+          expect(fullResponse.length).toBeGreaterThan(0);
+          // Red pixel should be detected (flexible matching as different models may phrase differently)
+          expect(fullResponse).toMatch(/red|color/i);
+        } finally {
+          await cleanup();
+        }
+      },
+      40000 // Vision models can be slower
+    );
+
+    test.concurrent(
+      "should preserve image parts through history",
+      async () => {
+        const { env, workspaceId, cleanup } = await sendImageMessage(
+          provider,
+          model,
+          TEST_IMAGES.BLUE_PIXEL,
+          "Describe this"
+        );
+
+        try {
+          // Read history from disk
+          const messages = await readChatHistory(env.tempDir, workspaceId);
+
+          // Find the user message
+          const userMessage = messages.find((m: { role: string }) => m.role === "user");
+          expect(userMessage).toBeDefined();
+
+          // Verify image part is preserved with correct format
+          if (userMessage) {
+            const imagePart = userMessage.parts.find((p: { type: string }) => p.type === "file");
+            expect(imagePart).toBeDefined();
+            if (imagePart) {
+              expect(imagePart.url).toBe(TEST_IMAGES.BLUE_PIXEL);
+              expect(imagePart.mediaType).toBe("image/png");
+            }
+          }
+        } finally {
+          await cleanup();
+        }
+      },
+      40000
+    );
+  });
+
+  // Error handling tests for API key issues
+  describe("API key error handling", () => {
+    test.each(PROVIDER_CONFIGS)(
+      "%s should return api_key_not_found error when API key is missing",
+      async (provider, model) => {
+        const { env, workspaceId, cleanup } = await setupWorkspaceWithoutProvider(
+          `noapi-${provider}`
+        );
+        try {
+          // Try to send message without API key configured
+          const result = await sendMessageWithModel(
+            env.mockIpcRenderer,
+            workspaceId,
+            "Hello",
+            provider,
+            model
+          );
+
+          // Should fail with api_key_not_found error
+          assertError(result, "api_key_not_found");
+          if (!result.success && result.error.type === "api_key_not_found") {
+            expect(result.error.provider).toBe(provider);
+          }
+        } finally {
+          await cleanup();
+        }
+      }
+    );
+  });
+
+  // Non-existent model error handling tests
+  describe("non-existent model error handling", () => {
+    test.each(PROVIDER_CONFIGS)(
+      "%s should return stream error when model does not exist",
+      async (provider) => {
+        const { env, workspaceId, cleanup } = await setupWorkspace(provider);
+        try {
+          // Use a clearly non-existent model name
+          const nonExistentModel = "definitely-not-a-real-model-12345";
+          const result = await sendMessageWithModel(
+            env.mockIpcRenderer,
+            workspaceId,
+            "Hello, world!",
+            provider,
+            nonExistentModel
+          );
+
+          // IPC call should succeed (errors come through stream events)
+          expect(result.success).toBe(true);
+
+          // Wait for stream-error event
+          const collector = createEventCollector(env.sentEvents, workspaceId);
+          const errorEvent = await collector.waitForEvent("stream-error", 10000);
+
+          // Should have received a stream-error event
+          expect(errorEvent).toBeDefined();
+          expect(collector.hasError()).toBe(true);
+
+          // Verify error message is the enhanced user-friendly version
+          if (errorEvent && "error" in errorEvent) {
+            const errorMsg = String(errorEvent.error);
+            // Should have the enhanced error message format
+            expect(errorMsg).toContain("definitely-not-a-real-model-12345");
+            expect(errorMsg).toContain("does not exist or is not available");
+          }
+
+          // Verify error type is properly categorized
+          if (errorEvent && "errorType" in errorEvent) {
+            expect(errorEvent.errorType).toBe("model_not_found");
+          }
+        } finally {
+          await cleanup();
+        }
+      }
+    );
+  });
+
+  // Token limit error handling tests - using single provider to reduce test time (expensive test)
+
+  // Tool policy tests - using single provider (tool policy is implemented in our code, not provider-specific)
+  describe("tool policy", () => {
+    const provider = DEFAULT_PROVIDER;
+    const model = DEFAULT_MODEL;
+
+    // Retry tool policy tests in CI (they depend on external API behavior)
+    if (process.env.CI && typeof jest !== "undefined" && jest.retryTimes) {
+      jest.retryTimes(2, { logErrorsBeforeRetry: true });
+    }
+
+    test.concurrent(
+      "should respect tool policy that disables bash",
+      async () => {
+        const { env, workspaceId, workspacePath, cleanup } = await setupWorkspace(provider);
+        try {
+          // Create a test file in the workspace
+          const testFilePath = path.join(workspacePath, "bash-test-file.txt");
+          await fs.writeFile(testFilePath, "original content", "utf-8");
+
+          // Verify file exists
+          expect(
+            await fs.access(testFilePath).then(
+              () => true,
+              () => false
+            )
+          ).toBe(true);
+
+          // Ask AI to delete the file using bash (which should be disabled)
+          const result = await sendMessageWithModel(
+            env.mockIpcRenderer,
+            workspaceId,
+            "Delete the file bash-test-file.txt using bash rm command",
+            provider,
+            model,
+            {
+              toolPolicy: [{ regex_match: "bash", action: "disable" }],
+            }
+          );
+
+          // IPC call should succeed
+          expect(result.success).toBe(true);
+
+          // Wait for stream to complete
+          const collector = createEventCollector(env.sentEvents, workspaceId);
+
+          // Wait for stream to complete
+          await collector.waitForEvent("stream-end", 20000);
+
+          // Verify stream completed successfully
+          assertStreamSuccess(collector);
+
+          // Verify file still exists (bash tool was disabled, so deletion shouldn't have happened)
+          const fileStillExists = await fs.access(testFilePath).then(
+            () => true,
+            () => false
+          );
+          expect(fileStillExists).toBe(true);
+
+          // Verify content unchanged
+          const content = await fs.readFile(testFilePath, "utf-8");
+          expect(content).toBe("original content");
+        } finally {
+          await cleanup();
+        }
+      },
+      20000
+    );
+
+    test.concurrent(
+      "should respect tool policy that disables file_edit tools",
+      async () => {
+        const { env, workspaceId, workspacePath, cleanup } = await setupWorkspace(provider);
+        try {
+          // Create a test file with known content
+          const testFilePath = path.join(workspacePath, "edit-test-file.txt");
+          const originalContent = "original content line 1\noriginal content line 2";
+          await fs.writeFile(testFilePath, originalContent, "utf-8");
+
+          // Ask AI to edit the file (which should be disabled)
+          // Disable both file_edit tools AND bash to prevent workarounds
+          const result = await sendMessageWithModel(
+            env.mockIpcRenderer,
+            workspaceId,
+            "Edit the file edit-test-file.txt and replace 'original' with 'modified'",
+            provider,
+            model,
+            {
+              toolPolicy: [
+                { regex_match: "file_edit_.*", action: "disable" },
+                { regex_match: "bash", action: "disable" },
+              ],
+            }
+          );
+
+          // IPC call should succeed
+          expect(result.success).toBe(true);
+
+          // Wait for stream to complete
+          const collector = createEventCollector(env.sentEvents, workspaceId);
+
+          // Wait for either stream-end or stream-error
+          await Promise.race([
+            collector.waitForEvent("stream-end", 20000),
+            collector.waitForEvent("stream-error", 20000),
+          ]);
+
+          // This will throw with detailed error info if stream didn't complete successfully
+          assertStreamSuccess(collector);
+
+          // Verify file content unchanged (file_edit tools and bash were disabled)
+          const content = await fs.readFile(testFilePath, "utf-8");
+          expect(content).toBe(originalContent);
+        } finally {
+          await cleanup();
+        }
+      },
+      20000
+    );
+  });
+
+  // Additional system instructions tests - using single provider
+
   // OpenAI auto truncation integration test
   // This test verifies that the truncation: "auto" parameter works correctly
   // by first forcing a context overflow error, then verifying recovery with auto-truncation
-  describeIntegration("OpenAI auto truncation integration", () => {
+  // SKIPPED: Very expensive test (builds 80 large messages), covered by unit tests
+  describe.skip("OpenAI auto truncation integration", () => {
     const provider = "openai";
     const model = "gpt-4o-mini";
 
@@ -1512,84 +1535,5 @@ These are general instructions that apply to all modes.
       }
     },
     5000
-  );
-});
-
-// Test image support across providers
-describe.each(PROVIDER_CONFIGS)("%s:%s image support", (provider, model) => {
-  test.concurrent(
-    "should send images to AI model and get response",
-    async () => {
-      const { env, workspaceId, cleanup } = await setupWorkspace(provider);
-      try {
-        // Send message with image attachment
-        const result = await sendMessage(env.mockIpcRenderer, workspaceId, "What color is this?", {
-          model: modelString(provider, model),
-          imageParts: [{ url: TEST_IMAGES.RED_PIXEL, mediaType: "image/png" }],
-        });
-
-        expect(result.success).toBe(true);
-
-        // Wait for stream to complete
-        const collector = await waitForStreamSuccess(env.sentEvents, workspaceId, 30000);
-
-        // Verify we got a response about the image
-        const deltas = collector.getDeltas();
-        expect(deltas.length).toBeGreaterThan(0);
-
-        // Combine all text deltas
-        const fullResponse = deltas
-          .map((d) => (d as StreamDeltaEvent).delta)
-          .join("")
-          .toLowerCase();
-
-        // Should mention red color in some form
-        expect(fullResponse.length).toBeGreaterThan(0);
-        // Red pixel should be detected (flexible matching as different models may phrase differently)
-        expect(fullResponse).toMatch(/red|color/i);
-      } finally {
-        await cleanup();
-      }
-    },
-    40000 // Vision models can be slower
-  );
-
-  test.concurrent(
-    "should preserve image parts through history",
-    async () => {
-      const { env, workspaceId, cleanup } = await setupWorkspace(provider);
-      try {
-        // Send message with image
-        const result = await sendMessage(env.mockIpcRenderer, workspaceId, "Describe this", {
-          model: modelString(provider, model),
-          imageParts: [{ url: TEST_IMAGES.BLUE_PIXEL, mediaType: "image/png" }],
-        });
-
-        expect(result.success).toBe(true);
-
-        // Wait for stream to complete
-        await waitForStreamSuccess(env.sentEvents, workspaceId, 30000);
-
-        // Read history from disk
-        const messages = await readChatHistory(env.tempDir, workspaceId);
-
-        // Find the user message
-        const userMessage = messages.find((m: { role: string }) => m.role === "user");
-        expect(userMessage).toBeDefined();
-
-        // Verify image part is preserved with correct format
-        if (userMessage) {
-          const imagePart = userMessage.parts.find((p: { type: string }) => p.type === "file");
-          expect(imagePart).toBeDefined();
-          if (imagePart) {
-            expect(imagePart.url).toBe(TEST_IMAGES.BLUE_PIXEL);
-            expect(imagePart.mediaType).toBe("image/png");
-          }
-        }
-      } finally {
-        await cleanup();
-      }
-    },
-    40000
   );
 });
