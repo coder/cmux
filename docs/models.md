@@ -47,8 +47,8 @@ Run models locally with Ollama. No API key required:
 {
   "ollama": {
     // Default configuration - Ollama runs on localhost:11434
-    "baseUrl": "http://localhost:11434"
-  }
+    "baseUrl": "http://localhost:11434",
+  },
 }
 ```
 
@@ -61,14 +61,14 @@ All providers are configured in `~/.cmux/providers.jsonc`. See example configura
 ```jsonc
 {
   "anthropic": {
-    "apiKey": "sk-ant-..."
+    "apiKey": "sk-ant-...",
   },
   "openai": {
-    "apiKey": "sk-..."
+    "apiKey": "sk-...",
   },
   "ollama": {
-    "baseUrl": "http://localhost:11434"  // Default - only needed if different
-  }
+    "baseUrl": "http://localhost:11434", // Default - only needed if different
+  },
 }
 ```
 
