@@ -32,25 +32,15 @@ describeIntegration("Extension System Integration Tests", () => {
       const tempGitRepo = await createTempGitRepo();
 
       try {
-        // Create a test extension in the temp project
+        // Copy test extension from fixtures to temp project
         const extDir = path.join(tempGitRepo, ".cmux", "ext");
         fs.mkdirSync(extDir, { recursive: true });
 
-        // Create a simple extension that writes to a log file
-        const extensionCode = `
-export default {
-  async onPostToolUse({ toolName, toolCallId, workspaceId, runtime }) {
-    const logEntry = JSON.stringify({
-      timestamp: new Date().toISOString(),
-      toolName,
-      toolCallId,
-      workspaceId
-    }) + '\\n';
-    await runtime.writeFile('.cmux/extension-log.txt', logEntry, { append: true });
-  }
-};
-`;
-        fs.writeFileSync(path.join(extDir, "test-logger.js"), extensionCode);
+        // Copy simple-logger extension from fixtures
+        const fixtureDir = path.join(__dirname, "fixtures");
+        const simpleLoggerSource = path.join(fixtureDir, "simple-logger.js");
+        const simpleLoggerDest = path.join(extDir, "test-logger.js");
+        fs.copyFileSync(simpleLoggerSource, simpleLoggerDest);
 
         // Create a workspace
         const createResult = await createWorkspace(env.mockIpcRenderer, tempGitRepo, "test-ext");
@@ -106,25 +96,25 @@ export default {
       const tempGitRepo = await createTempGitRepo();
 
       try {
-        // Create a folder-based extension
-        const extDir = path.join(tempGitRepo, ".cmux", "ext", "folder-ext");
-        fs.mkdirSync(extDir, { recursive: true });
+        // Copy folder-based extension from fixtures to temp project
+        const extBaseDir = path.join(tempGitRepo, ".cmux", "ext");
+        fs.mkdirSync(extBaseDir, { recursive: true });
 
-        // Create manifest
-        const manifest = {
-          entrypoint: "index.js",
-        };
-        fs.writeFileSync(path.join(extDir, "manifest.json"), JSON.stringify(manifest, null, 2));
-
-        // Create extension code
-        const extensionCode = `
-export default {
-  async onPostToolUse({ toolName, runtime }) {
-    await runtime.writeFile('.cmux/folder-ext-ran.txt', 'folder-based extension executed');
-  }
-};
-`;
-        fs.writeFileSync(path.join(extDir, "index.js"), extensionCode);
+        // Copy entire folder-extension directory
+        const fixtureDir = path.join(__dirname, "fixtures");
+        const folderExtSource = path.join(fixtureDir, "folder-extension");
+        const folderExtDest = path.join(extBaseDir, "folder-ext");
+        
+        // Copy directory recursively
+        fs.mkdirSync(folderExtDest, { recursive: true });
+        fs.copyFileSync(
+          path.join(folderExtSource, "manifest.json"),
+          path.join(folderExtDest, "manifest.json")
+        );
+        fs.copyFileSync(
+          path.join(folderExtSource, "index.js"),
+          path.join(folderExtDest, "index.js")
+        );
 
         // Create a workspace
         const createResult = await createWorkspace(
@@ -176,28 +166,23 @@ export default {
       const tempGitRepo = await createTempGitRepo();
 
       try {
-        // Create an extension that throws an error
+        // Copy test extensions from fixtures to temp project
         const extDir = path.join(tempGitRepo, ".cmux", "ext");
         fs.mkdirSync(extDir, { recursive: true });
 
-        const brokenExtensionCode = `
-export default {
-  async onPostToolUse() {
-    throw new Error("Intentional test error");
-  }
-};
-`;
-        fs.writeFileSync(path.join(extDir, "broken-ext.js"), brokenExtensionCode);
+        const fixtureDir = path.join(__dirname, "fixtures");
+        
+        // Copy broken extension
+        fs.copyFileSync(
+          path.join(fixtureDir, "broken-extension.js"),
+          path.join(extDir, "broken-ext.js")
+        );
 
-        // Also create a working extension
-        const workingExtensionCode = `
-export default {
-  async onPostToolUse({ runtime }) {
-    await runtime.writeFile('.cmux/working-ext-ran.txt', 'working extension executed');
-  }
-};
-`;
-        fs.writeFileSync(path.join(extDir, "working-ext.js"), workingExtensionCode);
+        // Copy working extension
+        fs.copyFileSync(
+          path.join(fixtureDir, "working-extension.js"),
+          path.join(extDir, "working-ext.js")
+        );
 
         // Create a workspace
         const createResult = await createWorkspace(
