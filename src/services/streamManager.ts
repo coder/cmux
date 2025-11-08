@@ -899,41 +899,11 @@ export class StreamManager extends EventEmitter {
 
       let errorType = this.categorizeError(actualError);
 
-      // Detect and enhance model-not-found errors
-      if (APICallError.isInstance(actualError)) {
-        const apiError = actualError;
-
-        // Type guard for error data structure
-        const hasErrorProperty = (
-          data: unknown
-        ): data is { error: { code?: string; type?: string } } => {
-          return (
-            typeof data === "object" &&
-            data !== null &&
-            "error" in data &&
-            typeof data.error === "object" &&
-            data.error !== null
-          );
-        };
-
-        // OpenAI: 400 with error.code === 'model_not_found'
-        const isOpenAIModelError =
-          apiError.statusCode === 400 &&
-          hasErrorProperty(apiError.data) &&
-          apiError.data.error.code === "model_not_found";
-
-        // Anthropic: 404 with error.type === 'not_found_error'
-        const isAnthropicModelError =
-          apiError.statusCode === 404 &&
-          hasErrorProperty(apiError.data) &&
-          apiError.data.error.type === "not_found_error";
-
-        if (isOpenAIModelError || isAnthropicModelError) {
-          errorType = "model_not_found";
-          // Extract model name from model string (e.g., "anthropic:sonnet-1m" -> "sonnet-1m")
-          const [, modelName] = streamInfo.model.split(":");
-          errorMessage = `Model '${modelName || streamInfo.model}' does not exist or is not available. Please check your model selection.`;
-        }
+      // Enhance model-not-found error messages
+      if (errorType === "model_not_found") {
+        // Extract model name from model string (e.g., "anthropic:sonnet-1m" -> "sonnet-1m")
+        const [, modelName] = streamInfo.model.split(":");
+        errorMessage = `Model '${modelName || streamInfo.model}' does not exist or is not available. Please check your model selection.`;
       }
 
       // If we detect API key issues in the error message, override the type
@@ -1043,6 +1013,36 @@ export class StreamManager extends EventEmitter {
       if (error.statusCode === 401) return "authentication";
       if (error.statusCode === 429) return "rate_limit";
       if (error.statusCode && error.statusCode >= 500) return "server_error";
+
+      // Check for model_not_found errors (OpenAI and Anthropic)
+      // Type guard for error data structure
+      const hasErrorProperty = (
+        data: unknown
+      ): data is { error: { code?: string; type?: string } } => {
+        return (
+          typeof data === "object" &&
+          data !== null &&
+          "error" in data &&
+          typeof data.error === "object" &&
+          data.error !== null
+        );
+      };
+
+      // OpenAI: 400 with error.code === 'model_not_found'
+      const isOpenAIModelError =
+        error.statusCode === 400 &&
+        hasErrorProperty(error.data) &&
+        error.data.error.code === "model_not_found";
+
+      // Anthropic: 404 with error.type === 'not_found_error'
+      const isAnthropicModelError =
+        error.statusCode === 404 &&
+        hasErrorProperty(error.data) &&
+        error.data.error.type === "not_found_error";
+
+      if (isOpenAIModelError || isAnthropicModelError) {
+        return "model_not_found";
+      }
 
       // Check for Anthropic context exceeded errors
       if (error.message.includes("prompt is too long:")) {
