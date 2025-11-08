@@ -60,8 +60,14 @@ export class DisposableProcess implements Disposable {
     this.disposed = true;
 
     // Kill process if still running
-    if (!this.process.killed && this.process.exitCode === null) {
-      this.process.kill("SIGKILL");
+    // Check both exitCode and signalCode to avoid calling kill() on already-dead processes
+    // When a process exits via signal (e.g., segfault, kill $$), exitCode is null but signalCode is set
+    if (!this.process.killed && this.process.exitCode === null && this.process.signalCode === null) {
+      try {
+        this.process.kill("SIGKILL");
+      } catch {
+        // Ignore ESRCH errors - process may have exited between check and kill
+      }
     }
 
     // Run all cleanup callbacks
