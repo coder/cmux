@@ -24,13 +24,6 @@ describeIntegration("IpcMain truncate integration tests", () => {
     jest.retryTimes(3, { logErrorsBeforeRetry: true });
   }
 
-  // Load tokenizer modules once before all tests (takes ~14s)
-  // This ensures accurate token counts for API calls without timing out individual tests
-  beforeAll(async () => {
-    const { loadTokenizerModules } = await import("../../src/utils/main/tokenizer");
-    await loadTokenizerModules();
-  }, 30000); // 30s timeout for tokenizer loading
-
   test.concurrent(
     "should truncate 50% of chat history and verify context is updated",
     async () => {

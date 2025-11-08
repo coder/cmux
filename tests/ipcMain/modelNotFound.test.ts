@@ -19,12 +19,6 @@ describeIntegration("IpcMain model_not_found error handling", () => {
     jest.retryTimes(3, { logErrorsBeforeRetry: true });
   }
 
-  // Load tokenizer modules once before all tests
-  beforeAll(async () => {
-    const { loadTokenizerModules } = await import("../../src/utils/main/tokenizer");
-    await loadTokenizerModules();
-  }, 30000); // 30s timeout for tokenizer loading
-
   test.concurrent(
     "should classify Anthropic 404 as model_not_found (not retryable)",
     async () => {
