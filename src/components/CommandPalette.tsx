@@ -5,6 +5,7 @@ import type { CommandAction } from "@/contexts/CommandRegistryContext";
 import { formatKeybind, KEYBINDS, isEditableElement, matchesKeybind } from "@/utils/ui/keybinds";
 import { getSlashCommandSuggestions } from "@/utils/slashCommands/suggestions";
 import { CUSTOM_EVENTS, createCustomEvent } from "@/constants/events";
+import { filterCommandsByPrefix } from "@/utils/commandPaletteFiltering";
 
 interface CommandPaletteProps {
   getSlashContext?: () => { providerNames: string[]; workspaceId?: string };
@@ -202,14 +203,8 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ getSlashContext 
       } satisfies { groups: PaletteGroup[]; emptyText: string | undefined };
     }
 
-    // Filter actions based on prefix
-    const showAllCommands = q.startsWith(">");
-
-    // When no prefix is used, only show workspace switching commands
-    // When ">" prefix is used, show all commands EXCEPT workspace switching (show mutations, nav, chat, etc.)
-    const actionsToShow = showAllCommands
-      ? rawActions.filter((action) => !action.id.startsWith("ws:switch:"))
-      : rawActions.filter((action) => action.id.startsWith("ws:switch:"));
+    // Filter actions based on prefix (extracted to utility for testing)
+    const actionsToShow = filterCommandsByPrefix(q, rawActions);
 
     const filtered = [...actionsToShow].sort((a, b) => {
       const ai = recentIndex.has(a.id) ? recentIndex.get(a.id)! : 9999;

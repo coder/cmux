@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { filterCommandsByPrefix } from "@/utils/commandPaletteFiltering";
 
 /**
  * Tests for command palette filtering logic
@@ -22,31 +23,9 @@ const mockActions: Action[] = [
   { id: "chat1", title: "Clear Chat", section: "Chat" },
 ];
 
-/**
- * Simulates the filtering logic in CommandPalette.tsx
- * This is the behavior we're testing to catch regressions
- */
-function filterActions(query: string, actions: Action[]): Action[] {
-  const q = query.trim();
-
-  if (q.startsWith("/")) {
-    return []; // Slash commands handled separately
-  }
-
-  const showAllCommands = q.startsWith(">");
-
-  // Default: show only workspace switching commands
-  // With ">": show all commands EXCEPT workspace switching
-  const filtered = showAllCommands
-    ? actions.filter((action) => !action.id.startsWith("ws:switch:"))
-    : actions.filter((action) => action.id.startsWith("ws:switch:"));
-
-  return filtered;
-}
-
 describe("CommandPalette filtering", () => {
   test("default (no prefix) shows only workspace switching commands", () => {
-    const result = filterActions("", mockActions);
+    const result = filterCommandsByPrefix("", mockActions);
 
     expect(result).toHaveLength(2);
     expect(result.every((a) => a.id.startsWith("ws:switch:"))).toBe(true);
@@ -55,7 +34,7 @@ describe("CommandPalette filtering", () => {
   });
 
   test("default query excludes workspace mutations", () => {
-    const result = filterActions("", mockActions);
+    const result = filterCommandsByPrefix("", mockActions);
 
     expect(result.some((a) => a.id === "ws:new")).toBe(false);
     expect(result.some((a) => a.id === "ws:remove")).toBe(false);
@@ -63,7 +42,7 @@ describe("CommandPalette filtering", () => {
   });
 
   test("> prefix shows all commands EXCEPT switching", () => {
-    const result = filterActions(">", mockActions);
+    const result = filterCommandsByPrefix(">", mockActions);
 
     // Should show 6 commands (3 workspace mutations + 1 terminal + 1 nav + 1 chat)
     expect(result).toHaveLength(6);
@@ -82,7 +61,7 @@ describe("CommandPalette filtering", () => {
   });
 
   test(">query with text shows non-switching commands (cmdk filters further)", () => {
-    const result = filterActions(">new", mockActions);
+    const result = filterCommandsByPrefix(">new", mockActions);
 
     // Our filter shows all non-switching commands
     // (cmdk's built-in filter will narrow this down by "new")
@@ -91,13 +70,13 @@ describe("CommandPalette filtering", () => {
   });
 
   test("/ prefix returns empty (slash commands handled separately)", () => {
-    const result = filterActions("/", mockActions);
+    const result = filterCommandsByPrefix("/", mockActions);
     expect(result).toHaveLength(0);
   });
 
   test("clean separation: switching XOR other commands", () => {
-    const defaultResult = filterActions("", mockActions);
-    const commandResult = filterActions(">", mockActions);
+    const defaultResult = filterCommandsByPrefix("", mockActions);
+    const commandResult = filterCommandsByPrefix(">", mockActions);
 
     // No overlap
     const defaultIds = new Set(defaultResult.map((a) => a.id));
