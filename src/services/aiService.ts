@@ -7,6 +7,7 @@ import { sanitizeToolInputs } from "@/utils/messages/sanitizeToolInput";
 import type { Result } from "@/types/result";
 import { Ok, Err } from "@/types/result";
 import type { WorkspaceMetadata } from "@/types/workspace";
+import type { RuntimeConfig } from "@/types/runtime";
 
 import type { CmuxMessage, CmuxTextPart } from "@/types/message";
 import { createCmuxMessage } from "@/types/message";
@@ -453,6 +454,13 @@ export class AIService extends EventEmitter {
    * @param mode Optional mode name - affects system message via Mode: sections in AGENTS.md
    * @returns Promise that resolves when streaming completes or fails
    */
+
+  /**
+   * Get runtime config for a workspace, falling back to default local config
+   */
+  private getWorkspaceRuntimeConfig(metadata: WorkspaceMetadata): RuntimeConfig {
+    return metadata.runtimeConfig ?? { type: "local", srcBaseDir: this.config.srcDir };
+  }
   async streamMessage(
     messages: CmuxMessage[],
     workspaceId: string,
@@ -583,9 +591,7 @@ export class AIService extends EventEmitter {
       }
 
       // Get workspace path - handle both worktree and in-place modes
-      const runtime = createRuntime(
-        metadata.runtimeConfig ?? { type: "local", srcBaseDir: this.config.srcDir }
-      );
+      const runtime = createRuntime(this.getWorkspaceRuntimeConfig(metadata));
       // In-place workspaces (CLI/benchmarks) have projectPath === name
       // Use path directly instead of reconstructing via getWorkspacePath
       const isInPlace = metadata.projectPath === metadata.name;
@@ -619,7 +625,7 @@ export class AIService extends EventEmitter {
         .registerWorkspace(
           workspaceId,
           metadata,
-          metadata.runtimeConfig ?? { type: "local", srcBaseDir: this.config.srcDir },
+          this.getWorkspaceRuntimeConfig(metadata),
           runtimeTempDir
         )
         .catch((error) => {

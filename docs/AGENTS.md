@@ -273,7 +273,9 @@ await env.mockIpcRenderer.invoke(IPC_CHANNELS.WORKSPACE_CREATE, projectPath, bra
 ### Testing without Mocks (preferred)
 
 - Prefer exercising real behavior over substituting test doubles. Do not stub `child_process`, `fs`, or discovery logic.
-- Use temporary directories and real processes in unit tests where feasible. Clean up with `fs.rmSync(temp, { recursive: true, force: true })` in `afterEach`.
+- **Use async fs operations (`fs/promises`) in tests, never sync fs**. This keeps tests fast and allows parallelization.
+- **Use `test.concurrent()` for unit tests** to enable parallel execution. Avoid global variables in test files—use local variables in each test or `beforeEach` to ensure test isolation.
+- Use temporary directories and real processes in unit tests where feasible. Clean up with `await fs.rm(temp, { recursive: true, force: true })` in async `afterEach`.
 - For extension system tests:
   - Spawn the real global extension host via `ExtensionManager.initializeGlobal()`.
   - Create real on-disk extensions in a temp `~/.cmux/ext` or project `.cmux/ext` folder.
