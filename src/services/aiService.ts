@@ -468,7 +468,9 @@ export class AIService extends EventEmitter {
       log.debug_obj(`${workspaceId}/1_original_messages.json`, messages);
 
       // Extract provider name from modelString (e.g., "anthropic:claude-opus-4-1" -> "anthropic")
-      const [providerName] = modelString.split(":");
+      // Use indexOf to handle model IDs with colons (e.g., "ollama:gpt-oss:20b")
+      const colonIndex = modelString.indexOf(":");
+      const providerName = colonIndex !== -1 ? modelString.slice(0, colonIndex) : modelString;
 
       // Get tool names early for mode transition sentinel (stub config, no workspace context needed)
       const earlyRuntime = createRuntime({ type: "local", srcBaseDir: process.cwd() });

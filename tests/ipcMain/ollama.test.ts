@@ -3,7 +3,6 @@ import {
   sendMessageWithModel,
   createEventCollector,
   assertStreamSuccess,
-  modelString,
   extractTextFromEvents,
 } from "./helpers";
 
