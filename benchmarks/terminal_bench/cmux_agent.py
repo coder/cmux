@@ -193,13 +193,13 @@ class CmuxAgent(AbstractInstalledAgent):
     def _run_agent_commands(self, instruction: str) -> list[TerminalCommand]:
         escaped = shlex.quote(instruction)
         command = f"bash /installed-agent/{self._RUNNER_NAME} {escaped}"
-        # Use terminal-bench's global timeout instead of bypassing it
-        # This allows terminal-bench to properly enforce timeouts and prevent hung tasks
+        # Don't override max_timeout_sec - let terminal-bench enforce its global timeout
+        # Previously this was set to float("inf") which bypassed timeout controls
         return [
             TerminalCommand(
                 command=command,
                 min_timeout_sec=0.0,
-                max_timeout_sec=None,  # Use global timeout from --global-agent-timeout-sec
+                # max_timeout_sec uses default (180s) but global timeout takes precedence
                 block=True,
                 append_enter=True,
             )
