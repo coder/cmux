@@ -4,11 +4,22 @@
  */
 
 /**
+ * Command ID prefixes for pattern matching
+ * Single source of truth for all dynamic ID patterns
+ */
+const COMMAND_ID_PREFIXES = {
+  WS_SWITCH: "ws:switch:",
+  CHAT_TRUNCATE: "chat:truncate:",
+  PROJECT_REMOVE: "project:remove:",
+} as const;
+
+/**
  * Command ID builders - construct IDs with consistent patterns
  */
 export const CommandIds = {
   // Workspace commands
-  workspaceSwitch: (workspaceId: string) => `ws:switch:${workspaceId}` as const,
+  workspaceSwitch: (workspaceId: string) =>
+    `${COMMAND_ID_PREFIXES.WS_SWITCH}${workspaceId}` as const,
   workspaceNew: () => "ws:new" as const,
   workspaceNewInProject: () => "ws:new-in-project" as const,
   workspaceRemove: () => "ws:remove" as const,
@@ -25,7 +36,7 @@ export const CommandIds = {
 
   // Chat commands
   chatClear: () => "chat:clear" as const,
-  chatTruncate: (pct: number) => `chat:truncate:${pct}` as const,
+  chatTruncate: (pct: number) => `${COMMAND_ID_PREFIXES.CHAT_TRUNCATE}${pct}` as const,
   chatInterrupt: () => "chat:interrupt" as const,
   chatJumpBottom: () => "chat:jumpBottom" as const,
 
@@ -36,19 +47,11 @@ export const CommandIds = {
 
   // Project commands
   projectAdd: () => "project:add" as const,
-  projectRemove: (projectPath: string) => `project:remove:${projectPath}` as const,
+  projectRemove: (projectPath: string) =>
+    `${COMMAND_ID_PREFIXES.PROJECT_REMOVE}${projectPath}` as const,
 
   // Help commands
   helpKeybinds: () => "help:keybinds" as const,
-} as const;
-
-/**
- * Command ID prefixes for pattern matching
- */
-const COMMAND_ID_PREFIXES = {
-  WS_SWITCH: "ws:switch:",
-  CHAT_TRUNCATE: "chat:truncate:",
-  PROJECT_REMOVE: "project:remove:",
 } as const;
 
 /**
