@@ -2,6 +2,7 @@ import type { CommandAction } from "@/contexts/CommandRegistryContext";
 import { formatKeybind, KEYBINDS } from "@/utils/ui/keybinds";
 import type { ThinkingLevel } from "@/types/thinking";
 import { CUSTOM_EVENTS, createCustomEvent } from "@/constants/events";
+import { CommandIds } from "@/utils/commandIds";
 
 import type { ProjectConfig } from "@/config";
 import type { FrontendWorkspaceMetadata } from "@/types/workspace";
@@ -77,7 +78,7 @@ export function buildCoreSources(p: BuildSourcesParams): Array<() => CommandActi
     selected: NonNullable<BuildSourcesParams["selectedWorkspace"]>
   ): CommandAction => {
     return {
-      id: "ws:new",
+      id: CommandIds.workspaceNew(),
       title: "Create New Workspace…",
       subtitle: `for ${selected.projectName}`,
       section: section.workspaces,
@@ -101,7 +102,7 @@ export function buildCoreSources(p: BuildSourcesParams): Array<() => CommandActi
       const isCurrent = selected?.workspaceId === meta.id;
       const isStreaming = p.streamingModels?.has(meta.id) ?? false;
       list.push({
-        id: `ws:switch:${meta.id}`,
+        id: CommandIds.workspaceSwitch(meta.id),
         title: `${isCurrent ? "• " : ""}Switch to ${meta.name}`,
         subtitle: `${meta.projectName}${isStreaming ? " • streaming" : ""}`,
         section: section.workspaces,
@@ -120,7 +121,7 @@ export function buildCoreSources(p: BuildSourcesParams): Array<() => CommandActi
     if (selected?.namedWorkspacePath) {
       const workspaceDisplayName = `${selected.projectName}/${selected.namedWorkspacePath.split("/").pop() ?? selected.namedWorkspacePath}`;
       list.push({
-        id: "ws:open-terminal-current",
+        id: CommandIds.workspaceOpenTerminalCurrent(),
         title: "Open Current Workspace in Terminal",
         subtitle: workspaceDisplayName,
         section: section.workspaces,
@@ -130,7 +131,7 @@ export function buildCoreSources(p: BuildSourcesParams): Array<() => CommandActi
         },
       });
       list.push({
-        id: "ws:remove",
+        id: CommandIds.workspaceRemove(),
         title: "Remove Current Workspace…",
         subtitle: workspaceDisplayName,
         section: section.workspaces,
@@ -140,7 +141,7 @@ export function buildCoreSources(p: BuildSourcesParams): Array<() => CommandActi
         },
       });
       list.push({
-        id: "ws:rename",
+        id: CommandIds.workspaceRename(),
         title: "Rename Current Workspace…",
         subtitle: workspaceDisplayName,
         section: section.workspaces,
@@ -168,7 +169,7 @@ export function buildCoreSources(p: BuildSourcesParams): Array<() => CommandActi
 
     if (p.workspaceMetadata.size > 0) {
       list.push({
-        id: "ws:open-terminal",
+        id: CommandIds.workspaceOpenTerminal(),
         title: "Open Workspace in Terminal…",
         section: section.workspaces,
         run: () => undefined,
@@ -198,7 +199,7 @@ export function buildCoreSources(p: BuildSourcesParams): Array<() => CommandActi
         },
       });
       list.push({
-        id: "ws:rename-any",
+        id: CommandIds.workspaceRenameAny(),
         title: "Rename Workspace…",
         section: section.workspaces,
         run: () => undefined,
@@ -240,7 +241,7 @@ export function buildCoreSources(p: BuildSourcesParams): Array<() => CommandActi
         },
       });
       list.push({
-        id: "ws:remove-any",
+        id: CommandIds.workspaceRemoveAny(),
         title: "Remove Workspace…",
         section: section.workspaces,
         run: () => undefined,
@@ -283,21 +284,21 @@ export function buildCoreSources(p: BuildSourcesParams): Array<() => CommandActi
   // Navigation / Interface
   actions.push(() => [
     {
-      id: "nav:next",
+      id: CommandIds.navNext(),
       title: "Next Workspace",
       section: section.navigation,
       shortcutHint: formatKeybind(KEYBINDS.NEXT_WORKSPACE),
       run: () => p.onNavigateWorkspace("next"),
     },
     {
-      id: "nav:prev",
+      id: CommandIds.navPrev(),
       title: "Previous Workspace",
       section: section.navigation,
       shortcutHint: formatKeybind(KEYBINDS.PREV_WORKSPACE),
       run: () => p.onNavigateWorkspace("prev"),
     },
     {
-      id: "nav:toggleSidebar",
+      id: CommandIds.navToggleSidebar(),
       title: "Toggle Sidebar",
       section: section.navigation,
       shortcutHint: formatKeybind(KEYBINDS.TOGGLE_SIDEBAR),
@@ -311,7 +312,7 @@ export function buildCoreSources(p: BuildSourcesParams): Array<() => CommandActi
     if (p.selectedWorkspace) {
       const id = p.selectedWorkspace.workspaceId;
       list.push({
-        id: "chat:clear",
+        id: CommandIds.chatClear(),
         title: "Clear History",
         section: section.chat,
         run: async () => {
@@ -320,7 +321,7 @@ export function buildCoreSources(p: BuildSourcesParams): Array<() => CommandActi
       });
       for (const pct of [0.75, 0.5, 0.25]) {
         list.push({
-          id: `chat:truncate:${pct}`,
+          id: CommandIds.chatTruncate(pct),
           title: `Truncate History to ${Math.round((1 - pct) * 100)}%`,
           section: section.chat,
           run: async () => {
@@ -329,7 +330,7 @@ export function buildCoreSources(p: BuildSourcesParams): Array<() => CommandActi
         });
       }
       list.push({
-        id: "chat:interrupt",
+        id: CommandIds.chatInterrupt(),
         title: "Interrupt Streaming",
         section: section.chat,
         run: async () => {
@@ -337,7 +338,7 @@ export function buildCoreSources(p: BuildSourcesParams): Array<() => CommandActi
         },
       });
       list.push({
-        id: "chat:jumpBottom",
+        id: CommandIds.chatJumpBottom(),
         title: "Jump to Bottom",
         section: section.chat,
         shortcutHint: formatKeybind(KEYBINDS.JUMP_TO_BOTTOM),
@@ -355,7 +356,7 @@ export function buildCoreSources(p: BuildSourcesParams): Array<() => CommandActi
   actions.push(() => {
     const list: CommandAction[] = [
       {
-        id: "mode:toggle",
+        id: CommandIds.modeToggle(),
         title: "Toggle Plan/Exec Mode",
         section: section.mode,
         shortcutHint: formatKeybind(KEYBINDS.TOGGLE_MODE),
@@ -365,7 +366,7 @@ export function buildCoreSources(p: BuildSourcesParams): Array<() => CommandActi
         },
       },
       {
-        id: "model:change",
+        id: CommandIds.modelChange(),
         title: "Change Model…",
         section: section.mode,
         shortcutHint: formatKeybind(KEYBINDS.OPEN_MODEL_SELECTOR),
@@ -387,7 +388,7 @@ export function buildCoreSources(p: BuildSourcesParams): Array<() => CommandActi
       const currentLevel = p.getThinkingLevel(workspaceId);
 
       list.push({
-        id: "thinking:set-level",
+        id: CommandIds.thinkingSetLevel(),
         title: "Set Thinking Effort…",
         subtitle: `Current: ${levelDescriptions[currentLevel] ?? currentLevel}`,
         section: section.mode,
@@ -430,7 +431,7 @@ export function buildCoreSources(p: BuildSourcesParams): Array<() => CommandActi
   // Help / Docs
   actions.push(() => [
     {
-      id: "help:keybinds",
+      id: CommandIds.helpKeybinds(),
       title: "Show Keyboard Shortcuts",
       section: section.help,
       run: () => {
@@ -447,13 +448,13 @@ export function buildCoreSources(p: BuildSourcesParams): Array<() => CommandActi
   actions.push(() => {
     const list: CommandAction[] = [
       {
-        id: "project:add",
+        id: CommandIds.projectAdd(),
         title: "Add Project…",
         section: section.projects,
         run: () => p.onAddProject(),
       },
       {
-        id: "ws:new-in-project",
+        id: CommandIds.workspaceNewInProject(),
         title: "Create New Workspace in Project…",
         section: section.projects,
         run: () => undefined,
@@ -485,7 +486,7 @@ export function buildCoreSources(p: BuildSourcesParams): Array<() => CommandActi
     for (const [projectPath] of p.projects.entries()) {
       const projectName = projectPath.split("/").pop() ?? projectPath;
       list.push({
-        id: `project:remove:${projectPath}`,
+        id: CommandIds.projectRemove(projectPath),
         title: `Remove Project ${projectName}…`,
         section: section.projects,
         run: () => p.onRemoveProject(projectPath),

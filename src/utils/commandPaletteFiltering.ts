@@ -3,6 +3,8 @@
  * Separates workspace switching from all other commands
  */
 
+import { CommandIdMatchers } from "@/utils/commandIds";
+
 export interface CommandActionMinimal {
   id: string;
 }
@@ -33,6 +35,6 @@ export function filterCommandsByPrefix<T extends CommandActionMinimal>(
   // Default: show only workspace switching commands
   // With ">": show all commands EXCEPT workspace switching
   return showAllCommands
-    ? actions.filter((action) => !action.id.startsWith("ws:switch:"))
-    : actions.filter((action) => action.id.startsWith("ws:switch:"));
+    ? actions.filter((action) => !CommandIdMatchers.isWorkspaceSwitch(action.id))
+    : actions.filter((action) => CommandIdMatchers.isWorkspaceSwitch(action.id));
 }

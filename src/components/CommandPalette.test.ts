@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { filterCommandsByPrefix } from "@/utils/commandPaletteFiltering";
+import { CommandIds, CommandIdMatchers } from "@/utils/commandIds";
 
 /**
  * Tests for command palette filtering logic
@@ -10,74 +11,74 @@ describe("CommandPalette filtering", () => {
   describe("property: default mode shows only ws:switch:* commands", () => {
     test("all results start with ws:switch:", () => {
       const actions = [
-        { id: "ws:switch:1" },
-        { id: "ws:switch:2" },
-        { id: "ws:new" },
-        { id: "nav:toggle" },
+        { id: CommandIds.workspaceSwitch("1") },
+        { id: CommandIds.workspaceSwitch("2") },
+        { id: CommandIds.workspaceNew() },
+        { id: CommandIds.navToggleSidebar() },
       ];
 
       const result = filterCommandsByPrefix("", actions);
 
-      expect(result.every((a) => a.id.startsWith("ws:switch:"))).toBe(true);
+      expect(result.every((a) => CommandIdMatchers.isWorkspaceSwitch(a.id))).toBe(true);
     });
 
     test("excludes all non-switching commands", () => {
       const actions = [
-        { id: "ws:switch:1" },
-        { id: "ws:new" },
-        { id: "ws:remove" },
-        { id: "nav:toggle" },
+        { id: CommandIds.workspaceSwitch("1") },
+        { id: CommandIds.workspaceNew() },
+        { id: CommandIds.workspaceRemove() },
+        { id: CommandIds.navToggleSidebar() },
       ];
 
       const result = filterCommandsByPrefix("", actions);
 
-      expect(result.some((a) => !a.id.startsWith("ws:switch:"))).toBe(false);
+      expect(result.some((a) => !CommandIdMatchers.isWorkspaceSwitch(a.id))).toBe(false);
     });
   });
 
   describe("property: > mode shows all EXCEPT ws:switch:* commands", () => {
     test("no results start with ws:switch:", () => {
       const actions = [
-        { id: "ws:switch:1" },
-        { id: "ws:new" },
-        { id: "nav:toggle" },
-        { id: "chat:clear" },
+        { id: CommandIds.workspaceSwitch("1") },
+        { id: CommandIds.workspaceNew() },
+        { id: CommandIds.navToggleSidebar() },
+        { id: CommandIds.chatClear() },
       ];
 
       const result = filterCommandsByPrefix(">", actions);
 
-      expect(result.every((a) => !a.id.startsWith("ws:switch:"))).toBe(true);
+      expect(result.every((a) => !CommandIdMatchers.isWorkspaceSwitch(a.id))).toBe(true);
     });
 
     test("includes all non-switching commands", () => {
       const actions = [
-        { id: "ws:switch:1" },
-        { id: "ws:new" },
-        { id: "ws:remove" },
-        { id: "nav:toggle" },
+        { id: CommandIds.workspaceSwitch("1") },
+        { id: CommandIds.workspaceNew() },
+        { id: CommandIds.workspaceRemove() },
+        { id: CommandIds.navToggleSidebar() },
       ];
 
       const result = filterCommandsByPrefix(">", actions);
 
       // Should include workspace mutations
-      expect(result.some((a) => a.id === "ws:new")).toBe(true);
-      expect(result.some((a) => a.id === "ws:remove")).toBe(true);
+      expect(result.some((a) => a.id === CommandIds.workspaceNew())).toBe(true);
+      expect(result.some((a) => a.id === CommandIds.workspaceRemove())).toBe(true);
       // Should include navigation
-      expect(result.some((a) => a.id === "nav:toggle")).toBe(true);
+      expect(result.some((a) => a.id === CommandIds.navToggleSidebar())).toBe(true);
       // Should NOT include switching
-      expect(result.some((a) => a.id === "ws:switch:1")).toBe(false);
+      expect(result.some((a) => a.id === CommandIds.workspaceSwitch("1"))).toBe(false);
     });
   });
 
   describe("property: modes partition the command space", () => {
     test("default + > modes cover all commands (no overlap, no gaps)", () => {
       const actions = [
-        { id: "ws:switch:1" },
-        { id: "ws:switch:2" },
-        { id: "ws:new" },
-        { id: "ws:remove" },
-        { id: "nav:toggle" },
-        { id: "chat:clear" },
+        { id: CommandIds.workspaceSwitch("1") },
+        { id: CommandIds.workspaceSwitch("2") },
+        { id: CommandIds.workspaceNew() },
+        { id: CommandIds.workspaceRemove() },
+        { id: CommandIds.navToggleSidebar() },
+        { id: CommandIds.chatClear() },
       ];
 
       const defaultResult = filterCommandsByPrefix("", actions);
@@ -96,7 +97,11 @@ describe("CommandPalette filtering", () => {
 
   describe("property: / prefix always returns empty", () => {
     test("returns empty array regardless of actions", () => {
-      const actions = [{ id: "ws:switch:1" }, { id: "ws:new" }, { id: "nav:toggle" }];
+      const actions = [
+        { id: CommandIds.workspaceSwitch("1") },
+        { id: CommandIds.workspaceNew() },
+        { id: CommandIds.navToggleSidebar() },
+      ];
 
       expect(filterCommandsByPrefix("/", actions)).toHaveLength(0);
       expect(filterCommandsByPrefix("/help", actions)).toHaveLength(0);
@@ -106,7 +111,11 @@ describe("CommandPalette filtering", () => {
 
   describe("property: query with > prefix applies to all non-switching", () => {
     test(">text shows same set as > (cmdk filters further)", () => {
-      const actions = [{ id: "ws:switch:1" }, { id: "ws:new" }, { id: "nav:toggle" }];
+      const actions = [
+        { id: CommandIds.workspaceSwitch("1") },
+        { id: CommandIds.workspaceNew() },
+        { id: CommandIds.navToggleSidebar() },
+      ];
 
       // Our filter doesn't care about text after >, just the prefix
       const resultEmpty = filterCommandsByPrefix(">", actions);
