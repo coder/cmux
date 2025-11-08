@@ -209,6 +209,7 @@ This project uses **Make** as the primary build orchestrator. See `Makefile` for
 
 **TDD is the preferred development style for agents.**
 
+- **When asked to do TDD, write tests in the repository** - Create proper test files (e.g., `src/utils/foo.test.ts`) that run with `bun test` or `jest`, not temporary scripts in `/tmp`. Tests should be committed with the implementation.
 - Prefer relocated complex logic into places where they're easily tested
   - E.g. pure functions in `utils` are easier to test than complex logic in a React component
 - Strive for broad coverage with minimal tests

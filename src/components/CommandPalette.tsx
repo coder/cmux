@@ -205,9 +205,10 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ getSlashContext 
     // Filter actions based on prefix
     const showAllCommands = q.startsWith(">");
 
-    // When no prefix is used, only show workspace switching commands (not mutations like create/delete/rename)
+    // When no prefix is used, only show workspace switching commands
+    // When ">" prefix is used, show all commands EXCEPT workspace switching (show mutations, nav, chat, etc.)
     const actionsToShow = showAllCommands
-      ? rawActions
+      ? rawActions.filter((action) => !action.id.startsWith("ws:switch:"))
       : rawActions.filter((action) => action.id.startsWith("ws:switch:"));
 
     const filtered = [...actionsToShow].sort((a, b) => {

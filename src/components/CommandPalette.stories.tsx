@@ -183,17 +183,24 @@ export const Default: Story = {
         reopen it.
         <br />
         <br />
-        <strong>Features:</strong>
+        <strong>Two Modes:</strong>
+        <br />• <strong>Default</strong>: Workspace switcher (only shows switching commands)
+        <br />•{" "}
+        <strong>
+          Type <kbd>&gt;</kbd>
+        </strong>
+        : Command mode (shows all other commands)
+        <br />•{" "}
+        <strong>
+          Type <kbd>/</kbd>
+        </strong>
+        : Slash commands for chat input
         <br />
-        • By default, shows only workspace switching commands (no create/delete/rename)
-        <br />• Type <kbd>&gt;</kbd> to see all commands including workspace management
-        <br />• Type <kbd>/</kbd> to see slash commands for chat input
         <br />
         • Use ↑↓ arrow keys to navigate, Enter to execute
         <br />
         • Press Escape to close
-        <br />• Commands are organized into sections (Workspaces, Chat, Mode, Settings, Project,
-        Help)
+        <br />• Commands organized into sections (Workspaces, Chat, Mode, Settings, Project, Help)
       </div>
       <PaletteDemo />
     </div>
