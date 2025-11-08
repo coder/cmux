@@ -305,7 +305,7 @@ benchmark-terminal: ## Run Terminal-Bench with the cmux agent (use TB_DATASET/TB
 		echo "Ensuring dataset $$TB_DATASET is downloaded..."; \
 		uvx terminal-bench datasets download --dataset "$$TB_DATASET" 2>&1 | grep -v "already exists" || true; \
 		echo "Sampling $$TB_SAMPLE_SIZE tasks from $$TB_DATASET..."; \
-		TASK_IDS=$$(python benchmarks/terminal_bench/sample_tasks.py --dataset "$$TB_DATASET" --sample-size "$$TB_SAMPLE_SIZE" --format space) || { \
+		TASK_IDS=$$(python3 benchmarks/terminal_bench/sample_tasks.py --dataset "$$TB_DATASET" --sample-size "$$TB_SAMPLE_SIZE" --format space) || { \
 			echo "Error: Failed to sample tasks" >&2; \
 			exit 1; \
 		}; \
