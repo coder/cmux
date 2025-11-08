@@ -99,6 +99,18 @@ jobs:
 
       - uses: ./.github/actions/setup-cmux
 
+      - name: Install Ollama
+        run: |
+          curl -fsSL https://ollama.com/install.sh | sh
+          # Start Ollama service in background
+          ollama serve &
+          # Wait for Ollama to be ready
+          timeout 30 sh -c 'until curl -s http://localhost:11434/api/tags > /dev/null 2>&1; do sleep 1; done'
+          echo "Ollama is ready"
+          # Pull the gpt-oss:20b model for tests (this may take a few minutes)
+          ollama pull gpt-oss:20b
+          echo "Model pulled successfully"
+
       - name: Build worker files
         run: make build-main
 
@@ -108,6 +120,7 @@ jobs:
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          OLLAMA_BASE_URL: http://localhost:11434
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5

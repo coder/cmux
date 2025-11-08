@@ -109,7 +109,7 @@ export async function cleanupTestEnvironment(env: TestEnvironment): Promise<void
  */
 export async function setupProviders(
   mockIpcRenderer: Electron.IpcRenderer,
-  providers: Record<string, { apiKey: string; [key: string]: unknown }>
+  providers: Record<string, { apiKey?: string; baseUrl?: string; [key: string]: unknown }>
 ): Promise<void> {
   for (const [providerName, providerConfig] of Object.entries(providers)) {
     for (const [key, value] of Object.entries(providerConfig)) {
@@ -166,11 +166,20 @@ export async function setupWorkspace(
 
   const env = await createTestEnvironment();
 
-  await setupProviders(env.mockIpcRenderer, {
-    [provider]: {
-      apiKey: getApiKey(`${provider.toUpperCase()}_API_KEY`),
-    },
-  });
+  // Ollama doesn't require API keys - it's a local service
+  if (provider === "ollama") {
+    await setupProviders(env.mockIpcRenderer, {
+      [provider]: {
+        baseUrl: process.env.OLLAMA_BASE_URL || "http://localhost:11434",
+      },
+    });
+  } else {
+    await setupProviders(env.mockIpcRenderer, {
+      [provider]: {
+        apiKey: getApiKey(`${provider.toUpperCase()}_API_KEY`),
+      },
+    });
+  }
 
   const branchName = generateBranchName(branchPrefix || provider);
   const createResult = await createWorkspace(env.mockIpcRenderer, tempGitRepo, branchName);
