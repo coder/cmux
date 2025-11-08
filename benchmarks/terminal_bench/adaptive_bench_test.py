@@ -173,7 +173,7 @@ class TestAdaptiveBench:
 
         # Mock results.json with 3 completed tasks
         results_data = {
-            "trials": [
+            "results": [
                 {"task_id": "task1", "resolved": True},
                 {"task_id": "task2", "resolved": False},
                 {"task_id": "task3", "resolved": True},

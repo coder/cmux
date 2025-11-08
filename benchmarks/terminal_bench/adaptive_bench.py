@@ -69,7 +69,7 @@ class AdaptiveBench:
                     results_data = json.load(f)
                     # Count unique task_ids in results
                     completed = len(
-                        set(r["task_id"] for r in results_data.get("trials", []))
+                        set(r["task_id"] for r in results_data.get("results", []))
                     )
 
             return {

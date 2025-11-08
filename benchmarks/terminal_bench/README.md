@@ -105,63 +105,47 @@ Based on analysis of the Oct 30 nightly run (15-minute timeout):
 
 **Impact of 30-minute timeout**: Expected to reduce false timeout failures by ~50% and improve pass rates by 10-15 percentage points (from ~42% to ~52-57%).
 
-## Adaptive Concurrency Mode
+## Adaptive Concurrency
 
-The `benchmark-terminal-adaptive` target automatically adjusts concurrency based on system load using a **burst-and-resume pattern**:
-
-```bash
-# Start with concurrency=1, scale up to max 16 based on load
-TB_MAX_CONCURRENT=16 make benchmark-terminal-adaptive
-
-# More conservative: max 8, higher load threshold
-TB_MAX_CONCURRENT=8 TB_LOAD_THRESHOLD=2.0 make benchmark-terminal-adaptive
-
-# Faster adjustments: check every 30 seconds
-TB_CHECK_INTERVAL=30 TB_MAX_CONCURRENT=16 make benchmark-terminal-adaptive
-
-# Sample 5 tasks with adaptive concurrency
-TB_SAMPLE_SIZE=5 TB_MAX_CONCURRENT=8 make benchmark-terminal-adaptive
-```
+Terminal-bench uses **adaptive concurrency** that automatically scales from 1-16 concurrent tasks based on system load using a **burst-and-resume pattern**:
 
 ### How It Works
 
-1. **Runs terminal-bench in bursts** with current concurrency
-2. **Monitors system load** after each burst completes
+1. **Starts with concurrency=1** and runs a burst
+2. **Monitors system load** (1-minute average) after each burst completes
 3. **Adjusts concurrency** using hysteresis:
-   - **Double** when 1-minute load avg < threshold
-   - **Halve** when 1-minute load avg > threshold
-4. **Resumes** the run with updated concurrency
+   - **Double** when load < threshold (default: 1.0)
+   - **Halve** when load > threshold
+   - **Bounded to [1, 16]** for optimal performance
+4. **Resumes** the run with updated concurrency (skips completed tasks)
 
-The burst-and-resume pattern leverages terminal-bench's native resume capability to skip completed tasks. Each burst runs to completion (no mid-task interruption), ensuring clean Docker container lifecycle.
+The burst-and-resume pattern leverages terminal-bench's native resume capability. Each burst runs to completion with no mid-task interruption, ensuring clean Docker container lifecycle.
 
 ### Configuration
 
+```bash
+# Adjust load threshold (default: 1.0)
+TB_LOAD_THRESHOLD=2.0 make benchmark-terminal
+
+# Faster adjustments (default: 60s between bursts)
+TB_CHECK_INTERVAL=30 make benchmark-terminal
+
+# Sample 5 tasks with adaptive concurrency
+TB_SAMPLE_SIZE=5 make benchmark-terminal
+```
+
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `TB_MAX_CONCURRENT` | 16 | Maximum concurrency limit |
 | `TB_LOAD_THRESHOLD` | 1.0 | Load average threshold for adjusting concurrency |
 | `TB_CHECK_INTERVAL` | 60 | Seconds to wait between bursts |
 
-### When to Use Adaptive Mode
-
-**Use adaptive mode when:**
-- Running on shared hardware with variable load
-- Unsure of optimal concurrency for your system
-- Want to maximize throughput without overloading
-- Running long benchmark suites (full 80-task suite)
-
-**Use fixed concurrency when:**
-- Running on dedicated hardware
-- Know optimal concurrency for your setup
-- Running small task samples (< 10 tasks)
-- Burst overhead (2-5s) matters for very short tasks
-
 ### Tradeoffs
 
-- ✅ Automatically finds optimal concurrency
+- ✅ Automatically finds optimal concurrency for hardware
 - ✅ Prevents system overload
 - ✅ Clean container lifecycle (no mid-task kills)
-- ⚠️ Burst overhead (~2-5s between bursts)
+- ✅ Bounded to [1, 16] for safety
+- ⚠️ Burst overhead (~2-5s, negligible for 6+ min avg tasks)
 - ⚠️ Adjustment latency = burst duration + check interval
 
 ## Files
