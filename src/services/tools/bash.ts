@@ -44,7 +44,7 @@ function validateScript(script: string, config: ToolConfiguration): BashToolResu
   }
 
   // Detect redundant cd to working directory
-  const cdPattern = /^\s*cd\s+['"]?([^'\";&|]+)['"]?\s*[;&|]/;
+  const cdPattern = /^\s*cd\s+['"]?([^'";&|]+)['"]?\s*[;&|]/;
   const match = cdPattern.exec(script);
   if (match) {
     const targetPath = match[1].trim();
