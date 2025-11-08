@@ -56,10 +56,14 @@ runs:
         pkill -f "ollama serve" || true
         sleep 1
         
-        echo "Model cached in $HOME/.ollama"
-        echo "Directory contents:"
-        ls -lah "$HOME/.ollama/" || echo "Directory not found"
-        du -sh "$HOME/.ollama" || echo "Cannot get size"
+        echo "Model cached"
+        echo "Checking model locations:"
+        echo "== $HOME/.ollama =="
+        ls -lah "$HOME/.ollama/" 2>&1 || echo "(not found)"
+        du -sh "$HOME/.ollama" 2>&1 || echo "(cannot measure)"
+        echo "== /usr/share/ollama/.ollama =="
+        sudo ls -lah /usr/share/ollama/.ollama/ 2>&1 || echo "(not found)"
+        sudo du -sh /usr/share/ollama/.ollama 2>&1 || echo "(cannot measure)"
 
     - name: Verify cache (cache hit)
       if: steps.cache-ollama.outputs.cache-hit == 'true'
