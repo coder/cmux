@@ -1073,6 +1073,11 @@ export class IpcMain {
 
       this.disposeSession(workspaceId);
 
+      // Unregister workspace from extension host
+      void this.aiService.unregisterWorkspace(workspaceId).catch((error) => {
+        log.error(`Failed to unregister workspace ${workspaceId} from extension host:`, error);
+      });
+
       return { success: true };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);

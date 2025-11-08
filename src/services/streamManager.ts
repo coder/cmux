@@ -23,6 +23,7 @@ import type {
 } from "@/types/stream";
 
 import type { SendMessageError, StreamErrorType } from "@/types/errors";
+import type { ExtensionManager } from "./extensions/extensionManager";
 import type { CmuxMetadata, CmuxMessage } from "@/types/message";
 import type { PartialService } from "./partialService";
 import type { HistoryService } from "./historyService";
@@ -128,11 +129,18 @@ export class StreamManager extends EventEmitter {
   private readonly partialService: PartialService;
   // Token tracker for live streaming statistics
   private tokenTracker = new StreamingTokenTracker();
+  // Extension manager for post-tool-use hooks (optional, lazy-initialized)
+  private readonly extensionManager?: ExtensionManager;
 
-  constructor(historyService: HistoryService, partialService: PartialService) {
+  constructor(
+    historyService: HistoryService,
+    partialService: PartialService,
+    extensionManager?: ExtensionManager
+  ) {
     super();
     this.historyService = historyService;
     this.partialService = partialService;
+    this.extensionManager = extensionManager;
   }
 
   /**
@@ -398,6 +406,26 @@ export class StreamManager extends EventEmitter {
           toolName: part.toolName,
           result: part.output,
         });
+
+        // Notify extensions (non-blocking, errors logged internally)
+        if (this.extensionManager) {
+          void this.extensionManager
+            .postToolUse(workspaceId as string, {
+              toolName: part.toolName,
+              toolCallId: part.toolCallId,
+              args: part.input,
+              result: part.output,
+              workspaceId: workspaceId as string,
+              timestamp: Date.now(),
+            })
+            .catch((error) => {
+              log.debug(
+                `Extension hook failed for ${workspaceId} (tool: ${part.toolName}):`,
+                error
+              );
+              // Don't fail the stream on extension errors
+            });
+        }
       }
     }
   }

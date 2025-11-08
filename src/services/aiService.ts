@@ -18,6 +18,7 @@ import { getToolsForModel } from "@/utils/tools/tools";
 import { createRuntime } from "@/runtime/runtimeFactory";
 import { secretsToRecord } from "@/types/secrets";
 import type { CmuxProviderOptions } from "@/types/providerOptions";
+import { ExtensionManager } from "./extensions/extensionManager";
 import { log } from "./log";
 import {
   transformModelMessages,
@@ -134,6 +135,7 @@ export class AIService extends EventEmitter {
   private readonly initStateManager: InitStateManager;
   private readonly mockModeEnabled: boolean;
   private readonly mockScenarioPlayer?: MockScenarioPlayer;
+  private readonly extensionManager: ExtensionManager;
 
   constructor(
     config: Config,
@@ -149,7 +151,18 @@ export class AIService extends EventEmitter {
     this.historyService = historyService;
     this.partialService = partialService;
     this.initStateManager = initStateManager;
-    this.streamManager = new StreamManager(historyService, partialService);
+
+    // Initialize extension manager
+    this.extensionManager = new ExtensionManager();
+
+    // Initialize the global extension host
+    void this.extensionManager.initializeGlobal().catch((error) => {
+      log.error("Failed to initialize extension host:", error);
+    });
+
+    // Initialize stream manager with extension manager
+    this.streamManager = new StreamManager(historyService, partialService, this.extensionManager);
+
     void this.ensureSessionsDir();
     this.setupStreamEventForwarding();
     this.mockModeEnabled = process.env.CMUX_MOCK_AI === "1";
@@ -600,6 +613,20 @@ export class AIService extends EventEmitter {
       const streamToken = this.streamManager.generateStreamToken();
       const runtimeTempDir = await this.streamManager.createTempDirForStream(streamToken, runtime);
 
+      // Register workspace with extension host (non-blocking)
+      // Extensions need full workspace context including runtime and tempdir
+      void this.extensionManager
+        .registerWorkspace(
+          workspaceId,
+          metadata,
+          metadata.runtimeConfig ?? { type: "local", srcBaseDir: this.config.srcDir },
+          runtimeTempDir
+        )
+        .catch((error) => {
+          log.error(`Failed to register workspace ${workspaceId} with extension host:`, error);
+          // Don't fail the stream on extension registration errors
+        });
+
       // Get model-specific tools with workspace path (correct for local or remote)
       const allTools = await getToolsForModel(
         modelString,
@@ -865,5 +892,12 @@ export class AIService extends EventEmitter {
       const message = error instanceof Error ? error.message : String(error);
       return Err(`Failed to delete workspace: ${message}`);
     }
+  }
+
+  /**
+   * Unregister a workspace from the extension host
+   */
+  async unregisterWorkspace(workspaceId: string): Promise<void> {
+    await this.extensionManager.unregisterWorkspace(workspaceId);
   }
 }
