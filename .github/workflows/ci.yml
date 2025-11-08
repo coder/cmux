@@ -104,25 +104,11 @@ jobs:
         with:
           model: gpt-oss:20b
 
-      - name: Start Ollama server
+      # Ollama server already started by setup-ollama action
+      # Just verify it's ready
+      - name: Verify Ollama server
         run: |
-          echo "Starting Ollama server..."
-          
-          # Kill any existing Ollama processes
-          pkill -f "ollama serve" || true
-          sleep 1
-          
-          # Copy cached models to system location (Ollama ignores OLLAMA_MODELS)
-          if [ -d "$HOME/.ollama/models" ]; then
-            echo "Restoring models from cache..."
-            sudo mkdir -p /usr/share/ollama/.ollama/models
-            sudo cp -r "$HOME/.ollama/models"/* /usr/share/ollama/.ollama/models/ 2>/dev/null || true
-          fi
-          
-          # Start Ollama
-          ollama serve &
-          
-          # Wait for ready
+          echo "Verifying Ollama server..."
           timeout 5 sh -c 'until curl -sf http://localhost:11434/api/tags > /dev/null 2>&1; do sleep 0.2; done'
           echo "Ollama ready"
 

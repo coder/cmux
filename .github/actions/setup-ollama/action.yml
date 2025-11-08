@@ -9,61 +9,66 @@ inputs:
 runs:
   using: composite
   steps:
-    - name: Cache Ollama
-      id: cache-ollama
+    - name: Cache Ollama binary
+      id: cache-ollama-binary
       uses: actions/cache@v4
       with:
-        path: |
-          /home/runner/.ollama
-        key: ${{ runner.os }}-ollama-${{ inputs.model }}-v3
+        path: ./.ollama-install
+        key: ${{ runner.os }}-ollama-binary-v1
 
-    - name: Install Ollama binary
+    - name: Cache Ollama models
+      id: cache-ollama-models
+      uses: actions/cache@v4
+      with:
+        path: ~/.ollama
+        key: ${{ runner.os }}-ollama-${{ inputs.model }}-v1
+
+    - name: Install Ollama binary (cache miss)
+      if: steps.cache-ollama-binary.outputs.cache-hit != 'true'
       shell: bash
       run: |
-        echo "Installing Ollama binary..."
-        curl -fsSL https://ollama.com/install.sh | sh
-        echo "Ollama binary installed"
+        echo "Downloading Ollama binary..."
+        ARCH=$(uname -m)
+        case "$ARCH" in
+            x86_64) ARCH="amd64" ;;
+            aarch64|arm64) ARCH="arm64" ;;
+            *) echo "Unsupported architecture: $ARCH"; exit 1 ;;
+        esac
+        curl -L https://ollama.com/download/ollama-linux-${ARCH}.tgz -o ollama.tgz
+        mkdir -p .ollama-install
+        tar -C .ollama-install -xzf ollama.tgz
+        rm ollama.tgz
+        echo "Ollama binary downloaded"
+
+    - name: Add Ollama to PATH
+      shell: bash
+      run: |
+        echo "$(pwd)/.ollama-install/bin" >> $GITHUB_PATH
+
+    - name: Start Ollama server
+      shell: bash
+      run: |
+        echo "Starting Ollama server..."
+        ollama start &
+        sleep 2
+        echo "Ollama server started"
+
+    - name: Verify Ollama
+      shell: bash
+      run: |
+        ollama --version
 
     - name: Pull model (cache miss)
-      if: steps.cache-ollama.outputs.cache-hit != 'true'
+      if: steps.cache-ollama-models.outputs.cache-hit != 'true'
       shell: bash
       run: |
         echo "Cache miss - pulling model ${{ inputs.model }}..."
-        
-        # Start Ollama with model directory in user home
-        export OLLAMA_MODELS="$HOME/.ollama/models"
-        ollama serve > /tmp/ollama-setup.log 2>&1 &
-        OLLAMA_PID=$!
-        echo "$OLLAMA_PID" > /tmp/ollama-setup.pid
-        
-        # Wait for ready
-        timeout 10 sh -c 'until curl -sf http://localhost:11434/api/tags > /dev/null 2>&1; do sleep 0.5; done' || {
-          echo "Ollama failed to start"
-          cat /tmp/ollama-setup.log
-          kill $OLLAMA_PID 2>/dev/null || true
-          exit 1
-        }
-        
         ollama pull ${{ inputs.model }}
-        
-        # Stop Ollama and ensure it's fully terminated
-        echo "Stopping Ollama..."
-        kill $OLLAMA_PID 2>/dev/null || true
-        wait $OLLAMA_PID 2>/dev/null || true
-        pkill -f "ollama serve" || true
-        sleep 1
-        
         echo "Model pulled successfully"
-        echo "Copying models to cache location..."
-        mkdir -p "$HOME/.ollama/models"
-        sudo cp -r /usr/share/ollama/.ollama/models/* "$HOME/.ollama/models/" 
-        sudo chown -R runner:docker "$HOME/.ollama/models"
-        du -sh "$HOME/.ollama/models"
-        echo "Models ready for caching"
 
     - name: Verify cache (cache hit)
-      if: steps.cache-ollama.outputs.cache-hit == 'true'
+      if: steps.cache-ollama-models.outputs.cache-hit == 'true'
       shell: bash
       run: |
         echo "Cache hit - models restored from cache"
-        ls -lh "$HOME/.ollama/models" || echo "Warning: model directory not found"
+        ls -lh "$HOME/.ollama" || echo "Warning: .ollama directory not found"
