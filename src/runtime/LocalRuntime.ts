@@ -91,7 +91,9 @@ export class LocalRuntime implements Runtime {
     // Register cleanup for streams when process exits
     // CRITICAL: These streams MUST be cancelled when process exits to prevent hangs
     disposable.addCleanup(() => {
+      // eslint-disable-next-line @typescript-eslint/no-empty-function
       stdout.cancel().catch(() => {});
+      // eslint-disable-next-line @typescript-eslint/no-empty-function
       stderr.cancel().catch(() => {});
     });
 
@@ -169,7 +171,7 @@ export class LocalRuntime implements Runtime {
       }, options.timeout * 1000);
 
       // Clear timeout if process exits naturally
-      exitCode.finally(() => clearTimeout(timeoutHandle));
+      void exitCode.finally(() => clearTimeout(timeoutHandle));
     }
 
     return { stdout, stderr, stdin, exitCode, duration };

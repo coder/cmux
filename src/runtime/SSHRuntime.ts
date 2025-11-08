@@ -185,7 +185,9 @@ export class SSHRuntime implements Runtime {
     disposable.addCleanup(() => {
       // Cancel streams to immediately signal EOF
       // Use catch to ignore errors if streams are already closed
+      // eslint-disable-next-line @typescript-eslint/no-empty-function
       stdout.cancel().catch(() => {});
+      // eslint-disable-next-line @typescript-eslint/no-empty-function
       stderr.cancel().catch(() => {});
       // Don't abort stdin - it's already closed/aborted by bash tool
     });
@@ -234,7 +236,7 @@ export class SSHRuntime implements Runtime {
     }, options.timeout * 1000);
 
     // Clear timeout if process exits naturally
-    exitCode.finally(() => clearTimeout(timeoutHandle));
+    void exitCode.finally(() => clearTimeout(timeoutHandle));
 
     return { stdout, stderr, stdin, exitCode, duration };
   }
