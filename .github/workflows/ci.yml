@@ -135,6 +135,10 @@ jobs:
           kill $OLLAMA_PID 2>/dev/null || true
           wait $OLLAMA_PID 2>/dev/null || true
           
+          # Fix permissions so cache can read the model directory
+          sudo chmod -R a+r /usr/share/ollama
+          sudo find /usr/share/ollama -type d -exec chmod a+x {} \;
+          
           echo "Ollama installation and model pull complete"
 
       - name: Start Ollama server
