@@ -107,9 +107,10 @@ jobs:
             /usr/local/bin/ollama
             /usr/local/lib/ollama
             /usr/share/ollama
-          key: ${{ runner.os }}-ollama-complete-v2-${{ hashFiles('.github/workflows/ci.yml') }}
+          # Stable cache key - only bump v3 when invalidation needed (version upgrade, different model)
+          key: ${{ runner.os }}-ollama-complete-v3
           restore-keys: |
-            ${{ runner.os }}-ollama-complete-v2-
+            ${{ runner.os }}-ollama-complete-
 
       - name: Install Ollama
         if: steps.cache-ollama.outputs.cache-hit != 'true'
