@@ -124,6 +124,15 @@ export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
       const stdoutReader = createInterface({ input: stdoutNodeStream });
       const stderrReader = createInterface({ input: stderrNodeStream });
 
+      // Set up promises to wait for readline interfaces to close
+      // These must be created BEFORE the 'close' events fire
+      const stdoutClosed = new Promise<void>((resolve) => {
+        stdoutReader.on("close", () => resolve());
+      });
+      const stderrClosed = new Promise<void>((resolve) => {
+        stderrReader.on("close", () => resolve());
+      });
+
       // Collect output
       const lines: string[] = [];
       let truncated = false;
@@ -237,10 +246,16 @@ export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
         }
       });
 
-      // Wait for process to exit
+      // Wait for BOTH process exit AND readline interfaces to finish processing
+      // Key insight: When a process exits early (e.g., grep|head), the stdout stream closes
+      // which triggers readline 'close' BEFORE the process 'exit' event. We must wait for both.
       let exitCode: number;
       try {
-        exitCode = await execStream.exitCode;
+        // Wait for all three events concurrently:
+        // 1. Process exit (exitCode)
+        // 2. Stdout readline finished processing buffered data
+        // 3. Stderr readline finished processing buffered data
+        [exitCode] = await Promise.all([execStream.exitCode, stdoutClosed, stderrClosed]);
       } catch (err: unknown) {
         // Cleanup immediately
         stdoutReader.close();
@@ -256,11 +271,7 @@ export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
         };
       }
 
-      // Give readline interfaces a moment to process final buffered data
-      // Process has exited but readline may still be processing buffered chunks
-      await new Promise((resolve) => setTimeout(resolve, 10));
-
-      // Now cleanup
+      // All events completed, now cleanup
       stdoutReader.close();
       stderrReader.close();
       stdoutNodeStream.destroy();
