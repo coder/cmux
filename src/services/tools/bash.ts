@@ -1,7 +1,6 @@
 import { tool } from "ai";
-import { createInterface } from "readline";
+// NOTE: We avoid readline; consume Web Streams directly to prevent race conditions
 import * as path from "path";
-import { Readable } from "stream";
 import {
   BASH_DEFAULT_TIMEOUT_SECS,
   BASH_HARD_MAX_LINES,
@@ -255,21 +254,10 @@ export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
       // close() is async and waits for acknowledgment, which can hang over SSH
       // abort() immediately marks stream as errored and releases locks
       execStream.stdin.abort().catch(() => {
-        // Ignore errors - stream might already be closed
+        /* ignore */ return;
       });
 
-      // Convert Web Streams to Node.js streams for readline
-      // Type mismatch between Node.js ReadableStream and Web ReadableStream - safe to cast
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-explicit-any
-      const stdoutNodeStream = Readable.fromWeb(execStream.stdout as any);
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-explicit-any
-      const stderrNodeStream = Readable.fromWeb(execStream.stderr as any);
-
-      // Set up readline for both stdout and stderr to handle buffering
-      const stdoutReader = createInterface({ input: stdoutNodeStream });
-      const stderrReader = createInterface({ input: stderrNodeStream });
-
-      // Collect output
+      // Collect output concurrently from Web Streams to avoid readline race conditions.
       const lines: string[] = [];
       let truncated = false;
 
@@ -287,13 +275,13 @@ export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
         truncationState.displayTruncated = true;
         truncated = true;
         overflowReason = reason;
-        stdoutReader.close();
-        stderrReader.close();
-        // Cancel the streams to stop the process
-        // eslint-disable-next-line @typescript-eslint/no-empty-function
-        execStream.stdout.cancel().catch(() => {});
-        // eslint-disable-next-line @typescript-eslint/no-empty-function
-        execStream.stderr.cancel().catch(() => {});
+        // Cancel the streams to stop the process and unblock readers
+        execStream.stdout.cancel().catch(() => {
+          /* ignore */ return;
+        });
+        execStream.stderr.cancel().catch(() => {
+          /* ignore */ return;
+        });
       };
 
       // Create unified line handler for both stdout and stderr
@@ -306,20 +294,70 @@ export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
         triggerFileTruncation
       );
 
-      stdoutReader.on("line", lineHandler);
-      stderrReader.on("line", lineHandler);
+      // Consume a ReadableStream<Uint8Array> and emit lines to lineHandler.
+      // Uses TextDecoder streaming to preserve multibyte boundaries.
+      const consumeStream = async (stream: ReadableStream<Uint8Array>): Promise<void> => {
+        const reader = stream.getReader();
+        const decoder = new TextDecoder("utf-8");
+        let carry = "";
+        try {
+          while (true) {
+            if (truncationState.fileTruncated) {
+              // Stop early if we already hit hard limits
+              await reader.cancel().catch(() => {
+                /* ignore */ return;
+              });
+              break;
+            }
+            const { value, done } = await reader.read();
+            if (done) break;
+            // Decode chunk (streaming keeps partial code points)
+            const text = decoder.decode(value, { stream: true });
+            carry += text;
+            // Split into lines; support both \n and \r\n
+            let start = 0;
+            while (true) {
+              const idxN = carry.indexOf("\n", start);
+              const idxR = carry.indexOf("\r", start);
+              let nextIdx = -1;
+              if (idxN === -1 && idxR === -1) break;
+              nextIdx = idxN === -1 ? idxR : idxR === -1 ? idxN : Math.min(idxN, idxR);
+              const line = carry.slice(0, nextIdx).replace(/\r$/, "");
+              lineHandler(line);
+              carry = carry.slice(nextIdx + 1);
+              start = 0;
+              if (truncationState.fileTruncated) {
+                await reader.cancel().catch(() => {
+                  /* ignore */ return;
+                });
+                break;
+              }
+            }
+            if (truncationState.fileTruncated) break;
+          }
+        } finally {
+          // Flush decoder for any trailing bytes and emit the last line (if any)
+          try {
+            const tail = decoder.decode();
+            if (tail) carry += tail;
+            if (carry.length > 0 && !truncationState.fileTruncated) {
+              lineHandler(carry);
+            }
+          } catch {
+            // ignore decoder errors on flush
+          }
+        }
+      };
 
-      // Wait for process to exit
+      // Start consuming stdout and stderr concurrently
+      const consumeStdout = consumeStream(execStream.stdout);
+      const consumeStderr = consumeStream(execStream.stderr);
+
+      // Wait for process exit and stream consumption concurrently
       let exitCode: number;
       try {
-        exitCode = await execStream.exitCode;
+        [exitCode] = await Promise.all([execStream.exitCode, consumeStdout, consumeStderr]);
       } catch (err: unknown) {
-        // Cleanup immediately
-        stdoutReader.close();
-        stderrReader.close();
-        stdoutNodeStream.destroy();
-        stderrNodeStream.destroy();
-
         return {
           success: false,
           error: `Failed to execute command: ${err instanceof Error ? err.message : String(err)}`,
@@ -327,16 +365,6 @@ export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
           wall_duration_ms: Math.round(performance.now() - startTime),
         };
       }
-
-      // Give readline interfaces a moment to process final buffered data
-      // Process has exited but readline may still be processing buffered chunks
-      await new Promise((resolve) => setTimeout(resolve, 10));
-
-      // Now cleanup
-      stdoutReader.close();
-      stderrReader.close();
-      stdoutNodeStream.destroy();
-      stderrNodeStream.destroy();
 
       // Round to integer to preserve tokens
       const wall_duration_ms = Math.round(performance.now() - startTime);
