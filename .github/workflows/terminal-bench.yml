@@ -16,11 +16,6 @@ on:
         required: false
         type: string
         default: 'terminal-bench-core==0.1.1'
-      concurrency:
-        description: 'Number of concurrent tasks (--n-concurrent)'
-        required: false
-        type: string
-        default: '4'
       livestream:
         description: 'Enable livestream mode (verbose output to console)'
         required: false
@@ -30,6 +25,16 @@ on:
         description: 'Number of random tasks to run (empty = all tasks)'
         required: false
         type: string
+      load_threshold:
+        description: 'Load threshold for adaptive concurrency (default: 1.0)'
+        required: false
+        type: string
+        default: '1.0'
+      check_interval:
+        description: 'Seconds between adaptive bursts (default: 60)'
+        required: false
+        type: string
+        default: '60'
       extra_args:
         description: 'Additional arguments to pass to terminal-bench'
         required: false
@@ -45,11 +50,6 @@ on:
         description: 'Terminal-Bench dataset to use'
         required: false
         default: 'terminal-bench-core==0.1.1'
-        type: string
-      concurrency:
-        description: 'Number of concurrent tasks (--n-concurrent)'
-        required: false
-        default: '4'
         type: string
       livestream:
         description: 'Enable livestream mode (verbose output to console)'
@@ -67,6 +67,16 @@ on:
       thinking_level:
         description: 'Thinking level (off, low, medium, high)'
         required: false
+        type: string
+      load_threshold:
+        description: 'Load threshold for adaptive concurrency (default: 1.0)'
+        required: false
+        default: '1.0'
+        type: string
+      check_interval:
+        description: 'Seconds between adaptive bursts (default: 60)'
+        required: false
+        default: '60'
         type: string
       extra_args:
         description: 'Additional arguments to pass to terminal-bench'
@@ -105,7 +115,8 @@ jobs:
         run: make benchmark-terminal 2>&1 | tee benchmark.log
         env:
           TB_DATASET: ${{ inputs.dataset }}
-          TB_CONCURRENCY: ${{ inputs.concurrency }}
+          TB_LOAD_THRESHOLD: ${{ inputs.load_threshold }}
+          TB_CHECK_INTERVAL: ${{ inputs.check_interval }}
           TB_LIVESTREAM: ${{ inputs.livestream && '1' || '' }}
           TB_SAMPLE_SIZE: ${{ inputs.sample_size }}
           TB_ARGS: ${{ inputs.model_name && format('--agent-kwarg model_name={0} --agent-kwarg thinking_level={1} {2}', inputs.model_name, inputs.thinking_level, inputs.extra_args) || inputs.extra_args }}
