@@ -21,7 +21,7 @@ import { NON_INTERACTIVE_ENV_VARS } from "../constants/env";
 import { EXIT_CODE_ABORTED, EXIT_CODE_TIMEOUT } from "../constants/exitCodes";
 import { listLocalBranches } from "../git";
 import { checkInitHookExists, getInitHookPath, createLineBufferedLoggers } from "./initHook";
-import { execAsync } from "../utils/disposableExec";
+import { execAsync, DisposableProcess } from "../utils/disposableExec";
 import { getProjectName } from "../utils/runtime/helpers";
 import { getErrorMessage } from "../utils/errors";
 import { expandTilde } from "./tildeExpansion";
@@ -80,13 +80,24 @@ export class LocalRuntime implements Runtime {
       detached: true,
     });
 
+    // Wrap in DisposableProcess for automatic cleanup
+    const disposable = new DisposableProcess(childProcess);
+
     // Convert Node.js streams to Web Streams
     const stdout = Readable.toWeb(childProcess.stdout) as unknown as ReadableStream<Uint8Array>;
     const stderr = Readable.toWeb(childProcess.stderr) as unknown as ReadableStream<Uint8Array>;
     const stdin = Writable.toWeb(childProcess.stdin) as unknown as WritableStream<Uint8Array>;
 
-    // Track if we killed the process due to timeout
+    // Register cleanup for streams when process exits
+    // CRITICAL: These streams MUST be cancelled when process exits to prevent hangs
+    disposable.addCleanup(() => {
+      stdout.cancel().catch(() => {});
+      stderr.cancel().catch(() => {});
+    });
+
+    // Track if we killed the process due to timeout or abort
     let timedOut = false;
+    let aborted = false;
 
     // Create promises for exit code and duration
     // Uses special exit codes (EXIT_CODE_ABORTED, EXIT_CODE_TIMEOUT) for expected error conditions
@@ -95,52 +106,7 @@ export class LocalRuntime implements Runtime {
       // The 'close' event waits for ALL child processes (including background ones) to exit,
       // which causes hangs when users spawn background processes like servers.
       // The 'exit' event fires when the main bash process exits, which is what we want.
-      //
-      // However, stdio streams may not be fully flushed when 'exit' fires, so we need to:
-      // 1. Track when process exits and when streams close
-      // 2. Resolve immediately if streams have closed
-      // 3. Wait with a grace period (50ms) for streams to flush if they haven't closed yet
-      // 4. Force-close streams after grace period to prevent hangs
-      let stdoutClosed = false;
-      let stderrClosed = false;
-      let processExited = false;
-      let exitedCode: number | null = null;
-
-      // Track stream closures
-      childProcess.stdout?.on("close", () => {
-        stdoutClosed = true;
-        tryResolve();
-      });
-      childProcess.stderr?.on("close", () => {
-        stderrClosed = true;
-        tryResolve();
-      });
-
-      const tryResolve = () => {
-        // Only resolve if process has exited AND streams are closed
-        if (processExited && stdoutClosed && stderrClosed) {
-          finalizeExit();
-        }
-      };
-
-      const finalizeExit = () => {
-        // Check abort first (highest priority)
-        if (options.abortSignal?.aborted) {
-          resolve(EXIT_CODE_ABORTED);
-          return;
-        }
-        // Check if we killed the process due to timeout
-        if (timedOut) {
-          resolve(EXIT_CODE_TIMEOUT);
-          return;
-        }
-        resolve(exitedCode ?? 0);
-      };
-
       childProcess.on("exit", (code) => {
-        processExited = true;
-        exitedCode = code;
-
         // Clean up any background processes (process group cleanup)
         // This prevents zombie processes when scripts spawn background tasks
         if (childProcess.pid !== undefined) {
@@ -153,20 +119,18 @@ export class LocalRuntime implements Runtime {
           }
         }
 
-        // Try to resolve immediately if streams have already closed
-        tryResolve();
-
-        // Set a grace period timer - if streams don't close within 50ms, finalize anyway
-        // This handles background processes that keep stdio open
-        setTimeout(() => {
-          if (!stdoutClosed || !stderrClosed) {
-            // Mark streams as closed and finalize without destroying them
-            // Destroying converted Web Streams causes errors in the conversion layer
-            stdoutClosed = true;
-            stderrClosed = true;
-            finalizeExit();
-          }
-        }, 50);
+        // Check abort first (highest priority)
+        if (aborted || options.abortSignal?.aborted) {
+          resolve(EXIT_CODE_ABORTED);
+          return;
+        }
+        // Check if we killed the process due to timeout
+        if (timedOut) {
+          resolve(EXIT_CODE_TIMEOUT);
+          return;
+        }
+        resolve(code ?? 0);
+        // Cleanup runs automatically via DisposableProcess
       });
 
       childProcess.on("error", (err) => {
@@ -176,34 +140,36 @@ export class LocalRuntime implements Runtime {
 
     const duration = exitCode.then(() => performance.now() - startTime);
 
-    // Helper to kill entire process group (including background children)
-    const killProcessGroup = () => {
+    // Register process group cleanup with DisposableProcess
+    // This ensures ALL background children are killed when process exits
+    disposable.addCleanup(() => {
       if (childProcess.pid === undefined) return;
 
       try {
         // Kill entire process group with SIGKILL - cannot be caught/ignored
         process.kill(-childProcess.pid, "SIGKILL");
       } catch {
-        // Fallback: try killing just the main process
-        try {
-          childProcess.kill("SIGKILL");
-        } catch {
-          // Process already dead - ignore
-        }
+        // Process group already dead or doesn't exist - ignore
       }
-    };
+    });
 
     // Handle abort signal
     if (options.abortSignal) {
-      options.abortSignal.addEventListener("abort", killProcessGroup);
+      options.abortSignal.addEventListener("abort", () => {
+        aborted = true;
+        disposable[Symbol.dispose](); // Kill process and run cleanup
+      });
     }
 
     // Handle timeout
     if (options.timeout !== undefined) {
-      setTimeout(() => {
+      const timeoutHandle = setTimeout(() => {
         timedOut = true;
-        killProcessGroup();
+        disposable[Symbol.dispose](); // Kill process and run cleanup
       }, options.timeout * 1000);
+
+      // Clear timeout if process exits naturally
+      exitCode.finally(() => clearTimeout(timeoutHandle));
     }
 
     return { stdout, stderr, stdin, exitCode, duration };

@@ -105,346 +105,242 @@ export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
         abortSignal,
       });
 
-      // Use a promise to wait for completion
-      return await new Promise<BashToolResult>((resolve, _reject) => {
-        const lines: string[] = [];
-        let truncated = false;
-        let exitCode: number | null = null;
-        let resolved = false;
+      // Force-close stdin immediately - we don't need to send any input
+      // Use abort() instead of close() for immediate, synchronous closure
+      // close() is async and waits for acknowledgment, which can hang over SSH
+      // abort() immediately marks stream as errored and releases locks
+      execStream.stdin.abort().catch(() => {
+        // Ignore errors - stream might already be closed
+      });
 
-        // Forward-declare teardown function that will be defined below
-        // eslint-disable-next-line prefer-const
-        let teardown: () => void;
+      // Convert Web Streams to Node.js streams for readline
+      // Type mismatch between Node.js ReadableStream and Web ReadableStream - safe to cast
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-explicit-any
+      const stdoutNodeStream = Readable.fromWeb(execStream.stdout as any);
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-explicit-any
+      const stderrNodeStream = Readable.fromWeb(execStream.stderr as any);
 
-        // Helper to resolve once
-        const resolveOnce = (result: BashToolResult) => {
-          if (!resolved) {
-            resolved = true;
-            // Clean up abort listener if present
-            if (abortSignal && abortListener) {
-              abortSignal.removeEventListener("abort", abortListener);
-            }
-            resolve(result);
+      // Set up readline for both stdout and stderr to handle buffering
+      const stdoutReader = createInterface({ input: stdoutNodeStream });
+      const stderrReader = createInterface({ input: stderrNodeStream });
+
+      // Collect output
+      const lines: string[] = [];
+      let truncated = false;
+
+      // Helper to trigger display truncation (stop showing to agent, keep collecting)
+      const triggerDisplayTruncation = (reason: string) => {
+        displayTruncated = true;
+        truncated = true;
+        overflowReason = reason;
+        // Don't kill process yet - keep collecting up to file limit
+      };
+
+      // Helper to trigger file truncation (stop collecting, close streams)
+      const triggerFileTruncation = (reason: string) => {
+        fileTruncated = true;
+        displayTruncated = true;
+        truncated = true;
+        overflowReason = reason;
+        stdoutReader.close();
+        stderrReader.close();
+        // Cancel the streams to stop the process
+        // eslint-disable-next-line @typescript-eslint/no-empty-function
+        execStream.stdout.cancel().catch(() => {});
+        // eslint-disable-next-line @typescript-eslint/no-empty-function
+        execStream.stderr.cancel().catch(() => {});
+      };
+
+      stdoutReader.on("line", (line) => {
+        if (!fileTruncated) {
+          const lineBytes = Buffer.byteLength(line, "utf-8");
+
+          // Check if line exceeds per-line limit (hard stop - this is likely corrupt data)
+          if (lineBytes > maxLineBytes) {
+            triggerFileTruncation(
+              `Line ${lines.length + 1} exceeded per-line limit: ${lineBytes} bytes > ${maxLineBytes} bytes`
+            );
+            return;
           }
-        };
 
-        // Set up abort signal listener - immediately resolve on abort
-        let abortListener: (() => void) | null = null;
-        if (abortSignal) {
-          abortListener = () => {
-            if (!resolved) {
-              // Immediately resolve with abort error to unblock AI SDK stream
-              // The runtime will handle killing the actual process
-              teardown();
-              resolveOnce({
-                success: false,
-                error: "Command execution was aborted",
-                exitCode: -2,
-                wall_duration_ms: Math.round(performance.now() - startTime),
-              });
+          // Check file limit BEFORE adding line to prevent overlong lines from being returned
+          const bytesAfterLine = totalBytesAccumulated + lineBytes + 1; // +1 for newline
+          if (bytesAfterLine > maxFileBytes) {
+            triggerFileTruncation(
+              `Total output would exceed file preservation limit: ${bytesAfterLine} bytes > ${maxFileBytes} bytes (at line ${lines.length + 1})`
+            );
+            return;
+          }
+
+          // Collect this line (even if display is truncated, keep for file)
+          lines.push(line);
+          totalBytesAccumulated = bytesAfterLine;
+
+          // Check display limits (soft stop - keep collecting for file)
+          if (!displayTruncated) {
+            if (totalBytesAccumulated > maxTotalBytes) {
+              triggerDisplayTruncation(
+                `Total output exceeded display limit: ${totalBytesAccumulated} bytes > ${maxTotalBytes} bytes (at line ${lines.length})`
+              );
+              return;
             }
-          };
-          abortSignal.addEventListener("abort", abortListener);
+
+            if (lines.length >= maxLines) {
+              triggerDisplayTruncation(
+                `Line count exceeded display limit: ${lines.length} lines >= ${maxLines} lines (${totalBytesAccumulated} bytes read)`
+              );
+            }
+          }
         }
+      });
 
-        // Force-close stdin immediately - we don't need to send any input
-        // Use abort() instead of close() for immediate, synchronous closure
-        // close() is async and waits for acknowledgment, which can hang over SSH
-        // abort() immediately marks stream as errored and releases locks
-        execStream.stdin.abort().catch(() => {
-          // Ignore errors - stream might already be closed
-        });
+      stderrReader.on("line", (line) => {
+        if (!fileTruncated) {
+          const lineBytes = Buffer.byteLength(line, "utf-8");
 
-        // Convert Web Streams to Node.js streams for readline
-        // Type mismatch between Node.js ReadableStream and Web ReadableStream - safe to cast
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-explicit-any
-        const stdoutNodeStream = Readable.fromWeb(execStream.stdout as any);
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-explicit-any
-        const stderrNodeStream = Readable.fromWeb(execStream.stderr as any);
+          // Check if line exceeds per-line limit (hard stop - this is likely corrupt data)
+          if (lineBytes > maxLineBytes) {
+            triggerFileTruncation(
+              `Line ${lines.length + 1} exceeded per-line limit: ${lineBytes} bytes > ${maxLineBytes} bytes`
+            );
+            return;
+          }
 
-        // Set up readline for both stdout and stderr to handle buffering
-        const stdoutReader = createInterface({ input: stdoutNodeStream });
-        const stderrReader = createInterface({ input: stderrNodeStream });
+          // Check file limit BEFORE adding line to prevent overlong lines from being returned
+          const bytesAfterLine = totalBytesAccumulated + lineBytes + 1; // +1 for newline
+          if (bytesAfterLine > maxFileBytes) {
+            triggerFileTruncation(
+              `Total output would exceed file preservation limit: ${bytesAfterLine} bytes > ${maxFileBytes} bytes (at line ${lines.length + 1})`
+            );
+            return;
+          }
 
-        // Track when streams end
-        let stdoutEnded = false;
-        let stderrEnded = false;
+          // Collect this line (even if display is truncated, keep for file)
+          lines.push(line);
+          totalBytesAccumulated = bytesAfterLine;
 
-        // Forward-declare functions that will be defined below
-        // eslint-disable-next-line prefer-const
-        let tryFinalize: () => void;
-        // eslint-disable-next-line prefer-const
-        let finalize: () => void;
-
-        // Define teardown (already declared above)
-        teardown = () => {
-          stdoutReader.close();
-          stderrReader.close();
-          stdoutNodeStream.destroy();
-          stderrNodeStream.destroy();
-        };
-
-        // IMPORTANT: Attach exit handler IMMEDIATELY to prevent unhandled rejection
-        // Handle both normal exits and special error codes (EXIT_CODE_ABORTED, EXIT_CODE_TIMEOUT)
-        execStream.exitCode
-          .then((code) => {
-            exitCode = code;
-
-            // Check for special error codes from runtime
-            if (code === EXIT_CODE_ABORTED) {
-              // Aborted via AbortSignal
-              teardown();
-              resolveOnce({
-                success: false,
-                error: "Command execution was aborted",
-                exitCode: -1,
-                wall_duration_ms: Math.round(performance.now() - startTime),
-              });
-              return;
-            }
-
-            if (code === EXIT_CODE_TIMEOUT) {
-              // Exceeded timeout
-              teardown();
-              resolveOnce({
-                success: false,
-                error: `Command exceeded timeout of ${effectiveTimeout} seconds`,
-                exitCode: -1,
-                wall_duration_ms: Math.round(performance.now() - startTime),
-              });
-              return;
-            }
-
-            // Normal exit - try to finalize if streams have already closed
-            tryFinalize();
-            // Set a grace period - if streams don't close within 50ms, force finalize
-            setTimeout(() => {
-              if (!resolved && exitCode !== null) {
-                stdoutNodeStream.destroy();
-                stderrNodeStream.destroy();
-                stdoutEnded = true;
-                stderrEnded = true;
-                tryFinalize();
-              }
-            }, 50);
-          })
-          .catch((err: Error) => {
-            // Only actual errors (like spawn failure) should reach here now
-            teardown();
-            resolveOnce({
-              success: false,
-              error: `Failed to execute command: ${err.message}`,
-              exitCode: -1,
-              wall_duration_ms: Math.round(performance.now() - startTime),
-            });
-          });
-
-        // Helper to trigger display truncation (stop showing to agent, keep collecting)
-        const triggerDisplayTruncation = (reason: string) => {
-          displayTruncated = true;
-          truncated = true;
-          overflowReason = reason;
-          // Don't kill process yet - keep collecting up to file limit
-        };
-
-        // Helper to trigger file truncation (stop collecting, close streams)
-        const triggerFileTruncation = (reason: string) => {
-          fileTruncated = true;
-          displayTruncated = true;
-          truncated = true;
-          overflowReason = reason;
-          stdoutReader.close();
-          stderrReader.close();
-          // Cancel the streams to stop the process
-          // eslint-disable-next-line @typescript-eslint/no-empty-function
-          execStream.stdout.cancel().catch(() => {});
-          // eslint-disable-next-line @typescript-eslint/no-empty-function
-          execStream.stderr.cancel().catch(() => {});
-        };
-
-        stdoutReader.on("line", (line) => {
-          if (!resolved && !fileTruncated) {
-            const lineBytes = Buffer.byteLength(line, "utf-8");
-
-            // Check if line exceeds per-line limit (hard stop - this is likely corrupt data)
-            if (lineBytes > maxLineBytes) {
-              triggerFileTruncation(
-                `Line ${lines.length + 1} exceeded per-line limit: ${lineBytes} bytes > ${maxLineBytes} bytes`
+          // Check display limits (soft stop - keep collecting for file)
+          if (!displayTruncated) {
+            if (totalBytesAccumulated > maxTotalBytes) {
+              triggerDisplayTruncation(
+                `Total output exceeded display limit: ${totalBytesAccumulated} bytes > ${maxTotalBytes} bytes (at line ${lines.length})`
               );
               return;
             }
 
-            // Check file limit BEFORE adding line to prevent overlong lines from being returned
-            const bytesAfterLine = totalBytesAccumulated + lineBytes + 1; // +1 for newline
-            if (bytesAfterLine > maxFileBytes) {
-              triggerFileTruncation(
-                `Total output would exceed file preservation limit: ${bytesAfterLine} bytes > ${maxFileBytes} bytes (at line ${lines.length + 1})`
+            if (lines.length >= maxLines) {
+              triggerDisplayTruncation(
+                `Line count exceeded display limit: ${lines.length} lines >= ${maxLines} lines (${totalBytesAccumulated} bytes read)`
               );
-              return;
-            }
-
-            // Collect this line (even if display is truncated, keep for file)
-            lines.push(line);
-            totalBytesAccumulated = bytesAfterLine;
-
-            // Check display limits (soft stop - keep collecting for file)
-            if (!displayTruncated) {
-              if (totalBytesAccumulated > maxTotalBytes) {
-                triggerDisplayTruncation(
-                  `Total output exceeded display limit: ${totalBytesAccumulated} bytes > ${maxTotalBytes} bytes (at line ${lines.length})`
-                );
-                return;
-              }
-
-              if (lines.length >= maxLines) {
-                triggerDisplayTruncation(
-                  `Line count exceeded display limit: ${lines.length} lines >= ${maxLines} lines (${totalBytesAccumulated} bytes read)`
-                );
-              }
             }
           }
-        });
+        }
+      });
 
-        stderrReader.on("line", (line) => {
-          if (!resolved && !fileTruncated) {
-            const lineBytes = Buffer.byteLength(line, "utf-8");
+      // SIMPLE: Wait for process to exit (streams are destroyed by DisposableProcess)
+      let exitCode: number;
+      try {
+        exitCode = await execStream.exitCode;
+      } catch (err: unknown) {
+        // Cleanup immediately - don't wait for streams
+        stdoutReader.close();
+        stderrReader.close();
+        stdoutNodeStream.destroy();
+        stderrNodeStream.destroy();
 
-            // Check if line exceeds per-line limit (hard stop - this is likely corrupt data)
-            if (lineBytes > maxLineBytes) {
-              triggerFileTruncation(
-                `Line ${lines.length + 1} exceeded per-line limit: ${lineBytes} bytes > ${maxLineBytes} bytes`
-              );
-              return;
-            }
-
-            // Check file limit BEFORE adding line to prevent overlong lines from being returned
-            const bytesAfterLine = totalBytesAccumulated + lineBytes + 1; // +1 for newline
-            if (bytesAfterLine > maxFileBytes) {
-              triggerFileTruncation(
-                `Total output would exceed file preservation limit: ${bytesAfterLine} bytes > ${maxFileBytes} bytes (at line ${lines.length + 1})`
-              );
-              return;
-            }
-
-            // Collect this line (even if display is truncated, keep for file)
-            lines.push(line);
-            totalBytesAccumulated = bytesAfterLine;
-
-            // Check display limits (soft stop - keep collecting for file)
-            if (!displayTruncated) {
-              if (totalBytesAccumulated > maxTotalBytes) {
-                triggerDisplayTruncation(
-                  `Total output exceeded display limit: ${totalBytesAccumulated} bytes > ${maxTotalBytes} bytes (at line ${lines.length})`
-                );
-                return;
-              }
-
-              if (lines.length >= maxLines) {
-                triggerDisplayTruncation(
-                  `Line count exceeded display limit: ${lines.length} lines >= ${maxLines} lines (${totalBytesAccumulated} bytes read)`
-                );
-              }
-            }
-          }
-        });
-
-        // Define tryFinalize (already declared above)
-        tryFinalize = () => {
-          if (resolved) return;
-          // Only finalize when both streams have closed and we have an exit code
-          if (stdoutEnded && stderrEnded && exitCode !== null) {
-            finalize();
-          }
+        return {
+          success: false,
+          error: `Failed to execute command: ${err instanceof Error ? err.message : String(err)}`,
+          exitCode: -1,
+          wall_duration_ms: Math.round(performance.now() - startTime),
         };
+      }
 
-        stdoutReader.on("close", () => {
-          stdoutEnded = true;
-          tryFinalize();
-        });
+      // Cleanup immediately after exit - streams are already cancelled by DisposableProcess
+      stdoutReader.close();
+      stderrReader.close();
+      stdoutNodeStream.destroy();
+      stderrNodeStream.destroy();
 
-        stderrReader.on("close", () => {
-          stderrEnded = true;
-          tryFinalize();
-        });
+      // Round to integer to preserve tokens
+      const wall_duration_ms = Math.round(performance.now() - startTime);
 
-        // Define finalize (already declared above)
-        finalize = () => {
-          if (resolved) return;
+      // Check for special error codes from runtime
+      if (exitCode === EXIT_CODE_ABORTED) {
+        return {
+          success: false,
+          error: "Command execution was aborted",
+          exitCode: -1,
+          wall_duration_ms,
+        };
+      }
 
-          // Round to integer to preserve tokens.
-          const wall_duration_ms = Math.round(performance.now() - startTime);
+      if (exitCode === EXIT_CODE_TIMEOUT) {
+        return {
+          success: false,
+          error: `Command exceeded timeout of ${effectiveTimeout} seconds`,
+          exitCode: -1,
+          wall_duration_ms,
+        };
+      }
 
-          // Clean up readline interfaces if still open
-          stdoutReader.close();
-          stderrReader.close();
+      // Handle output truncation
+      if (truncated) {
+        // Handle overflow based on policy
+        const overflowPolicy = config.overflow_policy ?? "tmpfile";
 
-          // Check if this was aborted (stream cancelled)
-          const wasAborted = abortSignal?.aborted ?? false;
+        if (overflowPolicy === "truncate") {
+          // Return ALL collected lines (up to the limit that triggered truncation)
+          // With 1MB/10K line limits, this can be thousands of lines for UI to parse
+          const output = lines.join("\n");
 
-          if (wasAborted) {
-            resolveOnce({
-              success: false,
-              error: "Command aborted due to stream cancellation",
-              exitCode: -2,
+          if (exitCode === 0) {
+            // Success but truncated
+            return {
+              success: true,
+              output,
+              exitCode: 0,
               wall_duration_ms,
-            });
-          } else if (truncated) {
-            // Handle overflow based on policy
-            const overflowPolicy = config.overflow_policy ?? "tmpfile";
+              truncated: {
+                reason: overflowReason ?? "unknown reason",
+                totalLines: lines.length,
+              },
+            };
+          } else {
+            // Failed and truncated
+            return {
+              success: false,
+              output,
+              exitCode,
+              error: `Command exited with code ${exitCode}`,
+              wall_duration_ms,
+              truncated: {
+                reason: overflowReason ?? "unknown reason",
+                totalLines: lines.length,
+              },
+            };
+          }
+        } else {
+          // tmpfile policy: Save overflow output to temp file instead of returning an error
+          // We don't show ANY of the actual output to avoid overwhelming context.
+          // Instead, save it to a temp file and encourage the agent to use filtering tools.
+          try {
+            // Use 8 hex characters for short, memorable temp file IDs
+            const fileId = Math.random().toString(16).substring(2, 10);
+            // Write to runtime temp directory (managed by StreamManager)
+            // Use path.posix.join to preserve forward slashes for SSH runtime
+            // (config.runtimeTempDir is always a POSIX path like /home/user/.cmux-tmp/token)
+            const overflowPath = path.posix.join(config.runtimeTempDir, `bash-${fileId}.txt`);
+            const fullOutput = lines.join("\n");
 
-            if (overflowPolicy === "truncate") {
-              // Return ALL collected lines (up to the limit that triggered truncation)
-              // With 1MB/10K line limits, this can be thousands of lines for UI to parse
-              const output = lines.join("\n");
+            // Use runtime.writeFile() for SSH support
+            const writer = config.runtime.writeFile(overflowPath, abortSignal);
+            const encoder = new TextEncoder();
+            const writerInstance = writer.getWriter();
+            await writerInstance.write(encoder.encode(fullOutput));
+            await writerInstance.close();
 
-              if (exitCode === 0 || exitCode === null) {
-                // Success but truncated
-                resolveOnce({
-                  success: true,
-                  output,
-                  exitCode: 0,
-                  wall_duration_ms,
-                  truncated: {
-                    reason: overflowReason ?? "unknown reason",
-                    totalLines: lines.length,
-                  },
-                });
-              } else {
-                // Failed and truncated
-                resolveOnce({
-                  success: false,
-                  output,
-                  exitCode,
-                  error: `Command exited with code ${exitCode}`,
-                  wall_duration_ms,
-                  truncated: {
-                    reason: overflowReason ?? "unknown reason",
-                    totalLines: lines.length,
-                  },
-                });
-              }
-            } else {
-              // tmpfile policy: Save overflow output to temp file instead of returning an error
-              // We don't show ANY of the actual output to avoid overwhelming context.
-              // Instead, save it to a temp file and encourage the agent to use filtering tools.
-              (async () => {
-                try {
-                  // Use 8 hex characters for short, memorable temp file IDs
-                  const fileId = Math.random().toString(16).substring(2, 10);
-                  // Write to runtime temp directory (managed by StreamManager)
-                  // Use path.posix.join to preserve forward slashes for SSH runtime
-                  // (config.runtimeTempDir is always a POSIX path like /home/user/.cmux-tmp/token)
-                  const overflowPath = path.posix.join(config.runtimeTempDir, `bash-${fileId}.txt`);
-                  const fullOutput = lines.join("\n");
-
-                  // Use runtime.writeFile() for SSH support
-                  const writer = config.runtime.writeFile(overflowPath, abortSignal);
-                  const encoder = new TextEncoder();
-                  const writerInstance = writer.getWriter();
-                  await writerInstance.write(encoder.encode(fullOutput));
-                  await writerInstance.close();
-
-                  const output = `[OUTPUT OVERFLOW - ${overflowReason ?? "unknown reason"}]
+            const output = `[OUTPUT OVERFLOW - ${overflowReason ?? "unknown reason"}]
 
 Full output (${lines.length} lines) saved to ${overflowPath}
 
@@ -452,57 +348,43 @@ Use selective filtering tools (e.g. grep) to extract relevant information and co
 
 File will be automatically cleaned up when stream ends.`;
 
-                  resolveOnce({
-                    success: false,
-                    error: output,
-                    exitCode: -1,
-                    wall_duration_ms,
-                  });
-                } catch (err) {
-                  // If temp file creation fails, fall back to original error
-                  resolveOnce({
-                    success: false,
-                    error: `Command output overflow: ${overflowReason ?? "unknown reason"}. Failed to save overflow to temp file: ${String(err)}`,
-                    exitCode: -1,
-                    wall_duration_ms,
-                  });
-                }
-              })();
-            }
-          } else if (exitCode === EXIT_CODE_TIMEOUT) {
-            // Timeout - special exit code from runtime
-            resolveOnce({
+            return {
               success: false,
-              error: `Command exceeded timeout of ${effectiveTimeout} seconds`,
+              error: output,
               exitCode: -1,
               wall_duration_ms,
-            });
-          } else if (exitCode === EXIT_CODE_ABORTED) {
-            // Aborted - special exit code from runtime
-            resolveOnce({
+            };
+          } catch (err) {
+            // If temp file creation fails, fall back to original error
+            return {
               success: false,
-              error: "Command execution was aborted",
+              error: `Command output overflow: ${overflowReason ?? "unknown reason"}. Failed to save overflow to temp file: ${String(err)}`,
               exitCode: -1,
               wall_duration_ms,
-            });
-          } else if (exitCode === 0 || exitCode === null) {
-            resolveOnce({
-              success: true,
-              output: lines.join("\n"),
-              exitCode: 0,
-              wall_duration_ms,
-            });
-          } else {
-            resolveOnce({
-              success: false,
-              output: lines.join("\n"),
-              exitCode,
-              error: `Command exited with code ${exitCode}`,
-              wall_duration_ms,
-            });
+            };
           }
+        }
+      }
+
+      // Normal exit - return output
+      const output = lines.join("\n");
+
+      if (exitCode === 0) {
+        return {
+          success: true,
+          output,
+          exitCode: 0,
+          wall_duration_ms,
         };
-      });
+      } else {
+        return {
+          success: false,
+          output,
+          exitCode,
+          error: `Command exited with code ${exitCode}`,
+          wall_duration_ms,
+        };
+      }
     },
   });
 };

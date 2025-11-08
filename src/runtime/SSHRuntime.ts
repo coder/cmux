@@ -23,7 +23,7 @@ import { streamProcessToLogger } from "./streamProcess";
 import { expandTildeForSSH, cdCommandForSSH } from "./tildeExpansion";
 import { getProjectName } from "../utils/runtime/helpers";
 import { getErrorMessage } from "../utils/errors";
-import { execAsync } from "../utils/disposableExec";
+import { execAsync, DisposableProcess } from "../utils/disposableExec";
 import { getControlPath } from "./sshConnectionPool";
 
 /**
@@ -171,30 +171,45 @@ export class SSHRuntime implements Runtime {
       stdio: ["pipe", "pipe", "pipe"],
     });
 
+    // Wrap in DisposableProcess for automatic cleanup
+    const disposable = new DisposableProcess(sshProcess);
+
     // Convert Node.js streams to Web Streams
     const stdout = Readable.toWeb(sshProcess.stdout) as unknown as ReadableStream<Uint8Array>;
     const stderr = Readable.toWeb(sshProcess.stderr) as unknown as ReadableStream<Uint8Array>;
     const stdin = Writable.toWeb(sshProcess.stdin) as unknown as WritableStream<Uint8Array>;
 
-    // Track if we killed the process due to timeout
+    // Register cleanup for streams when process exits
+    // CRITICAL: These streams MUST be cancelled when process exits to prevent hangs
+    // from waiting for stream 'close' events that don't reliably propagate over SSH
+    disposable.addCleanup(() => {
+      // Cancel streams to immediately signal EOF
+      // Use catch to ignore errors if streams are already closed
+      stdout.cancel().catch(() => {});
+      stderr.cancel().catch(() => {});
+      // Don't abort stdin - it's already closed/aborted by bash tool
+    });
+
+    // Track if we killed the process due to timeout or abort
     let timedOut = false;
+    let aborted = false;
 
     // Create promises for exit code and duration
     // Uses special exit codes (EXIT_CODE_ABORTED, EXIT_CODE_TIMEOUT) for expected error conditions
     const exitCode = new Promise<number>((resolve, reject) => {
       sshProcess.on("close", (code, signal) => {
         // Check abort first (highest priority)
-        if (options.abortSignal?.aborted) {
+        if (aborted || options.abortSignal?.aborted) {
           resolve(EXIT_CODE_ABORTED);
           return;
         }
         // Check if we killed the process due to timeout
-        // Don't check signal - if we set timedOut, we timed out regardless of how process died
         if (timedOut) {
           resolve(EXIT_CODE_TIMEOUT);
           return;
         }
         resolve(code ?? (signal ? -1 : 0));
+        // Cleanup runs automatically via DisposableProcess
       });
 
       sshProcess.on("error", (err) => {
@@ -206,14 +221,20 @@ export class SSHRuntime implements Runtime {
 
     // Handle abort signal
     if (options.abortSignal) {
-      options.abortSignal.addEventListener("abort", () => sshProcess.kill("SIGKILL"));
+      options.abortSignal.addEventListener("abort", () => {
+        aborted = true;
+        disposable[Symbol.dispose](); // Kill process and run cleanup
+      });
     }
 
     // Handle timeout
-    setTimeout(() => {
+    const timeoutHandle = setTimeout(() => {
       timedOut = true;
-      sshProcess.kill("SIGKILL");
+      disposable[Symbol.dispose](); // Kill process and run cleanup
     }, options.timeout * 1000);
+
+    // Clear timeout if process exits naturally
+    exitCode.finally(() => clearTimeout(timeoutHandle));
 
     return { stdout, stderr, stdin, exitCode, duration };
   }

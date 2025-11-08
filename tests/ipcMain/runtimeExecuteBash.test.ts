@@ -286,6 +286,81 @@ describeIntegration("Runtime Bash Execution", () => {
         },
         type === "ssh" ? TEST_TIMEOUT_SSH_MS : TEST_TIMEOUT_LOCAL_MS
       );
+
+      test.concurrent(
+        "should not hang on grep | head pattern over SSH",
+        async () => {
+          const env = await createTestEnvironment();
+          const tempGitRepo = await createTempGitRepo();
+
+          try {
+            // Setup provider
+            await setupProviders(env.mockIpcRenderer, {
+              anthropic: {
+                apiKey: getApiKey("ANTHROPIC_API_KEY"),
+              },
+            });
+
+            // Create workspace
+            const branchName = generateBranchName("bash-grep-head");
+            const runtimeConfig = getRuntimeConfig(branchName);
+            const { workspaceId, cleanup } = await createWorkspaceWithInit(
+              env,
+              tempGitRepo,
+              branchName,
+              runtimeConfig,
+              true, // waitForInit
+              type === "ssh"
+            );
+
+            try {
+              // Create some test files to search through
+              await sendMessageAndWait(
+                env,
+                workspaceId,
+                'Run bash: for i in {1..1000}; do echo "terminal bench line $i" >> testfile.txt; done',
+                HAIKU_MODEL,
+                BASH_ONLY
+              );
+
+              // Test grep | head pattern - this historically hangs over SSH
+              // This is a regression test for the bash hang issue
+              const startTime = Date.now();
+              const events = await sendMessageAndWait(
+                env,
+                workspaceId,
+                'Run bash: grep -n "terminal bench" testfile.txt | head -n 200',
+                HAIKU_MODEL,
+                BASH_ONLY,
+                15000 // 15s timeout - should complete quickly
+              );
+              const duration = Date.now() - startTime;
+
+              // Extract response text
+              const responseText = extractTextFromEvents(events);
+
+              // Verify command completed successfully (not timeout)
+              expect(responseText).toContain("terminal bench");
+
+              // Verify command completed quickly (not hanging until timeout)
+              // SSH runtime should complete in <10s even with high latency
+              const maxDuration = 15000;
+              expect(duration).toBeLessThan(maxDuration);
+
+              // Verify bash tool was called
+              const toolCallStarts = events.filter((e: any) => e.type === "tool-call-start");
+              const bashCalls = toolCallStarts.filter((e: any) => e.toolName === "bash");
+              expect(bashCalls.length).toBeGreaterThan(0);
+            } finally {
+              await cleanup();
+            }
+          } finally {
+            await cleanupTempGitRepo(tempGitRepo);
+            await cleanupTestEnvironment(env);
+          }
+        },
+        type === "ssh" ? TEST_TIMEOUT_SSH_MS : TEST_TIMEOUT_LOCAL_MS
+      );
     }
   );
 });
