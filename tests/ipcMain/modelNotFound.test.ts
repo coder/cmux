@@ -53,7 +53,7 @@ describeIntegration("IpcMain model_not_found error handling", () => {
           | undefined;
 
         expect(errorEvent).toBeDefined();
-        
+
         // Bug: Error should be classified as 'model_not_found', not 'api' or 'unknown'
         // This ensures it's marked as non-retryable in retryEligibility.ts
         expect(errorEvent?.errorType).toBe("model_not_found");
@@ -92,7 +92,7 @@ describeIntegration("IpcMain model_not_found error handling", () => {
           | undefined;
 
         expect(errorEvent).toBeDefined();
-        
+
         // Bug: Error should be classified as 'model_not_found', not 'api' or 'unknown'
         expect(errorEvent?.errorType).toBe("model_not_found");
       } finally {
@@ -101,5 +101,4 @@ describeIntegration("IpcMain model_not_found error handling", () => {
     },
     30000 // 30s timeout
   );
-
 });
