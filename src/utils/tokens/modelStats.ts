@@ -19,48 +19,26 @@ interface RawModelData {
 }
 
 /**
- * Extracts the model name from a Vercel AI SDK model string
- * @param modelString - Format: "provider:model-name" or just "model-name"
- * @returns The model name without the provider prefix
+ * Validates raw model data has required fields
  */
-function extractModelName(modelString: string): string {
-  const parts = modelString.split(":");
-  return parts.length > 1 ? parts[1] : parts[0];
+function isValidModelData(data: RawModelData): boolean {
+  return (
+    typeof data.max_input_tokens === "number" &&
+    typeof data.input_cost_per_token === "number" &&
+    typeof data.output_cost_per_token === "number"
+  );
 }
 
 /**
- * Gets model statistics for a given Vercel AI SDK model string
- * @param modelString - Format: "provider:model-name" (e.g., "anthropic:claude-opus-4-1")
- * @returns ModelStats or null if model not found
+ * Extracts ModelStats from validated raw data
  */
-export function getModelStats(modelString: string): ModelStats | null {
-  const modelName = extractModelName(modelString);
-
-  // Check main models.json first
-  let data = (modelsData as Record<string, RawModelData>)[modelName];
-
-  // Fall back to models-extra.ts if not found
-  if (!data) {
-    data = (modelsExtra as Record<string, RawModelData>)[modelName];
-  }
-
-  if (!data) {
-    return null;
-  }
-
-  // Validate that we have required fields and correct types
-  if (
-    typeof data.max_input_tokens !== "number" ||
-    typeof data.input_cost_per_token !== "number" ||
-    typeof data.output_cost_per_token !== "number"
-  ) {
-    return null;
-  }
-
+function extractModelStats(data: RawModelData): ModelStats {
+  // Type assertions are safe here because isValidModelData() already validated these fields
+  /* eslint-disable @typescript-eslint/non-nullable-type-assertion-style */
   return {
-    max_input_tokens: data.max_input_tokens,
-    input_cost_per_token: data.input_cost_per_token,
-    output_cost_per_token: data.output_cost_per_token,
+    max_input_tokens: data.max_input_tokens as number,
+    input_cost_per_token: data.input_cost_per_token as number,
+    output_cost_per_token: data.output_cost_per_token as number,
     cache_creation_input_token_cost:
       typeof data.cache_creation_input_token_cost === "number"
         ? data.cache_creation_input_token_cost
@@ -70,4 +48,63 @@ export function getModelStats(modelString: string): ModelStats | null {
         ? data.cache_read_input_token_cost
         : undefined,
   };
+  /* eslint-enable @typescript-eslint/non-nullable-type-assertion-style */
+}
+
+/**
+ * Generates lookup keys for a model string with multiple naming patterns
+ * Handles LiteLLM conventions like "ollama/model-cloud" and "provider/model"
+ */
+function generateLookupKeys(modelString: string): string[] {
+  const colonIndex = modelString.indexOf(":");
+  const provider = colonIndex !== -1 ? modelString.slice(0, colonIndex) : "";
+  const modelName = colonIndex !== -1 ? modelString.slice(colonIndex + 1) : modelString;
+
+  const keys: string[] = [
+    modelName, // Direct model name (e.g., "claude-opus-4-1")
+  ];
+
+  // Add provider-prefixed variants for Ollama and other providers
+  if (provider) {
+    keys.push(
+      `${provider}/${modelName}`, // "ollama/gpt-oss:20b"
+      `${provider}/${modelName}-cloud` // "ollama/gpt-oss:20b-cloud" (LiteLLM convention)
+    );
+
+    // Fallback: strip size suffix for base model lookup
+    // "ollama:gpt-oss:20b" → "ollama/gpt-oss"
+    if (modelName.includes(":")) {
+      const baseModel = modelName.split(":")[0];
+      keys.push(`${provider}/${baseModel}`);
+    }
+  }
+
+  return keys;
+}
+
+/**
+ * Gets model statistics for a given Vercel AI SDK model string
+ * @param modelString - Format: "provider:model-name" (e.g., "anthropic:claude-opus-4-1", "ollama:gpt-oss:20b")
+ * @returns ModelStats or null if model not found
+ */
+export function getModelStats(modelString: string): ModelStats | null {
+  const lookupKeys = generateLookupKeys(modelString);
+
+  // Try each lookup pattern in main models.json
+  for (const key of lookupKeys) {
+    const data = (modelsData as Record<string, RawModelData>)[key];
+    if (data && isValidModelData(data)) {
+      return extractModelStats(data);
+    }
+  }
+
+  // Fall back to models-extra.ts
+  for (const key of lookupKeys) {
+    const data = (modelsExtra as Record<string, RawModelData>)[key];
+    if (data && isValidModelData(data)) {
+      return extractModelStats(data);
+    }
+  }
+
+  return null;
 }
