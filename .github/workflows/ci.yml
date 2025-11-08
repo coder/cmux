@@ -107,8 +107,16 @@ jobs:
       - name: Start Ollama server
         run: |
           echo "Starting Ollama server..."
+          
+          # Kill any existing Ollama processes
+          pkill -f "ollama serve" || true
+          sleep 1
+          
+          # Start Ollama with models in home directory
           export OLLAMA_MODELS="$HOME/.ollama/models"
           ollama serve &
+          
+          # Wait for ready
           timeout 5 sh -c 'until curl -sf http://localhost:11434/api/tags > /dev/null 2>&1; do sleep 0.2; done'
           echo "Ollama ready"
 

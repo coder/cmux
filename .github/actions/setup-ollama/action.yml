@@ -35,21 +35,26 @@ runs:
         
         # Start Ollama with model directory in user home
         export OLLAMA_MODELS="$HOME/.ollama/models"
-        ollama serve &
+        ollama serve > /tmp/ollama-setup.log 2>&1 &
         OLLAMA_PID=$!
+        echo "$OLLAMA_PID" > /tmp/ollama-setup.pid
         
         # Wait for ready
         timeout 10 sh -c 'until curl -sf http://localhost:11434/api/tags > /dev/null 2>&1; do sleep 0.5; done' || {
           echo "Ollama failed to start"
+          cat /tmp/ollama-setup.log
           kill $OLLAMA_PID 2>/dev/null || true
           exit 1
         }
         
         ollama pull ${{ inputs.model }}
         
-        # Stop Ollama
+        # Stop Ollama and ensure it's fully terminated
+        echo "Stopping Ollama..."
         kill $OLLAMA_PID 2>/dev/null || true
         wait $OLLAMA_PID 2>/dev/null || true
+        pkill -f "ollama serve" || true
+        sleep 1
         
         echo "Model cached in $HOME/.ollama"
 
