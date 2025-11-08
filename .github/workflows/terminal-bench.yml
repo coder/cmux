@@ -131,23 +131,25 @@ jobs:
             RESULTS_FILE=$(find runs -name 'results.json' | head -1)
             echo "Results file: $RESULTS_FILE"
             echo ""
+            echo "Summary statistics:"
+            cat "$RESULTS_FILE" | jq '{n_resolved, n_unresolved, accuracy}' || echo "Failed to parse summary"
+            echo ""
+            echo "Per-task results:"
+            cat "$RESULTS_FILE" | jq -r '.results[] | "\(.task_id): \(if .is_resolved then "✓ PASS" else "✗ FAIL" end) (\(.failure_mode // "unknown"))"' 2>/dev/null || echo "Failed to parse task details"
+            echo ""
+            
+            # Check for timeout-related failures
+            TOTAL=$(cat "$RESULTS_FILE" | jq '.results | length' 2>/dev/null || echo "0")
+            TIMED_OUT=$(cat "$RESULTS_FILE" | jq '[.results[] | select(.failure_mode == "agent_timeout")] | length' 2>/dev/null || echo "0")
+            if [ "$TIMED_OUT" -gt 0 ] && [ "$TOTAL" -gt 0 ]; then
+              echo "⚠️  WARNING: $TIMED_OUT/$TOTAL tasks hit agent_timeout"
+              echo "This may indicate tasks need more time or are genuinely stuck"
+            fi
+            
+            # Full results for debugging
+            echo ""
             echo "Full results.json:"
             cat "$RESULTS_FILE" | jq '.' || cat "$RESULTS_FILE"
-            echo ""
-            echo "Per-task summary:"
-            cat "$RESULTS_FILE" | jq -r '.trials[] | "\(.task_id): \(if .resolved then "✓ PASS" else "✗ FAIL" end)"' 2>/dev/null || echo "Failed to parse task details"
-            echo ""
-            echo "Pass rate:"
-            TOTAL=$(cat "$RESULTS_FILE" | jq '.trials | length')
-            PASSED=$(cat "$RESULTS_FILE" | jq '[.trials[] | select(.resolved)] | length')
-            echo "$PASSED/$TOTAL tasks passed ($(echo "scale=1; $PASSED * 100 / $TOTAL" | bc)%)"
-            
-            # Check for timeout indicators
-            TIMED_OUT=$(cat "$RESULTS_FILE" | jq '[.trials[] | select(.resolved == false and (.error // "" | contains("timeout") or contains("Timed out")))] | length')
-            if [ "$TIMED_OUT" -gt 0 ]; then
-              echo "⚠️  WARNING: $TIMED_OUT tasks failed due to timeout"
-              echo "Consider investigating task performance or increasing task_timeout"
-            fi
           else
             echo "❌ No results.json found in runs/"
             if [ -d "runs" ]; then
