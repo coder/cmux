@@ -53,14 +53,13 @@ runs:
         pkill -f "ollama serve" || true
         sleep 1
         
-        echo "Model cached"
-        echo "Checking model locations:"
-        echo "== $HOME/.ollama =="
-        ls -lah "$HOME/.ollama/" 2>&1 || echo "(not found)"
-        du -sh "$HOME/.ollama" 2>&1 || echo "(cannot measure)"
-        echo "== /usr/share/ollama/.ollama =="
-        sudo ls -lah /usr/share/ollama/.ollama/ 2>&1 || echo "(not found)"
-        sudo du -sh /usr/share/ollama/.ollama 2>&1 || echo "(cannot measure)"
+        echo "Model pulled successfully"
+        echo "Copying models to cache location..."
+        mkdir -p "$HOME/.ollama/models"
+        sudo cp -r /usr/share/ollama/.ollama/models/* "$HOME/.ollama/models/" 
+        sudo chown -R runner:docker "$HOME/.ollama/models"
+        du -sh "$HOME/.ollama/models"
+        echo "Models ready for caching"
 
     - name: Verify cache (cache hit)
       if: steps.cache-ollama.outputs.cache-hit == 'true'

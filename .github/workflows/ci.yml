@@ -112,8 +112,14 @@ jobs:
           pkill -f "ollama serve" || true
           sleep 1
           
-          # Start Ollama with models in home directory
-          export OLLAMA_MODELS="$HOME/.ollama/models"
+          # Copy cached models to system location (Ollama ignores OLLAMA_MODELS)
+          if [ -d "$HOME/.ollama/models" ]; then
+            echo "Restoring models from cache..."
+            sudo mkdir -p /usr/share/ollama/.ollama/models
+            sudo cp -r "$HOME/.ollama/models"/* /usr/share/ollama/.ollama/models/ 2>/dev/null || true
+          fi
+          
+          # Start Ollama
           ollama serve &
           
           # Wait for ready
