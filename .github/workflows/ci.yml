@@ -99,25 +99,18 @@ jobs:
 
       - uses: ./.github/actions/setup-cmux
 
-      - name: Install Ollama
+      - name: Setup Ollama
+        uses: ./.github/actions/setup-ollama
+        with:
+          model: gpt-oss:20b
+
+      - name: Start Ollama server
         run: |
-          echo "Installing Ollama..."
-          curl -fsSL https://ollama.com/install.sh | sh
-          
-          # Start Ollama service
+          echo "Starting Ollama server..."
+          export OLLAMA_MODELS="$HOME/.ollama/models"
           ollama serve &
-          
-          # Wait for Ollama to be ready
-          timeout 10 sh -c 'until curl -sf http://localhost:11434/api/tags > /dev/null 2>&1; do sleep 0.5; done' || {
-            echo "Ollama failed to start"
-            exit 1
-          }
-          
-          # Pull model
-          echo "Pulling gpt-oss:20b model..."
-          ollama pull gpt-oss:20b
-          
-          echo "Ollama setup complete"
+          timeout 5 sh -c 'until curl -sf http://localhost:11434/api/tags > /dev/null 2>&1; do sleep 0.2; done'
+          echo "Ollama ready"
 
       - name: Build worker files
         run: make build-main
