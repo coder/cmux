@@ -16,25 +16,20 @@ on:
         required: false
         type: string
         default: 'terminal-bench-core==0.1.1'
+      concurrency:
+        description: 'Number of concurrent tasks (--n-concurrent)'
+        required: false
+        type: string
+        default: '4'
       livestream:
-        description: 'Enable livestream mode (verbose output to console)'
+        description: 'Enable livestream mode'
         required: false
         type: boolean
-        default: false
+        default: true
       sample_size:
         description: 'Number of random tasks to run (empty = all tasks)'
         required: false
         type: string
-      load_threshold:
-        description: 'Load threshold for adaptive concurrency (default: 1.0)'
-        required: false
-        type: string
-        default: '1.0'
-      check_interval:
-        description: 'Seconds between adaptive bursts (default: 60)'
-        required: false
-        type: string
-        default: '60'
       extra_args:
         description: 'Additional arguments to pass to terminal-bench'
         required: false
@@ -52,9 +47,9 @@ on:
         default: 'terminal-bench-core==0.1.1'
         type: string
       livestream:
-        description: 'Enable livestream mode (verbose output to console)'
+        description: 'Enable livestream mode'
         required: false
-        default: false
+        default: true
         type: boolean
       sample_size:
         description: 'Number of random tasks to run (empty = all tasks)'
@@ -68,29 +63,28 @@ on:
         description: 'Thinking level (off, low, medium, high)'
         required: false
         type: string
+      extra_args:
+        description: 'Additional arguments to pass to terminal-bench'
+        required: false
+        type: string
       load_threshold:
-        description: 'Load threshold for adaptive concurrency (default: 1.0)'
+        description: 'Load average threshold for adaptive concurrency (default: 1.0)'
         required: false
         default: '1.0'
         type: string
       check_interval:
-        description: 'Seconds between adaptive bursts (default: 60)'
+        description: 'Seconds between bursts for adaptive concurrency (default: 60)'
         required: false
         default: '60'
-        type: string
-      extra_args:
-        description: 'Additional arguments to pass to terminal-bench'
-        required: false
         type: string
 
 jobs:
   benchmark:
     name: Run Terminal-Bench${{ inputs.model_name && format(' ({0})', inputs.model_name) || '' }}
     runs-on: ${{ github.repository_owner == 'coder' && 'depot-ubuntu-22.04-16' || 'ubuntu-latest' }}
-    # Full suite (~80 tasks) at concurrency=4 takes ~60-90 minutes typically
-    # Set 4-hour timeout to handle occasional API slowdowns while preventing infinite hangs
-    # If consistently hitting this timeout, investigate task-level issues
-    timeout-minutes: 240
+    # Full suite (~80 tasks) at concurrency=4 takes ~60-90 minutes
+    # Allow 3 hours for safety margin and slower tasks
+    timeout-minutes: 180
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -111,8 +105,8 @@ jobs:
       - name: Build dist/ (skip icons - not needed for benchmark)
         run: make build-main build-preload
 
-      - name: Run Terminal-Bench
-        run: make benchmark-terminal 2>&1 | tee benchmark.log
+      - name: Run Terminal-Bench (adaptive concurrency 1-16)
+        run: make benchmark-terminal
         env:
           TB_DATASET: ${{ inputs.dataset }}
           TB_LOAD_THRESHOLD: ${{ inputs.load_threshold }}
@@ -127,12 +121,18 @@ jobs:
         if: always()
         run: |
           echo "=== Terminal-Bench Results Summary ==="
-          if [ -f "$(find runs -name 'results.json' 2>/dev/null | head -1)" ]; then
+          if [ -f "$(find runs -name 'results.json' | head -1)" ]; then
             RESULTS_FILE=$(find runs -name 'results.json' | head -1)
-            cat "$RESULTS_FILE" | jq '{n_resolved, n_unresolved, accuracy}' 2>/dev/null || cat "$RESULTS_FILE"
+            echo "Results file: $RESULTS_FILE"
+            echo ""
+            echo "Full results.json:"
+            cat "$RESULTS_FILE" | jq '.' || cat "$RESULTS_FILE"
+            echo ""
+            echo "Per-task summary:"
+            cat "$RESULTS_FILE" | jq -r '.trials[] | "\(.task_id): \(if .resolved then "✓ PASS" else "✗ FAIL" end)"' 2>/dev/null || echo "Failed to parse task details"
           else
-            echo "❌ No results.json found"
-            ls -laR runs/ 2>/dev/null || echo "runs/ directory missing"
+            echo "No results.json found in runs/"
+            ls -la runs/
           fi
 
       - name: Set artifact name
@@ -155,7 +155,6 @@ jobs:
           name: ${{ steps.artifact-name.outputs.name }}
           path: |
             runs/
-            benchmark.log
           if-no-files-found: warn
           retention-days: 30
 

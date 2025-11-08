@@ -295,46 +295,12 @@ chromatic: node_modules/.installed ## Run Chromatic for visual regression testin
 	@bun x chromatic --exit-zero-on-changes
 
 ## Benchmarks
-benchmark-terminal: ## Run Terminal-Bench with the cmux agent (use TB_DATASET/TB_SAMPLE_SIZE/TB_TIMEOUT/TB_ARGS to customize)
-	@TB_DATASET=$${TB_DATASET:-terminal-bench-core==0.1.1}; \
-	TB_TIMEOUT=$${TB_TIMEOUT:-1800}; \
-	CONCURRENCY_FLAG=$${TB_CONCURRENCY:+--n-concurrent $$TB_CONCURRENCY}; \
-	LIVESTREAM_FLAG=$${TB_LIVESTREAM:+--livestream}; \
-	TASK_ID_FLAGS=""; \
-	if [ -n "$$TB_SAMPLE_SIZE" ]; then \
-		echo "Ensuring dataset $$TB_DATASET is downloaded..."; \
-		uvx terminal-bench datasets download --dataset "$$TB_DATASET" 2>&1 | grep -v "already exists" || true; \
-		echo "Sampling $$TB_SAMPLE_SIZE tasks from $$TB_DATASET..."; \
-		TASK_IDS=$$(python3 benchmarks/terminal_bench/sample_tasks.py --dataset "$$TB_DATASET" --sample-size "$$TB_SAMPLE_SIZE" --format space) || { \
-			echo "Error: Failed to sample tasks" >&2; \
-			exit 1; \
-		}; \
-		if [ -z "$$TASK_IDS" ]; then \
-			echo "Error: Sampling returned no task IDs" >&2; \
-			exit 1; \
-		fi; \
-		for task_id in $$TASK_IDS; do \
-			TASK_ID_FLAGS="$$TASK_ID_FLAGS --task-id $$task_id"; \
-		done; \
-		echo "Selected task IDs: $$TASK_IDS"; \
-	fi; \
-	echo "Using timeout: $$TB_TIMEOUT seconds"; \
-	echo "Running Terminal-Bench with dataset $$TB_DATASET"; \
-	export CMUX_TIMEOUT_MS=$$((TB_TIMEOUT * 1000)); \
-	uvx terminal-bench run \
-		--dataset "$$TB_DATASET" \
-		--agent-import-path benchmarks.terminal_bench.cmux_agent:CmuxAgent \
-		--global-agent-timeout-sec $$TB_TIMEOUT \
-		$$CONCURRENCY_FLAG \
-		$$LIVESTREAM_FLAG \
-		$$TASK_ID_FLAGS \
-		$${TB_ARGS}
+benchmark-terminal: benchmark-terminal-adaptive ## Run Terminal-Bench with adaptive concurrency (alias)
 
 .PHONY: benchmark-terminal-adaptive
-benchmark-terminal-adaptive: ## Run Terminal-Bench with adaptive concurrency (use TB_MAX_CONCURRENT/TB_LOAD_THRESHOLD/TB_CHECK_INTERVAL)
+benchmark-terminal-adaptive: ## Run Terminal-Bench with adaptive concurrency (auto-scales 1-16, use TB_LOAD_THRESHOLD/TB_CHECK_INTERVAL)
 	@TB_DATASET=$${TB_DATASET:-terminal-bench-core==0.1.1}; \
 	TB_TIMEOUT=$${TB_TIMEOUT:-1800}; \
-	TB_MAX_CONCURRENT=$${TB_MAX_CONCURRENT:-16}; \
 	TB_LOAD_THRESHOLD=$${TB_LOAD_THRESHOLD:-1.0}; \
 	TB_CHECK_INTERVAL=$${TB_CHECK_INTERVAL:-60}; \
 	LIVESTREAM_FLAG=$${TB_LIVESTREAM:+--livestream}; \
@@ -356,9 +322,8 @@ benchmark-terminal-adaptive: ## Run Terminal-Bench with adaptive concurrency (us
 		done; \
 		echo "Selected task IDs: $$TASK_IDS"; \
 	fi; \
-	echo "Running adaptive terminal-bench (max concurrency: $$TB_MAX_CONCURRENT, load threshold: $$TB_LOAD_THRESHOLD)"; \
+	echo "Running adaptive terminal-bench (auto-scaling 1-16, load threshold: $$TB_LOAD_THRESHOLD)"; \
 	python3 benchmarks/terminal_bench/adaptive_bench.py \
-		--max-concurrent $$TB_MAX_CONCURRENT \
 		--load-threshold $$TB_LOAD_THRESHOLD \
 		--check-interval $$TB_CHECK_INTERVAL \
 		-- \

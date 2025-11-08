@@ -17,20 +17,28 @@ from typing import Optional
 
 
 class AdaptiveBench:
+    """
+    Adaptive concurrency wrapper for terminal-bench.
+    
+    Concurrency is automatically bounded to [1, 16] for optimal performance
+    across different hardware configurations.
+    """
+    
+    MIN_CONCURRENT = 1
+    MAX_CONCURRENT = 16
+    
     def __init__(
         self,
         load_threshold: float,
         check_interval: int,
-        max_concurrent: int,
         runs_dir: Path,
         tb_args: list[str],
     ):
         self.load_threshold = load_threshold
         self.check_interval = check_interval
-        self.max_concurrent = max_concurrent
         self.runs_dir = runs_dir
         self.tb_args = tb_args
-        self.current_concurrent = 1
+        self.current_concurrent = self.MIN_CONCURRENT
         self.run_id: Optional[str] = None
         self.burst_count = 0
 
@@ -78,12 +86,12 @@ class AdaptiveBench:
         load = self.get_load_avg()
         old_concurrent = self.current_concurrent
 
-        if load < self.load_threshold and self.current_concurrent < self.max_concurrent:
+        if load < self.load_threshold and self.current_concurrent < self.MAX_CONCURRENT:
             self.current_concurrent = min(
-                self.current_concurrent * 2, self.max_concurrent
+                self.current_concurrent * 2, self.MAX_CONCURRENT
             )
-        elif load > self.load_threshold and self.current_concurrent > 1:
-            self.current_concurrent = max(self.current_concurrent // 2, 1)
+        elif load > self.load_threshold and self.current_concurrent > self.MIN_CONCURRENT:
+            self.current_concurrent = max(self.current_concurrent // 2, self.MIN_CONCURRENT)
 
         if self.current_concurrent != old_concurrent:
             print(
@@ -221,7 +229,7 @@ class AdaptiveBench:
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Run terminal-bench with adaptive concurrency via burst-and-resume"
+        description="Run terminal-bench with adaptive concurrency (auto-scales 1-16 based on load)"
     )
     parser.add_argument(
         "--load-threshold",
@@ -234,12 +242,6 @@ def main():
         type=int,
         default=60,
         help="Seconds between bursts (default: 60)",
-    )
-    parser.add_argument(
-        "--max-concurrent",
-        type=int,
-        required=True,
-        help="Maximum concurrency limit",
     )
     parser.add_argument(
         "--runs-dir",
@@ -263,7 +265,6 @@ def main():
     bench = AdaptiveBench(
         load_threshold=args.load_threshold,
         check_interval=args.check_interval,
-        max_concurrent=args.max_concurrent,
         runs_dir=args.runs_dir,
         tb_args=tb_args,
     )

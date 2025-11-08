@@ -4,12 +4,17 @@ This directory contains the cmux agent adapter for [Terminal-Bench](https://gith
 
 ## Quick Start
 
+Terminal-bench now runs with **adaptive concurrency by default**, automatically scaling from 1-16 concurrent tasks based on system load.
+
 ```bash
-# Run full benchmark suite (80 tasks, ~2.5 hours)
+# Run full benchmark suite (80 tasks, ~2.5 hours) with adaptive concurrency
 make benchmark-terminal
 
 # Run with sample of 5 tasks
 TB_SAMPLE_SIZE=5 make benchmark-terminal
+
+# Adjust load threshold (default: 1.0)
+TB_LOAD_THRESHOLD=2.0 make benchmark-terminal
 
 # Run specific tasks
 make benchmark-terminal TB_ARGS="--task-id hello-world --task-id chess-best-move"
@@ -24,7 +29,8 @@ make benchmark-terminal TB_ARGS="--agent-kwarg model_name=anthropic:claude-opus-
 
 - `TB_DATASET`: Dataset to use (default: `terminal-bench-core==0.1.1`)
 - `TB_SAMPLE_SIZE`: Number of random tasks to run (default: all 80 tasks)
-- `TB_CONCURRENCY`: Number of concurrent tasks (default: 4)
+- `TB_LOAD_THRESHOLD`: Load average threshold for concurrency adjustments (default: 1.0)
+- `TB_CHECK_INTERVAL`: Seconds between bursts (default: 60)
 - `TB_LIVESTREAM`: Enable livestream mode (set to `1` to enable)
 - `TB_TIMEOUT`: Global timeout in seconds (default: 1800 = 30 minutes)
 - `TB_ARGS`: Additional arguments passed to terminal-bench
