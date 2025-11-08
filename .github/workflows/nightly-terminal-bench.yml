@@ -44,7 +44,7 @@ jobs:
       thinking_level: "high"
       dataset: "terminal-bench-core==0.1.1"
       concurrency: "4"
-      livestream: true
+      livestream: false
       # Set aggressive per-task timeout (15 min) to catch hung tasks faster
       # Tasks that consistently hit this timeout indicate bugs in task handling
       task_timeout: "900"

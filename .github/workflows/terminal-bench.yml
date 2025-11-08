@@ -22,10 +22,10 @@ on:
         type: string
         default: '4'
       livestream:
-        description: 'Enable livestream mode'
+        description: 'Enable livestream mode (verbose output to console)'
         required: false
         type: boolean
-        default: true
+        default: false
       sample_size:
         description: 'Number of random tasks to run (empty = all tasks)'
         required: false
@@ -57,9 +57,9 @@ on:
         default: '4'
         type: string
       livestream:
-        description: 'Enable livestream mode'
+        description: 'Enable livestream mode (verbose output to console)'
         required: false
-        default: true
+        default: false
         type: boolean
       sample_size:
         description: 'Number of random tasks to run (empty = all tasks)'
@@ -112,7 +112,24 @@ jobs:
         run: make build-main build-preload
 
       - name: Run Terminal-Bench
-        run: make benchmark-terminal
+        run: |
+          echo "Starting Terminal-Bench run..."
+          echo "Dataset: $TB_DATASET"
+          echo "Concurrency: $TB_CONCURRENCY"
+          echo "Task timeout: $TB_TIMEOUT seconds"
+          echo "Sample size: ${TB_SAMPLE_SIZE:-all tasks}"
+          echo ""
+          
+          # Run benchmark with output redirected to file (logs saved as artifact)
+          # Only show progress indicator and final summary in console
+          make benchmark-terminal 2>&1 | tee benchmark.log | grep -E "(Running Terminal-Bench|Using timeout|Selected task IDs|Results Summary|Resolved Trials|Unresolved Trials|Accuracy)" || true
+          
+          # Show last 50 lines if there was an error
+          if [ ${PIPESTATUS[0]} -ne 0 ]; then
+            echo ""
+            echo "=== Benchmark failed, showing last 50 lines of output ==="
+            tail -50 benchmark.log
+          fi
         env:
           TB_DATASET: ${{ inputs.dataset }}
           TB_CONCURRENCY: ${{ inputs.concurrency }}
@@ -179,6 +196,7 @@ jobs:
           name: ${{ steps.artifact-name.outputs.name }}
           path: |
             runs/
+            benchmark.log
           if-no-files-found: warn
           retention-days: 30
 
