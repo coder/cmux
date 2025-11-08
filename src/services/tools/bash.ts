@@ -237,12 +237,12 @@ export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
         }
       });
 
-      // SIMPLE: Wait for process to exit (streams are destroyed by DisposableProcess)
+      // Wait for process to exit
       let exitCode: number;
       try {
         exitCode = await execStream.exitCode;
       } catch (err: unknown) {
-        // Cleanup immediately - don't wait for streams
+        // Cleanup immediately
         stdoutReader.close();
         stderrReader.close();
         stdoutNodeStream.destroy();
@@ -256,7 +256,11 @@ export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
         };
       }
 
-      // Cleanup immediately after exit - streams are already cancelled by DisposableProcess
+      // Give readline interfaces a moment to process final buffered data
+      // Process has exited but readline may still be processing buffered chunks
+      await new Promise((resolve) => setTimeout(resolve, 10));
+
+      // Now cleanup
       stdoutReader.close();
       stderrReader.close();
       stdoutNodeStream.destroy();
