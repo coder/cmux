@@ -19,14 +19,14 @@ from typing import Optional
 class AdaptiveBench:
     """
     Adaptive concurrency wrapper for terminal-bench.
-    
+
     Concurrency is automatically bounded to [1, 16] for optimal performance
     across different hardware configurations.
     """
-    
+
     MIN_CONCURRENT = 1
     MAX_CONCURRENT = 16
-    
+
     def __init__(
         self,
         load_threshold: float,
@@ -90,8 +90,12 @@ class AdaptiveBench:
             self.current_concurrent = min(
                 self.current_concurrent * 2, self.MAX_CONCURRENT
             )
-        elif load > self.load_threshold and self.current_concurrent > self.MIN_CONCURRENT:
-            self.current_concurrent = max(self.current_concurrent // 2, self.MIN_CONCURRENT)
+        elif (
+            load > self.load_threshold and self.current_concurrent > self.MIN_CONCURRENT
+        ):
+            self.current_concurrent = max(
+                self.current_concurrent // 2, self.MIN_CONCURRENT
+            )
 
         if self.current_concurrent != old_concurrent:
             print(
@@ -124,7 +128,11 @@ class AdaptiveBench:
                 f"concurrency={self.current_concurrent}"
             )
         else:
-            # Subsequent bursts - resume existing run
+            # Subsequent bursts - update tb.lock BEFORE resume
+            # This ensures the resume command picks up the new concurrency
+            self._update_lock_concurrency()
+
+            # Resume existing run
             cmd = [
                 "uvx",
                 "terminal-bench",
@@ -166,10 +174,6 @@ class AdaptiveBench:
 
         print(f"⏱️  Burst #{self.burst_count} completed in {burst_duration:.1f}s")
 
-        # Update n_concurrent in tb.lock for next resume
-        if self.run_id and result.returncode == 0:
-            self._update_lock_concurrency()
-
         return result.returncode
 
     def _update_lock_concurrency(self):
@@ -184,9 +188,7 @@ class AdaptiveBench:
 
             # Update concurrency in lock file
             if "run_config" in lock_data:
-                lock_data["run_config"][
-                    "n_concurrent_trials"
-                ] = self.current_concurrent
+                lock_data["run_config"]["n_concurrent_trials"] = self.current_concurrent
 
             with open(lock_path, "w") as f:
                 json.dump(lock_data, f, indent=2)

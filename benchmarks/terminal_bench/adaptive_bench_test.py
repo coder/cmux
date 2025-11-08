@@ -166,9 +166,7 @@ class TestAdaptiveBench:
 
         # Mock tb.lock with 5 tasks
         tb_lock_data = {
-            "dataset": {
-                "task_ids": ["task1", "task2", "task3", "task4", "task5"]
-            }
+            "dataset": {"task_ids": ["task1", "task2", "task3", "task4", "task5"]}
         }
 
         # Mock results.json with 3 completed tasks
@@ -250,9 +248,7 @@ class TestAdaptiveBench:
 
         mock_exists.return_value = True
 
-        lock_data = {
-            "run_config": {"n_concurrent_trials": 1, "other_field": "value"}
-        }
+        lock_data = {"run_config": {"n_concurrent_trials": 1, "other_field": "value"}}
 
         # Setup mock to return lock_data on read
         mock_file.return_value.read.return_value = json.dumps(lock_data)
