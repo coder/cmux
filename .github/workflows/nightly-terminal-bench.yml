@@ -45,9 +45,6 @@ jobs:
       dataset: "terminal-bench-core==0.1.1"
       concurrency: "4"
       livestream: false
-      # Set aggressive per-task timeout (15 min) to catch hung tasks faster
-      # Tasks that consistently hit this timeout indicate bugs in task handling
-      task_timeout: "900"
     secrets:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}

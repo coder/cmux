@@ -34,11 +34,6 @@ on:
         description: 'Additional arguments to pass to terminal-bench'
         required: false
         type: string
-      task_timeout:
-        description: 'Per-task timeout in seconds (default: 1800 = 30 min)'
-        required: false
-        type: string
-        default: '1800'
     secrets:
       ANTHROPIC_API_KEY:
         required: true
@@ -77,11 +72,6 @@ on:
         description: 'Additional arguments to pass to terminal-bench'
         required: false
         type: string
-      task_timeout:
-        description: 'Per-task timeout in seconds (default: 1800 = 30 min)'
-        required: false
-        type: string
-        default: '1800'
 
 jobs:
   benchmark:
@@ -112,30 +102,12 @@ jobs:
         run: make build-main build-preload
 
       - name: Run Terminal-Bench
-        run: |
-          echo "Starting Terminal-Bench run..."
-          echo "Dataset: $TB_DATASET"
-          echo "Concurrency: $TB_CONCURRENCY"
-          echo "Task timeout: $TB_TIMEOUT seconds"
-          echo "Sample size: ${TB_SAMPLE_SIZE:-all tasks}"
-          echo ""
-          
-          # Run benchmark with output redirected to file (logs saved as artifact)
-          # Only show progress indicator and final summary in console
-          make benchmark-terminal 2>&1 | tee benchmark.log | grep -E "(Running Terminal-Bench|Using timeout|Selected task IDs|Results Summary|Resolved Trials|Unresolved Trials|Accuracy)" || true
-          
-          # Show last 50 lines if there was an error
-          if [ ${PIPESTATUS[0]} -ne 0 ]; then
-            echo ""
-            echo "=== Benchmark failed, showing last 50 lines of output ==="
-            tail -50 benchmark.log
-          fi
+        run: make benchmark-terminal 2>&1 | tee benchmark.log
         env:
           TB_DATASET: ${{ inputs.dataset }}
           TB_CONCURRENCY: ${{ inputs.concurrency }}
           TB_LIVESTREAM: ${{ inputs.livestream && '1' || '' }}
           TB_SAMPLE_SIZE: ${{ inputs.sample_size }}
-          TB_TIMEOUT: ${{ inputs.task_timeout }}
           TB_ARGS: ${{ inputs.model_name && format('--agent-kwarg model_name={0} --agent-kwarg thinking_level={1} {2}', inputs.model_name, inputs.thinking_level, inputs.extra_args) || inputs.extra_args }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
@@ -146,34 +118,10 @@ jobs:
           echo "=== Terminal-Bench Results Summary ==="
           if [ -f "$(find runs -name 'results.json' 2>/dev/null | head -1)" ]; then
             RESULTS_FILE=$(find runs -name 'results.json' | head -1)
-            echo "Results file: $RESULTS_FILE"
-            echo ""
-            echo "Summary statistics:"
-            cat "$RESULTS_FILE" | jq '{n_resolved, n_unresolved, accuracy}' || echo "Failed to parse summary"
-            echo ""
-            echo "Per-task results:"
-            cat "$RESULTS_FILE" | jq -r '.results[] | "\(.task_id): \(if .is_resolved then "✓ PASS" else "✗ FAIL" end) (\(.failure_mode // "unknown"))"' 2>/dev/null || echo "Failed to parse task details"
-            echo ""
-            
-            # Check for timeout-related failures
-            TOTAL=$(cat "$RESULTS_FILE" | jq '.results | length' 2>/dev/null || echo "0")
-            TIMED_OUT=$(cat "$RESULTS_FILE" | jq '[.results[] | select(.failure_mode == "agent_timeout")] | length' 2>/dev/null || echo "0")
-            if [ "$TIMED_OUT" -gt 0 ] && [ "$TOTAL" -gt 0 ]; then
-              echo "⚠️  WARNING: $TIMED_OUT/$TOTAL tasks hit agent_timeout"
-              echo "This may indicate tasks need more time or are genuinely stuck"
-            fi
-            
-            # Full results for debugging
-            echo ""
-            echo "Full results.json:"
-            cat "$RESULTS_FILE" | jq '.' || cat "$RESULTS_FILE"
+            cat "$RESULTS_FILE" | jq '{n_resolved, n_unresolved, accuracy}' 2>/dev/null || cat "$RESULTS_FILE"
           else
-            echo "❌ No results.json found in runs/"
-            if [ -d "runs" ]; then
-              ls -laR runs/ || echo "Failed to list runs directory"
-            else
-              echo "runs/ directory does not exist"
-            fi
+            echo "❌ No results.json found"
+            ls -laR runs/ 2>/dev/null || echo "runs/ directory missing"
           fi
 
       - name: Set artifact name

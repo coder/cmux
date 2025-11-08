@@ -94,20 +94,7 @@ if [[ -n "${CMUX_THINKING_LEVEL}" ]]; then
   cmd+=(--thinking-level "${CMUX_THINKING_LEVEL}")
 fi
 
-# Run with timeout if available (fallback to running without timeout on older systems)
-if command -v timeout >/dev/null 2>&1 && [[ -n "${CMUX_TIMEOUT_MS}" ]]; then
-  # Add 60s buffer to allow cmux's internal timeout to trigger first
-  SHELL_TIMEOUT_SEC=$((CMUX_TIMEOUT_MS / 1000 + 60))
-  log "enforcing shell-level timeout of ${SHELL_TIMEOUT_SEC}s (cmux timeout: ${CMUX_TIMEOUT_MS}ms)"
-  if ! printf '%s' "${instruction}" | timeout "${SHELL_TIMEOUT_SEC}s" "${cmd[@]}"; then
-    EXIT_CODE=$?
-    if [ $EXIT_CODE -eq 124 ]; then
-      fatal "shell timeout reached (${SHELL_TIMEOUT_SEC}s) - task exceeded maximum duration"
-    fi
-    fatal "cmux agent session failed (exit code: $EXIT_CODE)"
-  fi
-else
-  if ! printf '%s' "${instruction}" | "${cmd[@]}"; then
-    fatal "cmux agent session failed"
-  fi
+# Terminal-bench enforces timeouts via --global-agent-timeout-sec
+if ! printf '%s' "${instruction}" | "${cmd[@]}"; then
+  fatal "cmux agent session failed"
 fi
