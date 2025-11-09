@@ -26,7 +26,14 @@ export interface PostToolUseHookPayload {
  * Extension export interface - what extensions must export as default
  */
 export interface Extension {
-  onPostToolUse?: (payload: PostToolUseHookPayload) => Promise<void> | void;
+  /**
+   * Hook called after a tool is executed.
+   * Extensions can monitor, log, or modify the tool result.
+   * 
+   * @param payload - Tool execution context with full Runtime access
+   * @returns The tool result (can be modified) or undefined to leave unchanged
+   */
+  onPostToolUse?: (payload: PostToolUseHookPayload) => Promise<unknown> | unknown;
 }
 
 /**
@@ -72,8 +79,9 @@ export interface ExtensionHostApi extends RpcTarget {
   /**
    * Dispatch post-tool-use hook to the extension
    * @param payload Hook payload (runtime will be added by host)
+   * @returns The (possibly modified) tool result, or undefined if unchanged
    */
-  onPostToolUse(payload: Omit<PostToolUseHookPayload, "runtime">): Promise<void>;
+  onPostToolUse(payload: Omit<PostToolUseHookPayload, "runtime">): Promise<unknown>;
 
   /**
    * Gracefully shutdown the extension host

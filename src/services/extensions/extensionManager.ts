@@ -328,29 +328,31 @@ export class ExtensionManager {
    * Called after a tool execution completes. Forwards the hook to all extension hosts
    * that should see this workspace, based on filtering rules.
    *
+   * Extensions can modify the tool result. The last extension to modify wins.
    * Dispatches to hosts in parallel for faster execution. Individual failures are logged
    * but don't block other extensions.
    *
    * @param workspaceId - Unique identifier for the workspace
    * @param payload - Hook payload containing tool name, args, result, etc. (runtime will be injected by hosts)
+   * @returns The (possibly modified) tool result
    */
   async postToolUse(
     workspaceId: string,
     payload: Omit<PostToolUseHookPayload, "runtime">
-  ): Promise<void> {
+  ): Promise<unknown> {
     if (this.hosts.size === 0) {
-      // No extensions loaded
-      return;
+      // No extensions loaded - return original result
+      return payload.result;
     }
 
     const workspaceMetadata = this.workspaceMetadata.get(workspaceId);
     if (!workspaceMetadata) {
       log.error(`postToolUse called for unknown workspace ${workspaceId}`);
-      return;
+      return payload.result;
     }
 
     // Dispatch to filtered hosts in parallel
-    const dispatches: Promise<void>[] = [];
+    const dispatches: Promise<{ extId: string; result: unknown }>[] = [];
     for (const [extId, hostInfo] of this.hosts) {
       // Apply workspace filtering
       if (!this.shouldHostSeeWorkspace(hostInfo.extensionInfo, workspaceMetadata.workspace)) {
@@ -366,17 +368,32 @@ export class ExtensionManager {
       // Dispatch hook to this extension
       const dispatch = (async () => {
         try {
-          await hostInfo.rpc.onPostToolUse(payload);
+          const result = await hostInfo.rpc.onPostToolUse(payload);
+          return { extId, result };
         } catch (error) {
           log.error(`Extension ${extId} failed in onPostToolUse:`, error);
+          // On error, return original result
+          return { extId, result: payload.result };
         }
       })();
 
       dispatches.push(dispatch);
     }
 
-    // Wait for all dispatches to complete (with timeout per extension handled by RPC)
-    await Promise.allSettled(dispatches);
+    // Wait for all dispatches to complete
+    const results = await Promise.allSettled(dispatches);
+    
+    // Collect all modified results
+    // Last extension to modify wins (if multiple extensions modify)
+    let finalResult = payload.result;
+    for (const settled of results) {
+      if (settled.status === "fulfilled" && settled.value.result !== payload.result) {
+        finalResult = settled.value.result;
+        log.debug(`Extension ${settled.value.extId} modified tool result`);
+      }
+    }
+    
+    return finalResult;
   }
 
   /**

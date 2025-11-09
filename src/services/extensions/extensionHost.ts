@@ -99,11 +99,12 @@ class ExtensionHostImpl extends RpcTarget implements ExtensionHostApi {
 
   /**
    * Dispatch post-tool-use hook to the extension
+   * @returns The (possibly modified) tool result, or undefined if unchanged
    */
-  async onPostToolUse(payload: Omit<PostToolUseHookPayload, "runtime">): Promise<void> {
+  async onPostToolUse(payload: Omit<PostToolUseHookPayload, "runtime">): Promise<unknown> {
     if (!this.extensionModule || !this.extensionModule.onPostToolUse) {
-      // Extension doesn't have this hook
-      return;
+      // Extension doesn't have this hook - return result unchanged
+      return payload.result;
     }
 
     // Get runtime for this workspace
@@ -112,19 +113,23 @@ class ExtensionHostImpl extends RpcTarget implements ExtensionHostApi {
       console.error(
         `[ExtensionHost] Runtime not found for workspace ${payload.workspaceId}, skipping hook`
       );
-      return;
+      return payload.result;
     }
 
     try {
       // Call the extension's hook handler with runtime access
-      await this.extensionModule.onPostToolUse({
+      const modifiedResult = await this.extensionModule.onPostToolUse({
         ...payload,
         runtime,
       });
+      
+      // If extension returns undefined, use original result
+      return modifiedResult !== undefined ? modifiedResult : payload.result;
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error);
       console.error(`[ExtensionHost] Extension threw error in onPostToolUse:`, errorMsg);
-      throw new Error(`Extension hook error: ${errorMsg}`);
+      // On error, return original result unchanged
+      return payload.result;
     }
   }
 
