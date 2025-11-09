@@ -1151,6 +1151,66 @@ fi
 
     expect(remainingProcesses).toBe(0);
   });
+
+  it("should abort quickly when command produces continuous output", async () => {
+    using testEnv = createTestBashTool();
+    const tool = testEnv.tool;
+
+    // Create AbortController to simulate user interruption
+    const abortController = new AbortController();
+
+    // Command that produces slow, continuous output
+    // The key is it keeps running, so the abort happens while reader.read() is waiting
+    const args: BashToolArgs = {
+      script: `
+        # Produce continuous output slowly (prevents hitting truncation limits)
+        for i in {1..1000}; do
+          echo "Output line $i"
+          sleep 0.1
+        done
+      `,
+      timeout_secs: 120,
+    };
+
+    // Start the command
+    const resultPromise = tool.execute!(args, {
+      ...mockToolCallOptions,
+      abortSignal: abortController.signal,
+    }) as Promise<BashToolResult>;
+
+    // Wait for output to start (give it time to produce a few lines)
+    await new Promise((resolve) => setTimeout(resolve, 250));
+
+    // Abort the operation while it's still producing output
+    const abortTime = Date.now();
+    abortController.abort();
+
+    // Wait for the result with a timeout to detect hangs
+    const timeoutPromise = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error("Test timeout - tool did not abort quickly")), 5000)
+    );
+
+    const result = (await Promise.race([resultPromise, timeoutPromise])) as BashToolResult;
+    const duration = Date.now() - abortTime;
+
+    // Command should be aborted
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      // Error should mention abort or indicate the process was killed
+      const errorText = result.error.toLowerCase();
+      expect(
+        errorText.includes("abort") ||
+          errorText.includes("killed") ||
+          errorText.includes("signal") ||
+          result.exitCode === -1
+      ).toBe(true);
+    }
+
+    // CRITICAL: Tool should return quickly after abort (< 2s)
+    // This is the regression test - without checking abort signal in consumeStream(),
+    // the tool hangs until the streams close (which can take a long time)
+    expect(duration).toBeLessThan(2000);
+  });
 });
 
 describe("SSH runtime redundant cd detection", () => {

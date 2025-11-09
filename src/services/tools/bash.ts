@@ -300,6 +300,16 @@ export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
         const reader = stream.getReader();
         const decoder = new TextDecoder("utf-8");
         let carry = "";
+
+        // Set up abort handler to cancel reader when abort signal fires
+        // This interrupts reader.read() if it's blocked, preventing hangs
+        const abortHandler = () => {
+          reader.cancel().catch(() => {
+            /* ignore - reader may already be closed */
+          });
+        };
+        abortSignal?.addEventListener("abort", abortHandler);
+
         try {
           while (true) {
             if (truncationState.fileTruncated) {
@@ -336,6 +346,9 @@ export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
             if (truncationState.fileTruncated) break;
           }
         } finally {
+          // Clean up abort listener
+          abortSignal?.removeEventListener("abort", abortHandler);
+
           // Flush decoder for any trailing bytes and emit the last line (if any)
           try {
             const tail = decoder.decode();
@@ -358,9 +371,29 @@ export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
       try {
         [exitCode] = await Promise.all([execStream.exitCode, consumeStdout, consumeStderr]);
       } catch (err: unknown) {
+        // Check if this was an abort
+        if (abortSignal?.aborted) {
+          return {
+            success: false,
+            error: "Command execution was aborted",
+            exitCode: -1,
+            wall_duration_ms: Math.round(performance.now() - startTime),
+          };
+        }
         return {
           success: false,
           error: `Failed to execute command: ${err instanceof Error ? err.message : String(err)}`,
+          exitCode: -1,
+          wall_duration_ms: Math.round(performance.now() - startTime),
+        };
+      }
+
+      // Check if command was aborted (exitCode will be EXIT_CODE_ABORTED = -997)
+      // This can happen if abort signal fired after Promise.all resolved but before we check
+      if (abortSignal?.aborted) {
+        return {
+          success: false,
+          error: "Command execution was aborted",
           exitCode: -1,
           wall_duration_ms: Math.round(performance.now() - startTime),
         };
