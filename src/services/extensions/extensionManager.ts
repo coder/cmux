@@ -1,73 +1,81 @@
 /**
  * Extension Manager
  *
- * Manages a single shared extension host process for all workspaces.
- * - Discovers extensions from global directory (~/.cmux/ext)
- * - Spawns extension host once at application startup
- * - Registers/unregisters workspaces with the host
- * - Forwards hook events to extension host via IPC
- * - Handles extension host crashes and errors
+ * Manages one extension host process per extension for isolation and filtering.
+ * - Discovers extensions from global (~/.cmux/ext) and project (.cmux/ext) directories
+ * - Spawns separate host process for each extension
+ * - Registers/unregisters workspaces with appropriate hosts (with filtering)
+ * - Forwards hook events to filtered extension hosts via RPC
+ * - Handles extension host crashes and errors independently
  */
 
 import { fork } from "child_process";
 import type { ChildProcess } from "child_process";
 import * as path from "path";
 import * as os from "os";
+import { promises as fs } from "fs";
 import type { WorkspaceMetadata } from "@/types/workspace";
 import type { RuntimeConfig } from "@/types/runtime";
 import type {
-  ExtensionHostMessage,
-  ExtensionHostResponse,
   PostToolUseHookPayload,
+  ExtensionInfo,
+  ExtensionHostApi,
 } from "@/types/extensions";
-import { discoverExtensions } from "@/utils/extensions/discovery";
+import { discoverExtensionsWithPrecedence } from "@/utils/extensions/discovery";
 import { createRuntime } from "@/runtime/runtimeFactory";
 import { log } from "@/services/log";
+import { NodeIpcTransport } from "./nodeIpcTransport";
+import { RpcSession, type RpcStub } from "capnweb";
 
 /**
- * Extension manager for handling a single global extension host
+ * Information about a running extension host
+ */
+interface ExtensionHostInfo {
+  process: ChildProcess;
+  rpc: RpcStub<ExtensionHostApi>;
+  transport: NodeIpcTransport;
+  extensionInfo: ExtensionInfo;
+  registeredWorkspaces: Set<string>;
+}
+
+/**
+ * Extension manager for handling multiple extension host processes
  */
 export class ExtensionManager {
-  private host: ChildProcess | null = null;
+  private hosts = new Map<string, ExtensionHostInfo>(); // Key: extension ID (full path)
   private isInitializing = false;
   private initPromise: Promise<void> | null = null;
-  private registeredWorkspaces = new Set<string>();
+  // Track workspace metadata for extension discovery, reload, and filtering
+  private workspaceMetadata = new Map<
+    string,
+    { workspace: WorkspaceMetadata; runtimeConfig: RuntimeConfig; runtimeTempDir: string }
+  >();
 
   /**
-   * Initialize the global extension host (call once at application startup)
+   * Initialize extension hosts (call once at application startup)
    *
-   * Discovers extensions from global directory (~/.cmux/ext), spawns the
-   * extension host process, and waits for it to be ready.
+   * Discovers extensions from global and project directories, spawns one
+   * host process per extension, and waits for them to be ready.
    *
-   * If no extensions are found, this method returns immediately without spawning a host.
+   * If no extensions are found, this method returns immediately.
    * If already initialized or initializing, returns the existing promise.
    */
   async initializeGlobal(): Promise<void> {
-    // If already initialized or initializing, return existing promise
-    if (this.host) {
-      return Promise.resolve();
-    }
+    // If already initializing, return existing promise
     if (this.isInitializing && this.initPromise) {
       return this.initPromise;
+    }
+
+    // If already initialized with hosts, return
+    if (this.hosts.size > 0) {
+      return Promise.resolve();
     }
 
     this.isInitializing = true;
 
     this.initPromise = (async () => {
       try {
-        // Discover extensions from global directory only
-        const globalExtDir = path.join(os.homedir(), ".cmux", "ext");
-        const extensions = await discoverExtensions(globalExtDir);
-
-        if (extensions.length === 0) {
-          log.debug("No global extensions found, skipping extension host");
-          return;
-        }
-
-        log.info(`Found ${extensions.length} global extension(s), spawning extension host`);
-
-        // Spawn the global extension host
-        await this.spawnExtensionHost(extensions);
+        await this.discoverAndLoad();
       } finally {
         this.isInitializing = false;
       }
@@ -77,10 +85,147 @@ export class ExtensionManager {
   }
 
   /**
-   * Register a workspace with the extension host
+   * Discover extensions from global + project directories and spawn their host processes.
+   * Each extension gets its own isolated host process.
+   */
+  private async discoverAndLoad(): Promise<void> {
+    // Build list of directories to scan
+    const dirs: Array<{ path: string; source: "global" | "project"; projectPath?: string }> = [];
+
+    // 1. Project directories from registered workspaces
+    const uniqueProjects = new Set<string>();
+    for (const { workspace } of this.workspaceMetadata.values()) {
+      uniqueProjects.add(workspace.projectPath);
+    }
+
+    for (const projectPath of uniqueProjects) {
+      const projectExtDir = path.join(projectPath, ".cmux", "ext");
+      dirs.push({ path: projectExtDir, source: "project", projectPath });
+    }
+
+    // 2. Global directory
+    const globalExtDir = path.join(os.homedir(), ".cmux", "ext");
+    dirs.push({ path: globalExtDir, source: "global" });
+
+    // Discover all extensions (full paths as IDs, so no duplicates)
+    const extensions = await discoverExtensionsWithPrecedence(dirs);
+
+    if (extensions.length === 0) {
+      log.info("No extensions found, no extension hosts to spawn");
+      return;
+    }
+
+    log.info(`Found ${extensions.length} extension(s), spawning host processes`);
+
+    // Spawn one host per extension (in parallel for faster startup)
+    await Promise.allSettled(
+      extensions.map((ext) => this.spawnExtensionHost(ext))
+    );
+
+    log.info(`Extension hosts ready: ${this.hosts.size}/${extensions.length} successful`);
+  }
+
+  /**
+   * Spawn a single extension host process and establish RPC connection
+   */
+  private async spawnExtensionHost(extensionInfo: ExtensionInfo): Promise<void> {
+    // In production, __dirname points to dist/services/extensions
+    // In tests (ts-jest), __dirname points to src/services/extensions
+    // Try both locations to support both environments
+    let hostPath = path.join(__dirname, "extensionHost.js");
+    try {
+      await fs.access(hostPath);
+    } catch {
+      // If not found, try the dist directory (for test environment)
+      const distPath = path.join(__dirname, "..", "..", "..", "dist", "services", "extensions", "extensionHost.js");
+      hostPath = distPath;
+    }
+
+    log.info(`Spawning extension host for ${extensionInfo.id}`);
+
+    try {
+      // Fork the extension host process, passing extension ID as argument
+      const childProc = fork(hostPath, [extensionInfo.id], {
+        serialization: "json",
+        stdio: ["ignore", "pipe", "pipe", "ipc"],
+      });
+
+      // Forward stdout/stderr to main process logs
+      childProc.stdout?.on("data", (data: Buffer) => {
+        const output = data.toString().trim();
+        if (output) {
+          log.debug(`[ExtensionHost:${extensionInfo.id}] ${output}`);
+        }
+      });
+
+      childProc.stderr?.on("data", (data: Buffer) => {
+        const output = data.toString().trim();
+        if (output) {
+          log.error(`[ExtensionHost:${extensionInfo.id}] ${output}`);
+        }
+      });
+
+      // Set up capnweb RPC over IPC
+      const transport = new NodeIpcTransport(childProc, extensionInfo.id);
+      const session = new RpcSession<ExtensionHostApi>(transport);
+      const rpc = session.getRemoteMain();
+
+      // Initialize the extension host with its extension
+      await rpc.initialize(extensionInfo);
+
+      // Store host info
+      const hostInfo: ExtensionHostInfo = {
+        process: childProc,
+        rpc,
+        transport,
+        extensionInfo,
+        registeredWorkspaces: new Set(),
+      };
+
+      this.hosts.set(extensionInfo.id, hostInfo);
+
+      // Handle process exit/crash
+      childProc.on("exit", (code, signal) => {
+        log.error(
+          `Extension host ${extensionInfo.id} exited: ` +
+          `code=${code ?? "null"} signal=${signal ?? "null"}`
+        );
+        this.hosts.delete(extensionInfo.id);
+        transport.dispose();
+      });
+
+      childProc.on("error", (error) => {
+        log.error(`Extension host ${extensionInfo.id} error:`, error);
+        this.hosts.delete(extensionInfo.id);
+        transport.dispose();
+      });
+
+      log.info(`Extension host ready: ${extensionInfo.id}`);
+    } catch (error) {
+      log.error(`Failed to spawn extension host for ${extensionInfo.id}:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Determine if an extension host should see a workspace based on filtering rules:
+   * - Global extensions see all workspaces
+   * - Project extensions only see workspaces from their own project
+   */
+  private shouldHostSeeWorkspace(extensionInfo: ExtensionInfo, workspace: WorkspaceMetadata): boolean {
+    if (extensionInfo.source === "global") {
+      return true; // Global extensions see everything
+    }
+
+    // Project extension: only see workspaces from same project
+    return extensionInfo.projectPath === workspace.projectPath;
+  }
+
+  /**
+   * Register a workspace with appropriate extension hosts (with filtering)
    *
-   * Creates a runtime for the workspace and sends registration message to the host.
-   * If the host is not initialized, this is a no-op.
+   * Registers the workspace with all extension hosts that should see it based on filtering rules.
+   * Stores workspace metadata for extension discovery and future operations.
    *
    * @param workspaceId - Unique identifier for the workspace
    * @param workspace - Workspace metadata containing project path and name
@@ -93,251 +238,241 @@ export class ExtensionManager {
     runtimeConfig: RuntimeConfig,
     runtimeTempDir: string
   ): Promise<void> {
-    if (!this.host) {
-      log.debug(`Extension host not initialized, skipping workspace registration`);
+    if (this.hosts.size === 0) {
+      log.debug(`No extension hosts initialized, skipping workspace registration`);
       return;
     }
 
-    if (this.registeredWorkspaces.has(workspaceId)) {
-      log.debug(`Workspace ${workspaceId} already registered`);
-      return;
-    }
+    // Store workspace metadata
+    this.workspaceMetadata.set(workspaceId, { workspace, runtimeConfig, runtimeTempDir });
 
     // Compute workspace path from runtime
     const runtime = createRuntime(runtimeConfig);
     const workspacePath = runtime.getWorkspacePath(workspace.projectPath, workspace.name);
 
-    const message: ExtensionHostMessage = {
-      type: "register-workspace",
-      workspaceId,
-      workspacePath,
-      projectPath: workspace.projectPath,
-      runtimeConfig,
-      runtimeTempDir,
-    };
+    // Register with filtered hosts
+    const registrations: Promise<void>[] = [];
+    for (const [extId, hostInfo] of this.hosts) {
+      // Apply workspace filtering
+      if (!this.shouldHostSeeWorkspace(hostInfo.extensionInfo, workspace)) {
+        log.debug(
+          `Skipping workspace ${workspaceId} for extension ${extId} ` +
+          `(project extension, different project)`
+        );
+        continue;
+      }
 
-    this.host.send(message);
-
-    // Wait for confirmation
-    await new Promise<void>((resolve) => {
-      const timeout = setTimeout(() => {
-        log.error(`Workspace registration timeout for ${workspaceId}`);
-        resolve();
-      }, 5000);
-
-      const handler = (msg: ExtensionHostResponse) => {
-        if (msg.type === "workspace-registered" && msg.workspaceId === workspaceId) {
-          clearTimeout(timeout);
-          this.host?.off("message", handler);
-          this.registeredWorkspaces.add(workspaceId);
-          log.info(`Registered workspace ${workspaceId} with extension host`);
-          resolve();
+      // Register workspace with this host
+      const registration = (async () => {
+        try {
+          await hostInfo.rpc.registerWorkspace(
+            workspaceId,
+            workspacePath,
+            workspace.projectPath,
+            runtimeConfig,
+            runtimeTempDir
+          );
+          hostInfo.registeredWorkspaces.add(workspaceId);
+          log.info(`Registered workspace ${workspaceId} with extension ${extId}`);
+        } catch (error) {
+          log.error(`Failed to register workspace ${workspaceId} with extension ${extId}:`, error);
         }
-      };
+      })();
 
-      this.host?.on("message", handler);
-    });
+      registrations.push(registration);
+    }
+
+    // Wait for all registrations to complete
+    await Promise.allSettled(registrations);
   }
 
   /**
-   * Unregister a workspace from the extension host
+   * Unregister a workspace from all extension hosts
    *
-   * Removes the workspace's runtime from the extension host.
+   * Removes the workspace from all hosts that have it registered.
    * Safe to call even if workspace is not registered (no-op).
    *
    * @param workspaceId - Unique identifier for the workspace
    */
   async unregisterWorkspace(workspaceId: string): Promise<void> {
-    if (!this.host || !this.registeredWorkspaces.has(workspaceId)) {
-      return;
+    const unregistrations: Promise<void>[] = [];
+
+    for (const [extId, hostInfo] of this.hosts) {
+      if (!hostInfo.registeredWorkspaces.has(workspaceId)) {
+        continue; // Not registered with this host
+      }
+
+      const unregistration = (async () => {
+        try {
+          await hostInfo.rpc.unregisterWorkspace(workspaceId);
+          hostInfo.registeredWorkspaces.delete(workspaceId);
+          log.info(`Unregistered workspace ${workspaceId} from extension ${extId}`);
+        } catch (error) {
+          log.error(`Failed to unregister workspace ${workspaceId} from extension ${extId}:`, error);
+        }
+      })();
+
+      unregistrations.push(unregistration);
     }
 
-    const message: ExtensionHostMessage = {
-      type: "unregister-workspace",
-      workspaceId,
-    };
+    // Wait for all unregistrations to complete
+    await Promise.allSettled(unregistrations);
 
-    this.host.send(message);
-
-    // Wait for confirmation
-    await new Promise<void>((resolve) => {
-      const timeout = setTimeout(() => {
-        log.error(`Workspace unregistration timeout for ${workspaceId}`);
-        resolve();
-      }, 2000);
-
-      const handler = (msg: ExtensionHostResponse) => {
-        if (msg.type === "workspace-unregistered" && msg.workspaceId === workspaceId) {
-          clearTimeout(timeout);
-          this.host?.off("message", handler);
-          this.registeredWorkspaces.delete(workspaceId);
-          log.info(`Unregistered workspace ${workspaceId} from extension host`);
-          resolve();
-        }
-      };
-
-      this.host?.on("message", handler);
-    });
+    // Clean up workspace metadata
+    this.workspaceMetadata.delete(workspaceId);
   }
 
   /**
-   * Spawn and initialize the global extension host process
-   */
-  private async spawnExtensionHost(
-    extensions: Awaited<ReturnType<typeof discoverExtensions>>
-  ): Promise<void> {
-    // Path to extension host script (compiled to dist/)
-    const hostPath = path.join(__dirname, "extensionHost.js");
-
-    log.info(`Spawning global extension host with ${extensions.length} extension(s)`);
-
-    // Spawn extension host process
-    const host = fork(hostPath, {
-      serialization: "json",
-      stdio: ["ignore", "pipe", "pipe", "ipc"],
-    });
-
-    // Forward stdout/stderr to main process logs
-    host.stdout?.on("data", (data: Buffer) => {
-      const output = data.toString().trim();
-      if (output) {
-        log.debug(`[ExtensionHost] ${output}`);
-      }
-    });
-
-    host.stderr?.on("data", (data: Buffer) => {
-      const output = data.toString().trim();
-      if (output) {
-        log.error(`[ExtensionHost] ${output}`);
-      }
-    });
-
-    // Handle host errors
-    host.on("error", (error) => {
-      log.error(`Extension host error:`, error);
-      this.host = null;
-      this.registeredWorkspaces.clear();
-    });
-
-    host.on("exit", (code, signal) => {
-      log.error(`Extension host exited: code=${code ?? "null"} signal=${signal ?? "null"}`);
-      this.host = null;
-      this.registeredWorkspaces.clear();
-    });
-
-    // Listen for extension errors
-    host.on("message", (msg: ExtensionHostResponse) => {
-      if (msg.type === "extension-error") {
-        log.error(`Extension ${msg.extensionId} error: ${msg.error}`);
-      } else if (msg.type === "extension-load-error") {
-        log.error(`Failed to load extension ${msg.id}: ${msg.error}`);
-      }
-    });
-
-    // Wait for host to be ready
-    const readyPromise = new Promise<void>((resolve, reject) => {
-      const timeout = setTimeout(() => {
-        host.kill();
-        reject(new Error("Extension host initialization timeout (10s)"));
-      }, 10000);
-
-      const readyHandler = (msg: ExtensionHostResponse) => {
-        if (msg.type === "ready") {
-          clearTimeout(timeout);
-          host.off("message", readyHandler);
-          log.info(`Global extension host ready with ${msg.extensionCount} extension(s)`);
-          resolve();
-        }
-      };
-
-      host.on("message", readyHandler);
-    });
-
-    // Send initialization message
-    const initMessage: ExtensionHostMessage = {
-      type: "init",
-      extensions,
-    };
-
-    host.send(initMessage);
-
-    // Wait for ready confirmation
-    await readyPromise;
-
-    // Store host
-    this.host = host;
-  }
-
-  /**
-   * Send post-tool-use hook to extension host
+   * Send post-tool-use hook to appropriate extension hosts (with filtering)
    *
-   * Called after a tool execution completes. Forwards the hook to all loaded
-   * extensions, providing them with tool details and runtime access for the workspace.
+   * Called after a tool execution completes. Forwards the hook to all extension hosts
+   * that should see this workspace, based on filtering rules.
    *
-   * If no extension host is initialized, this returns immediately.
-   * Waits up to 5 seconds for extensions to complete, then continues (non-blocking failure).
+   * Dispatches to hosts in parallel for faster execution. Individual failures are logged
+   * but don't block other extensions.
    *
-   * @param workspaceId - Unique identifier for the workspace (must be registered)
-   * @param payload - Hook payload containing tool name, args, result, etc. (runtime will be injected by host)
+   * @param workspaceId - Unique identifier for the workspace
+   * @param payload - Hook payload containing tool name, args, result, etc. (runtime will be injected by hosts)
    */
   async postToolUse(
     workspaceId: string,
     payload: Omit<PostToolUseHookPayload, "runtime">
   ): Promise<void> {
-    if (!this.host) {
+    if (this.hosts.size === 0) {
       // No extensions loaded
       return;
     }
 
-    const message: ExtensionHostMessage = {
-      type: "post-tool-use",
-      payload,
-    };
+    const workspaceMetadata = this.workspaceMetadata.get(workspaceId);
+    if (!workspaceMetadata) {
+      log.error(`postToolUse called for unknown workspace ${workspaceId}`);
+      return;
+    }
 
-    this.host.send(message);
+    // Dispatch to filtered hosts in parallel
+    const dispatches: Promise<void>[] = [];
+    for (const [extId, hostInfo] of this.hosts) {
+      // Apply workspace filtering
+      if (!this.shouldHostSeeWorkspace(hostInfo.extensionInfo, workspaceMetadata.workspace)) {
+        continue;
+      }
 
-    // Wait for completion (with timeout)
-    await new Promise<void>((resolve) => {
-      const timeout = setTimeout(() => {
-        log.error(`Extension hook timeout for ${workspaceId} (tool: ${payload.toolName})`);
-        resolve(); // Don't fail on timeout, just log and continue
-      }, 5000);
+      // Check if workspace is registered with this host
+      if (!hostInfo.registeredWorkspaces.has(workspaceId)) {
+        log.debug(`Workspace ${workspaceId} not registered with extension ${extId}, skipping hook`);
+        continue;
+      }
 
-      const handler = (msg: ExtensionHostResponse) => {
-        if (msg.type === "hook-complete" && msg.hookType === "post-tool-use") {
-          clearTimeout(timeout);
-          this.host?.off("message", handler);
-          resolve();
+      // Dispatch hook to this extension
+      const dispatch = (async () => {
+        try {
+          await hostInfo.rpc.onPostToolUse(payload);
+        } catch (error) {
+          log.error(`Extension ${extId} failed in onPostToolUse:`, error);
         }
-      };
+      })();
 
-      this.host?.on("message", handler);
-    });
+      dispatches.push(dispatch);
+    }
+
+    // Wait for all dispatches to complete (with timeout per extension handled by RPC)
+    await Promise.allSettled(dispatches);
   }
 
   /**
-   * Shutdown the global extension host
-   *
-   * Sends shutdown message to the host and waits 1 second for graceful shutdown
-   * before forcefully killing the process.
-   *
-   * Safe to call even if no host exists (no-op).
+   * Reload extensions by rediscovering from all sources and restarting hosts.
+   * Automatically re-registers all previously registered workspaces.
    */
-  shutdown(): void {
-    if (this.host) {
-      const shutdownMessage: ExtensionHostMessage = { type: "shutdown" };
-      this.host.send(shutdownMessage);
+  async reload(): Promise<void> {
+    log.info("Reloading extensions...");
 
-      // Give it a second to shutdown gracefully, then kill
-      setTimeout(() => {
-        if (this.host && !this.host.killed) {
-          this.host.kill();
+    // Shutdown all existing hosts
+    const shutdowns: Promise<void>[] = [];
+    for (const [extId, hostInfo] of this.hosts) {
+      const shutdown = (async () => {
+        try {
+          await hostInfo.rpc.shutdown();
+          log.info(`Shut down extension host ${extId}`);
+        } catch (error) {
+          log.error(`Failed to gracefully shutdown extension ${extId}:`, error);
+        } finally {
+          // Kill process if still alive after 1 second
+          setTimeout(() => {
+            if (!hostInfo.process.killed) {
+              hostInfo.process.kill();
+            }
+          }, 1000);
+
+          hostInfo.transport.dispose();
         }
-      }, 1000);
+      })();
 
-      this.host = null;
-      this.registeredWorkspaces.clear();
-      log.info(`Shut down global extension host`);
+      shutdowns.push(shutdown);
     }
+
+    await Promise.allSettled(shutdowns);
+    this.hosts.clear();
+
+    // Rediscover and load extensions
+    await this.discoverAndLoad();
+
+    // Re-register all workspaces with new hosts
+    for (const [workspaceId, { workspace, runtimeConfig, runtimeTempDir }] of this
+      .workspaceMetadata) {
+      await this.registerWorkspace(workspaceId, workspace, runtimeConfig, runtimeTempDir);
+    }
+
+    log.info("Extension reload complete");
+  }
+
+  /**
+   * Get the list of currently loaded extensions
+   */
+  listExtensions(): Array<ExtensionInfo> {
+    return Array.from(this.hosts.values()).map((hostInfo) => hostInfo.extensionInfo);
+  }
+
+  /**
+   * Shutdown all extension hosts
+   *
+   * Sends shutdown message to all hosts and waits for graceful shutdown
+   * before forcefully killing processes.
+   *
+   * Safe to call even if no hosts exist (no-op).
+   */
+  async shutdown(): Promise<void> {
+    if (this.hosts.size === 0) {
+      return;
+    }
+
+    log.info(`Shutting down ${this.hosts.size} extension host(s)`);
+
+    const shutdowns: Promise<void>[] = [];
+    for (const [extId, hostInfo] of this.hosts) {
+      const shutdown = (async () => {
+        try {
+          await hostInfo.rpc.shutdown();
+          log.info(`Shut down extension host ${extId}`);
+        } catch (error) {
+          log.error(`Failed to gracefully shutdown extension ${extId}:`, error);
+        } finally {
+          // Kill process if still alive after 1 second
+          setTimeout(() => {
+            if (!hostInfo.process.killed) {
+              hostInfo.process.kill();
+            }
+          }, 1000);
+
+          hostInfo.transport.dispose();
+        }
+      })();
+
+      shutdowns.push(shutdown);
+    }
+
+    await Promise.allSettled(shutdowns);
+    this.hosts.clear();
+
+    log.info("All extension hosts shut down");
   }
 }

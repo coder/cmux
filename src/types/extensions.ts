@@ -1,5 +1,6 @@
 import type { Runtime } from "@/runtime/Runtime";
 import type { RuntimeConfig } from "./runtime";
+import type { RpcTarget } from "capnweb";
 
 /**
  * Extension manifest structure (manifest.json)
@@ -32,75 +33,50 @@ export interface Extension {
  * Extension discovery result
  */
 export interface ExtensionInfo {
-  id: string; // Extension identifier (filename or folder name)
-  path: string; // Absolute path to entrypoint file
+  id: string; // Extension identifier - NOW: Full absolute path to extension
+  path: string; // Absolute path to entrypoint file (same as id)
   type: "file" | "folder";
+  source: "global" | "project"; // Where extension was discovered from
+  projectPath?: string; // Set for project extensions
   entrypoint?: string; // Relative entrypoint (for folder extensions)
+  needsCompilation?: boolean; // True for .ts files that need compilation
 }
 
 /**
- * Workspace context sent to extension host on initialization
+ * RPC interface for extension host process.
+ * Each extension host implements this interface and is called by the main process via capnweb RPC.
  */
-export interface ExtensionHostContext {
-  workspaceId: string;
-  workspacePath: string;
-  projectPath: string;
-  runtimeConfig: RuntimeConfig;
-  runtimeTempDir: string;
+export interface ExtensionHostApi extends RpcTarget {
+  /**
+   * Initialize the extension host with a single extension
+   * @param extensionInfo Information about the extension to load
+   */
+  initialize(extensionInfo: ExtensionInfo): Promise<void>;
+
+  /**
+   * Register a workspace with this extension host
+   */
+  registerWorkspace(
+    workspaceId: string,
+    workspacePath: string,
+    projectPath: string,
+    runtimeConfig: RuntimeConfig,
+    runtimeTempDir: string
+  ): Promise<void>;
+
+  /**
+   * Unregister a workspace from this extension host
+   */
+  unregisterWorkspace(workspaceId: string): Promise<void>;
+
+  /**
+   * Dispatch post-tool-use hook to the extension
+   * @param payload Hook payload (runtime will be added by host)
+   */
+  onPostToolUse(payload: Omit<PostToolUseHookPayload, "runtime">): Promise<void>;
+
+  /**
+   * Gracefully shutdown the extension host
+   */
+  shutdown(): Promise<void>;
 }
-
-/**
- * IPC message types between main process and extension host
- */
-export type ExtensionHostMessage =
-  | {
-      type: "init";
-      extensions: ExtensionInfo[];
-    }
-  | {
-      type: "register-workspace";
-      workspaceId: string;
-      workspacePath: string;
-      projectPath: string;
-      runtimeConfig: RuntimeConfig;
-      runtimeTempDir: string;
-    }
-  | {
-      type: "unregister-workspace";
-      workspaceId: string;
-    }
-  | {
-      type: "post-tool-use";
-      payload: Omit<PostToolUseHookPayload, "runtime">;
-    }
-  | {
-      type: "shutdown";
-    };
-
-export type ExtensionHostResponse =
-  | {
-      type: "ready";
-      extensionCount: number;
-    }
-  | {
-      type: "workspace-registered";
-      workspaceId: string;
-    }
-  | {
-      type: "workspace-unregistered";
-      workspaceId: string;
-    }
-  | {
-      type: "extension-load-error";
-      id: string;
-      error: string;
-    }
-  | {
-      type: "extension-error";
-      extensionId: string;
-      error: string;
-    }
-  | {
-      type: "hook-complete";
-      hookType: "post-tool-use";
-    };

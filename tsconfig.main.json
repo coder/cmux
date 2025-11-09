@@ -4,7 +4,9 @@
     "module": "CommonJS",
     "outDir": "dist",
     "noEmit": false,
-    "sourceMap": true
+    "sourceMap": true,
+    "declaration": true,
+    "declarationMap": true
   },
   "include": [
     "src/main.ts",
@@ -13,7 +15,8 @@
     "src/constants/**/*",
     "src/web/**/*",
     "src/utils/main/**/*",
-    "src/types/**/*.d.ts"
+    "src/types/**/*.d.ts",
+    "src/services/extensions/extensionHost.ts"
   ],
   "exclude": ["src/App.tsx", "src/main.tsx"]
 }

@@ -1,30 +1,66 @@
 # Extension Test Fixtures
 
-These are real extension files used in integration tests. They demonstrate the extension API and serve as examples for extension developers.
+This directory contains test extensions for the cmux extension system.
 
-## Structure
+## Fixtures
 
-- `simple-logger.js` - Single-file extension that logs tool executions
-- `folder-extension/` - Folder-based extension with manifest.json
-- `broken-extension.js` - Extension that throws errors (for error handling tests)
-- `working-extension.js` - Extension that works correctly (paired with broken-extension)
-- `minimal-extension.js` - Minimal extension for basic functionality tests
+### TypeScript Extensions (Recommended)
 
-## Type Safety
+- **`typescript-logger.ts`** - Demonstrates full TypeScript type imports and type safety
+- **`simple-logger.ts`** - Logs all tool executions to `.cmux/extension-log.txt`
+- **`broken-extension.ts`** - Intentionally throws errors (tests error handling)
+- **`working-extension.ts`** - Works correctly (tests resilience when other extensions fail)
+- **`folder-extension/`** - Folder-based extension with `manifest.json` → `index.ts`
 
-All extensions use JSDoc to import TypeScript types from the cmux repo:
+### JavaScript Extension (Compatibility Test)
+
+- **`minimal-extension.js`** - Minimal JavaScript extension using JSDoc types (ensures .js still works)
+
+## Usage in Tests
+
+These fixtures are used by:
+- Unit tests: `src/utils/extensions/discovery.test.ts`
+- Integration tests: `tests/extensions/extensions.test.ts`
+
+## Writing Extensions
+
+For real-world usage, TypeScript is recommended:
+
+```typescript
+import type { Extension, PostToolUseHookPayload } from "@coder/cmux/ext";
+
+const extension: Extension = {
+  async onPostToolUse(payload: PostToolUseHookPayload) {
+    const { toolName, runtime } = payload;
+    await runtime.writeFile(".cmux/log.txt", `Tool: ${toolName}\n`);
+  }
+};
+
+export default extension;
+```
+
+JavaScript with JSDoc also works:
 
 ```javascript
-/** @typedef {import('../../../src/types/extensions').Extension} Extension */
-/** @typedef {import('../../../src/types/extensions').PostToolUseContext} PostToolUseContext */
+/** @typedef {import('@coder/cmux/ext').Extension} Extension */
+/** @typedef {import('@coder/cmux/ext').PostToolUseHookPayload} PostToolUseHookPayload */
 
 /** @type {Extension} */
 const extension = {
-  async onPostToolUse(context) {
-    // Type-safe access to context
-    const { toolName, runtime } = context;
+  /** @param {PostToolUseHookPayload} payload */
+  async onPostToolUse(payload) {
+    const { toolName, runtime } = payload;
+    await runtime.writeFile(".cmux/log.txt", `Tool: ${toolName}\n`);
   }
 };
+
+export default extension;
 ```
 
-This provides IDE autocomplete, type checking, and inline documentation.
+## Type Safety
+
+All fixtures demonstrate:
+- ✅ Proper type imports from `@coder/cmux/ext`
+- ✅ Full IDE autocomplete and type checking
+- ✅ Runtime type safety (TypeScript fixtures compiled automatically)
+- ✅ Source maps for debugging

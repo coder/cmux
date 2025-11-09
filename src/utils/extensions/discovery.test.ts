@@ -137,4 +137,20 @@ describe("discoverExtensions", () => {
 
     expect(extensions).toHaveLength(0);
   });
+
+  test("should discover single-file .ts extension", async () => {
+    const extDir = path.join(projectPath, ".cmux", "ext");
+    fs.mkdirSync(extDir, { recursive: true });
+    fs.writeFileSync(path.join(extDir, "my-extension.ts"), "export default {};");
+
+    const extensions = await discoverExtensions(extDir);
+
+    expect(extensions).toHaveLength(1);
+    expect(extensions[0]).toMatchObject({
+      id: "my-extension",
+      type: "file",
+      needsCompilation: true,
+    });
+    expect(extensions[0].path).toContain("my-extension.ts");
+  });
 });

@@ -1,6 +1,3 @@
 {
-  "name": "folder-extension",
-  "version": "1.0.0",
-  "description": "Test folder-based extension",
-  "entrypoint": "index.js"
+  "entrypoint": "index.ts"
 }

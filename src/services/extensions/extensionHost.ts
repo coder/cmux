@@ -2,237 +2,178 @@
  * Extension Host Process
  *
  * This script runs as a separate Node.js process (spawned via fork()).
- * It receives IPC messages from the main cmux process, loads extensions once,
- * maintains a map of workspace runtimes, and dispatches hooks to extensions.
+ * Each extension host loads a SINGLE extension and handles its lifecycle.
+ * Communicates with main process via capnweb RPC over Node.js IPC.
  *
- * A single shared extension host serves all workspaces (VS Code architecture).
+ * Architecture: One process per extension for isolation and crash safety.
  */
 
+import { RpcTarget, RpcSession } from "capnweb";
 import type { Runtime } from "../../runtime/Runtime";
+import type { RuntimeConfig } from "../../types/runtime";
 import type {
   Extension,
-  ExtensionHostMessage,
-  ExtensionHostResponse,
   ExtensionInfo,
+  ExtensionHostApi,
+  PostToolUseHookPayload,
 } from "../../types/extensions";
-
-const workspaceRuntimes = new Map<string, Runtime>();
-const extensions: Array<{ id: string; module: Extension }> = [];
+import { NodeIpcProcessTransport } from "./nodeIpcTransport";
 
 /**
- * Send a message to the parent process
+ * Implementation of the ExtensionHostApi RPC interface.
+ * This is the main class that the parent process will call via RPC.
  */
-function sendMessage(message: ExtensionHostResponse): void {
-  if (process.send) {
-    process.send(message);
-  }
-}
+class ExtensionHostImpl extends RpcTarget implements ExtensionHostApi {
+  private extensionInfo: ExtensionInfo | null = null;
+  private extensionModule: Extension | null = null;
+  private workspaceRuntimes = new Map<string, Runtime>();
 
-/**
- * Load an extension from its entrypoint path
- */
-async function loadExtension(extInfo: ExtensionInfo): Promise<void> {
-  try {
-    // Dynamic import to load the extension module
-    // Extensions must export a default object with hook handlers
-    // eslint-disable-next-line no-restricted-syntax, @typescript-eslint/no-unsafe-assignment -- Dynamic import required for user extensions
-    const module = await import(extInfo.path);
+  /**
+   * Initialize this extension host with a single extension
+   */
+  async initialize(extensionInfo: ExtensionInfo): Promise<void> {
+    console.log(`[ExtensionHost] Initializing with extension: ${extensionInfo.id}`);
 
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access -- User-provided extension module
-    if (!module.default) {
-      throw new Error(`Extension ${extInfo.id} does not export a default object`);
-    }
+    this.extensionInfo = extensionInfo;
 
-    extensions.push({
-      id: extInfo.id,
+    try {
+      let modulePath = extensionInfo.path;
+
+      // Compile TypeScript extensions on-the-fly
+      if (extensionInfo.needsCompilation) {
+        // Dynamic import to avoid bundling compiler in main process
+        // eslint-disable-next-line no-restricted-syntax -- Required in child process
+        const { compileExtension } = await import("./compiler.js");
+        modulePath = await compileExtension(extensionInfo.path);
+      }
+
+      // Dynamic import to load the extension module
+      // Extensions must export a default object with hook handlers
+      // eslint-disable-next-line no-restricted-syntax, @typescript-eslint/no-unsafe-assignment -- Dynamic import required for user extensions
+      const module = await import(modulePath);
+
       // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access -- User-provided extension module
-      module: module.default as Extension,
-    });
+      if (!module.default) {
+        throw new Error(`Extension ${extensionInfo.id} does not export a default object`);
+      }
 
-    console.log(`[ExtensionHost] Loaded extension: ${extInfo.id}`);
-  } catch (error) {
-    const errorMsg = error instanceof Error ? error.message : String(error);
-    console.error(`[ExtensionHost] Failed to load extension ${extInfo.id}:`, errorMsg);
-    sendMessage({
-      type: "extension-load-error",
-      id: extInfo.id,
-      error: errorMsg,
-    });
-  }
-}
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access -- User-provided extension module
+      this.extensionModule = module.default as Extension;
 
-/**
- * Initialize the extension host (load extensions globally)
- */
-async function handleInit(msg: Extract<ExtensionHostMessage, { type: "init" }>): Promise<void> {
-  try {
-    const { extensions: extensionList } = msg;
-
-    console.log(`[ExtensionHost] Initializing with ${extensionList.length} extension(s)`);
-
-    // Load all extensions once
-    for (const extInfo of extensionList) {
-      await loadExtension(extInfo);
+      console.log(`[ExtensionHost] Successfully loaded extension: ${extensionInfo.id}`);
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      console.error(`[ExtensionHost] Failed to load extension ${extensionInfo.id}:`, errorMsg);
+      throw new Error(`Failed to load extension: ${errorMsg}`);
     }
-
-    // Send ready message
-    sendMessage({
-      type: "ready",
-      extensionCount: extensions.length,
-    });
-
-    console.log(`[ExtensionHost] Ready with ${extensions.length} loaded extension(s)`);
-  } catch (error) {
-    console.error("[ExtensionHost] Failed to initialize:", error);
-    process.exit(1);
   }
-}
 
-/**
- * Register a workspace with the extension host
- */
-async function handleRegisterWorkspace(
-  msg: Extract<ExtensionHostMessage, { type: "register-workspace" }>
-): Promise<void> {
-  try {
-    const { workspaceId, runtimeConfig } = msg;
-
+  /**
+   * Register a workspace with this extension host
+   */
+  async registerWorkspace(
+    workspaceId: string,
+    workspacePath: string,
+    projectPath: string,
+    runtimeConfig: RuntimeConfig,
+    runtimeTempDir: string
+  ): Promise<void> {
     // Dynamically import createRuntime to avoid bundling issues
     // eslint-disable-next-line no-restricted-syntax -- Required in child process to avoid circular deps
     const { createRuntime } = await import("../../runtime/runtimeFactory");
 
     // Create runtime for this workspace
     const runtime = createRuntime(runtimeConfig);
-    workspaceRuntimes.set(workspaceId, runtime);
+    this.workspaceRuntimes.set(workspaceId, runtime);
 
     console.log(`[ExtensionHost] Registered workspace ${workspaceId}`);
-
-    // Send confirmation
-    sendMessage({
-      type: "workspace-registered",
-      workspaceId,
-    });
-  } catch (error) {
-    console.error(`[ExtensionHost] Failed to register workspace:`, error);
-  }
-}
-
-/**
- * Unregister a workspace from the extension host
- */
-function handleUnregisterWorkspace(
-  msg: Extract<ExtensionHostMessage, { type: "unregister-workspace" }>
-): void {
-  const { workspaceId } = msg;
-
-  workspaceRuntimes.delete(workspaceId);
-  console.log(`[ExtensionHost] Unregistered workspace ${workspaceId}`);
-
-  sendMessage({
-    type: "workspace-unregistered",
-    workspaceId,
-  });
-}
-
-/**
- * Dispatch post-tool-use hook to all extensions
- */
-async function handlePostToolUse(
-  msg: Extract<ExtensionHostMessage, { type: "post-tool-use" }>
-): Promise<void> {
-  const { payload } = msg;
-
-  // Get runtime for this workspace
-  const runtime = workspaceRuntimes.get(payload.workspaceId);
-  if (!runtime) {
-    console.warn(
-      `[ExtensionHost] Runtime not found for workspace ${payload.workspaceId}, skipping hook`
-    );
-    sendMessage({
-      type: "hook-complete",
-      hookType: "post-tool-use",
-    });
-    return;
   }
 
-  // Dispatch to all extensions sequentially
-  for (const { id, module } of extensions) {
-    if (!module.onPostToolUse) {
-      continue;
+  /**
+   * Unregister a workspace from this extension host
+   */
+  async unregisterWorkspace(workspaceId: string): Promise<void> {
+    this.workspaceRuntimes.delete(workspaceId);
+    console.log(`[ExtensionHost] Unregistered workspace ${workspaceId}`);
+  }
+
+  /**
+   * Dispatch post-tool-use hook to the extension
+   */
+  async onPostToolUse(payload: Omit<PostToolUseHookPayload, "runtime">): Promise<void> {
+    if (!this.extensionModule || !this.extensionModule.onPostToolUse) {
+      // Extension doesn't have this hook
+      return;
+    }
+
+    // Get runtime for this workspace
+    const runtime = this.workspaceRuntimes.get(payload.workspaceId);
+    if (!runtime) {
+      console.error(
+        `[ExtensionHost] Runtime not found for workspace ${payload.workspaceId}, skipping hook`
+      );
+      return;
     }
 
     try {
       // Call the extension's hook handler with runtime access
-      await module.onPostToolUse({
+      await this.extensionModule.onPostToolUse({
         ...payload,
         runtime,
       });
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error);
-      console.error(`[ExtensionHost] Extension ${id} threw error in onPostToolUse:`, errorMsg);
-      sendMessage({
-        type: "extension-error",
-        extensionId: id,
-        error: errorMsg,
-      });
+      console.error(`[ExtensionHost] Extension threw error in onPostToolUse:`, errorMsg);
+      throw new Error(`Extension hook error: ${errorMsg}`);
     }
   }
 
-  // Acknowledge completion
-  sendMessage({
-    type: "hook-complete",
-    hookType: "post-tool-use",
-  });
+  /**
+   * Gracefully shutdown this extension host
+   */
+  async shutdown(): Promise<void> {
+    console.log(`[ExtensionHost] Shutting down extension host for ${this.extensionInfo?.id}`);
+    // Clean up resources
+    this.workspaceRuntimes.clear();
+    // Exit process
+    process.exit(0);
+  }
 }
 
-/**
- * Handle shutdown request
- */
-function handleShutdown(): void {
-  console.log("[ExtensionHost] Shutting down");
-  process.exit(0);
+// ============================================================================
+// Main Entry Point: Set up RPC and start extension host
+// ============================================================================
+
+// Get extension ID from command line arguments
+const extensionId = process.argv[2];
+if (!extensionId) {
+  console.error("[ExtensionHost] ERROR: Extension ID not provided in arguments");
+  process.exit(1);
 }
 
-/**
- * Main message handler
- */
-process.on("message", (msg: ExtensionHostMessage) => {
-  void (async () => {
-    try {
-      switch (msg.type) {
-        case "init":
-          await handleInit(msg);
-          break;
-        case "register-workspace":
-          await handleRegisterWorkspace(msg);
-          break;
-        case "unregister-workspace":
-          handleUnregisterWorkspace(msg);
-          break;
-        case "post-tool-use":
-          await handlePostToolUse(msg);
-          break;
-        case "shutdown":
-          handleShutdown();
-          break;
-        default:
-          console.warn(`[ExtensionHost] Unknown message type:`, msg);
-      }
-    } catch (error) {
-      console.error("[ExtensionHost] Error handling message:", error);
-    }
-  })();
-});
+console.log(`[ExtensionHost] Process started for extension: ${extensionId}`);
+
+// Create RPC session
+try {
+  const transport = new NodeIpcProcessTransport(extensionId);
+  const hostImpl = new ExtensionHostImpl();
+  
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const session = new RpcSession(transport, hostImpl);
+
+  console.log(`[ExtensionHost] RPC session established for ${extensionId}`);
+} catch (error) {
+  console.error("[ExtensionHost] Failed to set up RPC:", error);
+  process.exit(1);
+}
 
 // Handle process errors
 process.on("uncaughtException", (error) => {
-  console.error("[ExtensionHost] Uncaught exception:", error);
+  console.error(`[ExtensionHost:${extensionId}] Uncaught exception:`, error);
   process.exit(1);
 });
 
 process.on("unhandledRejection", (reason) => {
-  console.error("[ExtensionHost] Unhandled rejection:", reason);
+  console.error(`[ExtensionHost:${extensionId}] Unhandled rejection:`, reason);
   process.exit(1);
 });
-
-console.log("[ExtensionHost] Process started, waiting for init message");

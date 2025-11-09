@@ -33,14 +33,17 @@ export async function discoverExtensions(extensionDir: string): Promise<Extensio
       try {
         const stat = await fs.stat(entryPath);
 
-        if (stat.isFile() && entry.endsWith(".js")) {
-          // Single-file extension
+        if (stat.isFile() && (entry.endsWith(".js") || entry.endsWith(".ts"))) {
+          // Single-file extension (.js or .ts)
+          // NOTE: id is now the full path (set by discoverExtensionsWithPrecedence)
           extensions.push({
-            id: entry.replace(/\.js$/, ""),
+            id: entryPath, // Full path as ID
             path: entryPath,
             type: "file",
+            source: "global", // Placeholder, will be overridden by discoverExtensionsWithPrecedence
+            needsCompilation: entry.endsWith(".ts"),
           });
-          log.debug(`Discovered single-file extension: ${entry}`);
+          log.debug(`Discovered single-file extension: ${entryPath}`);
         } else if (stat.isDirectory()) {
           // Folder extension - check for manifest.json
           const manifestPath = path.join(entryPath, "manifest.json");
@@ -72,13 +75,16 @@ export async function discoverExtensions(extensionDir: string): Promise<Extensio
               continue;
             }
 
+            // NOTE: id is the full path to the folder (not the entrypoint)
             extensions.push({
-              id: entry,
-              path: entrypointPath,
+              id: entryPath, // Full path to folder as ID
+              path: entrypointPath, // Full path to entrypoint file
               type: "folder",
+              source: "global", // Placeholder, will be overridden by discoverExtensionsWithPrecedence
               entrypoint: manifest.entrypoint,
+              needsCompilation: manifest.entrypoint.endsWith(".ts"),
             });
-            log.debug(`Discovered folder extension: ${entry} (entrypoint: ${manifest.entrypoint})`);
+            log.debug(`Discovered folder extension: ${entryPath} (entrypoint: ${manifest.entrypoint})`);
           } catch (error) {
             log.error(`Failed to parse manifest for extension ${entry}:`, error);
           }
@@ -93,4 +99,46 @@ export async function discoverExtensions(extensionDir: string): Promise<Extensio
 
   log.info(`Discovered ${extensions.length} extension(s) from ${extensionDir}`);
   return extensions;
+}
+
+
+/**
+ * Discover extensions from multiple directories with precedence.
+ * Extension IDs are full absolute paths, so there are no duplicates.
+ * All extensions from all directories are returned with their source information.
+ * 
+ * @param extensionDirs Array of { path, source } in priority order (first = highest priority)
+ * @returns Array of extensions with source information
+ * 
+ * @example
+ * // Discover from both project and global directories
+ * const extensions = await discoverExtensionsWithPrecedence([
+ *   { path: "/path/to/project/.cmux/ext", source: "project", projectPath: "/path/to/project" },
+ *   { path: "~/.cmux/ext", source: "global" }
+ * ]);
+ */
+export async function discoverExtensionsWithPrecedence(
+  extensionDirs: Array<{ path: string; source: "global" | "project"; projectPath?: string }>
+): Promise<Array<ExtensionInfo>> {
+  const allExtensions: ExtensionInfo[] = [];
+
+  // Process all directories and collect extensions
+  for (const { path: dir, source, projectPath } of extensionDirs) {
+    const discovered = await discoverExtensions(dir);
+
+    for (const ext of discovered) {
+      // Update source information (was placeholder from discoverExtensions)
+      allExtensions.push({
+        ...ext,
+        source,
+        projectPath,
+      });
+
+      log.info(
+        `Loaded extension ${ext.id} from ${source}${projectPath ? ` (${projectPath})` : ""}`
+      );
+    }
+  }
+
+  return allExtensions;
 }

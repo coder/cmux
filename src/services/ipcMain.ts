@@ -1294,6 +1294,29 @@ export class IpcMain {
         console.error("Failed to emit current metadata:", error);
       }
     });
+
+    // Extension management
+    ipcMain.handle(IPC_CHANNELS.EXTENSIONS_RELOAD, async () => {
+      try {
+        const extensionManager = this.aiService.getExtensionManager();
+        await extensionManager.reload();
+        return Ok(undefined);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        return Err(`Failed to reload extensions: ${message}`);
+      }
+    });
+
+    ipcMain.handle(IPC_CHANNELS.EXTENSIONS_LIST, () => {
+      try {
+        const extensionManager = this.aiService.getExtensionManager();
+        const extensions = extensionManager.listExtensions();
+        return Ok(extensions);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        return Err(`Failed to list extensions: ${message}`);
+      }
+    });
   }
 
   /**

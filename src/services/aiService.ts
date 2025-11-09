@@ -906,4 +906,11 @@ export class AIService extends EventEmitter {
   async unregisterWorkspace(workspaceId: string): Promise<void> {
     await this.extensionManager.unregisterWorkspace(workspaceId);
   }
+
+  /**
+   * Get the extension manager for direct access to extension operations
+   */
+  getExtensionManager(): ExtensionManager {
+    return this.extensionManager;
+  }
 }

@@ -147,6 +147,10 @@ const api: IPCApi = {
       };
     },
   },
+  extensions: {
+    reload: () => ipcRenderer.invoke(IPC_CHANNELS.EXTENSIONS_RELOAD),
+    list: () => ipcRenderer.invoke(IPC_CHANNELS.EXTENSIONS_LIST),
+  },
 };
 
 // Expose the API along with platform/versions

@@ -2,7 +2,7 @@
  * Minimal extension for testing basic functionality
  */
 
-/** @typedef {import('../../../src/types/extensions').Extension} Extension */
+/** @typedef {import('@coder/cmux/ext').Extension} Extension */
 
 /** @type {Extension} */
 const extension = {
