@@ -109,16 +109,21 @@ export async function preloadAISDKProviders(): Promise<void> {
 }
 
 /**
- * Parse provider name from model string.
- * Handles model IDs with colons (e.g., "ollama:gpt-oss:20b" -> "ollama").
+ * Parse provider and model ID from model string.
+ * Handles model IDs with colons (e.g., "ollama:gpt-oss:20b").
  * Only splits on the first colon to support Ollama model naming convention.
  *
  * @param modelString - Model string in format "provider:model-id"
- * @returns Provider name (e.g., "anthropic", "openai", "ollama")
+ * @returns Tuple of [providerName, modelId]
+ * @example
+ * parseModelString("anthropic:claude-opus-4") // ["anthropic", "claude-opus-4"]
+ * parseModelString("ollama:gpt-oss:20b") // ["ollama", "gpt-oss:20b"]
  */
-function parseProviderName(modelString: string): string {
+function parseModelString(modelString: string): [string, string] {
   const colonIndex = modelString.indexOf(":");
-  return colonIndex !== -1 ? modelString.slice(0, colonIndex) : modelString;
+  const providerName = colonIndex !== -1 ? modelString.slice(0, colonIndex) : modelString;
+  const modelId = colonIndex !== -1 ? modelString.slice(colonIndex + 1) : "";
+  return [providerName, modelId];
 }
 
 export class AIService extends EventEmitter {
@@ -246,16 +251,7 @@ export class AIService extends EventEmitter {
     try {
       // Parse model string (format: "provider:model-id")
       // Parse provider and model ID from model string
-      const colonIndex = modelString.indexOf(":");
-      if (colonIndex === -1) {
-        return Err({
-          type: "invalid_model_string",
-          message: `Invalid model string format: "${modelString}". Expected "provider:model-id"`,
-        });
-      }
-
-      const providerName = parseProviderName(modelString);
-      const modelId = modelString.slice(colonIndex + 1);
+      const [providerName, modelId] = parseModelString(modelString);
 
       if (!providerName || !modelId) {
         return Err({
@@ -481,7 +477,7 @@ export class AIService extends EventEmitter {
       log.debug_obj(`${workspaceId}/1_original_messages.json`, messages);
 
       // Extract provider name from modelString (e.g., "anthropic:claude-opus-4-1" -> "anthropic")
-      const providerName = parseProviderName(modelString);
+      const [providerName] = parseModelString(modelString);
 
       // Get tool names early for mode transition sentinel (stub config, no workspace context needed)
       const earlyRuntime = createRuntime({ type: "local", srcBaseDir: process.cwd() });
