@@ -58,3 +58,34 @@ jobs:
         run: bun x electron-builder --linux --publish always
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  build-windows:
+    name: Build and Release Windows
+    runs-on: windows-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Required for git describe to find tags
+
+      - uses: ./.github/actions/setup-cmux
+        with:
+          install-imagemagick: true
+
+      - name: Install GNU Make (for build)
+        run: choco install -y make
+
+      - name: Verify tools
+        shell: bash
+        run: |
+          make --version
+          bun --version
+          magick --version | head -1
+
+      - name: Build application
+        run: bun run build
+
+      - name: Package and publish for Windows (.exe)
+        run: bun x electron-builder --win --publish always
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

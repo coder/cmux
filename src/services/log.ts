@@ -17,6 +17,19 @@ import { parseBoolEnv } from "@/utils/env";
 const DEBUG_OBJ_DIR = path.join(defaultConfig.rootDir, "debug_obj");
 
 /**
+ * Safely get a chalk styling function or return an identity function if unavailable.
+ */
+function getChalkFn<K extends keyof typeof chalk>(key: K): (text: string) => string {
+  const candidate = (chalk as unknown as Record<string, unknown>)[key];
+  return typeof candidate === "function" ? (candidate as (text: string) => string) : (s) => s;
+}
+
+const chalkDim = getChalkFn("dim");
+const chalkCyan = getChalkFn("cyan");
+const chalkGray = getChalkFn("gray");
+const chalkRed = getChalkFn("red");
+
+/**
  * Check if debug mode is enabled
  */
 function isDebugMode(): boolean {
@@ -96,13 +109,13 @@ function safePipeLog(level: "info" | "error" | "debug", ...args: unknown[]): voi
   // Apply colors based on level (if terminal supports it)
   let prefix: string;
   if (useColor) {
-    const coloredTimestamp = chalk.dim(timestamp);
-    const coloredLocation = chalk.cyan(location);
+    const coloredTimestamp = chalkDim(timestamp);
+    const coloredLocation = chalkCyan(location);
 
     if (level === "error") {
       prefix = `${coloredTimestamp} ${coloredLocation}`;
     } else if (level === "debug") {
-      prefix = `${coloredTimestamp} ${chalk.gray(location)}`;
+      prefix = `${coloredTimestamp} ${chalkGray(location)}`;
     } else {
       // info
       prefix = `${coloredTimestamp} ${coloredLocation}`;
@@ -118,7 +131,7 @@ function safePipeLog(level: "info" | "error" | "debug", ...args: unknown[]): voi
       if (useColor) {
         console.error(
           prefix,
-          ...args.map((arg) => (typeof arg === "string" ? chalk.red(arg) : arg))
+          ...args.map((arg) => (typeof arg === "string" ? chalkRed(arg) : arg))
         );
       } else {
         console.error(prefix, ...args);

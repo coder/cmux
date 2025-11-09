@@ -10,6 +10,7 @@ import { useDrag, useDrop, useDragLayer } from "react-dnd";
 import { sortProjectsByOrder, reorderProjects, normalizeOrder } from "@/utils/projectOrdering";
 import { matchesKeybind, formatKeybind, KEYBINDS } from "@/utils/ui/keybinds";
 import { abbreviatePath, splitAbbreviatedPath } from "@/utils/ui/pathAbbreviation";
+import { PlatformPaths } from "@/utils/platform/paths";
 import {
   partitionWorkspacesByAge,
   formatOldWorkspaceThreshold,
@@ -234,12 +235,7 @@ const ProjectSidebarInner: React.FC<ProjectSidebarProps> = ({
     anchor: { top: number; left: number } | null;
   } | null>(null);
 
-  const getProjectName = (path: string) => {
-    if (!path || typeof path !== "string") {
-      return "Unknown";
-    }
-    return path.split("/").pop() ?? path.split("\\").pop() ?? path;
-  };
+  const getProjectName = (path: string) => PlatformPaths.getProjectName(path);
 
   const toggleProject = (projectPath: string) => {
     const newExpanded = new Set(expandedProjects);

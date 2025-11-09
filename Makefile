@@ -24,6 +24,15 @@
 #   Branches reduce reproducibility - builds should fail fast with clear errors
 #   if dependencies are missing, not silently fall back to different behavior.
 
+# Use PATH-resolved bash on Windows to avoid hardcoded /usr/bin/bash which doesn't
+# exist in Chocolatey's make environment or on GitHub Actions windows-latest.
+ifeq ($(OS),Windows_NT)
+SHELL := bash
+else
+SHELL := /bin/bash
+endif
+.SHELLFLAGS := -eu -o pipefail -c
+
 # Enable parallel execution by default (only if user didn't specify -j)
 ifeq (,$(filter -j%,$(MAKEFLAGS)))
 MAKEFLAGS += -j
@@ -92,8 +101,9 @@ help: ## Show this help message
 
 ## Development
 dev: node_modules/.installed build-main ## Start development server (Vite + tsgo watcher for 10x faster type checking)
-	@bun x concurrently -k \
-		"bun x concurrently \"$(TSGO) -w -p tsconfig.main.json\" \"bun x tsc-alias -w -p tsconfig.main.json\"" \
+	@npx concurrently -k --raw \
+		"$(TSGO) -w -p tsconfig.main.json" \
+		"bun x tsc-alias -w -p tsconfig.main.json" \
 		"vite"
 
 dev-server: node_modules/.installed build-main ## Start server mode with hot reload (backend :3000 + frontend :5173). Use VITE_HOST=0.0.0.0 BACKEND_HOST=0.0.0.0 for remote access
@@ -102,10 +112,10 @@ dev-server: node_modules/.installed build-main ## Start server mode with hot rel
 	@echo "  Frontend (with HMR):     http://$(or $(VITE_HOST),localhost):$(or $(VITE_PORT),5173)"
 	@echo ""
 	@echo "For remote access: make dev-server VITE_HOST=0.0.0.0 BACKEND_HOST=0.0.0.0"
-	@bun x concurrently -k \
-		"bun x concurrently \"$(TSGO) -w -p tsconfig.main.json\" \"bun x tsc-alias -w -p tsconfig.main.json\"" \
-		"bun x nodemon --watch dist/main.js --watch dist/main-server.js --delay 500ms --exec 'node dist/main.js server --host $(or $(BACKEND_HOST),localhost) --port $(or $(BACKEND_PORT),3000)'" \
-		"CMUX_VITE_HOST=$(or $(VITE_HOST),127.0.0.1) CMUX_VITE_PORT=$(or $(VITE_PORT),5173) VITE_BACKEND_URL=http://$(or $(BACKEND_HOST),localhost):$(or $(BACKEND_PORT),3000) vite"
+	@npx concurrently -k \
+		"npx concurrently \"$(TSGO) -w -p tsconfig.main.json\" \"bun x tsc-alias -w -p tsconfig.main.json\"" \
+		"bun x nodemon --watch dist/main.js --watch dist/main-server.js --delay 500ms --exec \"node dist/main.js server --host $(or $(BACKEND_HOST),localhost) --port $(or $(BACKEND_PORT),3000)\"" \
+		"$(SHELL) -lc \"CMUX_VITE_HOST=$(or $(VITE_HOST),127.0.0.1) CMUX_VITE_PORT=$(or $(VITE_PORT),5173) VITE_BACKEND_URL=http://$(or $(BACKEND_HOST),localhost):$(or $(BACKEND_PORT),3000) vite\""
 
 
 
@@ -162,16 +172,16 @@ MAGICK_CMD := $(shell command -v magick 2>/dev/null || command -v convert 2>/dev
 build/icon.png: docs/img/logo.webp
 	@echo "Generating Linux icon..."
 	@mkdir -p build
-	@$(MAGICK_CMD) docs/img/logo.webp -resize 512x512 build/icon.png
+	@"$(MAGICK_CMD)" docs/img/logo.webp -resize 512x512 build/icon.png
 
 build/icon.icns: docs/img/logo.webp
 	@echo "Generating macOS icon..."
 	@mkdir -p build/icon.iconset
 	@for size in 16 32 64 128 256 512; do \
-		$(MAGICK_CMD) docs/img/logo.webp -resize $${size}x$${size} build/icon.iconset/icon_$${size}x$${size}.png; \
+		"$(MAGICK_CMD)" docs/img/logo.webp -resize $${size}x$${size} build/icon.iconset/icon_$${size}x$${size}.png; \
 		if [ $$size -le 256 ]; then \
 			double=$$((size * 2)); \
-			$(MAGICK_CMD) docs/img/logo.webp -resize $${double}x$${double} build/icon.iconset/icon_$${size}x$${size}@2x.png; \
+			"$(MAGICK_CMD)" docs/img/logo.webp -resize $${double}x$${double} build/icon.iconset/icon_$${size}x$${size}@2x.png; \
 		fi; \
 	done
 	@iconutil -c icns build/icon.iconset -o build/icon.icns

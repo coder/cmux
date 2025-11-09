@@ -1,5 +1,6 @@
 import { exec } from "child_process";
 import type { ChildProcess } from "child_process";
+import { resolveBashPath } from "../services/shell";
 
 /**
  * Disposable wrapper for child processes that ensures immediate cleanup.
@@ -122,7 +123,9 @@ class DisposableExec implements Disposable {
  * const { stdout } = await proc.result;
  */
 export function execAsync(command: string): DisposableExec {
-  const child = exec(command);
+  // Force a POSIX-compatible shell for consistent behavior across platforms.
+  // On Windows, resolve Git Bash path when available.
+  const child = exec(command, { shell: resolveBashPath() });
   const promise = new Promise<{ stdout: string; stderr: string }>((resolve, reject) => {
     let stdout = "";
     let stderr = "";

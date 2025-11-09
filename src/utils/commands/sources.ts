@@ -119,7 +119,10 @@ export function buildCoreSources(p: BuildSourcesParams): Array<() => CommandActi
 
     // Remove current workspace (rename action intentionally omitted until we add a proper modal)
     if (selected?.namedWorkspacePath) {
-      const workspaceDisplayName = `${selected.projectName}/${selected.namedWorkspacePath.split("/").pop() ?? selected.namedWorkspacePath}`;
+      const workspaceDisplayName = `${selected.projectName}/${
+        (selected.namedWorkspacePath ?? "").replace(/\\/g, "/").split("/").pop() ??
+        selected.namedWorkspacePath
+      }`;
       list.push({
         id: CommandIds.workspaceOpenTerminalCurrent(),
         title: "Open Current Workspace in Terminal",
@@ -469,7 +472,7 @@ export function buildCoreSources(p: BuildSourcesParams): Array<() => CommandActi
               getOptions: (_values) =>
                 Array.from(p.projects.keys()).map((projectPath) => ({
                   id: projectPath,
-                  label: projectPath.split("/").pop() ?? projectPath,
+                  label: projectPath.replace(/\\/g, "/").split("/").pop() ?? projectPath,
                   keywords: [projectPath],
                 })),
             },
@@ -484,7 +487,7 @@ export function buildCoreSources(p: BuildSourcesParams): Array<() => CommandActi
     ];
 
     for (const [projectPath] of p.projects.entries()) {
-      const projectName = projectPath.split("/").pop() ?? projectPath;
+      const projectName = projectPath.replace(/\\/g, "/").split("/").pop() ?? projectPath;
       list.push({
         id: CommandIds.projectRemove(projectPath),
         title: `Remove Project ${projectName}…`,

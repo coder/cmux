@@ -111,7 +111,7 @@ describe("git diff parser (real repository)", () => {
 
   it("should parse file deletion", () => {
     // Reset and commit newfile
-    execSync("git add . && git commit -m 'Add newfile'", { cwd: testRepoPath });
+    execSync('git add . && git commit -m "Add newfile"', { cwd: testRepoPath });
 
     // Delete file
     execSync("rm newfile.md", { cwd: testRepoPath });
@@ -137,7 +137,7 @@ describe("git diff parser (real repository)", () => {
 
     // Make changes on feature branch
     writeFileSync(join(testRepoPath, "feature.txt"), "Feature content\n");
-    execSync("git add . && git commit -m 'Add feature'", { cwd: testRepoPath });
+    execSync('git add . && git commit -m "Add feature"', { cwd: testRepoPath });
 
     // Get diff between main (or master) and feature
     // Note: mainBranch is determined by the initial setup
@@ -215,7 +215,7 @@ describe("git diff parser (real repository)", () => {
     // Create a file with many lines
     const lines = Array.from({ length: 100 }, (_, i) => `Line ${i + 1}`);
     writeFileSync(join(testRepoPath, "large.txt"), lines.join("\n") + "\n");
-    execSync("git add . && git commit -m 'Add large file'", { cwd: testRepoPath });
+    execSync('git add . && git commit -m "Add large file"', { cwd: testRepoPath });
 
     // Modify multiple sections
     const modifiedLines = lines.map((line, i) => {
@@ -284,7 +284,7 @@ function greet(name) {
 // Footer comment
 `
     );
-    execSync("git add . && git commit -m 'Add large file'", { cwd: testRepoPath });
+    execSync('git add . && git commit -m "Add large file"', { cwd: testRepoPath });
 
     // Rename and make a small modification (maintains >50% similarity)
     execSync("git mv large-file.js renamed-file.js", { cwd: testRepoPath });
@@ -334,7 +334,7 @@ function greet(name) {
     execSync("mkdir -p old-dir", { cwd: testRepoPath });
     writeFileSync(join(testRepoPath, "old-dir", "nested1.txt"), "Nested file 1\n");
     writeFileSync(join(testRepoPath, "old-dir", "nested2.txt"), "Nested file 2\n");
-    execSync("git add . && git commit -m 'Add nested files'", { cwd: testRepoPath });
+    execSync('git add . && git commit -m "Add nested files"', { cwd: testRepoPath });
 
     // Rename the directory
     execSync("git mv old-dir new-dir", { cwd: testRepoPath });
@@ -381,11 +381,15 @@ function greet(name) {
 
     // Commit a change, then make uncommitted change
     writeFileSync(join(testRepoPath, "test-file.txt"), "Line 1\nLine 2\nLine 3\n");
-    execSync("git add test-file.txt && git commit -m 'Add test file'", { cwd: testRepoPath });
+    execSync('git add test-file.txt && git commit -m "Add test file"', { cwd: testRepoPath });
     writeFileSync(join(testRepoPath, "test-file.txt"), "Line 1\nLine 2\nLine 3 modified\nLine 4\n");
 
     const gitCommand = buildGitDiffCommand(baseBranch, true, "", "diff");
-    const diffOutput = execSync(gitCommand, { cwd: testRepoPath, encoding: "utf-8" });
+    const diffOutput = execSync(gitCommand, {
+      cwd: testRepoPath,
+      encoding: "utf-8",
+      shell: "bash",
+    });
     const fileDiffs = parseDiff(diffOutput);
 
     // Single FileDiff with unified changes (no duplicates)
@@ -412,7 +416,7 @@ function greet(name) {
 
     // Commit a change
     writeFileSync(join(testRepoPath, "committed-file.txt"), "Line 1\nLine 2\n");
-    execSync("git add committed-file.txt && git commit -m 'Add committed file'", {
+    execSync('git add committed-file.txt && git commit -m "Add committed file"', {
       cwd: testRepoPath,
     });
 
@@ -487,26 +491,26 @@ function greet(name) {
     // Create a "main" branch and add 3 commits
     execSync("git checkout -b test-main", { cwd: testRepoPath });
     writeFileSync(join(testRepoPath, "main-file.txt"), "Initial content\n");
-    execSync("git add main-file.txt && git commit -m 'Initial on main'", { cwd: testRepoPath });
+    execSync('git add main-file.txt && git commit -m "Initial on main"', { cwd: testRepoPath });
 
     // Branch off from here (this is the merge-base)
     execSync("git checkout -b feature-branch", { cwd: testRepoPath });
 
     // Add commits on feature branch
     writeFileSync(join(testRepoPath, "feature-file.txt"), "Feature content\n");
-    execSync("git add feature-file.txt && git commit -m 'Add feature file'", {
+    execSync('git add feature-file.txt && git commit -m "Add feature file"', {
       cwd: testRepoPath,
     });
 
     // Simulate origin/main moving forward (3 commits ahead)
     execSync("git checkout test-main", { cwd: testRepoPath });
     writeFileSync(join(testRepoPath, "main-file.txt"), "Initial content\nCommit Y\n");
-    execSync("git add main-file.txt && git commit -m 'Commit Y on main'", {
+    execSync('git add main-file.txt && git commit -m "Commit Y on main"', {
       cwd: testRepoPath,
     });
 
     writeFileSync(join(testRepoPath, "main-file.txt"), "Initial content\nCommit Y\nCommit Z\n");
-    execSync("git add main-file.txt && git commit -m 'Commit Z on main'", {
+    execSync('git add main-file.txt && git commit -m "Commit Z on main"', {
       cwd: testRepoPath,
     });
 
@@ -514,7 +518,7 @@ function greet(name) {
       join(testRepoPath, "main-file.txt"),
       "Initial content\nCommit Y\nCommit Z\nCommit W\n"
     );
-    execSync("git add main-file.txt && git commit -m 'Commit W on main'", {
+    execSync('git add main-file.txt && git commit -m "Commit W on main"', {
       cwd: testRepoPath,
     });
 
@@ -529,6 +533,7 @@ function greet(name) {
     const diffOutputCommittedOnly = execSync(gitCommandCommittedOnly, {
       cwd: testRepoPath,
       encoding: "utf-8",
+      shell: "bash",
     });
     const fileDiffsCommittedOnly = parseDiff(diffOutputCommittedOnly);
 
@@ -556,7 +561,11 @@ function greet(name) {
 
     // Test 2: includeUncommitted=true (committed + uncommitted, uses merge-base)
     const gitCommand = buildGitDiffCommand("test-main", true, "", "diff");
-    const diffOutput = execSync(gitCommand, { cwd: testRepoPath, encoding: "utf-8" });
+    const diffOutput = execSync(gitCommand, {
+      cwd: testRepoPath,
+      encoding: "utf-8",
+      shell: "bash",
+    });
     const fileDiffs = parseDiff(diffOutput);
 
     // Should show only feature-file.txt (the file we added/modified)

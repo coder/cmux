@@ -25,6 +25,7 @@ import { execAsync, DisposableProcess } from "../utils/disposableExec";
 import { getProjectName } from "../utils/runtime/helpers";
 import { getErrorMessage } from "../utils/errors";
 import { expandTilde } from "./tildeExpansion";
+import { buildBashSpawn, resolveBashPath } from "../services/shell";
 
 /**
  * Local runtime implementation that executes commands and file operations
@@ -56,13 +57,8 @@ export class LocalRuntime implements Runtime {
       );
     }
 
-    // If niceness is specified, spawn nice directly to avoid escaping issues
-    const spawnCommand = options.niceness !== undefined ? "nice" : "bash";
-    const bashPath = "bash";
-    const spawnArgs =
-      options.niceness !== undefined
-        ? ["-n", options.niceness.toString(), bashPath, "-c", command]
-        : ["-c", command];
+    // Build cross-platform bash spawn (uses Git Bash on Windows if available)
+    const { command: spawnCommand, args: spawnArgs } = buildBashSpawn(options.niceness, command);
 
     const childProcess = spawn(spawnCommand, spawnArgs, {
       cwd,
@@ -102,17 +98,38 @@ export class LocalRuntime implements Runtime {
       // The 'close' event waits for ALL child processes (including background ones) to exit,
       // which causes hangs when users spawn background processes like servers.
       // The 'exit' event fires when the main bash process exits, which is what we want.
+      const killProcessTree = (pid: number) => {
+        if (process.platform === "win32") {
+          try {
+            // Kill the entire process tree on Windows
+            spawn("taskkill", ["/PID", pid.toString(), "/T", "/F"]);
+          } catch {
+            // Ignore taskkill errors
+          }
+          try {
+            // Also attempt to kill Bash process group in MSYS/Git Bash terms
+            // Negative PID targets the process group
+            const bashPath = resolveBashPath();
+            spawn(bashPath, ["-lc", `kill -9 -${pid} >/dev/null 2>&1 || true`]);
+          } catch {
+            // Ignore bash kill errors
+          }
+        } else {
+          try {
+            // Kill entire process group with SIGKILL - cannot be caught/ignored
+            // Use negative PID to signal the entire process group
+            process.kill(-pid, "SIGKILL");
+          } catch {
+            // Process group already dead or doesn't exist - ignore
+          }
+        }
+      };
+
       childProcess.on("exit", (code) => {
         // Clean up any background processes (process group cleanup)
         // This prevents zombie processes when scripts spawn background tasks
         if (childProcess.pid !== undefined) {
-          try {
-            // Kill entire process group with SIGKILL - cannot be caught/ignored
-            // Use negative PID to signal the entire process group
-            process.kill(-childProcess.pid, "SIGKILL");
-          } catch {
-            // Process group already dead or doesn't exist - ignore
-          }
+          killProcessTree(childProcess.pid);
         }
 
         // Check abort first (highest priority)
@@ -141,11 +158,36 @@ export class LocalRuntime implements Runtime {
     disposable.addCleanup(() => {
       if (childProcess.pid === undefined) return;
 
-      try {
-        // Kill entire process group with SIGKILL - cannot be caught/ignored
-        process.kill(-childProcess.pid, "SIGKILL");
-      } catch {
-        // Process group already dead or doesn't exist - ignore
+      if (process.platform === "win32") {
+        try {
+          spawn("taskkill", ["/PID", childProcess.pid.toString(), "/T", "/F"]);
+        } catch {
+          // Fallback: try killing just the main process
+          try {
+            childProcess.kill();
+          } catch {
+            // Ignore
+          }
+        }
+        try {
+          // Also attempt to kill Bash/MSYS process group
+          const bashPath = resolveBashPath();
+          spawn(bashPath, ["-lc", `kill -9 -${childProcess.pid} >/dev/null 2>&1 || true`]);
+        } catch {
+          // Ignore
+        }
+      } else {
+        try {
+          // Kill entire process group with SIGKILL - cannot be caught/ignored
+          process.kill(-childProcess.pid, "SIGKILL");
+        } catch {
+          // Fallback: try killing just the main process
+          try {
+            childProcess.kill("SIGKILL");
+          } catch {
+            // Process already dead - ignore
+          }
+        }
       }
     });
 
@@ -412,26 +454,94 @@ export class LocalRuntime implements Runtime {
     const loggers = createLineBufferedLoggers(initLogger);
 
     return new Promise<void>((resolve) => {
-      const proc = spawn("bash", ["-c", `"${hookPath}"`], {
+      const bashPath = resolveBashPath();
+      // Spawn detached so it's a process group leader and we can kill bg tasks
+      const proc = spawn(bashPath, ["-c", `"${hookPath}"`], {
         cwd: workspacePath,
         stdio: ["ignore", "pipe", "pipe"],
+        detached: true,
       });
 
-      proc.stdout.on("data", (data: Buffer) => {
+      let stdoutClosed = false;
+      let stderrClosed = false;
+      let processExited = false;
+      let exitCode: number | null = null;
+
+      const tryFinalize = () => {
+        if (processExited && stdoutClosed && stderrClosed) {
+          initLogger.logComplete(exitCode ?? 0);
+          resolve();
+        }
+      };
+
+      const killProcessTree = (pid: number) => {
+        if (process.platform === "win32") {
+          try {
+            spawn("taskkill", ["/PID", pid.toString(), "/T", "/F"]);
+          } catch {
+            try {
+              proc.kill();
+            } catch {
+              // ignore
+            }
+          }
+          try {
+            const bp = resolveBashPath();
+            spawn(bp, ["-lc", `kill -9 -${pid} >/dev/null 2>&1 || true`]);
+          } catch {
+            // ignore
+          }
+        } else {
+          try {
+            process.kill(-pid, "SIGKILL");
+          } catch {
+            try {
+              proc.kill("SIGKILL");
+            } catch {
+              // ignore
+            }
+          }
+        }
+      };
+
+      proc.stdout?.on("data", (data: Buffer) => {
         loggers.stdout.append(data.toString());
       });
-
-      proc.stderr.on("data", (data: Buffer) => {
+      proc.stderr?.on("data", (data: Buffer) => {
         loggers.stderr.append(data.toString());
       });
 
-      proc.on("close", (code) => {
+      proc.stdout?.on("close", () => {
+        stdoutClosed = true;
+        tryFinalize();
+      });
+      proc.stderr?.on("close", () => {
+        stderrClosed = true;
+        tryFinalize();
+      });
+
+      proc.on("exit", (code) => {
+        processExited = true;
+        exitCode = code ?? 0;
+        // On exit, kill any background processes that may still be running
+        if (proc.pid !== undefined) {
+          killProcessTree(proc.pid);
+        }
+
         // Flush any remaining buffered output
         loggers.stdout.flush();
         loggers.stderr.flush();
 
-        initLogger.logComplete(code ?? 0);
-        resolve();
+        // Grace period for streams to close; then finalize
+        setTimeout(() => {
+          if (!stdoutClosed || !stderrClosed) {
+            stdoutClosed = true;
+            stderrClosed = true;
+            tryFinalize();
+          } else {
+            tryFinalize();
+          }
+        }, 50);
       });
 
       proc.on("error", (err) => {

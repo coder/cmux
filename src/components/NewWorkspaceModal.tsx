@@ -4,6 +4,7 @@ import { TooltipWrapper, Tooltip } from "./Tooltip";
 import { formatNewCommand } from "@/utils/chatCommands";
 import { useNewWorkspaceOptions } from "@/hooks/useNewWorkspaceOptions";
 import { RUNTIME_MODE } from "@/types/runtime";
+import { formatWorkspaceLocation, formatSSHHostPath } from "@/utils/ui/pathFormatting";
 
 interface NewWorkspaceModalProps {
   isOpen: boolean;
@@ -247,8 +248,8 @@ const NewWorkspaceModal: React.FC<NewWorkspaceModalProps> = ({
           <p>This will create a workspace at:</p>
           <code className="block break-all">
             {runtimeMode === RUNTIME_MODE.SSH
-              ? `${sshHost || "<host>"}:~/cmux/${branchName || "<branch-name>"}`
-              : `~/.cmux/src/${projectName}/${branchName || "<branch-name>"}`}
+              ? formatSSHHostPath(sshHost || "<host>", `cmux/${branchName || "<branch-name>"}`)
+              : formatWorkspaceLocation(projectName, branchName || "<branch-name>", false)}
           </code>
         </ModalInfo>
 

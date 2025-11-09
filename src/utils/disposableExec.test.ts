@@ -249,8 +249,13 @@ describe("disposableExec", () => {
       await proc.result;
       expect(true).toBe(false); // Should not reach
     } catch (error: any) {
-      expect(error.signal).toBe("SIGTERM");
-      expect(error.message).toContain("SIGTERM");
+      if (process.platform === "win32") {
+        // On Windows, Node may report a non-zero exit code with null signal
+        expect(error.signal === "SIGTERM" || typeof error.code === "number").toBe(true);
+      } else {
+        expect(error.signal).toBe("SIGTERM");
+        expect(error.message).toContain("SIGTERM");
+      }
     }
 
     // Wait for process to fully exit
@@ -326,7 +331,8 @@ describe("disposableExec", () => {
   test("close event waits for stdio to flush", async () => {
     // Generate large output to test stdio buffering
     const largeOutput = "x".repeat(100000);
-    using proc = execAsync(`echo '${largeOutput}'`);
+    // Use pipeline to generate large output without exceeding command-line length limits
+    using proc = execAsync("yes x | tr -d '\\n' | head -c 100000");
     const childProc = (proc as any).child;
     activeProcesses.add(childProc);
 

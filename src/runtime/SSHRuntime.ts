@@ -1,7 +1,6 @@
 import { spawn } from "child_process";
 import { Readable, Writable } from "stream";
 import * as path from "path";
-import { Shescape } from "shescape";
 import type {
   Runtime,
   ExecOptions,
@@ -27,10 +26,16 @@ import { execAsync, DisposableProcess } from "../utils/disposableExec";
 import { getControlPath } from "./sshConnectionPool";
 
 /**
- * Shescape instance for bash shell escaping.
- * Reused across all SSH runtime operations for performance.
+ * Minimal POSIX/Bash quoting for embedding arbitrary strings into single-quoted
+ * bash contexts on the remote host. This does not depend on any local shell.
+ * It uses the standard pattern of closing the quote, inserting '"'"', and
+ * reopening the quote for every single quote in the input.
  */
-const shescape = new Shescape({ shell: "bash" });
+function bashQuote(value: unknown): string {
+  const s = String(value);
+  if (s.length === 0) return "''";
+  return `'${s.replace(/'/g, "'\"'\"'")}'`;
+}
 
 /**
  * SSH Runtime Configuration
@@ -63,6 +68,7 @@ export interface SSHRuntimeConfig {
 export class SSHRuntime implements Runtime {
   private readonly config: SSHRuntimeConfig;
   private readonly controlPath: string;
+  private readonly controlMasterMode: "auto" | "no";
 
   constructor(config: SSHRuntimeConfig) {
     // Note: srcBaseDir may contain tildes - they will be resolved via resolvePath() before use
@@ -72,6 +78,14 @@ export class SSHRuntime implements Runtime {
     // Multiple SSHRuntime instances with same config share the same controlPath,
     // enabling ControlMaster to multiplex SSH connections across operations
     this.controlPath = getControlPath(config);
+    // ControlMaster can be problematic on Windows (Git Bash/MSYS) due to socket path semantics.
+    // Default to disabled on Windows; allow override via CMUX_SSH_CONTROLMASTER=auto|no
+    const envMode = (process.env.CMUX_SSH_CONTROLMASTER ?? "").toLowerCase();
+    if (envMode === "auto" || envMode === "no") {
+      this.controlMasterMode = envMode;
+    } else {
+      this.controlMasterMode = process.platform === "win32" ? "no" : "auto";
+    }
   }
 
   /**
@@ -95,7 +109,7 @@ export class SSHRuntime implements Runtime {
     // Add environment variable exports
     if (options.env) {
       for (const [key, value] of Object.entries(options.env)) {
-        parts.push(`export ${key}=${shescape.quote(value)}`);
+        parts.push(`export ${key}=${bashQuote(value)}`);
       }
     }
 
@@ -112,7 +126,7 @@ export class SSHRuntime implements Runtime {
     // the local timeout fires first in normal cases (for cleaner error handling)
     // Note: Using BusyBox-compatible syntax (-s KILL) which also works with GNU timeout
     const remoteTimeout = Math.ceil(options.timeout) + 1;
-    fullCommand = `timeout -s KILL ${remoteTimeout} bash -c ${shescape.quote(fullCommand)}`;
+    fullCommand = `timeout -s KILL ${remoteTimeout} bash -c ${bashQuote(fullCommand)}`;
 
     // Build SSH args
     const sshArgs: string[] = ["-T"];
@@ -142,20 +156,29 @@ export class SSHRuntime implements Runtime {
     // - SIGKILL on the client immediately closes that channel
     // - Remote sshd terminates the command when the channel closes
     // - Multiplexing only shares the TCP connection, not command lifetime
-    sshArgs.push("-o", "ControlMaster=auto");
-    sshArgs.push("-o", `ControlPath=${this.controlPath}`);
-    sshArgs.push("-o", "ControlPersist=60");
+    if (this.controlMasterMode === "auto") {
+      sshArgs.push("-o", "ControlMaster=auto");
+      sshArgs.push("-o", `ControlPath=${this.controlPath}`);
+      sshArgs.push("-o", "ControlPersist=60");
+    } else {
+      sshArgs.push("-o", "ControlMaster=no");
+    }
 
     // Set comprehensive timeout options to ensure SSH respects the timeout
     // ConnectTimeout: Maximum time to wait for connection establishment (DNS, TCP handshake, SSH auth)
-    // Cap at 15 seconds - users wanting long timeouts for builds shouldn't wait that long for connection
+    // Use a conservative fraction of the overall timeout to ensure tests and short commands don't hit the full test runner timeout.
+    // Cap connect timeout to [1, 5] seconds to fail fast on unreachable hosts.
     // ServerAliveInterval: Send keepalive every 5 seconds to detect dead connections
     // ServerAliveCountMax: Consider connection dead after 2 missed keepalives (10 seconds total)
     // Together these ensure that:
-    // 1. Connection establishment can't hang indefinitely (max 15s)
+    // 1. Connection establishment can't hang indefinitely
     // 2. Established connections that die are detected quickly
     // 3. The overall command timeout is respected from the moment ssh command starts
-    sshArgs.push("-o", `ConnectTimeout=${Math.min(Math.ceil(options.timeout), 15)}`);
+    {
+      const total = Math.max(1, Math.ceil(options.timeout ?? 10));
+      const connectTimeout = Math.min(5, Math.max(1, Math.floor(total / 2)));
+      sshArgs.push("-o", `ConnectTimeout=${connectTimeout}`);
+    }
     // Set aggressive keepalives to detect dead connections
     sshArgs.push("-o", "ServerAliveInterval=5");
     sshArgs.push("-o", "ServerAliveCountMax=2");
@@ -239,7 +262,7 @@ export class SSHRuntime implements Runtime {
     return new ReadableStream<Uint8Array>({
       start: async (controller: ReadableStreamDefaultController<Uint8Array>) => {
         try {
-          const stream = await this.exec(`cat ${shescape.quote(path)}`, {
+          const stream = await this.exec(`cat ${bashQuote(path)}`, {
             cwd: this.config.srcBaseDir,
             timeout: 300, // 5 minutes - reasonable for large files
             abortSignal,
@@ -291,7 +314,7 @@ export class SSHRuntime implements Runtime {
     // If path doesn't exist, use 600 as default
     // Then write atomically using mv (all-or-nothing for readers)
     // Use shescape.quote for safe path escaping
-    const writeCommand = `RESOLVED=$(readlink -f ${shescape.quote(path)} 2>/dev/null || echo ${shescape.quote(path)}) && PERMS=$(stat -c '%a' "$RESOLVED" 2>/dev/null || echo 600) && mkdir -p $(dirname "$RESOLVED") && cat > ${shescape.quote(tempPath)} && chmod "$PERMS" ${shescape.quote(tempPath)} && mv ${shescape.quote(tempPath)} "$RESOLVED"`;
+    const writeCommand = `RESOLVED=$(readlink -f ${bashQuote(path)} 2>/dev/null || echo ${bashQuote(path)}) && PERMS=$(stat -c '%a' "$RESOLVED" 2>/dev/null || echo 600) && mkdir -p $(dirname "$RESOLVED") && cat > ${bashQuote(tempPath)} && chmod "$PERMS" ${bashQuote(tempPath)} && mv ${bashQuote(tempPath)} "$RESOLVED"`;
 
     // Need to get the exec stream in async callbacks
     let execPromise: Promise<ExecStream> | null = null;
@@ -341,7 +364,7 @@ export class SSHRuntime implements Runtime {
   async stat(path: string, abortSignal?: AbortSignal): Promise<FileStat> {
     // Use stat with format string to get: size, mtime, type
     // %s = size, %Y = mtime (seconds since epoch), %F = file type
-    const stream = await this.exec(`stat -c '%s %Y %F' ${shescape.quote(path)}`, {
+    const stream = await this.exec(`stat -c '%s %Y %F' ${bashQuote(path)}`, {
       cwd: this.config.srcBaseDir,
       timeout: 10, // 10 seconds - stat should be fast
       abortSignal,
@@ -376,7 +399,7 @@ export class SSHRuntime implements Runtime {
     // Use shell to expand tildes on remote system
     // Bash will expand ~ automatically when we echo the unquoted variable
     // This works with BusyBox (doesn't require GNU coreutils)
-    const command = `bash -c 'p=${shescape.quote(filePath)}; echo $p'`;
+    const command = `bash -c 'p=${bashQuote(filePath)}; echo $p'`;
     // Use 5 second timeout for path resolution (should be near-instant)
     return this.execSSHCommand(command, 5000);
   }
@@ -500,9 +523,13 @@ export class SSHRuntime implements Runtime {
 
     // Add ControlMaster options for connection multiplexing
     // This ensures git bundle transfers also reuse the master connection
-    args.push("-o", "ControlMaster=auto");
-    args.push("-o", `ControlPath=${this.controlPath}`);
-    args.push("-o", "ControlPersist=60");
+    if (this.controlMasterMode === "auto") {
+      args.push("-o", "ControlMaster=auto");
+      args.push("-o", `ControlPath=${this.controlPath}`);
+      args.push("-o", "ControlPersist=60");
+    } else {
+      args.push("-o", "ControlMaster=no");
+    }
 
     if (includeHost) {
       args.push(this.config.host);
@@ -548,7 +575,7 @@ export class SSHRuntime implements Runtime {
       let originUrl: string | null = null;
       try {
         using proc = execAsync(
-          `cd ${shescape.quote(projectPath)} && git remote get-url origin 2>/dev/null || true`
+          `cd ${bashQuote(projectPath)} && git remote get-url origin 2>/dev/null || true`
         );
         const { stdout } = await proc.result;
         const url = stdout.trim();
@@ -561,45 +588,114 @@ export class SSHRuntime implements Runtime {
         initLogger.logStderr(`Could not get origin URL: ${getErrorMessage(error)}`);
       }
 
-      // Step 2: Create bundle locally and pipe to remote file via SSH
+      // Step 2: Create bundle locally and pipe to remote file via SSH (no local shell)
       initLogger.logStep(`Creating git bundle...`);
       await new Promise<void>((resolve, reject) => {
-        // Check if aborted before spawning
         if (abortSignal?.aborted) {
           reject(new Error("Bundle creation aborted"));
           return;
         }
 
-        const sshArgs = this.buildSSHArgs(true);
-        const command = `cd ${shescape.quote(projectPath)} && git bundle create - --all | ssh ${sshArgs.join(" ")} "cat > ${bundleTempPath}"`;
+        // Start git bundle writer in project directory
+        const gitProc = spawn("git", ["bundle", "create", "-", "--all"], {
+          cwd: projectPath,
+          stdio: ["ignore", "pipe", "pipe"],
+        });
 
-        log.debug(`Creating bundle: ${command}`);
-        const proc = spawn("bash", ["-c", command]);
+        // Prepare ssh to write bundle to remote path
+        const sshArgs = this.buildSSHArgs();
+        sshArgs.push(this.config.host, `cat > ${bundleTempPath}`);
+        log.debug(`Creating bundle via pipeline: git bundle | ssh ${sshArgs.join(" ")}`);
+        const sshProc = spawn("ssh", sshArgs, {
+          stdio: ["pipe", "pipe", "pipe"],
+        });
 
-        const cleanup = streamProcessToLogger(proc, initLogger, {
+        // Pipe git stdout into ssh stdin
+        if (gitProc.stdout && sshProc.stdin) {
+          gitProc.stdout.pipe(sshProc.stdin);
+        }
+
+        // Stream stderr to init logger
+        const cleanupGit = streamProcessToLogger(gitProc, initLogger, {
+          logStdout: false,
+          logStderr: true,
+          abortSignal,
+        });
+        const cleanupSsh = streamProcessToLogger(sshProc, initLogger, {
           logStdout: false,
           logStderr: true,
           abortSignal,
         });
 
-        let stderr = "";
-        proc.stderr.on("data", (data: Buffer) => {
-          stderr += data.toString();
+        // Capture error output for diagnostics
+        let gitErr = "";
+        let sshErr = "";
+        gitProc.stderr?.on("data", (d: Buffer) => {
+          gitErr += d.toString();
+        });
+        sshProc.stderr?.on("data", (d: Buffer) => {
+          sshErr += d.toString();
         });
 
-        proc.on("close", (code) => {
-          cleanup();
+        // Abort handling
+        const onAbort = () => {
+          try {
+            gitProc.kill("SIGKILL");
+          } catch (error) {
+            // ignore errors while killing process
+            void error;
+          }
+          try {
+            sshProc.kill("SIGKILL");
+          } catch (error) {
+            // ignore errors while killing process
+            void error;
+          }
+        };
+        if (abortSignal) abortSignal.addEventListener("abort", onAbort);
+
+        let gitExit: number | null = null;
+        let sshExit: number | null = null;
+
+        const maybeFinish = () => {
+          if (gitExit === null || sshExit === null) return;
           if (abortSignal?.aborted) {
+            cleanupGit();
+            cleanupSsh();
             reject(new Error("Bundle creation aborted"));
-          } else if (code === 0) {
+            return;
+          }
+          cleanupGit();
+          cleanupSsh();
+          if (gitExit === 0 && sshExit === 0) {
             resolve();
           } else {
-            reject(new Error(`Failed to create bundle: ${stderr}`));
+            const msg = [
+              gitExit !== 0 ? `git bundle failed (exit ${gitExit}): ${gitErr}` : "",
+              sshExit !== 0 ? `ssh upload failed (exit ${sshExit}): ${sshErr}` : "",
+            ]
+              .filter(Boolean)
+              .join("; ");
+            reject(new Error(msg || "Failed to create bundle"));
           }
-        });
+        };
 
-        proc.on("error", (err) => {
-          cleanup();
+        gitProc.on("close", (code) => {
+          gitExit = code ?? -1;
+          maybeFinish();
+        });
+        sshProc.on("close", (code) => {
+          sshExit = code ?? -1;
+          maybeFinish();
+        });
+        gitProc.on("error", (err) => {
+          cleanupGit();
+          cleanupSsh();
+          reject(err);
+        });
+        sshProc.on("error", (err) => {
+          cleanupGit();
+          cleanupSsh();
           reject(err);
         });
       });
@@ -646,7 +742,7 @@ export class SSHRuntime implements Runtime {
       if (originUrl) {
         initLogger.logStep(`Setting origin remote to ${originUrl}...`);
         const setOriginStream = await this.exec(
-          `git -C ${cloneDestPath} remote set-url origin ${shescape.quote(originUrl)}`,
+          `git -C ${cloneDestPath} remote set-url origin ${bashQuote(originUrl)}`,
           {
             cwd: "~",
             timeout: 10,
@@ -863,7 +959,7 @@ export class SSHRuntime implements Runtime {
 
       // Try to checkout existing branch, or create new branch from trunk
       // Since we've created local branches for all remote refs, we can use branch names directly
-      const checkoutCmd = `git checkout ${shescape.quote(branchName)} 2>/dev/null || git checkout -b ${shescape.quote(branchName)} ${shescape.quote(trunkBranch)}`;
+      const checkoutCmd = `git checkout ${bashQuote(branchName)} 2>/dev/null || git checkout -b ${bashQuote(branchName)} ${bashQuote(trunkBranch)}`;
 
       const checkoutStream = await this.exec(checkoutCmd, {
         cwd: workspacePath, // Use the full workspace path for git operations
@@ -991,11 +1087,11 @@ export class SSHRuntime implements Runtime {
       // Exit codes: 0=ok to delete, 1=uncommitted changes, 2=unpushed commits, 3=doesn't exist
       const checkScript = force
         ? // When force=true, only check existence
-          `test -d ${shescape.quote(deletedPath)} || exit 3`
+          `test -d ${bashQuote(deletedPath)} || exit 3`
         : // When force=false, perform all safety checks
           `
-            test -d ${shescape.quote(deletedPath)} || exit 3
-            cd ${shescape.quote(deletedPath)} || exit 1
+            test -d ${bashQuote(deletedPath)} || exit 3
+            cd ${bashQuote(deletedPath)} || exit 1
             git diff --quiet --exit-code && git diff --quiet --cached --exit-code || exit 1
             if git remote | grep -q .; then
               # First, check the original condition: any commits not in any remote
@@ -1102,7 +1198,7 @@ export class SSHRuntime implements Runtime {
 
       // SSH runtimes use plain directories, not git worktrees
       // Use rm -rf to remove the directory on the remote host
-      const removeCommand = `rm -rf ${shescape.quote(deletedPath)}`;
+      const removeCommand = `rm -rf ${bashQuote(deletedPath)}`;
 
       // Execute via the runtime's exec method (handles SSH connection multiplexing, etc.)
       const stream = await this.exec(removeCommand, {

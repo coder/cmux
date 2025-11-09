@@ -177,7 +177,7 @@ function AppInner() {
   );
 
   const handleAddWorkspace = useCallback(async (projectPath: string) => {
-    const projectName = projectPath.split("/").pop() ?? projectPath.split("\\").pop() ?? "project";
+    const projectName = projectPath.replace(/\\/g, "/").split("/").pop() ?? "project";
 
     workspaceModalProjectRef.current = projectPath;
     setWorkspaceModalProject(projectPath);
@@ -637,15 +637,22 @@ function AppInner() {
           <div className="mobile-layout flex flex-1 overflow-hidden">
             {selectedWorkspace ? (
               <ErrorBoundary
-                workspaceInfo={`${selectedWorkspace.projectName}/${selectedWorkspace.namedWorkspacePath?.split("/").pop() ?? selectedWorkspace.workspaceId}`}
+                workspaceInfo={`${selectedWorkspace.projectName}/${
+                  (selectedWorkspace.namedWorkspacePath ?? "")
+                    .replace(/\\/g, "/")
+                    .split("/")
+                    .pop() ?? selectedWorkspace.workspaceId
+                }`}
               >
                 <AIView
                   key={selectedWorkspace.workspaceId}
                   workspaceId={selectedWorkspace.workspaceId}
                   projectName={selectedWorkspace.projectName}
                   branch={
-                    selectedWorkspace.namedWorkspacePath?.split("/").pop() ??
-                    selectedWorkspace.workspaceId
+                    (selectedWorkspace.namedWorkspacePath ?? "")
+                      .replace(/\\/g, "/")
+                      .split("/")
+                      .pop() ?? selectedWorkspace.workspaceId
                   }
                   namedWorkspacePath={selectedWorkspace.namedWorkspacePath ?? ""}
                   runtimeConfig={

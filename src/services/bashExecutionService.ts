@@ -1,6 +1,7 @@
 import { spawn } from "child_process";
 import type { ChildProcess } from "child_process";
 import { log } from "./log";
+import { buildBashSpawn, resolveBashPath } from "@/services/shell";
 
 /**
  * Configuration for bash execution
@@ -46,15 +47,35 @@ export class DisposableProcess implements Disposable {
 
     this.disposed = true;
 
-    try {
-      // Kill entire process group with SIGKILL - cannot be caught/ignored
-      process.kill(-this.process.pid, "SIGKILL");
-    } catch {
-      // Fallback: try killing just the main process
+    const pid = this.process.pid;
+    if (process.platform === "win32") {
+      // On Windows, kill the entire process tree
       try {
-        this.process.kill("SIGKILL");
+        spawn("taskkill", ["/PID", pid.toString(), "/T", "/F"]);
       } catch {
-        // Process already dead - ignore
+        try {
+          this.process.kill();
+        } catch {
+          // ignore
+        }
+      }
+      try {
+        // Also attempt to kill MSYS/Git Bash process group
+        const bashPath = resolveBashPath();
+        spawn(bashPath, ["-lc", `kill -9 -${pid} >/dev/null 2>&1 || true`]);
+      } catch {
+        // ignore
+      }
+    } else {
+      // POSIX: kill the detached process group
+      try {
+        process.kill(-pid, "SIGKILL");
+      } catch {
+        try {
+          this.process.kill("SIGKILL");
+        } catch {
+          // ignore
+        }
       }
     }
   }
@@ -120,11 +141,7 @@ export class BashExecutionService {
       `BashExecutionService: Script: ${script.substring(0, 100)}${script.length > 100 ? "..." : ""}`
     );
 
-    const spawnCommand = config.niceness !== undefined ? "nice" : "bash";
-    const spawnArgs =
-      config.niceness !== undefined
-        ? ["-n", config.niceness.toString(), "bash", "-c", script]
-        : ["-c", script];
+    const { command: spawnCommand, args: spawnArgs } = buildBashSpawn(config.niceness, script);
 
     const child = spawn(spawnCommand, spawnArgs, {
       cwd: config.cwd,

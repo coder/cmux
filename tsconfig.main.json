@@ -15,5 +15,8 @@
     "src/utils/main/**/*",
     "src/types/**/*.d.ts"
   ],
-  "exclude": ["src/App.tsx", "src/main.tsx"]
+  "exclude": ["src/App.tsx", "src/main.tsx"],
+  "watchOptions": {
+    "excludeDirectories": ["**/node_modules", "**/.git", "dist", "release", "build"]
+  }
 }

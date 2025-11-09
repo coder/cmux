@@ -296,8 +296,7 @@ export class IpcMain {
           return { success: false, error: createResult.error ?? "Failed to create workspace" };
         }
 
-        const projectName =
-          projectPath.split("/").pop() ?? projectPath.split("\\").pop() ?? "unknown";
+        const projectName = path.basename(projectPath);
 
         // Initialize workspace metadata with stable ID and name
         const metadata = {

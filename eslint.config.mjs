@@ -407,6 +407,7 @@ export default defineConfig([
       "src/services/**",
       "src/runtime/**",
       "src/utils/main/**",
+      "src/utils/platform/**",
       "src/utils/providers/**",
       "src/telemetry/**",
       "src/git.ts",

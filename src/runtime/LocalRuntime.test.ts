@@ -47,15 +47,17 @@ describe("LocalRuntime.resolvePath", () => {
 
   it("should resolve absolute paths", async () => {
     const runtime = new LocalRuntime("/tmp");
-    const resolved = await runtime.resolvePath("/tmp");
-    expect(resolved).toBe("/tmp");
+    const absolutePath = os.tmpdir();
+    const resolved = await runtime.resolvePath(absolutePath);
+    expect(resolved).toBe(path.resolve(absolutePath));
   });
 
   it("should resolve non-existent paths without checking existence", async () => {
     const runtime = new LocalRuntime("/tmp");
-    const resolved = await runtime.resolvePath("/this/path/does/not/exist/12345");
+    const nonExistent = path.join(path.sep, "this", "path", "does", "not", "exist", "12345");
+    const resolved = await runtime.resolvePath(nonExistent);
     // Should resolve to absolute path without checking if it exists
-    expect(resolved).toBe("/this/path/does/not/exist/12345");
+    expect(resolved).toBe(path.resolve(nonExistent));
   });
 
   it("should resolve relative paths from cwd", async () => {

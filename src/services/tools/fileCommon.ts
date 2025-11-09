@@ -62,30 +62,38 @@ export function validateFileSize(stats: FileStat): { error: string } | null {
 export function validateNoRedundantPrefix(
   filePath: string,
   cwd: string,
-  runtime: Runtime
+  _runtime: Runtime
 ): { correctedPath: string; warning: string } | null {
-  // Only check absolute paths (start with /) - relative paths are fine
-  // This works for both local and SSH since both use Unix-style paths
-  if (!filePath.startsWith("/")) {
+  // Only check absolute-style paths - relative paths are fine
+  // Support both POSIX (/foo) and Windows (C:\ or UNC \\server\share) styles
+  const isPosixAbsolute = filePath.startsWith("/");
+  const isWindowsAbsolute = /^[A-Za-z]:[\\/]/.test(filePath) || filePath.startsWith("\\\\");
+  if (!isPosixAbsolute && !isWindowsAbsolute) {
     return null;
   }
 
-  // Use runtime's normalizePath to ensure consistent handling across local and SSH
+  // If both cwd and filePath look like POSIX paths, avoid platform path conversions
+  const usePosix = cwd.startsWith("/") && isPosixAbsolute;
   // Normalize the cwd to get canonical form (removes trailing slashes, etc.)
-  const normalizedCwd = runtime.normalizePath(".", cwd);
+  if (usePosix) {
+    const normalizedPath = filePath.replace(/\/+$/, "");
+    const cleanCwd = cwd.replace(/\/+$/, "");
+    if (normalizedPath === cleanCwd || normalizedPath.startsWith(cleanCwd + "/")) {
+      const relativePath =
+        normalizedPath === cleanCwd ? "." : normalizedPath.substring(cleanCwd.length + 1);
+      return {
+        correctedPath: relativePath,
+        warning: `Note: Using relative paths like '${relativePath}' instead of '${filePath}' saves tokens. The path has been auto-corrected for you.`,
+      };
+    }
+    return null;
+  }
 
-  // For absolute paths, we can't use normalizePath directly (it resolves relative paths)
-  // so just clean up trailing slashes manually
-  const normalizedPath = filePath.replace(/\/+$/, "");
-  const cleanCwd = normalizedCwd.replace(/\/+$/, "");
-
-  // Check if the absolute path starts with the cwd
-  // Use startsWith + check for path separator to avoid partial matches
-  // e.g., /workspace/project should match /workspace/project/src but not /workspace/project2
-  if (normalizedPath === cleanCwd || normalizedPath.startsWith(cleanCwd + "/")) {
-    // Calculate what the relative path would be
-    const relativePath =
-      normalizedPath === cleanCwd ? "." : normalizedPath.substring(cleanCwd.length + 1);
+  // Windows-style absolute (or running on Windows with native paths). Use Node path for correctness.
+  const resolvedCwd = path.resolve(cwd);
+  const resolvedPath = path.resolve(filePath);
+  if (resolvedPath === resolvedCwd || resolvedPath.startsWith(resolvedCwd + path.sep)) {
+    const relativePath = path.relative(resolvedCwd, resolvedPath) || ".";
     return {
       correctedPath: relativePath,
       warning: `Note: Using relative paths like '${relativePath}' instead of '${filePath}' saves tokens. The path has been auto-corrected for you.`,

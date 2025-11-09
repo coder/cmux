@@ -1,7 +1,11 @@
-// Mock chalk for Jest (chalk is ESM-only and not needed in test output)
-const chalk = new Proxy(() => "", {
-  get: () => chalk,
-  apply: (_target, _thisArg, args) => args[0],
-});
+// Minimal Chalk mock for Jest - returns input unchanged, exposes used methods
+const identity = (s) => (typeof s === "string" ? s : String(s));
 
-module.exports = { default: chalk };
+const chalkMock = {
+  dim: identity,
+  cyan: identity,
+  gray: identity,
+  red: identity,
+};
+
+module.exports = { default: chalkMock };

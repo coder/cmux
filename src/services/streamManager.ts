@@ -31,6 +31,7 @@ import type { ToolPolicy } from "@/utils/tools/toolPolicy";
 import { StreamingTokenTracker } from "@/utils/main/StreamingTokenTracker";
 import type { Runtime } from "@/runtime/Runtime";
 import { execBuffered } from "@/utils/runtime/helpers";
+import { expandTildeForSSH } from "@/runtime/tildeExpansion";
 
 // Type definitions for stream parts with extended properties
 interface ReasoningDeltaPart {
@@ -250,16 +251,17 @@ export class StreamManager extends EventEmitter {
   public async createTempDirForStream(streamToken: StreamToken, runtime: Runtime): Promise<string> {
     // Create directory and get absolute path (works for both local and remote)
     // Use 'cd' + 'pwd' to resolve ~ to absolute path
-    const command = `mkdir -p ~/.cmux-tmp/${streamToken} && cd ~/.cmux-tmp/${streamToken} && pwd`;
+    const base = expandTildeForSSH("~/.cmux-tmp");
+    const target = `${base}/${streamToken}`;
+    const command = `mkdir -p ${target} && cd ${target} && pwd`;
     const result = await execBuffered(runtime, command, {
       cwd: "/",
       timeout: 10,
     });
 
     if (result.exitCode !== 0) {
-      throw new Error(
-        `Failed to create temp directory ~/.cmux-tmp/${streamToken}: exit code ${result.exitCode}`
-      );
+      const detail = result.stderr?.trim() || `exit code ${result.exitCode}`;
+      throw new Error(`Failed to create temp directory ~/.cmux-tmp/${streamToken}: ${detail}`);
     }
 
     // Return absolute path (e.g., "/home/user/.cmux-tmp/abc123")

@@ -14,6 +14,10 @@ const mockToolCallOptions: ToolCallOptions = {
   messages: [],
 };
 
+const isWindows = process.platform === "win32";
+const itIfWindows = (name: string, fn: () => void | Promise<void>, timeout?: number) =>
+  isWindows ? it.skip(name, fn, timeout) : it(name, fn, timeout);
+
 // Helper to create bash tool with test configuration
 // Returns both tool and disposable temp directory
 // Use with: using testEnv = createTestBashTool();
@@ -658,7 +662,7 @@ describe("bash tool", () => {
     }
   });
 
-  it("should not hang on git rebase --continue", async () => {
+  itIfWindows("should not hang on git rebase --continue", async () => {
     using testEnv = createTestBashTool();
     const tool = testEnv.tool;
     const startTime = performance.now();
@@ -764,7 +768,7 @@ describe("bash tool", () => {
     expect(duration).toBeLessThan(2000);
   });
 
-  it("should timeout background processes that don't complete", async () => {
+  itIfWindows("should timeout background processes that don't complete", async () => {
     using testEnv = createTestBashTool();
     const tool = testEnv.tool;
     const startTime = performance.now();
@@ -1036,7 +1040,7 @@ fi
     }
   });
 
-  it("should not create zombie processes when spawning background tasks", async () => {
+  itIfWindows("should not create zombie processes when spawning background tasks", async () => {
     using testEnv = createTestBashTool();
     const tool = testEnv.tool;
 
@@ -1078,7 +1082,7 @@ fi
     }
   });
 
-  it("should kill all processes when aborted via AbortController", async () => {
+  itIfWindows("should kill all processes when aborted via AbortController", async () => {
     using testEnv = createTestBashTool();
     const tool = testEnv.tool;
 

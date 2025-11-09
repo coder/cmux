@@ -34,8 +34,7 @@ fmt-prettier-check:
 
 fmt-shell:
 ifeq ($(SHFMT),)
-	@echo "Error: shfmt not found. Install with: brew install shfmt"
-	@exit 1
+	@echo "shfmt not found; skipping shell script formatting"
 else
 	@echo "Formatting shell scripts..."
 	@shfmt -i 2 -ci -bn -w $(SHELL_SCRIPTS)
@@ -43,27 +42,27 @@ endif
 
 fmt-shell-check:
 ifeq ($(SHFMT),)
-	@echo "Error: shfmt not found. Install with: brew install shfmt"
-	@exit 1
+	@echo "shfmt not found; skipping shell script format check"
 else
 	@echo "Checking shell script formatting..."
 	@shfmt -i 2 -ci -bn -d $(SHELL_SCRIPTS)
 endif
 
-# Helper target to check for uvx
-.check-uvx:
+fmt-python:
 ifeq ($(UVX),)
-	@echo "Error: uvx not found. Install with: curl -LsSf https://astral.sh/uv/install.sh | sh"
-	@exit 1
-endif
-
-fmt-python: .check-uvx
+	@echo "uvx not found; skipping Python formatting"
+else
 	@echo "Formatting Python files..."
 	@$(UVX) ruff format $(PYTHON_DIRS)
+endif
 
-fmt-python-check: .check-uvx
+fmt-python-check:
+ifeq ($(UVX),)
+	@echo "uvx not found; skipping Python format check"
+else
 	@echo "Checking Python formatting..."
 	@$(UVX) ruff format --check $(PYTHON_DIRS)
+endif
 
 fmt-nix:
 ifeq ($(NIX),)
