@@ -13,7 +13,7 @@ Example extension that logs all bash commands:
 
 ```typescript
 // ~/.cmux/ext/bash-logger.ts
-import type { Extension } from "cmux";
+import type { Extension } from "@coder/cmux/ext";
 
 const extension: Extension = {
   async onPostToolUse({ toolName, args, result, runtime, workspaceId }) {
@@ -88,6 +88,8 @@ Extensions can modify tool results before they're sent to the AI:
 
 ```typescript
 // ~/.cmux/ext/error-enhancer.ts
+import type { Extension } from "@coder/cmux/ext";
+
 const extension: Extension = {
   async onPostToolUse({ toolName, result, runtime }) {
     if (toolName === "bash" && result.success === false) {
@@ -153,7 +155,7 @@ TypeScript extensions are automatically compiled when loaded. No build step requ
 Import types from cmux:
 
 ```typescript
-import type { Extension, PostToolUseHookPayload, Runtime } from "cmux";
+import type { Extension, PostToolUseHookPayload, Runtime } from "@coder/cmux/ext";
 ```
 
 ## Global vs Project Extensions
@@ -185,7 +187,7 @@ Log all file edits to track what's being changed:
 
 ```typescript
 // <project>/.cmux/ext/edit-tracker.ts
-import type { Extension } from "cmux";
+import type { Extension } from "@coder/cmux/ext";
 
 const extension: Extension = {
   async onPostToolUse({ toolName, args, runtime, timestamp }) {
@@ -213,7 +215,7 @@ Automatically format files after edits:
 
 ```typescript
 // <project>/.cmux/ext/auto-format.ts
-import type { Extension } from "cmux";
+import type { Extension } from "@coder/cmux/ext";
 
 const extension: Extension = {
   async onPostToolUse({ toolName, args, runtime, result }) {
