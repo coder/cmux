@@ -1,6 +1,24 @@
 import type { Runtime } from "@/runtime/Runtime";
 import type { RuntimeConfig } from "./runtime";
 import type { RpcTarget } from "capnweb";
+import type {
+  BashToolArgs,
+  BashToolResult,
+  FileReadToolArgs,
+  FileReadToolResult,
+  FileEditReplaceStringToolArgs,
+  FileEditReplaceStringToolResult,
+  FileEditReplaceLinesToolArgs,
+  FileEditReplaceLinesToolResult,
+  FileEditInsertToolArgs,
+  FileEditInsertToolResult,
+  ProposePlanToolArgs,
+  ProposePlanToolResult,
+  TodoWriteToolArgs,
+  TodoWriteToolResult,
+  StatusSetToolArgs,
+  StatusSetToolResult,
+} from "./tools";
 
 /**
  * Extension manifest structure (manifest.json)
@@ -10,17 +28,90 @@ export interface ExtensionManifest {
 }
 
 /**
- * Hook payload for post-tool-use hook
+ * Tool execution payload - discriminated union by tool name
  */
-export interface PostToolUseHookPayload {
-  toolName: string;
-  toolCallId: string;
-  args: unknown;
-  result: unknown;
-  workspaceId: string;
-  timestamp: number;
+export type ToolUsePayload =
+  | {
+      toolName: "bash";
+      toolCallId: string;
+      args: BashToolArgs;
+      result: BashToolResult;
+      workspaceId: string;
+      timestamp: number;
+    }
+  | {
+      toolName: "file_read";
+      toolCallId: string;
+      args: FileReadToolArgs;
+      result: FileReadToolResult;
+      workspaceId: string;
+      timestamp: number;
+    }
+  | {
+      toolName: "file_edit_replace_string";
+      toolCallId: string;
+      args: FileEditReplaceStringToolArgs;
+      result: FileEditReplaceStringToolResult;
+      workspaceId: string;
+      timestamp: number;
+    }
+  | {
+      toolName: "file_edit_replace_lines";
+      toolCallId: string;
+      args: FileEditReplaceLinesToolArgs;
+      result: FileEditReplaceLinesToolResult;
+      workspaceId: string;
+      timestamp: number;
+    }
+  | {
+      toolName: "file_edit_insert";
+      toolCallId: string;
+      args: FileEditInsertToolArgs;
+      result: FileEditInsertToolResult;
+      workspaceId: string;
+      timestamp: number;
+    }
+  | {
+      toolName: "propose_plan";
+      toolCallId: string;
+      args: ProposePlanToolArgs;
+      result: ProposePlanToolResult;
+      workspaceId: string;
+      timestamp: number;
+    }
+  | {
+      toolName: "todo_write";
+      toolCallId: string;
+      args: TodoWriteToolArgs;
+      result: TodoWriteToolResult;
+      workspaceId: string;
+      timestamp: number;
+    }
+  | {
+      toolName: "status_set";
+      toolCallId: string;
+      args: StatusSetToolArgs;
+      result: StatusSetToolResult;
+      workspaceId: string;
+      timestamp: number;
+    }
+  | {
+      // Catch-all for unknown tools
+      toolName: string;
+      toolCallId: string;
+      args: unknown;
+      result: unknown;
+      workspaceId: string;
+      timestamp: number;
+    };
+
+/**
+ * Hook payload for post-tool-use hook with Runtime access
+ * This adds the runtime field to each variant of ToolUsePayload
+ */
+export type PostToolUseHookPayload = ToolUsePayload & {
   runtime: Runtime; // Extensions get full workspace access via Runtime
-}
+};
 
 /**
  * Extension export interface - what extensions must export as default
@@ -31,7 +122,7 @@ export interface Extension {
    * Extensions can monitor, log, or modify the tool result.
    * 
    * @param payload - Tool execution context with full Runtime access
-   * @returns The tool result (can be modified) or undefined to leave unchanged
+   * @returns The tool result (modified or unmodified). Return undefined to leave unchanged.
    */
   onPostToolUse?: (payload: PostToolUseHookPayload) => Promise<unknown> | unknown;
 }
@@ -81,7 +172,7 @@ export interface ExtensionHostApi extends RpcTarget {
    * @param payload Hook payload (runtime will be added by host)
    * @returns The (possibly modified) tool result, or undefined if unchanged
    */
-  onPostToolUse(payload: Omit<PostToolUseHookPayload, "runtime">): Promise<unknown>;
+  onPostToolUse(payload: ToolUsePayload): Promise<unknown>;
 
   /**
    * Gracefully shutdown the extension host

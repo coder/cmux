@@ -58,28 +58,71 @@ interface Extension {
   onPostToolUse?: (payload: PostToolUseHookPayload) => Promise<unknown> | unknown;
 }
 
-interface PostToolUseHookPayload {
-  /** Tool name (e.g., "bash", "file_edit_replace_string") */
-  toolName: string;
-  
-  /** Unique ID for this tool invocation */
-  toolCallId: string;
-  
-  /** Tool-specific arguments (structure varies by tool) */
-  args: unknown;
-  
-  /** Tool result (structure varies by tool) - can be modified and returned */
-  result: unknown;
-  
-  /** Workspace identifier */
-  workspaceId: string;
-  
-  /** Unix timestamp in milliseconds */
-  timestamp: number;
-  
-  /** Full workspace runtime access (see Runtime API below) */
-  runtime: Runtime;
-}
+// PostToolUseHookPayload is a discriminated union by toolName
+// Each tool has specific arg and result types:
+
+type PostToolUseHookPayload =
+  | {
+      toolName: "bash";
+      args: { script: string; timeout_secs?: number };
+      result: { success: true; output: string; exitCode: 0; wall_duration_ms: number }
+             | { success: false; output?: string; exitCode: number; error: string; wall_duration_ms: number };
+      toolCallId: string;
+      workspaceId: string;
+      timestamp: number;
+      runtime: Runtime;
+    }
+  | {
+      toolName: "file_read";
+      args: { filePath: string; offset?: number; limit?: number };
+      result: { success: true; file_size: number; modifiedTime: string; lines_read: number; content: string }
+             | { success: false; error: string };
+      toolCallId: string;
+      workspaceId: string;
+      timestamp: number;
+      runtime: Runtime;
+    }
+  | {
+      toolName: "file_edit_replace_string";
+      args: { file_path: string; old_string: string; new_string: string; replace_count?: number };
+      result: { success: true; diff: string; edits_applied: number }
+             | { success: false; error: string };
+      toolCallId: string;
+      workspaceId: string;
+      timestamp: number;
+      runtime: Runtime;
+    }
+  // ... other tools (file_edit_insert, propose_plan, todo_write, status_set, etc.)
+  | {
+      // Catch-all for unknown tools
+      toolName: string;
+      args: unknown;
+      result: unknown;
+      toolCallId: string;
+      workspaceId: string;
+      timestamp: number;
+      runtime: Runtime;
+    };
+```
+
+**Type safety**: When you check `payload.toolName`, TypeScript narrows the `args` and `result` types automatically:
+
+```typescript
+const extension: Extension = {
+  async onPostToolUse(payload) {
+    if (payload.toolName === "bash") {
+      // TypeScript knows: payload.args is { script: string; timeout_secs?: number }
+      // TypeScript knows: payload.result has { success, output?, error?, exitCode, wall_duration_ms }
+      const command = payload.args.script;
+      
+      if (!payload.result.success) {
+        const errorMsg = payload.result.error; // Type-safe access
+      }
+    }
+    
+    return payload.result;
+  }
+};
 ```
 
 ## Runtime API

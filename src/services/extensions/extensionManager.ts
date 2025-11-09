@@ -17,7 +17,7 @@ import { promises as fs } from "fs";
 import type { WorkspaceMetadata } from "@/types/workspace";
 import type { RuntimeConfig } from "@/types/runtime";
 import type {
-  PostToolUseHookPayload,
+  ToolUsePayload,
   ExtensionInfo,
   ExtensionHostApi,
 } from "@/types/extensions";
@@ -338,7 +338,7 @@ export class ExtensionManager {
    */
   async postToolUse(
     workspaceId: string,
-    payload: Omit<PostToolUseHookPayload, "runtime">
+    payload: ToolUsePayload
   ): Promise<unknown> {
     if (this.hosts.size === 0) {
       // No extensions loaded - return original result

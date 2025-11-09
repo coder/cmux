@@ -15,7 +15,7 @@ import type {
   Extension,
   ExtensionInfo,
   ExtensionHostApi,
-  PostToolUseHookPayload,
+  ToolUsePayload,
 } from "../../types/extensions";
 import { NodeIpcProcessTransport } from "./nodeIpcTransport";
 
@@ -101,7 +101,7 @@ class ExtensionHostImpl extends RpcTarget implements ExtensionHostApi {
    * Dispatch post-tool-use hook to the extension
    * @returns The (possibly modified) tool result, or undefined if unchanged
    */
-  async onPostToolUse(payload: Omit<PostToolUseHookPayload, "runtime">): Promise<unknown> {
+  async onPostToolUse(payload: ToolUsePayload): Promise<unknown> {
     if (!this.extensionModule || !this.extensionModule.onPostToolUse) {
       // Extension doesn't have this hook - return result unchanged
       return payload.result;
