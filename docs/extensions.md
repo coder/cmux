@@ -19,10 +19,12 @@ const extension: Extension = {
   async onPostToolUse({ toolName, args, result, runtime, workspaceId }) {
     if (toolName === "bash") {
       const command = (args as any)?.script || "unknown";
-      await runtime.writeFile(
-        ".cmux/bash-log.txt",
-        `[${new Date().toISOString()}] ${command}\n`,
-        { mode: "append" }
+      const logEntry = `[${new Date().toISOString()}] ${command}\n`;
+      
+      // Use exec to append to file
+      await runtime.exec(
+        `echo ${JSON.stringify(logEntry)} >> .cmux/bash-log.txt`,
+        { cwd: ".", timeout: 5 }
       );
     }
     // Return result unmodified
@@ -66,21 +68,42 @@ Extensions receive a `runtime` object with full workspace access:
 
 ```typescript
 interface Runtime {
-  // File operations
-  writeFile(path: string, content: string, options?: { mode?: "write" | "append" }): Promise<void>;
-  readFile(path: string): Promise<string>;
+  // Execute bash commands with streaming I/O
+  exec(command: string, options: ExecOptions): Promise<ExecStream>;
   
-  // Shell execution
-  bash(command: string): Promise<{ success: boolean; output?: string; error?: string }>;
+  // File operations (streaming primitives)
+  readFile(path: string, abortSignal?: AbortSignal): ReadableStream<Uint8Array>;
+  writeFile(path: string, abortSignal?: AbortSignal): WritableStream<Uint8Array>;
+  stat(path: string, abortSignal?: AbortSignal): Promise<FileStat>;
   
-  // Workspace info
-  workspaceId: string;
-  workspacePath: string;
-  projectPath: string;
+  // Path operations
+  getWorkspacePath(projectPath: string, workspaceName: string): string;
+  normalizePath(targetPath: string, basePath: string): string;
+  resolvePath(path: string): Promise<string>;
+  
+  // Workspace operations
+  createWorkspace(params: WorkspaceCreationParams): Promise<WorkspaceCreationResult>;
+  initWorkspace(params: WorkspaceInitParams): Promise<WorkspaceInitResult>;
+  deleteWorkspace(...): Promise<Result>;
+  renameWorkspace(...): Promise<Result>;
+  forkWorkspace(...): Promise<Result>;
 }
 ```
 
-All file paths are relative to the workspace root.
+**Most extensions will use `runtime.exec()` for file operations:**
+
+```typescript
+// Write file
+await runtime.exec(`cat > file.txt << 'EOF'\ncontent here\nEOF`, { cwd: ".", timeout: 5 });
+
+// Append to file
+await runtime.exec(`echo "line" >> file.txt`, { cwd: ".", timeout: 5 });
+
+// Read file
+const result = await runtime.exec(`cat file.txt`, { cwd: ".", timeout: 5 });
+```
+
+All paths are relative to the workspace root.
 
 ## Modifying Tool Results
 
@@ -99,11 +122,11 @@ const extension: Extension = {
         error: result.error + "\n\nHint: Check .cmux/error-log.txt for details"
       };
       
-      // Log the error
-      await runtime.writeFile(
-        ".cmux/error-log.txt",
-        `[${new Date().toISOString()}] ${result.error}\n`,
-        { mode: "append" }
+      // Log the error using exec
+      const logEntry = `[${new Date().toISOString()}] ${result.error}`;
+      await runtime.exec(
+        `echo ${JSON.stringify(logEntry)} >> .cmux/error-log.txt`,
+        { cwd: ".", timeout: 5 }
       );
       
       return enhanced;
@@ -190,15 +213,14 @@ Log all file edits to track what's being changed:
 import type { Extension } from "@coder/cmux/ext";
 
 const extension: Extension = {
-  async onPostToolUse({ toolName, args, runtime, timestamp }) {
+  async onPostToolUse({ toolName, args, runtime, timestamp, result }) {
     if (toolName === "file_edit_replace_string" || toolName === "file_edit_insert") {
       const filePath = (args as any)?.file_path || "unknown";
-      const logEntry = `${new Date(timestamp).toISOString()}: ${toolName} on ${filePath}\n`;
+      const logEntry = `${new Date(timestamp).toISOString()}: ${toolName} on ${filePath}`;
       
-      await runtime.writeFile(
-        ".cmux/edit-history.txt",
-        logEntry,
-        { mode: "append" }
+      await runtime.exec(
+        `echo ${JSON.stringify(logEntry)} >> .cmux/edit-history.txt`,
+        { cwd: ".", timeout: 5 }
       );
     }
     
@@ -224,7 +246,10 @@ const extension: Extension = {
       
       if (filePath && filePath.endsWith(".ts")) {
         // Run prettier on the edited file
-        await runtime.bash(`bun x prettier --write ${filePath}`);
+        await runtime.exec(`bun x prettier --write ${filePath}`, {
+          cwd: ".",
+          timeout: 30
+        });
       }
     }
     
