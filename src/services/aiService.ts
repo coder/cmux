@@ -108,6 +108,19 @@ export async function preloadAISDKProviders(): Promise<void> {
   ]);
 }
 
+/**
+ * Parse provider name from model string.
+ * Handles model IDs with colons (e.g., "ollama:gpt-oss:20b" -> "ollama").
+ * Only splits on the first colon to support Ollama model naming convention.
+ *
+ * @param modelString - Model string in format "provider:model-id"
+ * @returns Provider name (e.g., "anthropic", "openai", "ollama")
+ */
+function parseProviderName(modelString: string): string {
+  const colonIndex = modelString.indexOf(":");
+  return colonIndex !== -1 ? modelString.slice(0, colonIndex) : modelString;
+}
+
 export class AIService extends EventEmitter {
   private readonly streamManager: StreamManager;
   private readonly historyService: HistoryService;
@@ -232,7 +245,7 @@ export class AIService extends EventEmitter {
   ): Promise<Result<LanguageModel, SendMessageError>> {
     try {
       // Parse model string (format: "provider:model-id")
-      // Only split on the first colon to support model IDs with colons (e.g., "ollama:gpt-oss:20b")
+      // Parse provider and model ID from model string
       const colonIndex = modelString.indexOf(":");
       if (colonIndex === -1) {
         return Err({
@@ -241,7 +254,7 @@ export class AIService extends EventEmitter {
         });
       }
 
-      const providerName = modelString.slice(0, colonIndex);
+      const providerName = parseProviderName(modelString);
       const modelId = modelString.slice(colonIndex + 1);
 
       if (!providerName || !modelId) {
@@ -468,9 +481,7 @@ export class AIService extends EventEmitter {
       log.debug_obj(`${workspaceId}/1_original_messages.json`, messages);
 
       // Extract provider name from modelString (e.g., "anthropic:claude-opus-4-1" -> "anthropic")
-      // Use indexOf to handle model IDs with colons (e.g., "ollama:gpt-oss:20b")
-      const colonIndex = modelString.indexOf(":");
-      const providerName = colonIndex !== -1 ? modelString.slice(0, colonIndex) : modelString;
+      const providerName = parseProviderName(modelString);
 
       // Get tool names early for mode transition sentinel (stub config, no workspace context needed)
       const earlyRuntime = createRuntime({ type: "local", srcBaseDir: process.cwd() });
