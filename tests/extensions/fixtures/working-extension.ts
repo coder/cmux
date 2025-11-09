@@ -12,10 +12,10 @@ const extension: Extension = {
   async onPostToolUse(payload: PostToolUseHookPayload) {
     const { runtime, result } = payload;
     
-    // Use runtime.writeFile API
-    await runtime.writeFile(
-      ".cmux/working-ext-ran.txt",
-      "working extension executed\n"
+    // Use runtime.exec() for file operations
+    await runtime.exec(
+      `mkdir -p .cmux && echo 'working extension executed' > .cmux/working-ext-ran.txt`,
+      { cwd: ".", timeout: 5 }
     );
     
     // Return result unmodified

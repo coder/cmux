@@ -17,12 +17,13 @@ const extension: Extension = {
       toolName,
       toolCallId,
       workspaceId,
-    }) + "\n";
-
-    // Use runtime.writeFile API (extensions have full Runtime access)
-    await runtime.writeFile(".cmux/extension-log.txt", logEntry, {
-      mode: "append",
     });
+
+    // Use runtime.exec() for file operations
+    await runtime.exec(
+      `mkdir -p .cmux && echo ${JSON.stringify(logEntry)} >> .cmux/extension-log.txt`,
+      { cwd: ".", timeout: 5 }
+    );
     
     // Return result unmodified
     return result;
