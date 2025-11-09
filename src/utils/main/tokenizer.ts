@@ -35,6 +35,9 @@ const tokenCountCache = new LRUCache<string, number>({
   sizeCalculation: () => 1,
 });
 
+// Track which models we've already warned about to avoid log spam
+const warnedModels = new Set<string>();
+
 function normalizeModelKey(modelName: string): ModelName | null {
   assert(
     typeof modelName === "string" && modelName.length > 0,
@@ -63,9 +66,13 @@ function resolveModelName(modelString: string): ModelName {
     const provider = modelString.split(":")[0] || "anthropic";
     const fallbackModel = provider === "anthropic" ? "anthropic/claude-sonnet-4.5" : "openai/gpt-5";
 
-    console.warn(
-      `[tokenizer] Unknown model '${modelString}', using ${fallbackModel} tokenizer for approximate token counting`
-    );
+    // Only warn once per unknown model to avoid log spam
+    if (!warnedModels.has(modelString)) {
+      warnedModels.add(modelString);
+      console.warn(
+        `[tokenizer] Unknown model '${modelString}', using ${fallbackModel} tokenizer for approximate token counting`
+      );
+    }
 
     modelName = fallbackModel as ModelName;
   }
