@@ -99,6 +99,36 @@ jobs:
 
       - uses: ./.github/actions/setup-cmux
 
+      - name: Build worker files
+        run: make build-main
+
+      - name: Run integration tests with coverage
+        # --silent suppresses per-test output (17 test files × 32 workers = overwhelming logs)
+        # Exclude Ollama tests (run separately in ollama-test job)
+        run: TEST_INTEGRATION=1 bun x jest --coverage --maxWorkers=100% --silent --testPathIgnorePatterns=ollama.test.ts ${{ github.event.inputs.test_filter || 'tests' }}
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./coverage/lcov.info
+          flags: integration-tests
+          fail_ci_if_error: false
+
+  ollama-test:
+    name: Ollama Integration Tests
+    runs-on: ${{ github.repository_owner == 'coder' && 'depot-ubuntu-24.04-32' || 'ubuntu-latest' }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Required for git describe to find tags
+
+      - uses: ./.github/actions/setup-cmux
+
       - name: Setup Ollama
         uses: ./.github/actions/setup-ollama
 
@@ -113,12 +143,10 @@ jobs:
       - name: Build worker files
         run: make build-main
 
-      - name: Run integration tests with coverage
-        # --silent suppresses per-test output (17 test files × 32 workers = overwhelming logs)
-        run: TEST_INTEGRATION=1 bun x jest --coverage --maxWorkers=100% --silent ${{ github.event.inputs.test_filter || 'tests' }}
+      - name: Run Ollama integration tests with coverage
+        # Run only Ollama-specific tests
+        run: TEST_INTEGRATION=1 bun x jest --coverage --maxWorkers=100% tests/ipcMain/ollama.test.ts
         env:
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           OLLAMA_BASE_URL: http://localhost:11434/api
 
       - name: Upload coverage to Codecov
@@ -126,7 +154,7 @@ jobs:
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: ./coverage/lcov.info
-          flags: integration-tests
+          flags: ollama-tests
           fail_ci_if_error: false
 
   storybook-test:
