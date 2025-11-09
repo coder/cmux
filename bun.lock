@@ -28,6 +28,7 @@
         "lru-cache": "^11.2.2",
         "markdown-it": "^14.1.0",
         "minimist": "^1.2.8",
+        "ollama-ai-provider-v2": "^1.5.3",
         "rehype-harden": "^1.1.5",
         "shescape": "^2.1.6",
         "source-map-support": "^0.5.21",
@@ -2237,6 +2238,8 @@
     "object.fromentries": ["object.fromentries@2.0.8", "", { "dependencies": { "call-bind": "^1.0.7", "define-properties": "^1.2.1", "es-abstract": "^1.23.2", "es-object-atoms": "^1.0.0" } }, "sha512-k6E21FzySsSK5a21KRADBd/NGneRegFO5pLHfdQLpRDETUNJueLXs3WCzyQ3tFRDYgbq3KHGXfTbi2bs8WQ6rQ=="],
 
     "object.values": ["object.values@1.2.1", "", { "dependencies": { "call-bind": "^1.0.8", "call-bound": "^1.0.3", "define-properties": "^1.2.1", "es-object-atoms": "^1.0.0" } }, "sha512-gXah6aZrcUxjWg2zR2MwouP2eHlCBzdV4pygudehaKXSGW4v2AsRQUK+lwwXhii6KFZcunEnmSUoYp5CXibxtA=="],
+
+    "ollama-ai-provider-v2": ["ollama-ai-provider-v2@1.5.3", "", { "dependencies": { "@ai-sdk/provider": "^2.0.0", "@ai-sdk/provider-utils": "^3.0.7" }, "peerDependencies": { "zod": "^4.0.16" } }, "sha512-LnpvKuxNJyE+cB03cfUjFJnaiBJoUqz3X97GFc71gz09gOdrxNh1AsVBxrpw3uX5aiMxRIWPOZ8god0dHSChsg=="],
 
     "on-finished": ["on-finished@2.4.1", "", { "dependencies": { "ee-first": "1.1.1" } }, "sha512-oVlzkg3ENAhCk2zdv7IJwd/QUD4z2RxRwpkcGY8psCVcCYZNq4wYnVWALHM+brtuJjePWiYF/ClmuDr8Ch5+kg=="],
 

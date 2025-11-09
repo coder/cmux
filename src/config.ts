@@ -426,8 +426,13 @@ export class Config {
 // Example:
 // {
 //   "anthropic": {
-//     "apiKey": "sk-...",
-//     "baseUrl": "https://api.anthropic.com"
+//     "apiKey": "sk-ant-..."
+//   },
+//   "openai": {
+//     "apiKey": "sk-..."
+//   },
+//   "ollama": {
+//     "baseUrl": "http://localhost:11434/api"  // Optional - only needed for remote/custom URL
 //   }
 // }
 ${jsonString}`;

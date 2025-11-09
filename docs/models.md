@@ -4,17 +4,88 @@ See also:
 
 - [System Prompt](./system-prompt.md)
 
-Currently we support the Sonnet 4 models and GPT-5 family of models:
+cmux supports multiple AI providers through its flexible provider architecture.
+
+### Supported Providers
+
+#### Anthropic (Cloud)
+
+Best supported provider with full feature support:
 
 - `anthropic:claude-sonnet-4-5`
 - `anthropic:claude-opus-4-1`
+
+#### OpenAI (Cloud)
+
+GPT-5 family of models:
+
 - `openai:gpt-5`
 - `openai:gpt-5-pro`
 - `openai:gpt-5-codex`
 
-And we intend to always support the models used by 90% of the community.
-
-Anthropic models are better supported than GPT-5 class models due to an outstanding issue in the
-Vercel AI SDK.
+**Note:** Anthropic models are better supported than GPT-5 class models due to an outstanding issue in the Vercel AI SDK.
 
 TODO: add issue link here.
+
+#### Ollama (Local)
+
+Run models locally with Ollama. No API key required:
+
+- `ollama:gpt-oss:20b`
+- `ollama:gpt-oss:120b`
+- `ollama:qwen3-coder:30b`
+- Any model from the [Ollama Library](https://ollama.com/library)
+
+**Setup:**
+
+1. Install Ollama from [ollama.com](https://ollama.com)
+2. Pull a model: `ollama pull gpt-oss:20b`
+3. That's it! Ollama works out-of-the-box with no configuration needed.
+
+**Custom Configuration** (optional):
+
+By default, cmux connects to Ollama at `http://localhost:11434/api`. To use a remote instance or custom port, add to `~/.cmux/providers.jsonc`:
+
+```jsonc
+{
+  "ollama": {
+    "baseUrl": "http://your-server:11434/api",
+  },
+}
+```
+
+### Provider Configuration
+
+All providers are configured in `~/.cmux/providers.jsonc`. Example configurations:
+
+```jsonc
+{
+  // Required for Anthropic models
+  "anthropic": {
+    "apiKey": "sk-ant-...",
+  },
+  // Required for OpenAI models
+  "openai": {
+    "apiKey": "sk-...",
+  },
+  // Optional for Ollama (only needed for custom URL)
+  "ollama": {
+    "baseUrl": "http://your-server:11434/api",
+  },
+}
+```
+
+### Model Selection
+
+The quickest way to switch models is with the keyboard shortcut:
+
+- **macOS:** `Cmd+/`
+- **Windows/Linux:** `Ctrl+/`
+
+Alternatively, use the Command Palette (`Cmd+Shift+P` / `Ctrl+Shift+P`):
+
+1. Type "model"
+2. Select "Change Model"
+3. Choose from available models
+
+Models are specified in the format: `provider:model-name`

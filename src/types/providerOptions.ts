@@ -30,10 +30,19 @@ export interface OpenAIProviderOptions {
 }
 
 /**
+ * Ollama-specific options
+ * Currently empty - Ollama is a local service and doesn't require special options.
+ * This interface is provided for future extensibility.
+ */
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
+export interface OllamaProviderOptions {}
+
+/**
  * Cmux provider options - used by both frontend and backend
  */
 export interface CmuxProviderOptions {
   /** Provider-specific options */
   anthropic?: AnthropicProviderOptions;
   openai?: OpenAIProviderOptions;
+  ollama?: OllamaProviderOptions;
 }

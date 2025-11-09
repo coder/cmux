@@ -93,15 +93,37 @@ if (typeof globalFetchWithExtras.certificate === "function") {
 
 /**
  * Preload AI SDK provider modules to avoid race conditions in concurrent test environments.
- * This function loads @ai-sdk/anthropic and @ai-sdk/openai eagerly so that subsequent
- * dynamic imports in createModel() hit the module cache instead of racing.
+ * This function loads @ai-sdk/anthropic, @ai-sdk/openai, and ollama-ai-provider-v2 eagerly
+ * so that subsequent dynamic imports in createModel() hit the module cache instead of racing.
  *
  * In production, providers are lazy-loaded on first use to optimize startup time.
  * In tests, we preload them once during setup to ensure reliable concurrent execution.
  */
 export async function preloadAISDKProviders(): Promise<void> {
   // Preload providers to ensure they're in the module cache before concurrent tests run
-  await Promise.all([import("@ai-sdk/anthropic"), import("@ai-sdk/openai")]);
+  await Promise.all([
+    import("@ai-sdk/anthropic"),
+    import("@ai-sdk/openai"),
+    import("ollama-ai-provider-v2"),
+  ]);
+}
+
+/**
+ * Parse provider and model ID from model string.
+ * Handles model IDs with colons (e.g., "ollama:gpt-oss:20b").
+ * Only splits on the first colon to support Ollama model naming convention.
+ *
+ * @param modelString - Model string in format "provider:model-id"
+ * @returns Tuple of [providerName, modelId]
+ * @example
+ * parseModelString("anthropic:claude-opus-4") // ["anthropic", "claude-opus-4"]
+ * parseModelString("ollama:gpt-oss:20b") // ["ollama", "gpt-oss:20b"]
+ */
+function parseModelString(modelString: string): [string, string] {
+  const colonIndex = modelString.indexOf(":");
+  const providerName = colonIndex !== -1 ? modelString.slice(0, colonIndex) : modelString;
+  const modelId = colonIndex !== -1 ? modelString.slice(colonIndex + 1) : "";
+  return [providerName, modelId];
 }
 
 export class AIService extends EventEmitter {
@@ -228,7 +250,8 @@ export class AIService extends EventEmitter {
   ): Promise<Result<LanguageModel, SendMessageError>> {
     try {
       // Parse model string (format: "provider:model-id")
-      const [providerName, modelId] = modelString.split(":");
+      // Parse provider and model ID from model string
+      const [providerName, modelId] = parseModelString(modelString);
 
       if (!providerName || !modelId) {
         return Err({
@@ -372,6 +395,27 @@ export class AIService extends EventEmitter {
         return Ok(model);
       }
 
+      // Handle Ollama provider
+      if (providerName === "ollama") {
+        // Ollama doesn't require API key - it's a local service
+        // Use custom fetch if provided, otherwise default with unlimited timeout
+        const baseFetch =
+          typeof providerConfig.fetch === "function"
+            ? (providerConfig.fetch as typeof fetch)
+            : defaultFetchWithUnlimitedTimeout;
+
+        // Lazy-load Ollama provider to reduce startup time
+        const { createOllama } = await import("ollama-ai-provider-v2");
+        const provider = createOllama({
+          ...providerConfig,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
+          fetch: baseFetch as any,
+          // Use strict mode for better compatibility with Ollama API
+          compatibility: "strict",
+        });
+        return Ok(provider(modelId));
+      }
+
       return Err({
         type: "provider_not_supported",
         provider: providerName,
@@ -433,7 +477,7 @@ export class AIService extends EventEmitter {
       log.debug_obj(`${workspaceId}/1_original_messages.json`, messages);
 
       // Extract provider name from modelString (e.g., "anthropic:claude-opus-4-1" -> "anthropic")
-      const [providerName] = modelString.split(":");
+      const [providerName] = parseModelString(modelString);
 
       // Get tool names early for mode transition sentinel (stub config, no workspace context needed)
       const earlyRuntime = createRuntime({ type: "local", srcBaseDir: process.cwd() });
