@@ -40,33 +40,37 @@ Run models locally with Ollama. No API key required:
 
 1. Install Ollama from [ollama.com](https://ollama.com)
 2. Pull a model: `ollama pull gpt-oss:20b`
-3. Configure in `~/.cmux/providers.jsonc`:
+3. That's it! Ollama works out-of-the-box with no configuration needed.
+
+**Custom Configuration** (optional):
+
+By default, cmux connects to Ollama at `http://localhost:11434/api`. To use a remote instance or custom port, add to `~/.cmux/providers.jsonc`:
 
 ```jsonc
 {
   "ollama": {
-    // Default configuration - Ollama runs on localhost:11434
-    "baseUrl": "http://localhost:11434/api",
+    "baseUrl": "http://your-server:11434/api",
   },
 }
 ```
 
-For remote Ollama instances, update `baseUrl` to point to your server.
-
 ### Provider Configuration
 
-All providers are configured in `~/.cmux/providers.jsonc`. See example configurations:
+All providers are configured in `~/.cmux/providers.jsonc`. Example configurations:
 
 ```jsonc
 {
+  // Required for Anthropic models
   "anthropic": {
     "apiKey": "sk-ant-...",
   },
+  // Required for OpenAI models
   "openai": {
     "apiKey": "sk-...",
   },
+  // Optional for Ollama (only needed for custom URL)
   "ollama": {
-    "baseUrl": "http://localhost:11434/api", // Default - only needed if different
+    "baseUrl": "http://your-server:11434/api",
   },
 }
 ```
