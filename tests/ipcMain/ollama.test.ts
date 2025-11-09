@@ -86,8 +86,17 @@ describeOllama("IpcMain Ollama integration tests", () => {
     jest.retryTimes(3, { logErrorsBeforeRetry: true });
   }
 
-  // Load tokenizer modules and ensure model is available before all tests
+  // Suppress console output in CI to reduce log spam
+  let consoleLogSpy: jest.SpyInstance;
+  let consoleWarnSpy: jest.SpyInstance;
+
   beforeAll(async () => {
+    // Suppress console output in CI
+    if (process.env.CI) {
+      consoleLogSpy = jest.spyOn(console, "log").mockImplementation(() => {});
+      consoleWarnSpy = jest.spyOn(console, "warn").mockImplementation(() => {});
+    }
+
     // Load tokenizers (takes ~14s)
     const { loadTokenizerModules } = await import("../../src/utils/main/tokenizer");
     await loadTokenizerModules();
@@ -95,6 +104,14 @@ describeOllama("IpcMain Ollama integration tests", () => {
     // Ensure Ollama model is available (idempotent - fast if cached)
     await ensureOllamaModel(OLLAMA_MODEL);
   }, 150000); // 150s timeout for tokenizer loading + potential model pull
+
+  afterAll(() => {
+    // Restore console in CI
+    if (process.env.CI) {
+      consoleLogSpy?.mockRestore();
+      consoleWarnSpy?.mockRestore();
+    }
+  });
 
   test("should successfully send message to Ollama and receive response", async () => {
     // Setup test environment
