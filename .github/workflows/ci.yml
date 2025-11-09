@@ -145,7 +145,8 @@ jobs:
 
       - name: Run Ollama integration tests with coverage
         # TEST_OLLAMA=1 enables Ollama-specific tests
-        run: TEST_INTEGRATION=1 TEST_OLLAMA=1 bun x jest --coverage --maxWorkers=100% tests/ipcMain/ollama.test.ts
+        # --silent suppresses verbose test output
+        run: TEST_INTEGRATION=1 TEST_OLLAMA=1 bun x jest --coverage --maxWorkers=100% --silent tests/ipcMain/ollama.test.ts
         env:
           OLLAMA_BASE_URL: http://localhost:11434/api
 

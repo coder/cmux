@@ -47,14 +47,19 @@ async function ensureOllamaModel(model: string): Promise<void> {
       const modelExists = modelLines.some((line) => line.includes(model));
 
       if (modelExists) {
-        console.log(`✓ Ollama model ${model} already available`);
+        // Model already available (silent in CI to reduce log spam)
         return resolve();
       }
 
-      // Model doesn't exist, pull it
-      console.log(`Pulling Ollama model ${model}...`);
+      // Model doesn't exist, pull it (silent in CI to reduce log spam)
       const pullProcess = spawn("ollama", ["pull", model], {
-        stdio: ["ignore", "inherit", "inherit"],
+        stdio: ["ignore", "pipe", "pipe"], // Capture stdout/stderr instead of inheriting
+      });
+
+      // Capture output for error reporting but don't log progress
+      let pullStderr = "";
+      pullProcess.stderr?.on("data", (data) => {
+        pullStderr += data.toString();
       });
 
       const timeout = setTimeout(() => {
@@ -65,9 +70,9 @@ async function ensureOllamaModel(model: string): Promise<void> {
       pullProcess.on("close", (pullCode) => {
         clearTimeout(timeout);
         if (pullCode !== 0) {
-          reject(new Error(`Failed to pull Ollama model ${model}`));
+          reject(new Error(`Failed to pull Ollama model ${model}: ${pullStderr}`));
         } else {
-          console.log(`✓ Ollama model ${model} pulled successfully`);
+          // Model pulled successfully (silent in CI to reduce log spam)
           resolve();
         }
       });
