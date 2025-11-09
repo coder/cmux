@@ -104,8 +104,8 @@ jobs:
 
       - name: Run integration tests with coverage
         # --silent suppresses per-test output (17 test files × 32 workers = overwhelming logs)
-        # Exclude Ollama tests (run separately in ollama-test job)
-        run: TEST_INTEGRATION=1 bun x jest --coverage --maxWorkers=100% --silent --testPathIgnorePatterns=ollama.test.ts ${{ github.event.inputs.test_filter || 'tests' }}
+        # Ollama tests are skipped automatically (require TEST_OLLAMA=1)
+        run: TEST_INTEGRATION=1 bun x jest --coverage --maxWorkers=100% --silent ${{ github.event.inputs.test_filter || 'tests' }}
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -144,8 +144,8 @@ jobs:
         run: make build-main
 
       - name: Run Ollama integration tests with coverage
-        # Run only Ollama-specific tests
-        run: TEST_INTEGRATION=1 bun x jest --coverage --maxWorkers=100% tests/ipcMain/ollama.test.ts
+        # TEST_OLLAMA=1 enables Ollama-specific tests
+        run: TEST_INTEGRATION=1 TEST_OLLAMA=1 bun x jest --coverage --maxWorkers=100% tests/ipcMain/ollama.test.ts
         env:
           OLLAMA_BASE_URL: http://localhost:11434/api
 

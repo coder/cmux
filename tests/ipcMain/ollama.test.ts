@@ -7,11 +7,13 @@ import {
 } from "./helpers";
 import { spawn } from "child_process";
 
-// Skip all tests if TEST_INTEGRATION is not set
-const describeIntegration = shouldRunIntegrationTests() ? describe : describe.skip;
+// Skip all tests if TEST_INTEGRATION or TEST_OLLAMA is not set
+const shouldRunOllamaTests = shouldRunIntegrationTests() && process.env.TEST_OLLAMA === "1";
+const describeOllama = shouldRunOllamaTests ? describe : describe.skip;
 
 // Ollama doesn't require API keys - it's a local service
 // Tests require Ollama to be running and will pull models idempotently
+// Set TEST_OLLAMA=1 to enable these tests
 
 const OLLAMA_MODEL = "gpt-oss:20b";
 
@@ -73,7 +75,7 @@ async function ensureOllamaModel(model: string): Promise<void> {
   });
 }
 
-describeIntegration("IpcMain Ollama integration tests", () => {
+describeOllama("IpcMain Ollama integration tests", () => {
   // Enable retries in CI for potential network flakiness with Ollama
   if (process.env.CI && typeof jest !== "undefined" && jest.retryTimes) {
     jest.retryTimes(3, { logErrorsBeforeRetry: true });
