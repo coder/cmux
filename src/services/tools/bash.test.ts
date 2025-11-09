@@ -1165,7 +1165,7 @@ fi
       script: `
         # Produce continuous output slowly (prevents hitting truncation limits)
         for i in {1..1000}; do
-          echo "Output line \$i"
+          echo "Output line $i"
           sleep 0.1
         done
       `,
@@ -1190,7 +1190,7 @@ fi
       setTimeout(() => reject(new Error("Test timeout - tool did not abort quickly")), 5000)
     );
 
-    const result = await Promise.race([resultPromise, timeoutPromise]) as BashToolResult;
+    const result = (await Promise.race([resultPromise, timeoutPromise])) as BashToolResult;
     const duration = Date.now() - abortTime;
 
     // Command should be aborted
@@ -1200,9 +1200,9 @@ fi
       const errorText = result.error.toLowerCase();
       expect(
         errorText.includes("abort") ||
-        errorText.includes("killed") ||
-        errorText.includes("signal") ||
-        result.exitCode === -1
+          errorText.includes("killed") ||
+          errorText.includes("signal") ||
+          result.exitCode === -1
       ).toBe(true);
     }
 
