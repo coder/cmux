@@ -48,49 +48,133 @@ Extensions are automatically discovered and loaded when cmux starts.
 
 ```typescript
 interface Extension {
+  /**
+   * Hook called after a tool is executed.
+   * Extensions can monitor, log, or modify the tool result.
+   * 
+   * @param payload - Tool execution context with full Runtime access
+   * @returns The tool result (modified or unmodified). Return undefined to leave unchanged.
+   */
   onPostToolUse?: (payload: PostToolUseHookPayload) => Promise<unknown> | unknown;
 }
 
 interface PostToolUseHookPayload {
-  toolName: string;        // e.g., "bash", "file_edit"
-  toolCallId: string;      // Unique ID for this tool invocation
-  args: unknown;           // Tool arguments
-  result: unknown;         // Tool result (can be modified)
-  workspaceId: string;     // Workspace identifier
-  timestamp: number;       // Unix timestamp (ms)
-  runtime: Runtime;        // Full workspace runtime access
+  /** Tool name (e.g., "bash", "file_edit_replace_string") */
+  toolName: string;
+  
+  /** Unique ID for this tool invocation */
+  toolCallId: string;
+  
+  /** Tool-specific arguments (structure varies by tool) */
+  args: unknown;
+  
+  /** Tool result (structure varies by tool) - can be modified and returned */
+  result: unknown;
+  
+  /** Workspace identifier */
+  workspaceId: string;
+  
+  /** Unix timestamp in milliseconds */
+  timestamp: number;
+  
+  /** Full workspace runtime access (see Runtime API below) */
+  runtime: Runtime;
 }
 ```
 
 ## Runtime API
 
-Extensions receive a `runtime` object with full workspace access:
+Extensions receive a `runtime` object providing low-level access to the workspace:
 
 ```typescript
 interface Runtime {
-  // Execute bash commands with streaming I/O
+  /**
+   * Execute a bash command with streaming I/O
+   * @param command - Bash script to execute
+   * @param options - Execution options (cwd, env, timeout, etc.)
+   * @returns Streaming handles for stdin/stdout/stderr and exit code
+   */
   exec(command: string, options: ExecOptions): Promise<ExecStream>;
   
-  // File operations (streaming primitives)
+  /**
+   * Read file contents as a stream
+   * @param path - Path to file (relative to workspace root)
+   * @param abortSignal - Optional abort signal
+   * @returns Readable stream of file contents
+   */
   readFile(path: string, abortSignal?: AbortSignal): ReadableStream<Uint8Array>;
+  
+  /**
+   * Write file contents from a stream
+   * @param path - Path to file (relative to workspace root)
+   * @param abortSignal - Optional abort signal
+   * @returns Writable stream for file contents
+   */
   writeFile(path: string, abortSignal?: AbortSignal): WritableStream<Uint8Array>;
+  
+  /**
+   * Get file statistics
+   * @param path - Path to file or directory
+   * @param abortSignal - Optional abort signal
+   * @returns File statistics (size, modified time, isDirectory)
+   */
   stat(path: string, abortSignal?: AbortSignal): Promise<FileStat>;
   
-  // Path operations
+  /**
+   * Compute absolute workspace path
+   * @param projectPath - Project root path
+   * @param workspaceName - Workspace name
+   * @returns Absolute path to workspace
+   */
   getWorkspacePath(projectPath: string, workspaceName: string): string;
-  normalizePath(targetPath: string, basePath: string): string;
-  resolvePath(path: string): Promise<string>;
   
-  // Workspace operations
-  createWorkspace(params: WorkspaceCreationParams): Promise<WorkspaceCreationResult>;
-  initWorkspace(params: WorkspaceInitParams): Promise<WorkspaceInitResult>;
-  deleteWorkspace(...): Promise<Result>;
-  renameWorkspace(...): Promise<Result>;
-  forkWorkspace(...): Promise<Result>;
+  /**
+   * Normalize a path for comparison
+   * @param targetPath - Path to normalize
+   * @param basePath - Base path for relative resolution
+   * @returns Normalized path
+   */
+  normalizePath(targetPath: string, basePath: string): string;
+  
+  /**
+   * Resolve path to absolute, canonical form
+   * @param path - Path to resolve (may contain ~ or be relative)
+   * @returns Absolute path
+   */
+  resolvePath(path: string): Promise<string>;
+}
+
+interface ExecOptions {
+  /** Working directory (usually "." for workspace root) */
+  cwd: string;
+  /** Environment variables */
+  env?: Record<string, string>;
+  /** Timeout in seconds (required) */
+  timeout: number;
+  /** Process niceness (-20 to 19) */
+  niceness?: number;
+  /** Abort signal */
+  abortSignal?: AbortSignal;
+}
+
+interface ExecStream {
+  stdout: ReadableStream<Uint8Array>;
+  stderr: ReadableStream<Uint8Array>;
+  stdin: WritableStream<Uint8Array>;
+  exitCode: Promise<number>;
+  duration: Promise<number>;
+}
+
+interface FileStat {
+  size: number;
+  modifiedTime: Date;
+  isDirectory: boolean;
 }
 ```
 
-**Most extensions will use `runtime.exec()` for file operations:**
+### Common Patterns
+
+**Most extensions will use `runtime.exec()` for simplicity:**
 
 ```typescript
 // Write file
@@ -101,9 +185,13 @@ await runtime.exec(`echo "line" >> file.txt`, { cwd: ".", timeout: 5 });
 
 // Read file
 const result = await runtime.exec(`cat file.txt`, { cwd: ".", timeout: 5 });
+
+// Check if file exists
+const { exitCode } = await runtime.exec(`test -f file.txt`, { cwd: ".", timeout: 5 });
+const exists = exitCode === 0;
 ```
 
-All paths are relative to the workspace root.
+All file paths are relative to the workspace root.
 
 ## Modifying Tool Results
 
