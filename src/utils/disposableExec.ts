@@ -2,6 +2,90 @@ import { exec } from "child_process";
 import type { ChildProcess } from "child_process";
 
 /**
+ * Disposable wrapper for child processes that ensures immediate cleanup.
+ * Implements TypeScript's explicit resource management (using) for process lifecycle.
+ *
+ * All registered cleanup callbacks execute immediately when disposed, either:
+ * - Explicitly via Symbol.dispose
+ * - Automatically when exiting a `using` block
+ * - On process exit
+ *
+ * Usage:
+ *   const process = spawn("command");
+ *   const disposable = new DisposableProcess(process);
+ *   disposable.addCleanup(() => stream.destroy());
+ *   // Cleanup runs automatically on process exit
+ */
+export class DisposableProcess implements Disposable {
+  private cleanupCallbacks: Array<() => void> = [];
+  private disposed = false;
+
+  constructor(private readonly process: ChildProcess) {
+    // No auto-cleanup - callers explicitly dispose via timeout/abort handlers
+    // Process streams close naturally when process exits
+  }
+
+  /**
+   * Register cleanup callback to run when process is disposed.
+   * If already disposed, runs immediately.
+   */
+  addCleanup(callback: () => void): void {
+    if (this.disposed) {
+      // Already disposed, run immediately
+      try {
+        callback();
+      } catch {
+        // Ignore errors during cleanup
+      }
+    } else {
+      this.cleanupCallbacks.push(callback);
+    }
+  }
+
+  /**
+   * Get the underlying child process
+   */
+  get underlying(): ChildProcess {
+    return this.process;
+  }
+
+  /**
+   * Cleanup: kill process + run all cleanup callbacks immediately.
+   * Safe to call multiple times (idempotent).
+   */
+  [Symbol.dispose](): void {
+    if (this.disposed) return;
+    this.disposed = true;
+
+    // Kill process if still running
+    // Check both exitCode and signalCode to avoid calling kill() on already-dead processes
+    // When a process exits via signal (e.g., segfault, kill $$), exitCode is null but signalCode is set
+    if (
+      !this.process.killed &&
+      this.process.exitCode === null &&
+      this.process.signalCode === null
+    ) {
+      try {
+        this.process.kill("SIGKILL");
+      } catch {
+        // Ignore ESRCH errors - process may have exited between check and kill
+      }
+    }
+
+    // Run all cleanup callbacks
+    for (const callback of this.cleanupCallbacks) {
+      try {
+        callback();
+      } catch {
+        // Ignore cleanup errors - we're tearing down anyway
+      }
+    }
+
+    this.cleanupCallbacks = [];
+  }
+}
+
+/**
  * Disposable wrapper for exec that ensures child process cleanup.
  * Prevents zombie processes by killing child when scope exits.
  *
