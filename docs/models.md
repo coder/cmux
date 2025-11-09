@@ -73,11 +73,13 @@ All providers are configured in `~/.cmux/providers.jsonc`. See example configura
 
 ### Model Selection
 
-Use the Command Palette (`Cmd+Shift+P`) to switch models:
+The quickest way to switch models is with the keyboard shortcut:
+- **macOS:** `Cmd+/`
+- **Windows/Linux:** `Ctrl+/`
 
-1. Open Command Palette
-2. Type "model"
-3. Select "Change Model"
-4. Choose from available models
+Alternatively, use the Command Palette (`Cmd+Shift+P` / `Ctrl+Shift+P`):
+1. Type "model"
+2. Select "Change Model"
+3. Choose from available models
 
 Models are specified in the format: `provider:model-name`
