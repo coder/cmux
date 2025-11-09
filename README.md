@@ -37,6 +37,7 @@ Here are some specific use cases we enable:
   - **Local**: git worktrees on your local machine ([docs](https://cmux.io/local.html))
   - **SSH**: regular git clones on a remote server ([docs](https://cmux.io/ssh.html))
 - Multi-model (`sonnet-4-*`, `gpt-5-*`, `opus-4-*`)
+  - Ollama supported for local LLMs ([docs](https://cmux.io/models.html))
 - Supporting UI and keybinds for efficiently managing a suite of agents
 - Rich markdown outputs (mermaid diagrams, LaTeX, etc.)
 
