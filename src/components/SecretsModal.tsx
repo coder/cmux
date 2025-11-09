@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Modal, ModalInfo, ModalActions, CancelButton, PrimaryButton } from "./Modal";
 import type { Secret } from "@/types/secrets";
+import { formatConfigPath } from "@/utils/ui/pathFormatting";
 
 // Visibility toggle icon component
 const ToggleVisibilityIcon: React.FC<{ visible: boolean }> = ({ visible }) => {
@@ -132,8 +133,8 @@ const SecretsModal: React.FC<SecretsModalProps> = ({
     >
       <ModalInfo>
         <p>
-          Secrets are stored in <code>~/.cmux/secrets.json</code> (kept away from source code) but
-          namespaced per project.
+          Secrets are stored in <code>{formatConfigPath("secrets.json")}</code> (kept away from
+          source code) but namespaced per project.
         </p>
         <p>Secrets are injected as environment variables to compute commands (e.g. Bash)</p>
       </ModalInfo>

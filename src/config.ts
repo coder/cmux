@@ -7,6 +7,7 @@ import writeFileAtomic from "write-file-atomic";
 import type { WorkspaceMetadata, FrontendWorkspaceMetadata } from "./types/workspace";
 import type { Secret, SecretsConfig } from "./types/secrets";
 import type { Workspace, ProjectConfig, ProjectsConfig } from "./types/project";
+import { PlatformPaths } from "./utils/platform/paths";
 
 // Re-export project types from dedicated types file (for preload usage)
 export type { Workspace, ProjectConfig, ProjectsConfig };
@@ -96,7 +97,7 @@ export class Config {
   }
 
   private getProjectName(projectPath: string): string {
-    return projectPath.split("/").pop() ?? projectPath.split("\\").pop() ?? "unknown";
+    return PlatformPaths.getProjectName(projectPath);
   }
 
   /**
@@ -120,8 +121,7 @@ export class Config {
    */
   generateLegacyId(projectPath: string, workspacePath: string): string {
     const projectBasename = this.getProjectName(projectPath);
-    const workspaceBasename =
-      workspacePath.split("/").pop() ?? workspacePath.split("\\").pop() ?? "unknown";
+    const workspaceBasename = PlatformPaths.basename(workspacePath) || "unknown";
     return `${projectBasename}-${workspaceBasename}`;
   }
 
@@ -162,8 +162,7 @@ export class Config {
         // LEGACY FORMAT: Fall back to metadata.json and legacy ID for unmigrated workspaces
         if (!workspace.id) {
           // Extract workspace basename (could be stable ID or legacy name)
-          const workspaceBasename =
-            workspace.path.split("/").pop() ?? workspace.path.split("\\").pop() ?? "unknown";
+          const workspaceBasename = PlatformPaths.basename(workspace.path) || "unknown";
 
           // Try loading metadata with basename as ID (works for old workspaces)
           const metadataPath = path.join(this.getSessionDir(workspaceBasename), "metadata.json");

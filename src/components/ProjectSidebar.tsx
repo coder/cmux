@@ -10,6 +10,7 @@ import { useDrag, useDrop, useDragLayer } from "react-dnd";
 import { sortProjectsByOrder, reorderProjects, normalizeOrder } from "@/utils/projectOrdering";
 import { matchesKeybind, formatKeybind, KEYBINDS } from "@/utils/ui/keybinds";
 import { abbreviatePath, splitAbbreviatedPath } from "@/utils/ui/pathAbbreviation";
+import { PlatformPaths } from "@/utils/platform/paths";
 import {
   partitionWorkspacesByAge,
   formatOldWorkspaceThreshold,
@@ -237,7 +238,7 @@ const ProjectSidebarInner: React.FC<ProjectSidebarProps> = ({
     if (!path || typeof path !== "string") {
       return "Unknown";
     }
-    return path.split("/").pop() ?? path.split("\\").pop() ?? path;
+    return PlatformPaths.getProjectName(path);
   };
 
   const toggleProject = (projectPath: string) => {
