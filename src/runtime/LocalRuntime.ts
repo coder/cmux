@@ -397,7 +397,7 @@ export class LocalRuntime implements Runtime {
   /**
    * Run .cmux/init hook if it exists and is executable
    */
-  async runInitHook(
+  private async runInitHook(
     projectPath: string,
     workspacePath: string,
     initLogger: InitLogger

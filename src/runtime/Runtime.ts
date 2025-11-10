@@ -306,27 +306,12 @@ export interface Runtime {
   /**
    * Initialize workspace asynchronously (may be slow, streams progress)
    * - LocalRuntime: Runs init hook if present
-   * - SSHRuntime: Syncs files, checks out branch, runs init hook
+   * - SSHRuntime: Syncs files (or copies from source), checks out branch, runs init hook
    * Streams progress via initLogger.
    * @param params Workspace initialization parameters
    * @returns Result indicating success or error
    */
   initWorkspace(params: WorkspaceInitParams): Promise<WorkspaceInitResult>;
-
-  /**
-   * Run .cmux/init hook if it exists and is executable
-   * @param projectPath Project root path
-   * @param workspacePath Workspace directory path
-   * @param initLogger Logger for streaming hook output
-   * @param abortSignal Optional abort signal for cancellation (SSH only)
-   * @returns Promise that resolves when hook completes (or immediately if no hook)
-   */
-  runInitHook(
-    projectPath: string,
-    workspacePath: string,
-    initLogger: InitLogger,
-    abortSignal?: AbortSignal
-  ): Promise<void>;
 
   /**
    * Rename workspace directory

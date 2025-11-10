@@ -708,7 +708,7 @@ export class SSHRuntime implements Runtime {
   /**
    * Run .cmux/init hook on remote machine if it exists
    */
-  async runInitHook(
+  private async runInitHook(
     projectPath: string,
     workspacePath: string,
     initLogger: InitLogger,
