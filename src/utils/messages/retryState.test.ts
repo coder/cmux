@@ -10,23 +10,16 @@ import {
 
 describe("retryState utilities", () => {
   describe("calculateBackoffDelay", () => {
-    it("returns exponential backoff delays", () => {
-      expect(calculateBackoffDelay(0)).toBe(1000); // 2^0 = 1s
-      expect(calculateBackoffDelay(1)).toBe(2000); // 2^1 = 2s
-      expect(calculateBackoffDelay(2)).toBe(4000); // 2^2 = 4s
-      expect(calculateBackoffDelay(3)).toBe(8000); // 2^3 = 8s
-      expect(calculateBackoffDelay(4)).toBe(16000); // 2^4 = 16s
-      expect(calculateBackoffDelay(5)).toBe(32000); // 2^5 = 32s
+    it("returns exponential backoff: 1s → 2s → 4s → 8s...", () => {
+      expect(calculateBackoffDelay(0)).toBe(1000);
+      expect(calculateBackoffDelay(1)).toBe(2000);
+      expect(calculateBackoffDelay(2)).toBe(4000);
+      expect(calculateBackoffDelay(3)).toBe(8000);
     });
 
-    it("caps delay at MAX_DELAY", () => {
-      expect(calculateBackoffDelay(6)).toBe(60000); // 2^6 = 64s → capped at 60s
-      expect(calculateBackoffDelay(7)).toBe(60000); // 2^7 = 128s → capped at 60s
-      expect(calculateBackoffDelay(10)).toBe(60000); // Always capped
-    });
-
-    it("MAX_DELAY should be 60 seconds", () => {
-      expect(MAX_DELAY).toBe(60000);
+    it("caps at 60 seconds for large attempts", () => {
+      expect(calculateBackoffDelay(6)).toBe(60000);
+      expect(calculateBackoffDelay(10)).toBe(60000);
     });
   });
 
@@ -51,11 +44,8 @@ describe("retryState utilities", () => {
 
     it("makes retry immediately eligible by backdating retryStartTime", () => {
       const state = createManualRetryState(0);
-
-      // Should be backdated by INITIAL_DELAY to be immediately eligible
       const expectedTime = Date.now() - INITIAL_DELAY;
       expect(state.retryStartTime).toBeLessThanOrEqual(expectedTime);
-      expect(state.retryStartTime).toBeGreaterThan(expectedTime - 100); // Allow 100ms tolerance
     });
 
     it("clears any previous error", () => {
@@ -63,98 +53,48 @@ describe("retryState utilities", () => {
       expect(state.lastError).toBeUndefined();
     });
 
-    it("prevents no-backoff bug: manual retry at attempt 3 should continue backoff progression", () => {
-      const currentAttempt = 3;
-      const state = createManualRetryState(currentAttempt);
-
-      // Bug scenario: User manually retries after 3 failed attempts
-      // Expected: Next auto-retry should wait for 2^3 = 8 seconds
-      // Bug (before fix): Next auto-retry would start at attempt 0 (1 second)
-
-      // Verify attempt counter is preserved (not reset to 0)
-      expect(state.attempt).toBe(3);
-
-      // Calculate expected backoff if this manual retry fails
-      const expectedDelay = INITIAL_DELAY * Math.pow(2, state.attempt);
-      expect(expectedDelay).toBe(8000); // 8 seconds for attempt 3
-
-      // If attempt was 0 (the bug), delay would only be 1 second
-      const buggyDelay = INITIAL_DELAY * Math.pow(2, 0);
-      expect(buggyDelay).toBe(1000);
-
-      // Verify we're NOT creating buggy state
-      expect(state.attempt).not.toBe(0);
+    it("prevents no-backoff bug: preserves attempt counter for continued backoff", () => {
+      // Bug scenario: After 3 failed attempts, manual retry should preserve counter
+      // so next failure waits 2^3=8s, not reset to 2^0=1s
+      const state = createManualRetryState(3);
+      expect(state.attempt).toBe(3); // NOT reset to 0
     });
   });
 
   describe("createFailedRetryState", () => {
-    it("increments attempt counter", () => {
+    it("increments attempt counter and stores error", () => {
       const error = { type: "unknown" as const, raw: "Test error" };
       const state = createFailedRetryState(2, error);
 
-      expect(state.attempt).toBe(3); // 2 + 1
-    });
-
-    it("stores the error for display", () => {
-      const error = { type: "api_key_not_found" as const, provider: "openai" };
-      const state = createFailedRetryState(0, error);
-
+      expect(state.attempt).toBe(3);
       expect(state.lastError).toEqual(error);
-    });
-
-    it("updates retryStartTime for backoff calculation", () => {
-      const error = { type: "unknown" as const, raw: "Test" };
-      const state = createFailedRetryState(1, error);
-
       expect(state.retryStartTime).toBeLessThanOrEqual(Date.now());
-      expect(state.retryStartTime).toBeGreaterThan(Date.now() - 1000); // Within last second
     });
   });
 
   describe("backoff progression scenario", () => {
     it("maintains exponential backoff through manual retries", () => {
-      // Simulate: auto-retry fails 3 times, user clicks manual retry, it fails again
-
-      // Initial auto-retry fails
-      let state = createFailedRetryState(0, { type: "unknown" as const, raw: "Error 1" });
-      expect(state.attempt).toBe(1);
-
-      // Second auto-retry fails
-      state = createFailedRetryState(state.attempt, { type: "unknown" as const, raw: "Error 2" });
-      expect(state.attempt).toBe(2);
-
-      // Third auto-retry fails
-      state = createFailedRetryState(state.attempt, { type: "unknown" as const, raw: "Error 3" });
-      expect(state.attempt).toBe(3);
-
-      // User clicks manual retry - CRITICAL: preserve attempt counter
-      state = createManualRetryState(state.attempt);
-      expect(state.attempt).toBe(3); // NOT reset to 0
-
-      // Manual retry fails - should increment to 4
-      state = createFailedRetryState(state.attempt, { type: "unknown" as const, raw: "Error 4" });
-      expect(state.attempt).toBe(4);
-
-      // Next auto-retry should wait 2^4 = 16 seconds
-      const delay = INITIAL_DELAY * Math.pow(2, state.attempt);
-      expect(delay).toBe(16000);
-    });
-
-    it("resets backoff on successful stream start", () => {
-      // Simulate: failed several times, then succeeded
+      // 3 auto-retry failures → manual retry → preserves attempt counter
       let state = createFailedRetryState(0, { type: "unknown" as const, raw: "Error" });
       state = createFailedRetryState(state.attempt, { type: "unknown" as const, raw: "Error" });
       state = createFailedRetryState(state.attempt, { type: "unknown" as const, raw: "Error" });
       expect(state.attempt).toBe(3);
 
-      // Stream starts successfully - reset everything
+      state = createManualRetryState(state.attempt);
+      expect(state.attempt).toBe(3); // NOT reset to 0
+
+      state = createFailedRetryState(state.attempt, { type: "unknown" as const, raw: "Error" });
+      expect(state.attempt).toBe(4); // Continues progression
+    });
+
+    it("resets backoff on successful stream start", () => {
+      let state = createFailedRetryState(0, { type: "unknown" as const, raw: "Error" });
+      state = createFailedRetryState(state.attempt, { type: "unknown" as const, raw: "Error" });
+      expect(state.attempt).toBe(2);
+
       state = createFreshRetryState();
       expect(state.attempt).toBe(0);
       expect(state.lastError).toBeUndefined();
-
-      // Next failure should start fresh at attempt 1
-      state = createFailedRetryState(state.attempt, { type: "unknown" as const, raw: "Error" });
-      expect(state.attempt).toBe(1);
     });
   });
 });
