@@ -299,6 +299,9 @@ export interface IPCApi {
     install(): void;
     onStatus(callback: (status: UpdateStatus) => void): () => void;
   };
+  server?: {
+    getLaunchProject(): Promise<string | null>;
+  };
 }
 
 // Update status type (matches updater service)

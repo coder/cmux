@@ -13,6 +13,7 @@ import * as path from "path";
 import type { RawData } from "ws";
 import { WebSocket, WebSocketServer } from "ws";
 import { Command } from "commander";
+import { validateProjectPath } from "./utils/pathUtils";
 
 // Parse command line arguments
 const program = new Command();
@@ -22,11 +23,16 @@ program
   .description("HTTP/WebSocket server for cmux - allows accessing cmux backend from mobile devices")
   .option("-h, --host <host>", "bind to specific host", "localhost")
   .option("-p, --port <port>", "bind to specific port", "3000")
+  .option("--add-project <path>", "add and open project at the specified path (idempotent)")
   .parse(process.argv);
 
 const options = program.opts();
 const HOST = options.host as string;
 const PORT = parseInt(options.port as string, 10);
+const ADD_PROJECT_PATH = options.addProject as string | undefined;
+
+// Track the launch project path for initial navigation
+let launchProjectPath: string | null = null;
 
 // Mock Electron's ipcMain for HTTP
 class HttpIpcMainAdapter {
@@ -34,6 +40,13 @@ class HttpIpcMainAdapter {
   private listeners = new Map<string, Array<(event: unknown, ...args: unknown[]) => void>>();
 
   constructor(private readonly app: express.Application) {}
+
+  // Public method to get a handler (for internal use)
+  getHandler(
+    channel: string
+  ): ((event: unknown, ...args: unknown[]) => Promise<unknown>) | undefined {
+    return this.handlers.get(channel);
+  }
 
   handle(channel: string, handler: (event: unknown, ...args: unknown[]) => Promise<unknown>): void {
     this.handlers.set(channel, handler);
@@ -137,6 +150,11 @@ ipcMainService.register(
   httpIpcMain as unknown as ElectronIpcMain,
   mockWindow as unknown as BrowserWindow
 );
+
+// Add custom endpoint for launch project (only for server mode)
+httpIpcMain.handle("server:getLaunchProject", () => {
+  return Promise.resolve(launchProjectPath);
+});
 
 // Serve static files from dist directory (built renderer)
 app.use(express.static(path.join(__dirname, ".")));
@@ -247,6 +265,85 @@ wss.on("connection", (ws) => {
   });
 });
 
+/**
+ * Initialize a project from the --add-project flag
+ * This checks if a project exists at the given path, creates it if not, and opens it
+ */
+async function initializeProject(
+  projectPath: string,
+  ipcAdapter: HttpIpcMainAdapter
+): Promise<void> {
+  try {
+    // Trim trailing slashes to ensure proper project name extraction
+    projectPath = projectPath.replace(/\/+$/, "");
+
+    // Normalize path (expand tilde, make absolute) to match how PROJECT_CREATE normalizes paths
+    const validation = await validateProjectPath(projectPath);
+    if (!validation.valid) {
+      const errorMsg = validation.error ?? "Unknown validation error";
+      console.error(`Invalid project path: ${errorMsg}`);
+      return;
+    }
+    projectPath = validation.expandedPath!;
+
+    // First, check if project already exists by listing all projects
+    const handler = ipcAdapter.getHandler(IPC_CHANNELS.PROJECT_LIST);
+    if (!handler) {
+      console.error("PROJECT_LIST handler not found");
+      return;
+    }
+
+    const projectsList = await handler(null);
+    if (!Array.isArray(projectsList)) {
+      console.error("Unexpected PROJECT_LIST response format");
+      return;
+    }
+
+    // Check if the project already exists (projectsList is Array<[string, ProjectConfig]>)
+    const existingProject = (projectsList as Array<[string, unknown]>).find(
+      ([path]) => path === projectPath
+    );
+
+    if (existingProject) {
+      console.log(`Project already exists at: ${projectPath}`);
+      launchProjectPath = projectPath;
+      return;
+    }
+
+    // Project doesn't exist, create it
+    console.log(`Creating new project at: ${projectPath}`);
+    const createHandler = ipcAdapter.getHandler(IPC_CHANNELS.PROJECT_CREATE);
+    if (!createHandler) {
+      console.error("PROJECT_CREATE handler not found");
+      return;
+    }
+
+    const createResult = await createHandler(null, projectPath);
+
+    // Check if creation was successful using the Result type
+    if (createResult && typeof createResult === "object" && "success" in createResult) {
+      if (createResult.success) {
+        console.log(`Successfully created project at: ${projectPath}`);
+        launchProjectPath = projectPath;
+      } else if ("error" in createResult) {
+        const err = createResult as { error: unknown };
+        const errorMsg = err.error instanceof Error ? err.error.message : String(err.error);
+        console.error(`Failed to create project: ${errorMsg}`);
+      }
+    } else {
+      console.error("Unexpected PROJECT_CREATE response format");
+    }
+  } catch (error) {
+    console.error(`Error initializing project:`, error);
+  }
+}
+
 server.listen(PORT, HOST, () => {
   console.log(`Server is running on http://${HOST}:${PORT}`);
+
+  // Handle --add-project flag if present
+  if (ADD_PROJECT_PATH) {
+    console.log(`Initializing project at: ${ADD_PROJECT_PATH}`);
+    void initializeProject(ADD_PROJECT_PATH, httpIpcMain);
+  }
 });
