@@ -115,3 +115,4 @@ test_hot_reload.sh
 # mdBook pagetoc (auto-generated)
 docs/theme/pagetoc.css
 docs/theme/pagetoc.js
+docs/theme/code-blocks.js

@@ -37,7 +37,7 @@ include fmt.mk
 .PHONY: lint lint-fix typecheck static-check
 .PHONY: test test-unit test-integration test-watch test-coverage test-e2e
 .PHONY: dist dist-mac dist-win dist-linux
-.PHONY: docs docs-build docs-watch
+.PHONY: docs docs-build docs-watch docs-theme
 .PHONY: storybook storybook-build test-storybook chromatic
 .PHONY: benchmark-terminal
 .PHONY: ensure-deps
@@ -271,11 +271,16 @@ dist-linux: build ## Build Linux distributable
 docs: ## Serve documentation locally
 	@./scripts/docs.sh
 
-docs-build: ## Build documentation
+docs-build: docs-theme ## Build documentation
 	@./scripts/docs_build.sh
 
-docs-watch: ## Watch and rebuild documentation
+docs-watch: docs-theme ## Watch and rebuild documentation
 	@cd docs && mdbook watch
+
+docs-theme: ## Build documentation theme assets (TypeScript -> JavaScript)
+	@echo "$(BLUE)Building documentation theme...$(RESET)"
+	@cd docs/theme-src && bun build code-blocks.ts --outfile=../theme/code-blocks.js --target=browser --minify >/dev/null 2>&1
+	@echo "$(GREEN)✓ Theme built: docs/theme/code-blocks.js$(RESET)"
 
 ## Storybook
 storybook: node_modules/.installed ## Start Storybook development server
