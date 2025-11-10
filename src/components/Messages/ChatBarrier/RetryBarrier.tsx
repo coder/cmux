@@ -43,14 +43,18 @@ export const RetryBarrier: React.FC<RetryBarrierProps> = ({ workspaceId, classNa
   // Compute effective autoRetry state: user preference AND error is retryable
   // This ensures UI shows "Retry" button (not "Retrying...") for non-retryable errors
   const effectiveAutoRetry = useMemo(() => {
-    console.log("[retry] RetryBarrier effectiveAutoRetry calculation:", {
-      autoRetry,
-      hasWorkspaceState: !!workspaceState,
-      lastError,
-    });
+    if (window.__CMUX_FORCE_ALL_RETRYABLE) {
+      console.log("[retry] RetryBarrier effectiveAutoRetry calculation:", {
+        autoRetry,
+        hasWorkspaceState: !!workspaceState,
+        lastError,
+      });
+    }
 
     if (!autoRetry || !workspaceState) {
-      console.log("[retry] effectiveAutoRetry=false: autoRetry disabled or no workspace state");
+      if (window.__CMUX_FORCE_ALL_RETRYABLE) {
+        console.log("[retry] effectiveAutoRetry=false: autoRetry disabled or no workspace state");
+      }
       return false;
     }
 
@@ -60,16 +64,22 @@ export const RetryBarrier: React.FC<RetryBarrierProps> = ({ workspaceId, classNa
       workspaceState.pendingStreamStartTime
     );
 
-    console.log("[retry] messagesEligible:", messagesEligible);
+    if (window.__CMUX_FORCE_ALL_RETRYABLE) {
+      console.log("[retry] messagesEligible:", messagesEligible);
+    }
 
     // Also check RetryState for SendMessageErrors (from resumeStream failures)
     // Note: isNonRetryableSendError already respects window.__CMUX_FORCE_ALL_RETRYABLE
     if (lastError && isNonRetryableSendError(lastError)) {
-      console.log("[retry] effectiveAutoRetry=false: lastError is non-retryable");
+      if (window.__CMUX_FORCE_ALL_RETRYABLE) {
+        console.log("[retry] effectiveAutoRetry=false: lastError is non-retryable");
+      }
       return false; // Non-retryable SendMessageError
     }
 
-    console.log("[retry] effectiveAutoRetry:", messagesEligible);
+    if (window.__CMUX_FORCE_ALL_RETRYABLE) {
+      console.log("[retry] effectiveAutoRetry:", messagesEligible);
+    }
     return messagesEligible;
   }, [autoRetry, workspaceState, lastError]);
 
@@ -128,13 +138,15 @@ export const RetryBarrier: React.FC<RetryBarrierProps> = ({ workspaceId, classNa
       : formatted.message;
   };
 
-  console.log("[retry] RetryBarrier rendering:", {
-    effectiveAutoRetry,
-    autoRetry,
-    attempt,
-    countdown,
-    lastError,
-  });
+  if (window.__CMUX_FORCE_ALL_RETRYABLE) {
+    console.log("[retry] RetryBarrier rendering:", {
+      effectiveAutoRetry,
+      autoRetry,
+      attempt,
+      countdown,
+      lastError,
+    });
+  }
 
   if (effectiveAutoRetry) {
     // Auto-retry mode: Show countdown and stop button
