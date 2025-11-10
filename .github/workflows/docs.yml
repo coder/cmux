@@ -39,7 +39,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.cargo/bin
-          key: ${{ runner.os }}-cargo-bins-mdbook-mermaid-0.16.0-linkcheck-0.7.7
+          key: ${{ runner.os }}-cargo-bins-mdbook-mermaid-0.16.0-linkcheck-0.7.7-pagetoc-0.2.1
           restore-keys: |
             ${{ runner.os }}-cargo-bins-
 
@@ -60,6 +60,20 @@ jobs:
           if ! command -v mdbook-linkcheck &> /dev/null; then
             cargo install mdbook-linkcheck --version 0.7.7
           fi
+
+      - name: Install mdbook-pagetoc
+        run: |
+          if ! command -v mdbook-pagetoc &> /dev/null; then
+            cargo install mdbook-pagetoc --version 0.2.1
+          fi
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install
 
       - name: Build docs
         run: cd docs && mdbook build
