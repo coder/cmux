@@ -2,6 +2,30 @@ import type { DisplayedMessage } from "@/types/message";
 import type { StreamErrorType, SendMessageError } from "@/types/errors";
 
 /**
+ * Debug flag to force all errors to be retryable
+ * Set in browser console: window.__CMUX_FORCE_ALL_RETRYABLE = true
+ *
+ * Useful for testing retry/backoff logic without needing to simulate
+ * specific network conditions or rate limits.
+ *
+ * Note: If you set this flag after an error occurs, you may need to
+ * trigger a manual retry first (click "Retry" button) to clear the
+ * stored non-retryable error state.
+ */
+declare global {
+  interface Window {
+    __CMUX_FORCE_ALL_RETRYABLE?: boolean;
+  }
+}
+
+/**
+ * Check if the debug flag to force all errors to be retryable is enabled
+ */
+function isForceAllRetryableEnabled(): boolean {
+  return typeof window !== "undefined" && window.__CMUX_FORCE_ALL_RETRYABLE === true;
+}
+
+/**
  * Error types that should NOT be auto-retried because they require user action
  * These errors won't resolve on their own - the user must fix the underlying issue
  */
@@ -17,6 +41,11 @@ const NON_RETRYABLE_STREAM_ERRORS: StreamErrorType[] = [
  * Check if a SendMessageError (from resumeStream failures) is non-retryable
  */
 export function isNonRetryableSendError(error: SendMessageError): boolean {
+  // Debug flag: force all errors to be retryable
+  if (isForceAllRetryableEnabled()) {
+    return false;
+  }
+
   switch (error.type) {
     case "api_key_not_found": // Missing API key - user must configure
     case "provider_not_supported": // Unsupported provider - user must switch
@@ -91,6 +120,10 @@ export function isEligibleForAutoRetry(
   // (but manual retry is still available via hasInterruptedStream)
   const lastMessage = messages[messages.length - 1];
   if (lastMessage.type === "stream-error") {
+    // Debug flag: force all errors to be retryable
+    if (isForceAllRetryableEnabled()) {
+      return true;
+    }
     return !NON_RETRYABLE_STREAM_ERRORS.includes(lastMessage.errorType);
   }
 

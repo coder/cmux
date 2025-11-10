@@ -18,6 +18,7 @@ import type { TokenConsumer } from "@/types/chatStats";
 import type { LanguageModelV2Usage } from "@ai-sdk/provider";
 import { getCancelledCompactionKey } from "@/constants/storage";
 import { isCompactingStream, findCompactionRequestMessage } from "@/utils/compaction/handler";
+import { createFreshRetryState } from "@/utils/messages/retryState";
 
 export interface WorkspaceState {
   name: string; // User-facing workspace name (e.g., "feature-branch")
@@ -123,10 +124,8 @@ export class WorkspaceStore {
       if (this.onModelUsed) {
         this.onModelUsed((data as { model: string }).model);
       }
-      updatePersistedState(getRetryStateKey(workspaceId), {
-        attempt: 0,
-        retryStartTime: Date.now(),
-      });
+      // Don't reset retry state here - stream might still fail after starting
+      // Retry state will be reset on stream-end (successful completion)
       this.states.bump(workspaceId);
     },
     "stream-delta": (workspaceId, aggregator, data) => {
@@ -140,6 +139,9 @@ export class WorkspaceStore {
       if (this.handleCompactionCompletion(workspaceId, aggregator, data)) {
         return;
       }
+
+      // Reset retry state on successful stream completion
+      updatePersistedState(getRetryStateKey(workspaceId), createFreshRetryState());
 
       this.states.bump(workspaceId);
       this.checkAndBumpRecencyIfChanged();
@@ -920,6 +922,24 @@ export class WorkspaceStore {
     // Handle non-buffered special events first
     if (isStreamError(data)) {
       aggregator.handleStreamError(data);
+
+      // Increment retry attempt counter when stream fails
+      // This handles auth errors that happen AFTER stream-start
+      updatePersistedState(
+        getRetryStateKey(workspaceId),
+        (prev) => {
+          const newAttempt = prev.attempt + 1;
+          console.debug(
+            `[retry] ${workspaceId} stream-error: incrementing attempt ${prev.attempt} → ${newAttempt}`
+          );
+          return {
+            attempt: newAttempt,
+            retryStartTime: Date.now(),
+          };
+        },
+        { attempt: 0, retryStartTime: Date.now() }
+      );
+
       this.states.bump(workspaceId);
       this.dispatchResumeCheck(workspaceId);
       return;

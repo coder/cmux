@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { usePersistedState, updatePersistedState } from "@/hooks/usePersistedState";
 import { getRetryStateKey, getAutoRetryKey } from "@/constants/storage";
 import { CUSTOM_EVENTS, createCustomEvent } from "@/constants/events";
@@ -7,14 +7,12 @@ import type { RetryState } from "@/hooks/useResumeManager";
 import { useWorkspaceState } from "@/stores/WorkspaceStore";
 import { isEligibleForAutoRetry, isNonRetryableSendError } from "@/utils/messages/retryEligibility";
 import { formatSendMessageError } from "@/utils/errors/formatSendError";
+import { createManualRetryState, calculateBackoffDelay } from "@/utils/messages/retryState";
 
 interface RetryBarrierProps {
   workspaceId: string;
   className?: string;
 }
-
-const INITIAL_DELAY = 1000; // 1 second
-const MAX_DELAY = 60000; // 60 seconds (cap for exponential backoff)
 
 const defaultRetryState: RetryState = {
   attempt: 0,
@@ -45,7 +43,9 @@ export const RetryBarrier: React.FC<RetryBarrierProps> = ({ workspaceId, classNa
   // Compute effective autoRetry state: user preference AND error is retryable
   // This ensures UI shows "Retry" button (not "Retrying...") for non-retryable errors
   const effectiveAutoRetry = useMemo(() => {
-    if (!autoRetry || !workspaceState) return false;
+    if (!autoRetry || !workspaceState) {
+      return false;
+    }
 
     // Check if current state is eligible for auto-retry
     const messagesEligible = isEligibleForAutoRetry(
@@ -54,6 +54,7 @@ export const RetryBarrier: React.FC<RetryBarrierProps> = ({ workspaceId, classNa
     );
 
     // Also check RetryState for SendMessageErrors (from resumeStream failures)
+    // Note: isNonRetryableSendError already respects window.__CMUX_FORCE_ALL_RETRYABLE
     if (lastError && isNonRetryableSendError(lastError)) {
       return false; // Non-retryable SendMessageError
     }
@@ -64,19 +65,13 @@ export const RetryBarrier: React.FC<RetryBarrierProps> = ({ workspaceId, classNa
   // Local state for UI
   const [countdown, setCountdown] = useState(0);
 
-  // Calculate delay with exponential backoff (same as useResumeManager)
-  const getDelay = useCallback((attemptNum: number) => {
-    const exponentialDelay = INITIAL_DELAY * Math.pow(2, attemptNum);
-    return Math.min(exponentialDelay, MAX_DELAY);
-  }, []);
-
   // Update countdown display (pure display logic, no side effects)
   // useResumeManager handles the actual retry logic
   useEffect(() => {
     if (!autoRetry) return;
 
     const interval = setInterval(() => {
-      const delay = getDelay(attempt);
+      const delay = calculateBackoffDelay(attempt);
       const nextRetryTime = retryStartTime + delay;
       const timeUntilRetry = Math.max(0, nextRetryTime - Date.now());
 
@@ -84,7 +79,7 @@ export const RetryBarrier: React.FC<RetryBarrierProps> = ({ workspaceId, classNa
     }, 100);
 
     return () => clearInterval(interval);
-  }, [autoRetry, attempt, retryStartTime, getDelay]);
+  }, [autoRetry, attempt, retryStartTime]);
 
   // Manual retry handler (user-initiated, immediate)
   // Emits event to useResumeManager instead of calling resumeStream directly
@@ -92,9 +87,9 @@ export const RetryBarrier: React.FC<RetryBarrierProps> = ({ workspaceId, classNa
   const handleManualRetry = () => {
     setAutoRetry(true); // Re-enable auto-retry for next failure
 
-    // Clear retry state to make workspace immediately eligible for resume
-    // Use updatePersistedState to ensure listener-enabled hooks receive the update
-    updatePersistedState(getRetryStateKey(workspaceId), null);
+    // Create manual retry state: immediate retry BUT preserves attempt counter
+    // This prevents infinite retry loops without backoff if the retry fails
+    updatePersistedState(getRetryStateKey(workspaceId), createManualRetryState(attempt));
 
     // Emit event to useResumeManager - it will handle the actual resume
     // Pass isManual flag to bypass eligibility checks (user explicitly wants to retry)

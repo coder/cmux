@@ -7,15 +7,17 @@ import { readPersistedState, updatePersistedState } from "./usePersistedState";
 import { isEligibleForAutoRetry, isNonRetryableSendError } from "@/utils/messages/retryEligibility";
 import { applyCompactionOverrides } from "@/utils/messages/compactionOptions";
 import type { SendMessageError } from "@/types/errors";
+import {
+  createFailedRetryState,
+  calculateBackoffDelay,
+  INITIAL_DELAY,
+} from "@/utils/messages/retryState";
 
 export interface RetryState {
   attempt: number;
   retryStartTime: number;
   lastError?: SendMessageError;
 }
-
-const INITIAL_DELAY = 1000; // 1 second
-const MAX_DELAY = 60000; // 60 seconds
 
 /**
  * Centralized auto-resume manager for interrupted streams
@@ -122,7 +124,7 @@ export function useResumeManager() {
 
     // 5. Check exponential backoff timer
     const { attempt, retryStartTime } = retryState;
-    const delay = Math.min(INITIAL_DELAY * Math.pow(2, attempt), MAX_DELAY);
+    const delay = calculateBackoffDelay(attempt);
     const timeSinceLastRetry = Date.now() - retryStartTime;
 
     if (timeSinceLastRetry < delay) return false; // Not time yet
@@ -151,6 +153,9 @@ export function useResumeManager() {
     });
 
     const { attempt } = retryState;
+    console.debug(
+      `[retry] ${workspaceId} attemptResume: current attempt=${attempt}, isManual=${isManual}`
+    );
 
     try {
       // Start with workspace defaults
@@ -171,27 +176,25 @@ export function useResumeManager() {
 
       if (!result.success) {
         // Store error in retry state so RetryBarrier can display it
-        const newState: RetryState = {
-          attempt: attempt + 1,
-          retryStartTime: Date.now(),
-          lastError: result.error,
-        };
+        const newState = createFailedRetryState(attempt, result.error);
+        console.debug(
+          `[retry] ${workspaceId} resumeStream failed: attempt ${attempt} → ${newState.attempt}`
+        );
         updatePersistedState(getRetryStateKey(workspaceId), newState);
-      } else {
-        // Success - clear retry state entirely
-        // If stream fails again, we'll start fresh (immediately eligible)
-        updatePersistedState(getRetryStateKey(workspaceId), null);
       }
+      // Note: Don't clear retry state on success - stream-end event will handle that
+      // resumeStream success just means "stream initiated", not "stream completed"
+      // Clearing here causes backoff reset bug when stream starts then immediately fails
     } catch (error) {
       // Store error in retry state for display
-      const newState: RetryState = {
-        attempt: attempt + 1,
-        retryStartTime: Date.now(),
-        lastError: {
-          type: "unknown",
-          raw: error instanceof Error ? error.message : "Failed to resume stream",
-        },
+      const errorData: SendMessageError = {
+        type: "unknown",
+        raw: error instanceof Error ? error.message : "Failed to resume stream",
       };
+      const newState = createFailedRetryState(attempt, errorData);
+      console.debug(
+        `[retry] ${workspaceId} resumeStream exception: attempt ${attempt} → ${newState.attempt}`
+      );
       updatePersistedState(getRetryStateKey(workspaceId), newState);
     } finally {
       // Always clear retrying flag
