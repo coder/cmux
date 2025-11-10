@@ -13,6 +13,7 @@ import * as path from "path";
 import type { RawData } from "ws";
 import { WebSocket, WebSocketServer } from "ws";
 import { Command } from "commander";
+import { validateProjectPath } from "./utils/pathUtils";
 
 // Parse command line arguments
 const program = new Command();
@@ -41,7 +42,9 @@ class HttpIpcMainAdapter {
   constructor(private readonly app: express.Application) {}
 
   // Public method to get a handler (for internal use)
-  getHandler(channel: string): ((event: unknown, ...args: unknown[]) => Promise<unknown>) | undefined {
+  getHandler(
+    channel: string
+  ): ((event: unknown, ...args: unknown[]) => Promise<unknown>) | undefined {
     return this.handlers.get(channel);
   }
 
@@ -149,8 +152,8 @@ ipcMainService.register(
 );
 
 // Add custom endpoint for launch project (only for server mode)
-httpIpcMain.handle("server:getLaunchProject", async () => {
-  return launchProjectPath;
+httpIpcMain.handle("server:getLaunchProject", () => {
+  return Promise.resolve(launchProjectPath);
 });
 
 // Serve static files from dist directory (built renderer)
@@ -266,20 +269,23 @@ wss.on("connection", (ws) => {
  * Initialize a project from the --add-project flag
  * This checks if a project exists at the given path, creates it if not, and opens it
  */
-async function initializeProject(projectPath: string, ipcAdapter: HttpIpcMainAdapter): Promise<void> {
+async function initializeProject(
+  projectPath: string,
+  ipcAdapter: HttpIpcMainAdapter
+): Promise<void> {
   try {
     // Trim trailing slashes to ensure proper project name extraction
     projectPath = projectPath.replace(/\/+$/, "");
-    
+
     // Normalize path (expand tilde, make absolute) to match how PROJECT_CREATE normalizes paths
-    const { validateProjectPath } = await import("./utils/pathUtils");
     const validation = await validateProjectPath(projectPath);
     if (!validation.valid) {
-      console.error(`Invalid project path: ${validation.error}`);
+      const errorMsg = validation.error ?? "Unknown validation error";
+      console.error(`Invalid project path: ${errorMsg}`);
       return;
     }
     projectPath = validation.expandedPath!;
-    
+
     // First, check if project already exists by listing all projects
     const handler = ipcAdapter.getHandler(IPC_CHANNELS.PROJECT_LIST);
     if (!handler) {
@@ -293,8 +299,10 @@ async function initializeProject(projectPath: string, ipcAdapter: HttpIpcMainAda
       return;
     }
 
-    // Check if the project already exists
-    const existingProject = projectsList.find(([path]: [string, unknown]) => path === projectPath);
+    // Check if the project already exists (projectsList is Array<[string, ProjectConfig]>)
+    const existingProject = (projectsList as Array<[string, unknown]>).find(
+      ([path]) => path === projectPath
+    );
 
     if (existingProject) {
       console.log(`Project already exists at: ${projectPath}`);
@@ -311,14 +319,16 @@ async function initializeProject(projectPath: string, ipcAdapter: HttpIpcMainAda
     }
 
     const createResult = await createHandler(null, projectPath);
-    
+
     // Check if creation was successful using the Result type
     if (createResult && typeof createResult === "object" && "success" in createResult) {
       if (createResult.success) {
         console.log(`Successfully created project at: ${projectPath}`);
         launchProjectPath = projectPath;
       } else if ("error" in createResult) {
-        console.error(`Failed to create project: ${(createResult as { error: unknown }).error}`);
+        const err = createResult as { error: unknown };
+        const errorMsg = err.error instanceof Error ? err.error.message : String(err.error);
+        console.error(`Failed to create project: ${errorMsg}`);
       }
     } else {
       console.error("Unexpected PROJECT_CREATE response format");
@@ -328,12 +338,12 @@ async function initializeProject(projectPath: string, ipcAdapter: HttpIpcMainAda
   }
 }
 
-server.listen(PORT, HOST, async () => {
+server.listen(PORT, HOST, () => {
   console.log(`Server is running on http://${HOST}:${PORT}`);
 
   // Handle --add-project flag if present
   if (ADD_PROJECT_PATH) {
     console.log(`Initializing project at: ${ADD_PROJECT_PATH}`);
-    await initializeProject(ADD_PROJECT_PATH, httpIpcMain);
+    void initializeProject(ADD_PROJECT_PATH, httpIpcMain);
   }
 });
