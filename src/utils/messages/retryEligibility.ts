@@ -19,6 +19,13 @@ declare global {
 }
 
 /**
+ * Check if the debug flag to force all errors to be retryable is enabled
+ */
+function isForceAllRetryableEnabled(): boolean {
+  return typeof window !== "undefined" && window.__CMUX_FORCE_ALL_RETRYABLE === true;
+}
+
+/**
  * Error types that should NOT be auto-retried because they require user action
  * These errors won't resolve on their own - the user must fix the underlying issue
  */
@@ -35,7 +42,7 @@ const NON_RETRYABLE_STREAM_ERRORS: StreamErrorType[] = [
  */
 export function isNonRetryableSendError(error: SendMessageError): boolean {
   // Debug flag: force all errors to be retryable
-  if (typeof window !== "undefined" && window.__CMUX_FORCE_ALL_RETRYABLE) {
+  if (isForceAllRetryableEnabled()) {
     return false;
   }
 
@@ -114,7 +121,7 @@ export function isEligibleForAutoRetry(
   const lastMessage = messages[messages.length - 1];
   if (lastMessage.type === "stream-error") {
     // Debug flag: force all errors to be retryable
-    if (typeof window !== "undefined" && window.__CMUX_FORCE_ALL_RETRYABLE) {
+    if (isForceAllRetryableEnabled()) {
       return true;
     }
     return !NON_RETRYABLE_STREAM_ERRORS.includes(lastMessage.errorType);
