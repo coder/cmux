@@ -99,9 +99,20 @@ jobs:
 
       - uses: ./.github/actions/setup-cmux
 
+      - name: Check if Ollama is pre-installed
+        id: check-ollama
+        run: |
+          if systemctl is-active --quiet ollama 2>/dev/null && curl -sf http://localhost:11434/api/tags > /dev/null 2>&1; then
+            echo "installed=true" >> $GITHUB_OUTPUT
+            echo "✅ Ollama already running (self-hosted runner)"
+          else
+            echo "installed=false" >> $GITHUB_OUTPUT
+            echo "⚙️ Ollama not found, will install"
+          fi
+
       - name: Setup Ollama
-        # Only install Ollama on non-self-hosted runners (self-hosted has it pre-installed)
-        if: runner.name != 'mux-ci-1'
+        # Only install Ollama if not already running (self-hosted runners have it pre-installed)
+        if: steps.check-ollama.outputs.installed != 'true'
         uses: ./.github/actions/setup-ollama
 
       # Ollama server started by setup-ollama action or pre-installed on self-hosted
