@@ -260,6 +260,10 @@ const webApi: IPCApi = {
       return wsManager.on(IPC_CHANNELS.UPDATE_STATUS, callback as (data: unknown) => void);
     },
   },
+  extensions: {
+    reload: () => invokeIPC(IPC_CHANNELS.EXTENSIONS_RELOAD),
+    list: () => invokeIPC(IPC_CHANNELS.EXTENSIONS_LIST),
+  },
 };
 
 if (typeof window.api === "undefined") {

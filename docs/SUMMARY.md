@@ -20,6 +20,7 @@
 - [Instruction Files](./instruction-files.md)
 - [Project Secrets](./project-secrets.md)
   - [Agentic Git Identity](./agentic-git-identity.md)
+- [Extensions](./extensions.md)
 
 # Advanced
 

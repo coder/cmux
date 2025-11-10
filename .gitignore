@@ -102,6 +102,7 @@ __pycache__
 
 tmpfork
 .cmux-agent-cli
+.cmux/*.tmp.*
 storybook-static/
 *.tgz
 src/test-workspaces/

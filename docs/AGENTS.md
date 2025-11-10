@@ -270,6 +270,20 @@ await env.mockIpcRenderer.invoke(IPC_CHANNELS.WORKSPACE_CREATE, projectPath, bra
 - Verifying filesystem state (like checking if files exist) after IPC operations complete
 - Loading existing data to avoid expensive API calls in test setup
 
+### Testing without Mocks (preferred)
+
+- Prefer exercising real behavior over substituting test doubles. Do not stub `child_process`, `fs`, or discovery logic.
+- **Use async fs operations (`fs/promises`) in tests, never sync fs**. This keeps tests fast and allows parallelization.
+- **Use `test.concurrent()` for unit tests** to enable parallel execution. Avoid global variables in test files—use local variables in each test or `beforeEach` to ensure test isolation.
+- Use temporary directories and real processes in unit tests where feasible. Clean up with `await fs.rm(temp, { recursive: true, force: true })` in async `afterEach`.
+- For extension system tests:
+  - Spawn the real global extension host via `ExtensionManager.initializeGlobal()`.
+  - Create real on-disk extensions in a temp `~/.cmux/ext` or project `.cmux/ext` folder.
+  - Register/unregister real workspaces and verify through actual tool execution.
+- Integration tests must go through real IPC. Use the test harness's `mockIpcRenderer.invoke()` to traverse the production IPC path (this is a façade, not a Jest mock).
+- Avoid spies and partial mocks. If a mock seems necessary, consider fixing the test harness or refactoring code to make the behavior testable without mocks.
+- Acceptable exceptions: isolating nondeterminism (e.g., time) or external network calls. Prefer dependency injection with in-memory fakes over broad module mocks.
+
 If IPC is hard to test, fix the test infrastructure or IPC layer, don't work around it by bypassing IPC.
 
 ## Command Palette (Cmd+Shift+P)

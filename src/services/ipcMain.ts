@@ -1073,6 +1073,11 @@ export class IpcMain {
 
       this.disposeSession(workspaceId);
 
+      // Unregister workspace from extension host
+      void this.aiService.unregisterWorkspace(workspaceId).catch((error) => {
+        log.error(`Failed to unregister workspace ${workspaceId} from extension host:`, error);
+      });
+
       return { success: true };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
@@ -1287,6 +1292,29 @@ export class IpcMain {
         }
       } catch (error) {
         console.error("Failed to emit current metadata:", error);
+      }
+    });
+
+    // Extension management
+    ipcMain.handle(IPC_CHANNELS.EXTENSIONS_RELOAD, async () => {
+      try {
+        const extensionManager = this.aiService.getExtensionManager();
+        await extensionManager.reload();
+        return Ok(undefined);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        return Err(`Failed to reload extensions: ${message}`);
+      }
+    });
+
+    ipcMain.handle(IPC_CHANNELS.EXTENSIONS_LIST, () => {
+      try {
+        const extensionManager = this.aiService.getExtensionManager();
+        const extensions = extensionManager.listExtensions();
+        return Ok(extensions);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        return Err(`Failed to list extensions: ${message}`);
       }
     });
   }

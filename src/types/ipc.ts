@@ -299,6 +299,20 @@ export interface IPCApi {
     install(): void;
     onStatus(callback: (status: UpdateStatus) => void): () => void;
   };
+  extensions: {
+    reload(): Promise<Result<void, string>>;
+    list(): Promise<
+      Result<
+        Array<{
+          id: string;
+          path: string;
+          source: "global" | "project";
+          projectPath?: string;
+        }>,
+        string
+      >
+    >;
+  };
 }
 
 // Update status type (matches updater service)

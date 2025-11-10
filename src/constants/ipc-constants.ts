@@ -54,6 +54,10 @@ export const IPC_CHANNELS = {
   WORKSPACE_CHAT_PREFIX: "workspace:chat:",
   WORKSPACE_METADATA: "workspace:metadata",
   WORKSPACE_METADATA_SUBSCRIBE: "workspace:metadata:subscribe",
+
+  // Extension channels
+  EXTENSIONS_RELOAD: "extensions:reload",
+  EXTENSIONS_LIST: "extensions:list",
 } as const;
 
 // Helper functions for dynamic channels

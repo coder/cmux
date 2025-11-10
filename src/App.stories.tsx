@@ -99,6 +99,10 @@ function setupMockAPI(options: {
       install: () => undefined,
       onStatus: () => () => undefined,
     },
+    extensions: {
+      reload: () => Promise.resolve({ success: true, data: undefined }),
+      list: () => Promise.resolve({ success: true, data: [] }),
+    },
     ...options.apiOverrides,
   };
 

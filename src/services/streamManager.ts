@@ -23,6 +23,7 @@ import type {
 } from "@/types/stream";
 
 import type { SendMessageError, StreamErrorType } from "@/types/errors";
+import type { ExtensionManager } from "./extensions/extensionManager";
 import type { CmuxMetadata, CmuxMessage } from "@/types/message";
 import type { PartialService } from "./partialService";
 import type { HistoryService } from "./historyService";
@@ -128,11 +129,18 @@ export class StreamManager extends EventEmitter {
   private readonly partialService: PartialService;
   // Token tracker for live streaming statistics
   private tokenTracker = new StreamingTokenTracker();
+  // Extension manager for post-tool-use hooks (optional, lazy-initialized)
+  private readonly extensionManager?: ExtensionManager;
 
-  constructor(historyService: HistoryService, partialService: PartialService) {
+  constructor(
+    historyService: HistoryService,
+    partialService: PartialService,
+    extensionManager?: ExtensionManager
+  ) {
     super();
     this.historyService = historyService;
     this.partialService = partialService;
+    this.extensionManager = extensionManager;
   }
 
   /**
@@ -389,6 +397,7 @@ export class StreamManager extends EventEmitter {
       });
 
       // If tool has output, emit completion
+      // NOTE: Extensions are called in completeToolCall() before this event is emitted
       if (part.state === "output-available") {
         this.emit("tool-call-end", {
           type: "tool-call-end",
@@ -537,8 +546,9 @@ export class StreamManager extends EventEmitter {
 
   /**
    * Complete a tool call by updating its part and emitting tool-call-end event
+   * Runs extensions to potentially modify the result before storing/emitting
    */
-  private completeToolCall(
+  private async completeToolCall(
     workspaceId: WorkspaceId,
     streamInfo: WorkspaceStreamInfo,
     toolCalls: Map<
@@ -548,7 +558,29 @@ export class StreamManager extends EventEmitter {
     toolCallId: string,
     toolName: string,
     output: unknown
-  ): void {
+  ): Promise<void> {
+    // Allow extensions to modify the result
+    let finalOutput = output;
+    if (this.extensionManager) {
+      try {
+        const toolCall = toolCalls.get(toolCallId);
+        finalOutput = await this.extensionManager.postToolUse(workspaceId as string, {
+          toolName,
+          toolCallId,
+          args: toolCall?.input,
+          result: output,
+          workspaceId: workspaceId as string,
+          timestamp: Date.now(),
+        });
+      } catch (error) {
+        log.debug(
+          `Extension hook failed for ${workspaceId} (tool: ${toolName}):`,
+          error
+        );
+        // On extension error, use original output
+        finalOutput = output;
+      }
+    }
     // Find and update the existing tool part
     const existingPartIndex = streamInfo.parts.findIndex(
       (p) => p.type === "dynamic-tool" && p.toolCallId === toolCallId
@@ -560,7 +592,7 @@ export class StreamManager extends EventEmitter {
         streamInfo.parts[existingPartIndex] = {
           ...existingPart,
           state: "output-available" as const,
-          output,
+          output: finalOutput,
         };
       }
     } else {
@@ -574,7 +606,7 @@ export class StreamManager extends EventEmitter {
           toolName,
           state: "output-available" as const,
           input: toolCall.input,
-          output,
+          output: finalOutput,
         });
       }
     }
@@ -586,7 +618,7 @@ export class StreamManager extends EventEmitter {
       messageId: streamInfo.messageId,
       toolCallId,
       toolName,
-      result: output,
+      result: finalOutput,
     } as ToolCallEndEvent);
 
     // Schedule partial write
@@ -732,8 +764,8 @@ export class StreamManager extends EventEmitter {
               const strippedOutput = stripEncryptedContent(part.output);
               toolCall.output = strippedOutput;
 
-              // Use shared completion logic
-              this.completeToolCall(
+              // Use shared completion logic (await for extension hooks)
+              await this.completeToolCall(
                 workspaceId,
                 streamInfo,
                 toolCalls,
@@ -769,8 +801,8 @@ export class StreamManager extends EventEmitter {
                     : JSON.stringify(toolErrorPart.error),
             };
 
-            // Use shared completion logic
-            this.completeToolCall(
+            // Use shared completion logic (await for extension hooks)
+            await this.completeToolCall(
               workspaceId,
               streamInfo,
               toolCalls,
