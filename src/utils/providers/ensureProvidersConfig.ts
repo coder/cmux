@@ -49,6 +49,11 @@ const buildProvidersFromEnv = (env: NodeJS.ProcessEnv): ProvidersConfig => {
     providers.openai = entry;
   }
 
+  const openRouterKey = trim(env.OPENROUTER_API_KEY);
+  if (openRouterKey.length > 0) {
+    providers.openrouter = { apiKey: openRouterKey };
+  }
+
   if (!providers.openai) {
     const azureKey = trim(env.AZURE_OPENAI_API_KEY);
     const azureEndpoint = trim(env.AZURE_OPENAI_ENDPOINT);
@@ -97,7 +102,7 @@ export const ensureProvidersConfig = (
   const providersFromEnv = buildProvidersFromEnv(env);
   if (!hasAnyConfiguredProvider(providersFromEnv)) {
     throw new Error(
-      "No provider credentials found. Configure providers.jsonc or set ANTHROPIC_API_KEY / OPENAI_API_KEY."
+      "No provider credentials found. Configure providers.jsonc or set ANTHROPIC_API_KEY / OPENAI_API_KEY / OPENROUTER_API_KEY."
     );
   }
 

@@ -105,6 +105,7 @@ export async function preloadAISDKProviders(): Promise<void> {
     import("@ai-sdk/anthropic"),
     import("@ai-sdk/openai"),
     import("ollama-ai-provider-v2"),
+    import("@openrouter/ai-sdk-provider"),
   ]);
 }
 
@@ -412,6 +413,30 @@ export class AIService extends EventEmitter {
           fetch: baseFetch as any,
           // Use strict mode for better compatibility with Ollama API
           compatibility: "strict",
+        });
+        return Ok(provider(modelId));
+      }
+
+      // Handle OpenRouter provider
+      if (providerName === "openrouter") {
+        if (!providerConfig.apiKey) {
+          return Err({
+            type: "api_key_not_found",
+            provider: providerName,
+          });
+        }
+        // Use custom fetch if provided, otherwise default with unlimited timeout
+        const baseFetch =
+          typeof providerConfig.fetch === "function"
+            ? (providerConfig.fetch as typeof fetch)
+            : defaultFetchWithUnlimitedTimeout;
+
+        // Lazy-load OpenRouter provider to reduce startup time
+        const { createOpenRouter } = await import("@openrouter/ai-sdk-provider");
+        const provider = createOpenRouter({
+          ...providerConfig,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
+          fetch: baseFetch as any,
         });
         return Ok(provider(modelId));
       }

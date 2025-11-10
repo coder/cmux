@@ -27,6 +27,36 @@ GPT-5 family of models:
 
 TODO: add issue link here.
 
+#### OpenRouter (Cloud)
+
+Access 300+ models from multiple providers through a single API:
+
+- `openrouter:anthropic/claude-3.5-sonnet`
+- `openrouter:google/gemini-2.0-flash-thinking-exp`
+- `openrouter:deepseek/deepseek-chat`
+- `openrouter:openai/gpt-4o`
+- Any model from [OpenRouter Models](https://openrouter.ai/models)
+
+**Setup:**
+
+1. Get your API key from [openrouter.ai](https://openrouter.ai/)
+2. Add to `~/.cmux/providers.jsonc`:
+
+```jsonc
+{
+  "openrouter": {
+    "apiKey": "sk-or-v1-...",
+  },
+}
+```
+
+**Benefits:**
+
+- Single API key for hundreds of models
+- Pay-as-you-go pricing with no monthly fees
+- Transparent per-token costs
+- Automatic failover for high availability
+
 #### Ollama (Local)
 
 Run models locally with Ollama. No API key required:
@@ -67,6 +97,10 @@ All providers are configured in `~/.cmux/providers.jsonc`. Example configuration
   // Required for OpenAI models
   "openai": {
     "apiKey": "sk-...",
+  },
+  // Required for OpenRouter models
+  "openrouter": {
+    "apiKey": "sk-or-v1-...",
   },
   // Optional for Ollama (only needed for custom URL)
   "ollama": {
