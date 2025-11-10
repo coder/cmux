@@ -52,6 +52,7 @@ export const RetryBarrier: React.FC<RetryBarrierProps> = ({ workspaceId, classNa
     );
 
     // Also check RetryState for SendMessageErrors (from resumeStream failures)
+    // Note: isNonRetryableSendError already respects window.__CMUX_FORCE_ALL_RETRYABLE
     if (lastError && isNonRetryableSendError(lastError)) {
       return false; // Non-retryable SendMessageError
     }

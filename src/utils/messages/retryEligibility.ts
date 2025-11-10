@@ -7,6 +7,10 @@ import type { StreamErrorType, SendMessageError } from "@/types/errors";
  *
  * Useful for testing retry/backoff logic without needing to simulate
  * specific network conditions or rate limits.
+ *
+ * Note: If you set this flag after an error occurs, you may need to
+ * trigger a manual retry first (click "Retry" button) to clear the
+ * stored non-retryable error state.
  */
 declare global {
   interface Window {
