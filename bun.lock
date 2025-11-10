@@ -2,7 +2,7 @@
   "lockfileVersion": 1,
   "workspaces": {
     "": {
-      "name": "@coder/cmux",
+      "name": "mux",
       "dependencies": {
         "@ai-sdk/anthropic": "^2.0.29",
         "@ai-sdk/openai": "^2.0.52",
