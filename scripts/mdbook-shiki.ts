@@ -53,15 +53,6 @@ function generateGridHtml(shikiHtml: string, originalCode: string): string {
   return html;
 }
 
-function escapeHtml(text: string): string {
-  return text
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
-}
-
 /**
  * Process markdown content to replace code blocks with highlighted HTML
  */

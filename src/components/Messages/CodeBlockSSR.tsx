@@ -12,7 +12,7 @@ interface CodeBlockSSRProps {
   highlightedLines: string[];
 }
 
-export const CodeBlockSSR: React.FC<CodeBlockSSRProps> = ({ code, highlightedLines }) => {
+export function CodeBlockSSR({ code, highlightedLines }: CodeBlockSSRProps) {
   return (
     <div className="code-block-wrapper" data-code={code}>
       <div className="code-block-container">
@@ -28,4 +28,4 @@ export const CodeBlockSSR: React.FC<CodeBlockSSRProps> = ({ code, highlightedLin
       </button>
     </div>
   );
-};
+}
