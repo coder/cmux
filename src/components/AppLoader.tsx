@@ -96,6 +96,51 @@ export function AppLoader() {
     setSelectedWorkspace,
   ]);
 
+  // Check for launch project from server (for --add-project flag)
+  // This only applies in server mode
+  useEffect(() => {
+    // Wait until stores are synced and hash restoration is complete
+    if (!storesSynced || !hasRestoredFromHash) return;
+
+    // Skip if we already have a selected workspace (from localStorage or URL hash)
+    if (selectedWorkspace) return;
+
+    // Only check once
+    const checkLaunchProject = async () => {
+      // Only available in server mode
+      if (!window.api.server?.getLaunchProject) return;
+
+      const launchProjectPath = await window.api.server.getLaunchProject();
+      if (!launchProjectPath) return;
+
+      // Find first workspace in this project
+      const projectWorkspaces = Array.from(workspaceManagement.workspaceMetadata.values()).filter(
+        (meta) => meta.projectPath === launchProjectPath
+      );
+
+      if (projectWorkspaces.length > 0) {
+        // Select the first workspace in the project
+        const metadata = projectWorkspaces[0];
+        setSelectedWorkspace({
+          workspaceId: metadata.id,
+          projectPath: metadata.projectPath,
+          projectName: metadata.projectName,
+          namedWorkspacePath: metadata.namedWorkspacePath,
+        });
+      }
+      // If no workspaces exist yet, just leave the project in the sidebar
+      // The user will need to create a workspace
+    };
+
+    void checkLaunchProject();
+  }, [
+    storesSynced,
+    hasRestoredFromHash,
+    selectedWorkspace,
+    workspaceManagement.workspaceMetadata,
+    setSelectedWorkspace,
+  ]);
+
   // Show loading screen until stores are synced
   if (workspaceManagement.loading || !storesSynced) {
     return <LoadingScreen />;
