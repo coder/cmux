@@ -576,7 +576,7 @@ details[open] > summary::before {
   text-align: right;
   color: rgba(255, 255, 255, 0.4);
   user-select: none;
-  border-right: 1px solid rgba(255, 255, 255, 0.1);
+  border-right: 1px solid rgba(255, 255, 255, 0.2);
 }
 
 .code-line {
