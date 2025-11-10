@@ -714,7 +714,7 @@ export class IpcMain {
 
           try {
             // 1. Generate workspace title and branch name using AI (use same model as message)
-            const { title, branchName} = await generateWorkspaceNames(
+            const { title, branchName } = await generateWorkspaceNames(
               message,
               options.model,
               this.config
