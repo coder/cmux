@@ -43,7 +43,16 @@ export const RetryBarrier: React.FC<RetryBarrierProps> = ({ workspaceId, classNa
   // Compute effective autoRetry state: user preference AND error is retryable
   // This ensures UI shows "Retry" button (not "Retrying...") for non-retryable errors
   const effectiveAutoRetry = useMemo(() => {
-    if (!autoRetry || !workspaceState) return false;
+    console.debug("[retry] RetryBarrier effectiveAutoRetry calculation:", {
+      autoRetry,
+      hasWorkspaceState: !!workspaceState,
+      lastError,
+    });
+
+    if (!autoRetry || !workspaceState) {
+      console.debug("[retry] effectiveAutoRetry=false: autoRetry disabled or no workspace state");
+      return false;
+    }
 
     // Check if current state is eligible for auto-retry
     const messagesEligible = isEligibleForAutoRetry(
@@ -51,12 +60,16 @@ export const RetryBarrier: React.FC<RetryBarrierProps> = ({ workspaceId, classNa
       workspaceState.pendingStreamStartTime
     );
 
+    console.debug("[retry] messagesEligible:", messagesEligible);
+
     // Also check RetryState for SendMessageErrors (from resumeStream failures)
     // Note: isNonRetryableSendError already respects window.__CMUX_FORCE_ALL_RETRYABLE
     if (lastError && isNonRetryableSendError(lastError)) {
+      console.debug("[retry] effectiveAutoRetry=false: lastError is non-retryable");
       return false; // Non-retryable SendMessageError
     }
 
+    console.debug("[retry] effectiveAutoRetry:", messagesEligible);
     return messagesEligible;
   }, [autoRetry, workspaceState, lastError]);
 
