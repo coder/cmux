@@ -39,8 +39,8 @@ export interface OllamaProviderOptions {}
 
 /**
  * OpenRouter-specific options
- * Currently empty - OpenRouter handles provider-specific options via extraBody.
- * This interface is provided for future extensibility.
+ * Transparently passes through options to the OpenRouter provider
+ * @see https://openrouter.ai/docs
  */
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export interface OpenRouterProviderOptions {}

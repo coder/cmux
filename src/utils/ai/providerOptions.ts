@@ -35,6 +35,7 @@ type ExtendedOpenAIResponsesProviderOptions = OpenAIResponsesProviderOptions & {
 type ProviderOptions =
   | { anthropic: AnthropicProviderOptions }
   | { openai: ExtendedOpenAIResponsesProviderOptions }
+  | { openrouter: Record<string, unknown> } // OpenRouter accepts arbitrary options
   | Record<string, never>; // Empty object for unsupported providers
 
 /**
@@ -148,6 +149,15 @@ export function buildProviderOptions(
     };
     log.info("buildProviderOptions: Returning OpenAI options", options);
     return options;
+  }
+
+  // Build OpenRouter-specific options
+  if (provider === "openrouter") {
+    // OpenRouter doesn't have thinking/reasoning config
+    // Provider routing and other options are set in ~/.cmux/providers.jsonc
+    // and passed transparently through the AI SDK
+    log.debug("buildProviderOptions: OpenRouter (no provider options needed)");
+    return {};
   }
 
   // No provider-specific options for unsupported providers

@@ -31,6 +31,7 @@ TODO: add issue link here.
 
 Access 300+ models from multiple providers through a single API:
 
+- `openrouter:z-ai/glm-4.6`
 - `openrouter:anthropic/claude-3.5-sonnet`
 - `openrouter:google/gemini-2.0-flash-thinking-exp`
 - `openrouter:deepseek/deepseek-chat`
@@ -50,12 +51,43 @@ Access 300+ models from multiple providers through a single API:
 }
 ```
 
+**Provider Routing (Advanced):**
+
+OpenRouter can route requests to specific infrastructure providers (Cerebras, Fireworks, Together, etc.). Configure provider preferences in `~/.cmux/providers.jsonc`:
+
+```jsonc
+{
+  "openrouter": {
+    "apiKey": "sk-or-v1-...",
+    // Use Cerebras for ultra-fast inference
+    "provider": {
+      "order": ["Cerebras", "Fireworks"],  // Try in order
+      "allow_fallbacks": true               // Allow other providers if unavailable
+    }
+  }
+}
+```
+
+Or require a specific provider:
+
+```jsonc
+{
+  "openrouter": {
+    "apiKey": "sk-or-v1-...",
+    "provider": {
+      "require": "Cerebras"  // Fail if Cerebras unavailable
+    }
+  }
+}
+```
+
 **Benefits:**
 
 - Single API key for hundreds of models
 - Pay-as-you-go pricing with no monthly fees
 - Transparent per-token costs
 - Automatic failover for high availability
+- Control which infrastructure provider serves your requests
 
 #### Ollama (Local)
 
