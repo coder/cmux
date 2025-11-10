@@ -8,5 +8,5 @@ if [ ! -f "docs/mermaid-init.js" ] || [ ! -f "docs/mermaid.min.js" ]; then
   cd ..
 fi
 
-# Serve the docs (bind to all hosts for remote access)
-cd docs && mdbook serve --hostname 0.0.0.0 --open
+# Serve the docs (bind to all hosts for remote access, port 3001 to avoid conflict with main app)
+cd docs && mdbook serve --hostname 0.0.0.0 --port 3001 --open
