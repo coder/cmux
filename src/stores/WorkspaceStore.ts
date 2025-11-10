@@ -125,6 +125,7 @@ export class WorkspaceStore {
         this.onModelUsed((data as { model: string }).model);
       }
       // Reset retry state on successful stream start
+      console.log(`[retry] ${workspaceId} stream-start: resetting to attempt=0`);
       updatePersistedState(getRetryStateKey(workspaceId), createFreshRetryState());
       this.states.bump(workspaceId);
     },

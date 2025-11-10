@@ -153,6 +153,7 @@ export function useResumeManager() {
     });
 
     const { attempt } = retryState;
+    console.log(`[retry] ${workspaceId} attemptResume: current attempt=${attempt}, isManual=${isManual}`);
 
     try {
       // Start with workspace defaults
@@ -173,10 +174,11 @@ export function useResumeManager() {
 
       if (!result.success) {
         // Store error in retry state so RetryBarrier can display it
-        updatePersistedState(
-          getRetryStateKey(workspaceId),
-          createFailedRetryState(attempt, result.error)
-        );
+        const newState = createFailedRetryState(attempt, result.error);
+        console.log(`[retry] ${workspaceId} resumeStream failed: attempt ${attempt} → ${newState.attempt}`);
+        updatePersistedState(getRetryStateKey(workspaceId), newState);
+      } else {
+        console.log(`[retry] ${workspaceId} resumeStream succeeded (stream initiated)`);
       }
       // Note: Don't clear retry state here on success - stream-start event will handle that
       // resumeStream success just means "stream initiated", not "stream completed"
@@ -187,10 +189,9 @@ export function useResumeManager() {
         type: "unknown",
         raw: error instanceof Error ? error.message : "Failed to resume stream",
       };
-      updatePersistedState(
-        getRetryStateKey(workspaceId),
-        createFailedRetryState(attempt, errorData)
-      );
+      const newState = createFailedRetryState(attempt, errorData);
+      console.log(`[retry] ${workspaceId} resumeStream exception: attempt ${attempt} → ${newState.attempt}`);
+      updatePersistedState(getRetryStateKey(workspaceId), newState);
     } finally {
       // Always clear retrying flag
       retryingRef.current.delete(workspaceId);
