@@ -6,6 +6,7 @@ import {
   mapToShikiLang,
   SHIKI_THEME,
 } from "@/utils/highlighting/shikiHighlighter";
+import { extractShikiLines } from "@/utils/highlighting/shiki-shared";
 import { CopyButton } from "@/components/ui/CopyButton";
 
 interface CodeProps {
@@ -36,25 +37,6 @@ interface AnchorProps {
 interface CodeBlockProps {
   code: string;
   language: string;
-}
-
-/**
- * Extract line contents from Shiki HTML output
- * Shiki wraps code in <pre><code>...</code></pre> with <span class="line">...</span> per line
- */
-function extractShikiLines(html: string): string[] {
-  const codeMatch = /<code[^>]*>(.*?)<\/code>/s.exec(html);
-  if (!codeMatch) return [];
-
-  return codeMatch[1].split("\n").map((chunk) => {
-    const start = chunk.indexOf('<span class="line">');
-    if (start === -1) return "";
-
-    const contentStart = start + '<span class="line">'.length;
-    const end = chunk.lastIndexOf("</span>");
-
-    return end > contentStart ? chunk.substring(contentStart, end) : "";
-  });
 }
 
 /**

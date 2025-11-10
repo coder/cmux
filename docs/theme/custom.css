@@ -509,3 +509,135 @@ details[open] > summary::before {
   background-size: contain;
   background-repeat: no-repeat;
 }
+
+
+/* Page TOC (Table of Contents) overrides */
+@media only screen and (min-width:1440px) {
+  .pagetoc a {
+    /* Reduce vertical spacing for more compact TOC */
+    padding-top: 2px !important;
+    padding-bottom: 2px !important;
+    line-height: 1.4;
+    font-size: 0.9em;
+  }
+
+  /* Tighter indentation for nested levels */
+  .pagetoc .pagetoc-H2 {
+    padding-left: 15px !important;
+  }
+  .pagetoc .pagetoc-H3 {
+    padding-left: 30px !important;
+  }
+  .pagetoc .pagetoc-H4 {
+    padding-left: 45px !important;
+  }
+
+  /* Add subtle visual hierarchy */
+  .pagetoc .pagetoc-H2 a {
+    font-weight: 500;
+  }
+  .pagetoc .pagetoc-H3 a {
+    font-weight: 400;
+    opacity: 0.9;
+  }
+  .pagetoc .pagetoc-H4 a {
+    font-weight: 400;
+    opacity: 0.8;
+  }
+}
+
+
+
+
+
+/* Code block wrapper with line numbers and copy button (from cmux app) */
+.code-block-wrapper {
+  position: relative;
+  margin: 0.75em 0;
+}
+
+/* Code block with line numbers - each line is a grid row */
+.code-block-container {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  background: var(--color-background-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 6px 0;
+  font-family: var(--font-monospace);
+  font-size: 12px;
+  line-height: 1.6;
+  overflow-x: auto;
+}
+
+.line-number {
+  background: rgba(0, 0, 0, 0.2);
+  padding: 0 8px 0 6px;
+  text-align: right;
+  color: rgba(255, 255, 255, 0.4);
+  user-select: none;
+  border-right: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.code-line {
+  padding: 0 8px;
+  white-space: pre;
+}
+
+.code-line code {
+  background: transparent;
+  padding: 0;
+}
+
+/* Reusable copy button styles */
+.copy-button {
+  padding: 6px 8px;
+  background: rgba(0, 0, 0, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  color: rgba(255, 255, 255, 0.6);
+  cursor: pointer;
+  transition:
+    color 0.2s,
+    background 0.2s,
+    border-color 0.2s;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.copy-button:hover {
+  background: rgba(0, 0, 0, 0.8);
+  color: rgba(255, 255, 255, 0.9);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.copy-icon {
+  width: 14px;
+  height: 14px;
+}
+
+.copy-feedback {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+/* Code block specific positioning */
+.code-copy-button {
+  position: absolute;
+  bottom: 8px;
+  right: 8px;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.code-block-wrapper:hover .code-copy-button {
+  opacity: 1;
+}
+
+/* Hide mdBook's default highlight.js styles for transformed blocks */
+.code-block-wrapper pre,
+.code-block-wrapper .hljs {
+  display: none;
+}
