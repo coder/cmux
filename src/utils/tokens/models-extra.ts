@@ -55,4 +55,19 @@ export const modelsExtra: Record<string, ModelData> = {
     supports_vision: true,
     supports_response_schema: true,
   },
+
+  // Z.AI GLM 4.6 via OpenRouter
+  // $0.40/M input, $1.75/M output (OpenRouter pricing)
+  // 200K context window, supports tool use and reasoning
+  "openrouter/z-ai/glm-4.6": {
+    max_input_tokens: 202752,
+    max_output_tokens: 202752,
+    input_cost_per_token: 0.0000004, // $0.40 per million input tokens
+    output_cost_per_token: 0.00000175, // $1.75 per million output tokens
+    litellm_provider: "openrouter",
+    mode: "chat",
+    supports_function_calling: true,
+    supports_reasoning: true,
+    supports_response_schema: true,
+  },
 };
