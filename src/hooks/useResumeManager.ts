@@ -177,11 +177,10 @@ export function useResumeManager() {
           getRetryStateKey(workspaceId),
           createFailedRetryState(attempt, result.error)
         );
-      } else {
-        // Success - clear retry state entirely
-        // If stream fails again, we'll start fresh (immediately eligible)
-        updatePersistedState(getRetryStateKey(workspaceId), null);
       }
+      // Note: Don't clear retry state here on success - stream-start event will handle that
+      // resumeStream success just means "stream initiated", not "stream completed"
+      // Clearing here causes backoff reset bug when stream starts then immediately fails
     } catch (error) {
       // Store error in retry state for display
       const errorData: SendMessageError = {
