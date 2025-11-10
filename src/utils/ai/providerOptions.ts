@@ -7,7 +7,11 @@
 import type { AnthropicProviderOptions } from "@ai-sdk/anthropic";
 import type { OpenAIResponsesProviderOptions } from "@ai-sdk/openai";
 import type { ThinkingLevel } from "@/types/thinking";
-import { ANTHROPIC_THINKING_BUDGETS, OPENAI_REASONING_EFFORT } from "@/types/thinking";
+import {
+  ANTHROPIC_THINKING_BUDGETS,
+  OPENAI_REASONING_EFFORT,
+  OPENROUTER_REASONING_EFFORT,
+} from "@/types/thinking";
 import { log } from "@/services/log";
 import type { CmuxMessage } from "@/types/message";
 import { enforceThinkingPolicy } from "@/utils/thinking/policy";
@@ -30,12 +34,24 @@ type ExtendedOpenAIResponsesProviderOptions = OpenAIResponsesProviderOptions & {
 };
 
 /**
+ * OpenRouter reasoning options
+ * @see https://openrouter.ai/docs/use-cases/reasoning-tokens
+ */
+type OpenRouterReasoningOptions = {
+  reasoning?: {
+    enabled?: boolean;
+    exclude?: boolean;
+    effort?: "low" | "medium" | "high";
+  };
+};
+
+/**
  * Provider-specific options structure for AI SDK
  */
 type ProviderOptions =
   | { anthropic: AnthropicProviderOptions }
   | { openai: ExtendedOpenAIResponsesProviderOptions }
-  | { openrouter: Record<string, unknown> } // OpenRouter accepts arbitrary options
+  | { openrouter: OpenRouterReasoningOptions }
   | Record<string, never>; // Empty object for unsupported providers
 
 /**
@@ -153,10 +169,31 @@ export function buildProviderOptions(
 
   // Build OpenRouter-specific options
   if (provider === "openrouter") {
-    // OpenRouter doesn't have thinking/reasoning config
-    // Provider routing and other options are set in ~/.cmux/providers.jsonc
-    // and passed transparently through the AI SDK
-    log.debug("buildProviderOptions: OpenRouter (no provider options needed)");
+    const reasoningEffort = OPENROUTER_REASONING_EFFORT[effectiveThinking];
+
+    log.debug("buildProviderOptions: OpenRouter config", {
+      reasoningEffort,
+      thinkingLevel: effectiveThinking,
+    });
+
+    // Only add reasoning config if thinking is enabled
+    if (reasoningEffort) {
+      const options: ProviderOptions = {
+        openrouter: {
+          reasoning: {
+            enabled: true,
+            effort: reasoningEffort,
+            // Don't exclude reasoning content - we want to display it in the UI
+            exclude: false,
+          },
+        },
+      };
+      log.debug("buildProviderOptions: Returning OpenRouter options", options);
+      return options;
+    }
+
+    // No reasoning config needed when thinking is off
+    log.debug("buildProviderOptions: OpenRouter (thinking off, no provider options)");
     return {};
   }
 
