@@ -93,6 +93,17 @@ Or require a specific provider (no fallbacks):
 
 See [OpenRouter Provider Routing docs](https://openrouter.ai/docs/features/provider-routing) for details.
 
+**Reasoning Models:**
+
+OpenRouter supports reasoning models like Claude Sonnet Thinking. Use the thinking slider to control reasoning effort:
+
+- **Off**: No extended reasoning
+- **Low**: Quick reasoning for straightforward tasks
+- **Medium**: Standard reasoning for moderate complexity (default)
+- **High**: Deep reasoning for complex problems
+
+The thinking level is passed to OpenRouter as `reasoning.effort` and works with any reasoning-capable model. See [OpenRouter Reasoning docs](https://openrouter.ai/docs/use-cases/reasoning-tokens) for details.
+
 **Benefits:**
 
 - Single API key for hundreds of models
@@ -100,6 +111,7 @@ See [OpenRouter Provider Routing docs](https://openrouter.ai/docs/features/provi
 - Transparent per-token costs
 - Automatic failover for high availability
 - Control which infrastructure provider serves your requests
+- Unified thinking/reasoning interface across providers
 
 #### Ollama (Local)
 
