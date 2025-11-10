@@ -108,3 +108,10 @@ src/test-workspaces/
 terminal-bench-results/
 nodemon.json
 test_hot_reload.sh
+
+# TypeDoc
+.typedoc/
+
+# mdBook pagetoc (auto-generated)
+docs/theme/pagetoc.css
+docs/theme/pagetoc.js
