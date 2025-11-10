@@ -7,6 +7,7 @@ import { readPersistedState, updatePersistedState } from "./usePersistedState";
 import { isEligibleForAutoRetry, isNonRetryableSendError } from "@/utils/messages/retryEligibility";
 import { applyCompactionOverrides } from "@/utils/messages/compactionOptions";
 import type { SendMessageError } from "@/types/errors";
+import { createFailedRetryState } from "@/utils/messages/retryState";
 
 export interface RetryState {
   attempt: number;
@@ -171,12 +172,10 @@ export function useResumeManager() {
 
       if (!result.success) {
         // Store error in retry state so RetryBarrier can display it
-        const newState: RetryState = {
-          attempt: attempt + 1,
-          retryStartTime: Date.now(),
-          lastError: result.error,
-        };
-        updatePersistedState(getRetryStateKey(workspaceId), newState);
+        updatePersistedState(
+          getRetryStateKey(workspaceId),
+          createFailedRetryState(attempt, result.error)
+        );
       } else {
         // Success - clear retry state entirely
         // If stream fails again, we'll start fresh (immediately eligible)
@@ -184,15 +183,14 @@ export function useResumeManager() {
       }
     } catch (error) {
       // Store error in retry state for display
-      const newState: RetryState = {
-        attempt: attempt + 1,
-        retryStartTime: Date.now(),
-        lastError: {
-          type: "unknown",
-          raw: error instanceof Error ? error.message : "Failed to resume stream",
-        },
+      const errorData: SendMessageError = {
+        type: "unknown",
+        raw: error instanceof Error ? error.message : "Failed to resume stream",
       };
-      updatePersistedState(getRetryStateKey(workspaceId), newState);
+      updatePersistedState(
+        getRetryStateKey(workspaceId),
+        createFailedRetryState(attempt, errorData)
+      );
     } finally {
       // Always clear retrying flag
       retryingRef.current.delete(workspaceId);

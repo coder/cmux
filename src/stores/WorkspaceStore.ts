@@ -18,6 +18,7 @@ import type { TokenConsumer } from "@/types/chatStats";
 import type { LanguageModelV2Usage } from "@ai-sdk/provider";
 import { getCancelledCompactionKey } from "@/constants/storage";
 import { isCompactingStream, findCompactionRequestMessage } from "@/utils/compaction/handler";
+import { createFreshRetryState } from "@/utils/messages/retryState";
 
 export interface WorkspaceState {
   name: string; // User-facing workspace name (e.g., "feature-branch")
@@ -123,10 +124,8 @@ export class WorkspaceStore {
       if (this.onModelUsed) {
         this.onModelUsed((data as { model: string }).model);
       }
-      updatePersistedState(getRetryStateKey(workspaceId), {
-        attempt: 0,
-        retryStartTime: Date.now(),
-      });
+      // Reset retry state on successful stream start
+      updatePersistedState(getRetryStateKey(workspaceId), createFreshRetryState());
       this.states.bump(workspaceId);
     },
     "stream-delta": (workspaceId, aggregator, data) => {

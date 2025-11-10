@@ -7,13 +7,13 @@ import type { RetryState } from "@/hooks/useResumeManager";
 import { useWorkspaceState } from "@/stores/WorkspaceStore";
 import { isEligibleForAutoRetry, isNonRetryableSendError } from "@/utils/messages/retryEligibility";
 import { formatSendMessageError } from "@/utils/errors/formatSendError";
+import { createManualRetryState, INITIAL_DELAY } from "@/utils/messages/retryState";
 
 interface RetryBarrierProps {
   workspaceId: string;
   className?: string;
 }
 
-const INITIAL_DELAY = 1000; // 1 second
 const MAX_DELAY = 60000; // 60 seconds (cap for exponential backoff)
 
 const defaultRetryState: RetryState = {
@@ -92,9 +92,9 @@ export const RetryBarrier: React.FC<RetryBarrierProps> = ({ workspaceId, classNa
   const handleManualRetry = () => {
     setAutoRetry(true); // Re-enable auto-retry for next failure
 
-    // Clear retry state to make workspace immediately eligible for resume
-    // Use updatePersistedState to ensure listener-enabled hooks receive the update
-    updatePersistedState(getRetryStateKey(workspaceId), null);
+    // Create manual retry state: immediate retry BUT preserves attempt counter
+    // This prevents infinite retry loops without backoff if the retry fails
+    updatePersistedState(getRetryStateKey(workspaceId), createManualRetryState(attempt));
 
     // Emit event to useResumeManager - it will handle the actual resume
     // Pass isManual flag to bypass eligibility checks (user explicitly wants to retry)
