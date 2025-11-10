@@ -431,12 +431,20 @@ export class AIService extends EventEmitter {
             ? (providerConfig.fetch as typeof fetch)
             : defaultFetchWithUnlimitedTimeout;
 
+        // Extract standard provider settings (apiKey, baseUrl, headers, fetch)
+        // and move everything else to extraBody for transparent pass-through
+        const { apiKey, baseUrl, headers, fetch: _fetch, ...extraOptions } = providerConfig;
+
         // Lazy-load OpenRouter provider to reduce startup time
         const { createOpenRouter } = await import("@openrouter/ai-sdk-provider");
         const provider = createOpenRouter({
-          ...providerConfig,
+          apiKey,
+          baseURL: baseUrl,
+          headers: headers as Record<string, string> | undefined,
           // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
           fetch: baseFetch as any,
+          // Pass all additional config options (like provider routing) via extraBody
+          extraBody: Object.keys(extraOptions).length > 0 ? extraOptions : undefined,
         });
         return Ok(provider(modelId));
       }
