@@ -1,11 +1,11 @@
 {
-  "name": "@coder/cmux",
+  "name": "mux",
   "version": "0.5.1",
   "description": "cmux - coder multiplexer",
   "author": "Coder",
   "main": "dist/main.js",
   "bin": {
-    "cmux": "dist/main.js"
+    "mux": "dist/main.js"
   },
   "license": "AGPL-3.0-only",
   "repository": {
