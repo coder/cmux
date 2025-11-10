@@ -54,10 +54,14 @@ export async function sendMessage(
   mockIpcRenderer: IpcRenderer,
   workspaceId: string,
   message: string,
-  options?: SendMessageOptions & { imageParts?: Array<{ url: string; mediaType: string }> }
+  options?: SendMessageOptions & {
+    imageParts?: Array<{ url: string; mediaType: string }>;
+    skipProviderSetup?: boolean;
+  }
 ): Promise<Result<void, SendMessageError>> {
   // Setup provider on first use (idempotent across all sendMessage calls)
-  if (!setupProviderCache.has(mockIpcRenderer)) {
+  // Skip if explicitly requested (for testing error cases)
+  if (!options?.skipProviderSetup && !setupProviderCache.has(mockIpcRenderer)) {
     const { setupProviders, getApiKey } = await import("./setup");
     await setupProviders(mockIpcRenderer, {
       anthropic: {
@@ -67,11 +71,14 @@ export async function sendMessage(
     setupProviderCache.add(mockIpcRenderer);
   }
 
+  // Remove skipProviderSetup before sending to IPC
+  const { skipProviderSetup: _, ...ipcOptions } = options || {};
+
   return (await mockIpcRenderer.invoke(
     IPC_CHANNELS.WORKSPACE_SEND_MESSAGE,
     workspaceId,
     message,
-    options
+    ipcOptions
   )) as Result<void, SendMessageError>;
 }
 
@@ -84,7 +91,7 @@ export async function sendMessageWithModel(
   message: string,
   provider = "anthropic",
   model = "claude-sonnet-4-5",
-  options?: Omit<SendMessageOptions, "model">
+  options?: Omit<SendMessageOptions, "model"> & { skipProviderSetup?: boolean }
 ): Promise<Result<void, SendMessageError>> {
   return sendMessage(mockIpcRenderer, workspaceId, message, {
     ...options,

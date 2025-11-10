@@ -543,8 +543,9 @@ exit 1
             env.sentEvents.length = 0;
 
             // IMMEDIATELY ask AI to read the file (before init completes)
-            const sendResult = await env.mockIpcRenderer.invoke(
-              IPC_CHANNELS.WORKSPACE_SEND_MESSAGE,
+            // Use sendMessage helper which includes provider setup
+            const sendResult = await sendMessage(
+              env.mockIpcRenderer,
               workspaceId,
               "Read the file init_created_file.txt and tell me what it says",
               {

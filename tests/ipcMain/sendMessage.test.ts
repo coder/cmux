@@ -885,12 +885,14 @@ These are general instructions that apply to all modes.
         );
         try {
           // Try to send message without API key configured
+          // Skip automatic provider setup to test error case
           const result = await sendMessageWithModel(
             env.mockIpcRenderer,
             workspaceId,
             "Hello",
             provider,
-            model
+            model,
+            { skipProviderSetup: true }
           );
 
           // Should fail with api_key_not_found error
