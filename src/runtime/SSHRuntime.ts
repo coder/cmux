@@ -1195,10 +1195,10 @@ export class SSHRuntime implements Runtime {
     try {
       // Step 1: Detect current branch in source workspace (fast)
       initLogger.logStep("Detecting source workspace branch...");
-      const detectStream = await this.exec(
-        `git -C ${expandedSourcePath} branch --show-current`,
-        { cwd: "~", timeout: 10 }
-      );
+      const detectStream = await this.exec(`git -C ${expandedSourcePath} branch --show-current`, {
+        cwd: "~",
+        timeout: 10,
+      });
 
       // Command doesn't use stdin - abort to close immediately
       await detectStream.stdin.abort();
@@ -1229,10 +1229,7 @@ export class SSHRuntime implements Runtime {
       // Step 2: Create empty directory for new workspace (instant)
       // The actual copy happens in initWorkspace (fire-and-forget)
       initLogger.logStep("Creating workspace directory...");
-      const mkdirStream = await this.exec(
-        `mkdir -p ${expandedNewPath}`,
-        { cwd: "~", timeout: 10 }
-      );
+      const mkdirStream = await this.exec(`mkdir -p ${expandedNewPath}`, { cwd: "~", timeout: 10 });
 
       await mkdirStream.stdin.abort();
       const mkdirExitCode = await mkdirStream.exitCode;

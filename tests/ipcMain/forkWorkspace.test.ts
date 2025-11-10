@@ -297,7 +297,10 @@ describeIntegration("WORKSPACE_FORK with both runtimes", () => {
 
               // Cleanup
               await env.mockIpcRenderer.invoke(IPC_CHANNELS.WORKSPACE_REMOVE, sourceWorkspaceId);
-              await env.mockIpcRenderer.invoke(IPC_CHANNELS.WORKSPACE_REMOVE, forkResult.metadata.id);
+              await env.mockIpcRenderer.invoke(
+                IPC_CHANNELS.WORKSPACE_REMOVE,
+                forkResult.metadata.id
+              );
             }),
           TEST_TIMEOUT_MS
         );
@@ -374,7 +377,11 @@ echo "Init hook ran at $(date)" > init-marker.txt
               return; // Skip SSH for API tests
             }
 
-            const { env, workspaceId: sourceWorkspaceId, cleanup } = await setupWorkspace("anthropic");
+            const {
+              env,
+              workspaceId: sourceWorkspaceId,
+              cleanup,
+            } = await setupWorkspace("anthropic");
 
             try {
               // Fork the workspace
@@ -422,7 +429,11 @@ echo "Init hook ran at $(date)" > init-marker.txt
               return; // Skip SSH for API tests
             }
 
-            const { env, workspaceId: sourceWorkspaceId, cleanup } = await setupWorkspace("anthropic");
+            const {
+              env,
+              workspaceId: sourceWorkspaceId,
+              cleanup,
+            } = await setupWorkspace("anthropic");
 
             try {
               // Add history to source workspace
@@ -430,7 +441,12 @@ echo "Init hook ran at $(date)" > init-marker.txt
               const uniqueWord = `testword-${Date.now()}`;
               const historyMessages = [
                 createCmuxMessage("msg-1", "user", `Remember this word: ${uniqueWord}`, {}),
-                createCmuxMessage("msg-2", "assistant", `I will remember the word "${uniqueWord}".`, {}),
+                createCmuxMessage(
+                  "msg-2",
+                  "assistant",
+                  `I will remember the word "${uniqueWord}".`,
+                  {}
+                ),
               ];
 
               for (const msg of historyMessages) {
@@ -517,20 +533,25 @@ echo "Init hook ran at $(date)" > init-marker.txt
 
               // For SSH, construct path manually since namedWorkspacePath doesn't work for SSH
               const projectName = tempGitRepo.split("/").pop() ?? "unknown";
-              const sourceWorkspacePath = type === "ssh" && sshConfig
-                ? `${sshConfig.workdir}/${projectName}/${sourceBranchName}`
-                : (await env.mockIpcRenderer.invoke(IPC_CHANNELS.WORKSPACE_LIST))
-                    .find((w: any) => w.id === sourceWorkspaceId)?.namedWorkspacePath;
+              const sourceWorkspacePath =
+                type === "ssh" && sshConfig
+                  ? `${sshConfig.workdir}/${projectName}/${sourceBranchName}`
+                  : (await env.mockIpcRenderer.invoke(IPC_CHANNELS.WORKSPACE_LIST)).find(
+                      (w: any) => w.id === sourceWorkspaceId
+                    )?.namedWorkspacePath;
 
               expect(sourceWorkspacePath).toBeDefined();
 
               // Create runtime for file operations
-              const runtime = createRuntime(runtimeConfig ?? { type: "local", srcBaseDir: "~/.cmux/src" });
+              const runtime = createRuntime(
+                runtimeConfig ?? { type: "local", srcBaseDir: "~/.cmux/src" }
+              );
 
               const testContent = `Test content - ${Date.now()}`;
-              const testFilePath = type === "ssh"
-                ? `${sourceWorkspacePath}/uncommitted-test.txt`
-                : path.join(sourceWorkspacePath, "uncommitted-test.txt");
+              const testFilePath =
+                type === "ssh"
+                  ? `${sourceWorkspacePath}/uncommitted-test.txt`
+                  : path.join(sourceWorkspacePath, "uncommitted-test.txt");
 
               // Write file using runtime
               if (type === "ssh") {
@@ -557,16 +578,19 @@ echo "Init hook ran at $(date)" > init-marker.txt
               await new Promise((resolve) => setTimeout(resolve, getInitWaitTime()));
 
               // Get forked workspace path from metadata (or construct for SSH)
-              const forkedWorkspacePath = type === "ssh" && sshConfig
-                ? `${sshConfig.workdir}/${projectName}/${forkedName}`
-                : (await env.mockIpcRenderer.invoke(IPC_CHANNELS.WORKSPACE_LIST))
-                    .find((w: any) => w.id === forkedWorkspaceId)?.namedWorkspacePath;
+              const forkedWorkspacePath =
+                type === "ssh" && sshConfig
+                  ? `${sshConfig.workdir}/${projectName}/${forkedName}`
+                  : (await env.mockIpcRenderer.invoke(IPC_CHANNELS.WORKSPACE_LIST)).find(
+                      (w: any) => w.id === forkedWorkspaceId
+                    )?.namedWorkspacePath;
 
               expect(forkedWorkspacePath).toBeDefined();
 
-              const forkedFilePath = type === "ssh"
-                ? `${forkedWorkspacePath}/uncommitted-test.txt`
-                : path.join(forkedWorkspacePath, "uncommitted-test.txt");
+              const forkedFilePath =
+                type === "ssh"
+                  ? `${forkedWorkspacePath}/uncommitted-test.txt`
+                  : path.join(forkedWorkspacePath, "uncommitted-test.txt");
 
               if (type === "ssh") {
                 const readStream = await runtime.readFile(forkedFilePath);
@@ -622,15 +646,19 @@ echo "Init hook ran at $(date)" > init-marker.txt
 
               // Get forked workspace path from metadata (or construct for SSH)
               const projectName = tempGitRepo.split("/").pop() ?? "unknown";
-              const forkedWorkspacePath = type === "ssh" && sshConfig
-                ? `${sshConfig.workdir}/${projectName}/${forkedName}`
-                : (await env.mockIpcRenderer.invoke(IPC_CHANNELS.WORKSPACE_LIST))
-                    .find((w: any) => w.id === forkedWorkspaceId)?.namedWorkspacePath;
+              const forkedWorkspacePath =
+                type === "ssh" && sshConfig
+                  ? `${sshConfig.workdir}/${projectName}/${forkedName}`
+                  : (await env.mockIpcRenderer.invoke(IPC_CHANNELS.WORKSPACE_LIST)).find(
+                      (w: any) => w.id === forkedWorkspaceId
+                    )?.namedWorkspacePath;
 
               expect(forkedWorkspacePath).toBeDefined();
 
               // Create runtime for exec operations
-              const runtime = createRuntime(runtimeConfig ?? { type: "local", srcBaseDir: "~/.cmux/src" });
+              const runtime = createRuntime(
+                runtimeConfig ?? { type: "local", srcBaseDir: "~/.cmux/src" }
+              );
 
               // Check git branch in forked workspace
               const execStream = await runtime.exec(
@@ -751,12 +779,9 @@ echo "Init complete"
 
               // Send message that will use file_read tool
               // The tool should block until init completes
-              await sendMessage(
-                env.mockIpcRenderer,
-                forkedWorkspaceId,
-                "Read the README.md file",
-                { model: DEFAULT_TEST_MODEL }
-              );
+              await sendMessage(env.mockIpcRenderer, forkedWorkspaceId, "Read the README.md file", {
+                model: DEFAULT_TEST_MODEL,
+              });
 
               // Wait for stream to complete
               const collector = createEventCollector(env.sentEvents, forkedWorkspaceId);

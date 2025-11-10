@@ -691,10 +691,11 @@ export class IpcMain {
 
           // Check if source workspace is currently initializing
           const initState = this.initStateManager.getInitState(sourceWorkspaceId);
-          if (initState && initState.status === "running") {
+          if (initState?.status === "running") {
             return {
               success: false,
-              error: "Cannot fork workspace while it is initializing. Please wait for initialization to complete.",
+              error:
+                "Cannot fork workspace while it is initializing. Please wait for initialization to complete.",
             };
           }
 
@@ -749,6 +750,9 @@ export class IpcMain {
           if (!forkResult.workspacePath) {
             return { success: false, error: "Fork succeeded but no workspace path returned" };
           }
+
+          // Store validated workspace path for type safety
+          const workspacePath = forkResult.workspacePath;
 
           // Copy session files (chat.jsonl, partial.json) - local backend operation
           const sourceSessionDir = this.config.getSessionDir(sourceWorkspaceId);
@@ -819,7 +823,7 @@ export class IpcMain {
               projectPath: foundProjectPath,
               branchName: newName,
               trunkBranch: forkResult.sourceBranch ?? "main",
-              workspacePath: forkResult.workspacePath!,
+              workspacePath,
               initLogger,
               sourceWorkspacePath: forkResult.sourceWorkspacePath, // Fork from source, not sync from local
             })

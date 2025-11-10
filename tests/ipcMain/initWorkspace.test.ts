@@ -3,7 +3,6 @@ import {
   createTestEnvironment,
   cleanupTestEnvironment,
   validateApiKeys,
-
   type TestEnvironment,
 } from "./setup";
 import { IPC_CHANNELS, getChatChannel } from "../../src/constants/ipc-constants";

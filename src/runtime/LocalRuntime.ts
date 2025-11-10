@@ -367,11 +367,11 @@ export class LocalRuntime implements Runtime {
   }
 
   async initWorkspace(params: WorkspaceInitParams): Promise<WorkspaceInitResult> {
-    const { projectPath, workspacePath, initLogger, sourceWorkspacePath } = params;
+    const { projectPath, workspacePath, initLogger } = params;
 
     try {
       // Note: sourceWorkspacePath is only used by SSH runtime (to copy workspace)
-      // Local runtime creates git worktrees which are instant, so we ignore it here
+      // Local runtime creates git worktrees which are instant, so we don't need it here
 
       // Run .cmux/init hook if it exists
       // Note: runInitHook calls logComplete() internally if hook exists
