@@ -271,6 +271,15 @@ async function initializeProject(projectPath: string, ipcAdapter: HttpIpcMainAda
     // Trim trailing slashes to ensure proper project name extraction
     projectPath = projectPath.replace(/\/+$/, "");
     
+    // Normalize path (expand tilde, make absolute) to match how PROJECT_CREATE normalizes paths
+    const { validateProjectPath } = await import("./utils/pathUtils");
+    const validation = await validateProjectPath(projectPath);
+    if (!validation.valid) {
+      console.error(`Invalid project path: ${validation.error}`);
+      return;
+    }
+    projectPath = validation.expandedPath!;
+    
     // First, check if project already exists by listing all projects
     const handler = ipcAdapter.getHandler(IPC_CHANNELS.PROJECT_LIST);
     if (!handler) {
