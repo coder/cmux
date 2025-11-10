@@ -854,8 +854,11 @@ export class SSHRuntime implements Runtime {
         // 1. Copy workspace directory on remote host
         // cp -a preserves all attributes (permissions, timestamps, symlinks, uncommitted changes)
         initLogger.logStep("Copying workspace from source...");
+        // Expand tilde paths before using in remote command
+        const expandedSourcePath = expandTildeForSSH(sourceWorkspacePath);
+        const expandedWorkspacePath = expandTildeForSSH(workspacePath);
         const copyStream = await this.exec(
-          `cp -a ${shescape.quote(sourceWorkspacePath)}/. ${shescape.quote(workspacePath)}/`,
+          `cp -a ${expandedSourcePath}/. ${expandedWorkspacePath}/`,
           { cwd: "~", timeout: 300, abortSignal } // 5 minute timeout for large workspaces
         );
 
@@ -1185,11 +1188,15 @@ export class SSHRuntime implements Runtime {
     const sourceWorkspacePath = this.getWorkspacePath(projectPath, sourceWorkspaceName);
     const newWorkspacePath = this.getWorkspacePath(projectPath, newWorkspaceName);
 
+    // Expand tilde paths before using in remote commands
+    const expandedSourcePath = expandTildeForSSH(sourceWorkspacePath);
+    const expandedNewPath = expandTildeForSSH(newWorkspacePath);
+
     try {
       // Step 1: Detect current branch in source workspace (fast)
       initLogger.logStep("Detecting source workspace branch...");
       const detectStream = await this.exec(
-        `git -C ${shescape.quote(sourceWorkspacePath)} branch --show-current`,
+        `git -C ${expandedSourcePath} branch --show-current`,
         { cwd: "~", timeout: 10 }
       );
 
@@ -1223,7 +1230,7 @@ export class SSHRuntime implements Runtime {
       // The actual copy happens in initWorkspace (fire-and-forget)
       initLogger.logStep("Creating workspace directory...");
       const mkdirStream = await this.exec(
-        `mkdir -p ${shescape.quote(newWorkspacePath)}`,
+        `mkdir -p ${expandedNewPath}`,
         { cwd: "~", timeout: 10 }
       );
 
