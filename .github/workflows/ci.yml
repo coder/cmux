@@ -13,6 +13,10 @@ on:
         # This filter is passed to unit tests, integration tests, e2e tests, and storybook tests
         # to enable faster iteration when debugging specific test failures in CI
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   static-check:
     name: Static Checks (lint + typecheck + fmt)
@@ -89,7 +93,7 @@ jobs:
           fail_ci_if_error: false
 
   integration-test:
-    name: Integration Tests (with Ollama)
+    name: Integration Tests
     runs-on: ${{ github.repository_owner == 'coder' && 'self-hosted' || 'ubuntu-latest' }}
     steps:
       - name: Checkout code
