@@ -565,7 +565,7 @@ details[open] > summary::before {
   border-radius: var(--radius-md);
   padding: 6px 0;
   font-family: var(--font-monospace);
-  font-size: 0.9em;
+  font-size: 0.85em;
   line-height: 1.6;
   overflow-x: auto;
 }

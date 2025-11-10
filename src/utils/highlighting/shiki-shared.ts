@@ -27,7 +27,7 @@ export function extractShikiLines(html: string): string[] {
   const codeMatch = /<code[^>]*>(.*?)<\/code>/s.exec(html);
   if (!codeMatch) return [];
 
-  return codeMatch[1].split("\n").map((chunk) => {
+  const lines = codeMatch[1].split("\n").map((chunk) => {
     const start = chunk.indexOf('<span class="line">');
     if (start === -1) return "";
 
@@ -36,4 +36,11 @@ export function extractShikiLines(html: string): string[] {
 
     return end > contentStart ? chunk.substring(contentStart, end) : "";
   });
+
+  // Remove trailing empty lines (Shiki often adds one)
+  while (lines.length > 0 && lines[lines.length - 1] === "") {
+    lines.pop();
+  }
+
+  return lines;
 }

@@ -7,6 +7,8 @@
 
 import { createHighlighter } from "shiki";
 import { SHIKI_THEME, mapToShikiLang, extractShikiLines } from "../src/utils/highlighting/shiki-shared";
+import { renderToStaticMarkup } from "react-dom/server";
+import { CodeBlockSSR } from "../src/components/Messages/CodeBlockSSR";
 
 interface Chapter {
   name: string;
@@ -38,28 +40,15 @@ type PreprocessorInput = [Context, Book];
 
 /**
  * Generate HTML grid layout with line numbers from Shiki output
+ * Uses the SSR component to ensure consistency with main app
  */
 function generateGridHtml(shikiHtml: string, originalCode: string): string {
   const lines = extractShikiLines(shikiHtml);
   
-  // Build the grid HTML matching our CSS structure
-  let html = '<div class="code-block-wrapper" data-code="' + escapeHtml(originalCode) + '">';
-  html += '<div class="code-block-container">';
-  
-  lines.forEach((lineHtml, idx) => {
-    const lineNumber = idx + 1;
-    html += `<div class="line-number">${lineNumber}</div>`;
-    html += `<div class="code-line">${lineHtml}</div>`;
-  });
-  
-  html += '</div>';
-  html += '<button class="copy-button code-copy-button" aria-label="Copy to clipboard">';
-  html += '<svg class="copy-icon" width="14" height="14" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">';
-  html += '<path d="M13.5 5.5v8a1 1 0 0 1-1 1h-8a1 1 0 0 1-1-1v-8a1 1 0 0 1 1-1h8a1 1 0 0 1 1 1z" stroke="currentColor" stroke-width="1.5" fill="none"/>';
-  html += '<path d="M10.5 3.5v-1a1 1 0 0 0-1-1h-6a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h1" stroke="currentColor" stroke-width="1.5" fill="none"/>';
-  html += '</svg>';
-  html += '</button>';
-  html += '</div>';
+  // Render the React component to static HTML
+  const html = renderToStaticMarkup(
+    CodeBlockSSR({ code: originalCode, highlightedLines: lines })
+  );
   
   return html;
 }
@@ -77,15 +66,19 @@ function escapeHtml(text: string): string {
  * Process markdown content to replace code blocks with highlighted HTML
  */
 async function processMarkdown(content: string, highlighter: Awaited<ReturnType<typeof createHighlighter>>): Promise<string> {
-  // Match ```lang\ncode\n``` blocks
-  const codeBlockRegex = /```(\w+)\n([\s\S]*?)```/g;
+  // Match ```lang\ncode\n``` blocks (lang is optional)
+  const codeBlockRegex = /```(\w*)\n([\s\S]*?)```/g;
   
   let result = content;
   const matches = Array.from(content.matchAll(codeBlockRegex));
   
   for (const match of matches) {
     const [fullMatch, lang, code] = match;
-    const shikiLang = mapToShikiLang(lang);
+    // Default to plaintext if no language specified
+    const shikiLang = mapToShikiLang(lang || "plaintext");
+    
+    // Remove trailing newlines from code (markdown often has extra newline before closing ```)
+    const trimmedCode = code.replace(/\n+$/, "");
     
     try {
       // Load language if needed
@@ -101,12 +94,12 @@ async function processMarkdown(content: string, highlighter: Awaited<ReturnType<
         }
       }
       
-      const html = highlighter.codeToHtml(code, {
+      const html = highlighter.codeToHtml(trimmedCode, {
         lang: shikiLang,
         theme: SHIKI_THEME,
       });
       
-      const gridHtml = generateGridHtml(html, code);
+      const gridHtml = generateGridHtml(html, trimmedCode);
       
       // Remove newlines from HTML to prevent mdBook from treating it as markdown
       // mdBook only parses multi-line content as markdown; single-line HTML is passed through
