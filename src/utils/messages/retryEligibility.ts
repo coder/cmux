@@ -35,7 +35,7 @@ const NON_RETRYABLE_STREAM_ERRORS: StreamErrorType[] = [
  */
 export function isNonRetryableSendError(error: SendMessageError): boolean {
   // Debug flag: force all errors to be retryable
-  if (window.__CMUX_FORCE_ALL_RETRYABLE) {
+  if (typeof window !== "undefined" && window.__CMUX_FORCE_ALL_RETRYABLE) {
     return false;
   }
 
@@ -114,7 +114,7 @@ export function isEligibleForAutoRetry(
   const lastMessage = messages[messages.length - 1];
   if (lastMessage.type === "stream-error") {
     // Debug flag: force all errors to be retryable
-    if (window.__CMUX_FORCE_ALL_RETRYABLE) {
+    if (typeof window !== "undefined" && window.__CMUX_FORCE_ALL_RETRYABLE) {
       return true;
     }
     return !NON_RETRYABLE_STREAM_ERRORS.includes(lastMessage.errorType);
