@@ -3,8 +3,8 @@ import { cn } from "@/lib/utils";
 import type { FrontendWorkspaceMetadata } from "@/types/workspace";
 import type { RuntimeConfig } from "@/types/runtime";
 import { parseRuntimeString } from "@/utils/chatCommands";
-import { getRuntimeKey } from "@/constants/storage";
-import { useSendMessageOptions } from "@/hooks/useSendMessageOptions";
+import { getRuntimeKey, getModelKey } from "@/constants/storage";
+import { useModelLRU } from "@/hooks/useModelLRU";
 
 interface FirstMessageInputProps {
   projectPath: string;
@@ -25,8 +25,10 @@ export function FirstMessageInput({ projectPath, onWorkspaceCreated }: FirstMess
   const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
-  // Use standard send message options (project-scoped, not workspace-specific)
-  const sendMessageOptions = useSendMessageOptions(`__project__${projectPath}`);
+  // Get most recent model from LRU (project-scoped preference)
+  const { recentModels } = useModelLRU();
+  const projectModelKey = getModelKey(`__project__${projectPath}`);
+  const preferredModel = localStorage.getItem(projectModelKey) ?? recentModels[0];
 
   const handleSend = useCallback(async () => {
     if (!input.trim() || isSending) return;
@@ -43,7 +45,7 @@ export function FirstMessageInput({ projectPath, onWorkspaceCreated }: FirstMess
         : undefined;
 
       const result = await window.api.workspace.sendMessage(null, input, {
-        ...sendMessageOptions,
+        model: preferredModel,
         runtimeConfig,
         projectPath, // Pass projectPath when workspaceId is null
       });
@@ -77,7 +79,7 @@ export function FirstMessageInput({ projectPath, onWorkspaceCreated }: FirstMess
       setError(`Failed to create workspace: ${errorMessage}`);
       setIsSending(false);
     }
-  }, [input, isSending, projectPath, sendMessageOptions, onWorkspaceCreated]);
+  }, [input, isSending, projectPath, preferredModel, onWorkspaceCreated]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
