@@ -14,7 +14,7 @@ interface Chapter {
   name: string;
   content?: string;
   number?: number[];
-  sub_items?: Chapter[];
+  sub_items?: Section[];
   path?: string;
   source_path?: string;
   parent_names?: string[];
@@ -116,7 +116,9 @@ async function processChapter(chapter: Chapter, highlighter: Awaited<ReturnType<
   
   if (chapter.sub_items) {
     for (const subItem of chapter.sub_items) {
-      await processChapter(subItem, highlighter);
+      if (subItem.Chapter) {
+        await processChapter(subItem.Chapter, highlighter);
+      }
     }
   }
 }

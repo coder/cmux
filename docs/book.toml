@@ -17,6 +17,7 @@ command = "mdbook-mermaid"
 
 [preprocessor.shiki]
 command = "bun ../scripts/mdbook-shiki.ts"
+renderer = ["html"]
 
 [output.html]
 git-repository-url = "https://github.com/coder/cmux"
