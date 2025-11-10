@@ -149,6 +149,8 @@ export interface WorkspaceInitParams {
   initLogger: InitLogger;
   /** Optional abort signal for cancellation */
   abortSignal?: AbortSignal;
+  /** If provided, copy from this workspace instead of syncing from local (fork scenario) */
+  sourceWorkspacePath?: string;
 }
 
 /**
@@ -187,6 +189,8 @@ export interface WorkspaceForkResult {
   success: boolean;
   /** Path to the new workspace (if successful) */
   workspacePath?: string;
+  /** Path to the source workspace (needed for init phase) */
+  sourceWorkspacePath?: string;
   /** Branch that was forked from */
   sourceBranch?: string;
   /** Error message (if failed) */
@@ -308,6 +312,21 @@ export interface Runtime {
    * @returns Result indicating success or error
    */
   initWorkspace(params: WorkspaceInitParams): Promise<WorkspaceInitResult>;
+
+  /**
+   * Run .cmux/init hook if it exists and is executable
+   * @param projectPath Project root path
+   * @param workspacePath Workspace directory path
+   * @param initLogger Logger for streaming hook output
+   * @param abortSignal Optional abort signal for cancellation (SSH only)
+   * @returns Promise that resolves when hook completes (or immediately if no hook)
+   */
+  runInitHook(
+    projectPath: string,
+    workspacePath: string,
+    initLogger: InitLogger,
+    abortSignal?: AbortSignal
+  ): Promise<void>;
 
   /**
    * Rename workspace directory

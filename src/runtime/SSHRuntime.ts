@@ -708,7 +708,7 @@ export class SSHRuntime implements Runtime {
   /**
    * Run .cmux/init hook on remote machine if it exists
    */
-  private async runInitHook(
+  async runInitHook(
     projectPath: string,
     workspacePath: string,
     initLogger: InitLogger,
@@ -838,23 +838,60 @@ export class SSHRuntime implements Runtime {
   }
 
   async initWorkspace(params: WorkspaceInitParams): Promise<WorkspaceInitResult> {
-    const { projectPath, branchName, trunkBranch, workspacePath, initLogger, abortSignal } = params;
+    const {
+      projectPath,
+      branchName,
+      trunkBranch,
+      workspacePath,
+      initLogger,
+      abortSignal,
+      sourceWorkspacePath,
+    } = params;
 
     try {
-      // 1. Sync project to remote (opportunistic rsync with scp fallback)
-      initLogger.logStep("Syncing project files to remote...");
-      try {
-        await this.syncProjectToRemote(projectPath, workspacePath, initLogger, abortSignal);
-      } catch (error) {
-        const errorMsg = getErrorMessage(error);
-        initLogger.logStderr(`Failed to sync project: ${errorMsg}`);
-        initLogger.logComplete(-1);
-        return {
-          success: false,
-          error: `Failed to sync project: ${errorMsg}`,
-        };
+      // Fork scenario: Copy from source workspace instead of syncing from local
+      if (sourceWorkspacePath) {
+        // 1. Copy workspace directory on remote host
+        // cp -a preserves all attributes (permissions, timestamps, symlinks, uncommitted changes)
+        initLogger.logStep("Copying workspace from source...");
+        const copyStream = await this.exec(
+          `cp -a ${shescape.quote(sourceWorkspacePath)}/. ${shescape.quote(workspacePath)}/`,
+          { cwd: "~", timeout: 300, abortSignal } // 5 minute timeout for large workspaces
+        );
+
+        const [stdout, stderr, exitCode] = await Promise.all([
+          streamToString(copyStream.stdout),
+          streamToString(copyStream.stderr),
+          copyStream.exitCode,
+        ]);
+
+        if (exitCode !== 0) {
+          const errorMsg = `Failed to copy workspace: ${stderr || stdout}`;
+          initLogger.logStderr(errorMsg);
+          initLogger.logComplete(-1);
+          return {
+            success: false,
+            error: errorMsg,
+          };
+        }
+        initLogger.logStep("Workspace copied successfully");
+      } else {
+        // Normal scenario: Sync from local project
+        // 1. Sync project to remote (opportunistic rsync with scp fallback)
+        initLogger.logStep("Syncing project files to remote...");
+        try {
+          await this.syncProjectToRemote(projectPath, workspacePath, initLogger, abortSignal);
+        } catch (error) {
+          const errorMsg = getErrorMessage(error);
+          initLogger.logStderr(`Failed to sync project: ${errorMsg}`);
+          initLogger.logComplete(-1);
+          return {
+            success: false,
+            error: `Failed to sync project: ${errorMsg}`,
+          };
+        }
+        initLogger.logStep("Files synced successfully");
       }
-      initLogger.logStep("Files synced successfully");
 
       // 2. Checkout branch remotely
       // If branch exists locally, check it out; otherwise create it from the specified trunk branch
@@ -1141,16 +1178,80 @@ export class SSHRuntime implements Runtime {
     }
   }
 
-  forkWorkspace(_params: WorkspaceForkParams): Promise<WorkspaceForkResult> {
-    // SSH forking is not yet implemented due to unresolved complexities:
-    // - Users expect the new workspace's filesystem state to match the remote workspace,
-    //   not the local project (which may be out of sync or on a different commit)
-    // - This requires: detecting the branch, copying remote state, handling uncommitted changes
-    // - For now, users should create a new workspace from the desired branch instead
-    return Promise.resolve({
-      success: false,
-      error: "Forking SSH workspaces is not yet implemented. Create a new workspace instead.",
-    });
+  async forkWorkspace(params: WorkspaceForkParams): Promise<WorkspaceForkResult> {
+    const { projectPath, sourceWorkspaceName, newWorkspaceName, initLogger } = params;
+
+    // Get source and destination workspace paths
+    const sourceWorkspacePath = this.getWorkspacePath(projectPath, sourceWorkspaceName);
+    const newWorkspacePath = this.getWorkspacePath(projectPath, newWorkspaceName);
+
+    try {
+      // Step 1: Detect current branch in source workspace (fast)
+      initLogger.logStep("Detecting source workspace branch...");
+      const detectStream = await this.exec(
+        `git -C ${shescape.quote(sourceWorkspacePath)} branch --show-current`,
+        { cwd: "~", timeout: 10 }
+      );
+
+      // Command doesn't use stdin - abort to close immediately
+      await detectStream.stdin.abort();
+
+      const [detectExitCode, sourceBranch] = await Promise.all([
+        detectStream.exitCode,
+        streamToString(detectStream.stdout),
+      ]);
+
+      if (detectExitCode !== 0) {
+        const stderr = await streamToString(detectStream.stderr);
+        return {
+          success: false,
+          error: `Failed to detect branch in source workspace: ${stderr}`,
+        };
+      }
+
+      const trimmedSourceBranch = sourceBranch.trim();
+      if (!trimmedSourceBranch) {
+        return {
+          success: false,
+          error: "Failed to detect branch in source workspace",
+        };
+      }
+
+      initLogger.logStep(`Detected source branch: ${trimmedSourceBranch}`);
+
+      // Step 2: Create empty directory for new workspace (instant)
+      // The actual copy happens in initWorkspace (fire-and-forget)
+      initLogger.logStep("Creating workspace directory...");
+      const mkdirStream = await this.exec(
+        `mkdir -p ${shescape.quote(newWorkspacePath)}`,
+        { cwd: "~", timeout: 10 }
+      );
+
+      await mkdirStream.stdin.abort();
+      const mkdirExitCode = await mkdirStream.exitCode;
+      if (mkdirExitCode !== 0) {
+        const stderr = await streamToString(mkdirStream.stderr);
+        return {
+          success: false,
+          error: `Failed to create workspace directory: ${stderr}`,
+        };
+      }
+
+      initLogger.logStep("Workspace directory created");
+
+      // Return immediately - copy and init happen in initWorkspace (fire-and-forget)
+      return {
+        success: true,
+        workspacePath: newWorkspacePath,
+        sourceWorkspacePath,
+        sourceBranch: trimmedSourceBranch,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: getErrorMessage(error),
+      };
+    }
   }
 }
 

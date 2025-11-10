@@ -367,9 +367,12 @@ export class LocalRuntime implements Runtime {
   }
 
   async initWorkspace(params: WorkspaceInitParams): Promise<WorkspaceInitResult> {
-    const { projectPath, workspacePath, initLogger } = params;
+    const { projectPath, workspacePath, initLogger, sourceWorkspacePath } = params;
 
     try {
+      // Note: sourceWorkspacePath is only used by SSH runtime (to copy workspace)
+      // Local runtime creates git worktrees which are instant, so we ignore it here
+
       // Run .cmux/init hook if it exists
       // Note: runInitHook calls logComplete() internally if hook exists
       const hookExists = await checkInitHookExists(projectPath);
@@ -394,7 +397,7 @@ export class LocalRuntime implements Runtime {
   /**
    * Run .cmux/init hook if it exists and is executable
    */
-  private async runInitHook(
+  async runInitHook(
     projectPath: string,
     workspacePath: string,
     initLogger: InitLogger
@@ -588,7 +591,10 @@ export class LocalRuntime implements Runtime {
         };
       }
 
+      initLogger.logStep(`Detected source branch: ${sourceBranch}`);
+
       // Use createWorkspace with sourceBranch as trunk to fork from source branch
+      // For local workspaces (worktrees), this is instant - no init needed
       const createResult = await this.createWorkspace({
         projectPath,
         branchName: newWorkspaceName,
@@ -604,9 +610,12 @@ export class LocalRuntime implements Runtime {
         };
       }
 
+      initLogger.logStep("Workspace forked successfully");
+
       return {
         success: true,
         workspacePath: createResult.workspacePath,
+        sourceWorkspacePath,
         sourceBranch,
       };
     } catch (error) {

@@ -32,6 +32,7 @@ import { isSSHRuntime } from "@/types/runtime";
 import { validateProjectPath } from "@/utils/pathUtils";
 import { ExtensionMetadataService } from "@/services/ExtensionMetadataService";
 import { generateWorkspaceNames } from "./workspaceTitleGenerator";
+import { checkInitHookExists } from "@/runtime/initHook";
 /**
  * IpcMain - Manages all IPC handlers and service coordination
  *
@@ -724,7 +725,7 @@ export class IpcMain {
 
           const initLogger = this.createInitLogger(newWorkspaceId);
 
-          // Delegate fork operation to runtime
+          // Delegate fork operation to runtime (fast path - returns before init hook)
           const forkResult = await runtime.forkWorkspace({
             projectPath: foundProjectPath,
             sourceWorkspaceName: sourceMetadata.name,
@@ -734,6 +735,10 @@ export class IpcMain {
 
           if (!forkResult.success) {
             return { success: false, error: forkResult.error };
+          }
+
+          if (!forkResult.workspacePath) {
+            return { success: false, error: "Fork succeeded but no workspace path returned" };
           }
 
           // Copy session files (chat.jsonl, partial.json) - local backend operation
@@ -795,6 +800,26 @@ export class IpcMain {
 
           // Emit metadata event
           session.emitMetadata(metadata);
+
+          // Run initialization in background (fire-and-forget like createWorkspace)
+          // For SSH: copies workspace + creates branch + runs init hook
+          // For Local: just runs init hook (worktree already created)
+          // This allows fork to return immediately while init streams progress
+          void runtime
+            .initWorkspace({
+              projectPath: foundProjectPath,
+              branchName: newName,
+              trunkBranch: forkResult.sourceBranch ?? "main",
+              workspacePath: forkResult.workspacePath!,
+              initLogger,
+              sourceWorkspacePath: forkResult.sourceWorkspacePath, // Fork from source, not sync from local
+            })
+            .catch((error: unknown) => {
+              const errorMsg = error instanceof Error ? error.message : String(error);
+              log.error(`initWorkspace failed for forked workspace ${newWorkspaceId}:`, error);
+              initLogger.logStderr(`Initialization failed: ${errorMsg}`);
+              initLogger.logComplete(-1);
+            });
 
           return {
             success: true,
