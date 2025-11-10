@@ -268,6 +268,9 @@ wss.on("connection", (ws) => {
  */
 async function initializeProject(projectPath: string, ipcAdapter: HttpIpcMainAdapter): Promise<void> {
   try {
+    // Trim trailing slashes to ensure proper project name extraction
+    projectPath = projectPath.replace(/\/+$/, "");
+    
     // First, check if project already exists by listing all projects
     const handler = ipcAdapter.getHandler(IPC_CHANNELS.PROJECT_LIST);
     if (!handler) {
