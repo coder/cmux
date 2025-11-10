@@ -5,9 +5,8 @@ import type { FrontendWorkspaceMetadata } from "@/types/workspace";
 import type { WorkspaceChatMessage } from "@/types/ipc";
 import type { TodoItem } from "@/types/tools";
 import { StreamingMessageAggregator } from "@/utils/messages/StreamingMessageAggregator";
-import { updatePersistedState, readPersistedState } from "@/hooks/usePersistedState";
+import { updatePersistedState } from "@/hooks/usePersistedState";
 import { getRetryStateKey } from "@/constants/storage";
-import type { RetryState } from "@/hooks/useResumeManager";
 import { CUSTOM_EVENTS, createCustomEvent } from "@/constants/events";
 import { useSyncExternalStore } from "react";
 import { isCaughtUpMessage, isStreamError, isDeleteMessage, isCmuxMessage } from "@/types/ipc";
@@ -926,18 +925,20 @@ export class WorkspaceStore {
 
       // Increment retry attempt counter when stream fails
       // This handles auth errors that happen AFTER stream-start
-      const retryState = readPersistedState<RetryState>(getRetryStateKey(workspaceId), {
-        attempt: 0,
-        retryStartTime: Date.now(),
-      });
-      const newState: RetryState = {
-        attempt: retryState.attempt + 1,
-        retryStartTime: Date.now(),
-      };
-      console.debug(
-        `[retry] ${workspaceId} stream-error: incrementing attempt ${retryState.attempt} → ${newState.attempt}`
+      updatePersistedState(
+        getRetryStateKey(workspaceId),
+        (prev) => {
+          const newAttempt = prev.attempt + 1;
+          console.debug(
+            `[retry] ${workspaceId} stream-error: incrementing attempt ${prev.attempt} → ${newAttempt}`
+          );
+          return {
+            attempt: newAttempt,
+            retryStartTime: Date.now(),
+          };
+        },
+        { attempt: 0, retryStartTime: Date.now() }
       );
-      updatePersistedState(getRetryStateKey(workspaceId), newState);
 
       this.states.bump(workspaceId);
       this.dispatchResumeCheck(workspaceId);
