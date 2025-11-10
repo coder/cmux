@@ -90,7 +90,7 @@ jobs:
 
   integration-test:
     name: Integration Tests (with Ollama)
-    runs-on: self-hosted
+    runs-on: ${{ github.repository_owner == 'coder' && 'self-hosted' || 'ubuntu-latest' }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -100,9 +100,11 @@ jobs:
       - uses: ./.github/actions/setup-cmux
 
       - name: Setup Ollama
+        # Only install Ollama on non-self-hosted runners (self-hosted has it pre-installed)
+        if: runner.name != 'mux-ci-1'
         uses: ./.github/actions/setup-ollama
 
-      # Ollama server started by setup-ollama action
+      # Ollama server started by setup-ollama action or pre-installed on self-hosted
       # Tests will pull models idempotently
       - name: Verify Ollama server
         run: |
