@@ -1,6 +1,7 @@
 import type { RetryState } from "@/hooks/useResumeManager";
 
 export const INITIAL_DELAY = 1000; // 1 second
+export const MAX_DELAY = 60000; // 60 seconds
 
 /**
  * Utility functions for managing retry state
@@ -8,6 +9,17 @@ export const INITIAL_DELAY = 1000; // 1 second
  * These functions encapsulate retry state transitions to prevent bugs
  * like bypassing exponential backoff.
  */
+
+/**
+ * Calculate exponential backoff delay with capped maximum
+ *
+ * Formula: min(INITIAL_DELAY * 2^attempt, MAX_DELAY)
+ * Examples: 1s → 2s → 4s → 8s → 16s → 32s → 60s (capped)
+ */
+export function calculateBackoffDelay(attempt: number): number {
+  const exponentialDelay = INITIAL_DELAY * Math.pow(2, attempt);
+  return Math.min(exponentialDelay, MAX_DELAY);
+}
 
 /**
  * Create a fresh retry state (for new stream starts)

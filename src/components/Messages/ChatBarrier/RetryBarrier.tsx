@@ -7,14 +7,12 @@ import type { RetryState } from "@/hooks/useResumeManager";
 import { useWorkspaceState } from "@/stores/WorkspaceStore";
 import { isEligibleForAutoRetry, isNonRetryableSendError } from "@/utils/messages/retryEligibility";
 import { formatSendMessageError } from "@/utils/errors/formatSendError";
-import { createManualRetryState, INITIAL_DELAY } from "@/utils/messages/retryState";
+import { createManualRetryState, calculateBackoffDelay } from "@/utils/messages/retryState";
 
 interface RetryBarrierProps {
   workspaceId: string;
   className?: string;
 }
-
-const MAX_DELAY = 60000; // 60 seconds (cap for exponential backoff)
 
 const defaultRetryState: RetryState = {
   attempt: 0,
@@ -64,19 +62,13 @@ export const RetryBarrier: React.FC<RetryBarrierProps> = ({ workspaceId, classNa
   // Local state for UI
   const [countdown, setCountdown] = useState(0);
 
-  // Calculate delay with exponential backoff (same as useResumeManager)
-  const getDelay = useCallback((attemptNum: number) => {
-    const exponentialDelay = INITIAL_DELAY * Math.pow(2, attemptNum);
-    return Math.min(exponentialDelay, MAX_DELAY);
-  }, []);
-
   // Update countdown display (pure display logic, no side effects)
   // useResumeManager handles the actual retry logic
   useEffect(() => {
     if (!autoRetry) return;
 
     const interval = setInterval(() => {
-      const delay = getDelay(attempt);
+      const delay = calculateBackoffDelay(attempt);
       const nextRetryTime = retryStartTime + delay;
       const timeUntilRetry = Math.max(0, nextRetryTime - Date.now());
 
@@ -84,7 +76,7 @@ export const RetryBarrier: React.FC<RetryBarrierProps> = ({ workspaceId, classNa
     }, 100);
 
     return () => clearInterval(interval);
-  }, [autoRetry, attempt, retryStartTime, getDelay]);
+  }, [autoRetry, attempt, retryStartTime]);
 
   // Manual retry handler (user-initiated, immediate)
   // Emits event to useResumeManager instead of calling resumeStream directly

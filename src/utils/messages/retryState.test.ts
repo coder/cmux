@@ -3,10 +3,33 @@ import {
   createFreshRetryState,
   createManualRetryState,
   createFailedRetryState,
+  calculateBackoffDelay,
   INITIAL_DELAY,
+  MAX_DELAY,
 } from "./retryState";
 
 describe("retryState utilities", () => {
+  describe("calculateBackoffDelay", () => {
+    it("returns exponential backoff delays", () => {
+      expect(calculateBackoffDelay(0)).toBe(1000); // 2^0 = 1s
+      expect(calculateBackoffDelay(1)).toBe(2000); // 2^1 = 2s
+      expect(calculateBackoffDelay(2)).toBe(4000); // 2^2 = 4s
+      expect(calculateBackoffDelay(3)).toBe(8000); // 2^3 = 8s
+      expect(calculateBackoffDelay(4)).toBe(16000); // 2^4 = 16s
+      expect(calculateBackoffDelay(5)).toBe(32000); // 2^5 = 32s
+    });
+
+    it("caps delay at MAX_DELAY", () => {
+      expect(calculateBackoffDelay(6)).toBe(60000); // 2^6 = 64s → capped at 60s
+      expect(calculateBackoffDelay(7)).toBe(60000); // 2^7 = 128s → capped at 60s
+      expect(calculateBackoffDelay(10)).toBe(60000); // Always capped
+    });
+
+    it("MAX_DELAY should be 60 seconds", () => {
+      expect(MAX_DELAY).toBe(60000);
+    });
+  });
+
   describe("createFreshRetryState", () => {
     it("creates a state with attempt 0 and no error", () => {
       const state = createFreshRetryState();
@@ -73,7 +96,7 @@ describe("retryState utilities", () => {
     });
 
     it("stores the error for display", () => {
-      const error = { type: "api_key_not_found" as const };
+      const error = { type: "api_key_not_found" as const, provider: "openai" };
       const state = createFailedRetryState(0, error);
 
       expect(state.lastError).toEqual(error);

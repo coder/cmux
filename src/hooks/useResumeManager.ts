@@ -7,16 +7,17 @@ import { readPersistedState, updatePersistedState } from "./usePersistedState";
 import { isEligibleForAutoRetry, isNonRetryableSendError } from "@/utils/messages/retryEligibility";
 import { applyCompactionOverrides } from "@/utils/messages/compactionOptions";
 import type { SendMessageError } from "@/types/errors";
-import { createFailedRetryState } from "@/utils/messages/retryState";
+import {
+  createFailedRetryState,
+  calculateBackoffDelay,
+  INITIAL_DELAY,
+} from "@/utils/messages/retryState";
 
 export interface RetryState {
   attempt: number;
   retryStartTime: number;
   lastError?: SendMessageError;
 }
-
-const INITIAL_DELAY = 1000; // 1 second
-const MAX_DELAY = 60000; // 60 seconds
 
 /**
  * Centralized auto-resume manager for interrupted streams
@@ -123,7 +124,7 @@ export function useResumeManager() {
 
     // 5. Check exponential backoff timer
     const { attempt, retryStartTime } = retryState;
-    const delay = Math.min(INITIAL_DELAY * Math.pow(2, attempt), MAX_DELAY);
+    const delay = calculateBackoffDelay(attempt);
     const timeSinceLastRetry = Date.now() - retryStartTime;
 
     if (timeSinceLastRetry < delay) return false; // Not time yet
