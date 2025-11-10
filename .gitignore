@@ -112,7 +112,6 @@ test_hot_reload.sh
 # TypeDoc
 .typedoc/
 
-# mdBook pagetoc (auto-generated)
+# mdBook auto-generated assets
 docs/theme/pagetoc.css
 docs/theme/pagetoc.js
-docs/theme/code-blocks.js
