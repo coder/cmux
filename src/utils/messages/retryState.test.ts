@@ -5,7 +5,6 @@ import {
   createFailedRetryState,
   calculateBackoffDelay,
   INITIAL_DELAY,
-  MAX_DELAY,
 } from "./retryState";
 
 describe("retryState utilities", () => {

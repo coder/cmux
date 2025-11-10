@@ -923,7 +923,7 @@ export class WorkspaceStore {
     // Handle non-buffered special events first
     if (isStreamError(data)) {
       aggregator.handleStreamError(data);
-      
+
       // Increment retry attempt counter when stream fails
       // This handles auth errors that happen AFTER stream-start
       const retryState = readPersistedState<RetryState>(getRetryStateKey(workspaceId), {
@@ -934,9 +934,11 @@ export class WorkspaceStore {
         attempt: retryState.attempt + 1,
         retryStartTime: Date.now(),
       };
-      console.debug(`[retry] ${workspaceId} stream-error: incrementing attempt ${retryState.attempt} → ${newState.attempt}`);
+      console.debug(
+        `[retry] ${workspaceId} stream-error: incrementing attempt ${retryState.attempt} → ${newState.attempt}`
+      );
       updatePersistedState(getRetryStateKey(workspaceId), newState);
-      
+
       this.states.bump(workspaceId);
       this.dispatchResumeCheck(workspaceId);
       return;
