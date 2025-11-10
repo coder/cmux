@@ -13,6 +13,10 @@ on:
         # This filter is passed to unit tests, integration tests, e2e tests, and storybook tests
         # to enable faster iteration when debugging specific test failures in CI
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   static-check:
     name: Static Checks (lint + typecheck + fmt)
@@ -90,7 +94,7 @@ jobs:
 
   integration-test:
     name: Integration Tests
-    runs-on: ${{ github.repository_owner == 'coder' && 'depot-ubuntu-24.04-32' || 'ubuntu-latest' }}
+    runs-on: ${{ github.repository_owner == 'coder' && 'self-hosted' || 'ubuntu-latest' }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -99,40 +103,23 @@ jobs:
 
       - uses: ./.github/actions/setup-cmux
 
-      - name: Build worker files
-        run: make build-main
-
-      - name: Run integration tests with coverage
-        # --silent suppresses per-test output (17 test files × 32 workers = overwhelming logs)
-        # Ollama tests are skipped automatically (require TEST_OLLAMA=1)
-        run: TEST_INTEGRATION=1 bun x jest --coverage --maxWorkers=100% --silent ${{ github.event.inputs.test_filter || 'tests' }}
-        env:
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v5
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          files: ./coverage/lcov.info
-          flags: integration-tests
-          fail_ci_if_error: false
-
-  ollama-test:
-    name: Ollama Integration Tests
-    runs-on: ${{ github.repository_owner == 'coder' && 'depot-ubuntu-24.04-32' || 'ubuntu-latest' }}
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0 # Required for git describe to find tags
-
-      - uses: ./.github/actions/setup-cmux
+      - name: Check if Ollama is pre-installed
+        id: check-ollama
+        run: |
+          if systemctl is-active --quiet ollama 2>/dev/null && curl -sf http://localhost:11434/api/tags > /dev/null 2>&1; then
+            echo "installed=true" >> $GITHUB_OUTPUT
+            echo "✅ Ollama already running (self-hosted runner)"
+          else
+            echo "installed=false" >> $GITHUB_OUTPUT
+            echo "⚙️ Ollama not found, will install"
+          fi
 
       - name: Setup Ollama
+        # Only install Ollama if not already running (self-hosted runners have it pre-installed)
+        if: steps.check-ollama.outputs.installed != 'true'
         uses: ./.github/actions/setup-ollama
 
-      # Ollama server started by setup-ollama action
+      # Ollama server started by setup-ollama action or pre-installed on self-hosted
       # Tests will pull models idempotently
       - name: Verify Ollama server
         run: |
@@ -143,11 +130,13 @@ jobs:
       - name: Build worker files
         run: make build-main
 
-      - name: Run Ollama integration tests with coverage
-        # TEST_OLLAMA=1 enables Ollama-specific tests
-        # --silent suppresses verbose test output
-        run: TEST_INTEGRATION=1 TEST_OLLAMA=1 bun x jest --coverage --maxWorkers=100% --silent tests/ipcMain/ollama.test.ts
+      - name: Run all integration tests with coverage
+        # TEST_OLLAMA=1 enables Ollama-specific tests (now included with all integration tests)
+        # --silent suppresses per-test output (17+ test files × workers = overwhelming logs)
+        run: TEST_INTEGRATION=1 TEST_OLLAMA=1 bun x jest --coverage --maxWorkers=100% --silent ${{ github.event.inputs.test_filter || 'tests' }}
         env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           OLLAMA_BASE_URL: http://localhost:11434/api
 
       - name: Upload coverage to Codecov
@@ -155,7 +144,7 @@ jobs:
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: ./coverage/lcov.info
-          flags: ollama-tests
+          flags: integration-tests
           fail_ci_if_error: false
 
   storybook-test:
