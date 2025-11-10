@@ -142,7 +142,6 @@ export class WorkspaceStore {
       }
 
       // Reset retry state on successful stream completion
-      console.log(`[retry] ${workspaceId} stream-end: resetting to attempt=0`);
       updatePersistedState(getRetryStateKey(workspaceId), createFreshRetryState());
 
       this.states.bump(workspaceId);
@@ -934,9 +933,8 @@ export class WorkspaceStore {
       const newState: RetryState = {
         attempt: retryState.attempt + 1,
         retryStartTime: Date.now(),
-        // Don't store error here - it's already in the message
       };
-      console.log(`[retry] ${workspaceId} stream-error: attempt ${retryState.attempt} → ${newState.attempt}`);
+      console.debug(`[retry] ${workspaceId} stream-error: incrementing attempt ${retryState.attempt} → ${newState.attempt}`);
       updatePersistedState(getRetryStateKey(workspaceId), newState);
       
       this.states.bump(workspaceId);

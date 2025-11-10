@@ -36,32 +36,17 @@ const NON_RETRYABLE_STREAM_ERRORS: StreamErrorType[] = [
 export function isNonRetryableSendError(error: SendMessageError): boolean {
   // Debug flag: force all errors to be retryable
   if (window.__CMUX_FORCE_ALL_RETRYABLE) {
-    console.log("[retry] __CMUX_FORCE_ALL_RETRYABLE enabled, treating error as retryable:", error);
     return false;
   }
 
-  let isNonRetryable = false;
   switch (error.type) {
     case "api_key_not_found": // Missing API key - user must configure
     case "provider_not_supported": // Unsupported provider - user must switch
     case "invalid_model_string": // Bad model format - user must fix
-      isNonRetryable = true;
-      break;
+      return true;
     case "unknown":
-      isNonRetryable = false; // Unknown errors might be transient
-      break;
+      return false; // Unknown errors might be transient
   }
-
-  // Only log when debug flag is set or when dealing with non-retryable errors
-  if (window.__CMUX_FORCE_ALL_RETRYABLE || isNonRetryable) {
-    console.log("[retry] isNonRetryableSendError:", {
-      errorType: error.type,
-      isNonRetryable,
-      debugFlag: window.__CMUX_FORCE_ALL_RETRYABLE,
-    });
-  }
-
-  return isNonRetryable;
 }
 
 /**
@@ -121,9 +106,6 @@ export function isEligibleForAutoRetry(
 ): boolean {
   // First check if there's an interrupted stream at all
   if (!hasInterruptedStream(messages, pendingStreamStartTime)) {
-    if (window.__CMUX_FORCE_ALL_RETRYABLE) {
-      console.log("[retry] No interrupted stream detected");
-    }
     return false;
   }
 
@@ -133,23 +115,11 @@ export function isEligibleForAutoRetry(
   if (lastMessage.type === "stream-error") {
     // Debug flag: force all errors to be retryable
     if (window.__CMUX_FORCE_ALL_RETRYABLE) {
-      console.log("[retry] __CMUX_FORCE_ALL_RETRYABLE enabled, stream-error is retryable:", lastMessage.errorType);
       return true;
     }
-    const isRetryable = !NON_RETRYABLE_STREAM_ERRORS.includes(lastMessage.errorType);
-    if (window.__CMUX_FORCE_ALL_RETRYABLE) {
-      console.log("[retry] Stream error eligibility:", {
-        errorType: lastMessage.errorType,
-        isRetryable,
-        debugFlag: window.__CMUX_FORCE_ALL_RETRYABLE,
-      });
-    }
-    return isRetryable;
+    return !NON_RETRYABLE_STREAM_ERRORS.includes(lastMessage.errorType);
   }
 
   // Other interrupted states (partial messages, user messages) are auto-retryable
-  if (window.__CMUX_FORCE_ALL_RETRYABLE) {
-    console.log("[retry] Other interrupted state (partial/user message), eligible for auto-retry");
-  }
   return true;
 }
