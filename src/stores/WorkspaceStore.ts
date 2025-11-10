@@ -124,9 +124,8 @@ export class WorkspaceStore {
       if (this.onModelUsed) {
         this.onModelUsed((data as { model: string }).model);
       }
-      // Reset retry state on successful stream start
-      console.log(`[retry] ${workspaceId} stream-start: resetting to attempt=0`);
-      updatePersistedState(getRetryStateKey(workspaceId), createFreshRetryState());
+      // Don't reset retry state here - stream might still fail after starting
+      // Retry state will be reset on stream-end (successful completion)
       this.states.bump(workspaceId);
     },
     "stream-delta": (workspaceId, aggregator, data) => {
@@ -140,6 +139,10 @@ export class WorkspaceStore {
       if (this.handleCompactionCompletion(workspaceId, aggregator, data)) {
         return;
       }
+
+      // Reset retry state on successful stream completion
+      console.log(`[retry] ${workspaceId} stream-end: resetting to attempt=0`);
+      updatePersistedState(getRetryStateKey(workspaceId), createFreshRetryState());
 
       this.states.bump(workspaceId);
       this.checkAndBumpRecencyIfChanged();
