@@ -68,18 +68,30 @@ OpenRouter can route requests to specific infrastructure providers (Cerebras, Fi
 }
 ```
 
-Or require a specific provider:
+Or require a specific provider (no fallbacks):
 
 ```jsonc
 {
   "openrouter": {
     "apiKey": "sk-or-v1-...",
     "provider": {
-      "require": "Cerebras"  // Fail if Cerebras unavailable
+      "order": ["Cerebras"],      // Only try Cerebras
+      "allow_fallbacks": false    // Fail if Cerebras unavailable
     }
   }
 }
 ```
+
+**Provider Routing Options:**
+
+- `order`: Array of provider names to try in priority order (e.g., `["Cerebras", "Fireworks"]`)
+- `allow_fallbacks`: Boolean - whether to fall back to other providers (default: `true`)
+- `only`: Array - restrict to only these providers
+- `ignore`: Array - exclude specific providers
+- `require_parameters`: Boolean - only use providers supporting all your request parameters
+- `data_collection`: `"allow"` or `"deny"` - control whether providers can store/train on your data
+
+See [OpenRouter Provider Routing docs](https://openrouter.ai/docs/features/provider-routing) for details.
 
 **Benefits:**
 
