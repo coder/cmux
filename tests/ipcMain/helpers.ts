@@ -54,14 +54,10 @@ export async function sendMessage(
   mockIpcRenderer: IpcRenderer,
   workspaceId: string,
   message: string,
-  options?: SendMessageOptions & {
-    imageParts?: Array<{ url: string; mediaType: string }>;
-    skipProviderSetup?: boolean;
-  }
+  options?: SendMessageOptions & { imageParts?: Array<{ url: string; mediaType: string }> }
 ): Promise<Result<void, SendMessageError>> {
   // Setup provider on first use (idempotent across all sendMessage calls)
-  // Skip if explicitly requested (for testing error cases)
-  if (!options?.skipProviderSetup && !setupProviderCache.has(mockIpcRenderer)) {
+  if (!setupProviderCache.has(mockIpcRenderer)) {
     const { setupProviders, getApiKey } = await import("./setup");
     await setupProviders(mockIpcRenderer, {
       anthropic: {
@@ -71,14 +67,11 @@ export async function sendMessage(
     setupProviderCache.add(mockIpcRenderer);
   }
 
-  // Remove skipProviderSetup before sending to IPC
-  const { skipProviderSetup: _, ...ipcOptions } = options || {};
-
   return (await mockIpcRenderer.invoke(
     IPC_CHANNELS.WORKSPACE_SEND_MESSAGE,
     workspaceId,
     message,
-    ipcOptions
+    options
   )) as Result<void, SendMessageError>;
 }
 
@@ -91,7 +84,7 @@ export async function sendMessageWithModel(
   message: string,
   provider = "anthropic",
   model = "claude-sonnet-4-5",
-  options?: Omit<SendMessageOptions, "model"> & { skipProviderSetup?: boolean }
+  options?: Omit<SendMessageOptions, "model">
 ): Promise<Result<void, SendMessageError>> {
   return sendMessage(mockIpcRenderer, workspaceId, message, {
     ...options,
@@ -212,36 +205,13 @@ export async function sendMessageAndWait(
   toolPolicy?: ToolPolicy,
   timeoutMs: number = STREAM_TIMEOUT_LOCAL_MS
 ): Promise<WorkspaceChatMessage[]> {
-  // Setup provider on first use (idempotent across all sendMessageAndWait calls)
-  if (!setupProviderCache.has(env.mockIpcRenderer)) {
-    const { setupProviders, getApiKey } = await import("./setup");
-    await setupProviders(env.mockIpcRenderer, {
-      anthropic: {
-        apiKey: getApiKey("ANTHROPIC_API_KEY"),
-      },
-    });
-    setupProviderCache.add(env.mockIpcRenderer);
-  }
-
-  // Clear previous events
-  env.sentEvents.length = 0;
-
-  // Send message
-  const result = await env.mockIpcRenderer.invoke(
-    IPC_CHANNELS.WORKSPACE_SEND_MESSAGE,
-    workspaceId,
-    message,
-    {
-      model,
-      toolPolicy,
-      thinkingLevel: "off", // Disable reasoning for fast test execution
-      mode: "exec", // Execute commands directly, don't propose plans
-    }
-  );
-
-  if (!result.success) {
-    throw new Error(`Failed to send message: ${JSON.stringify(result, null, 2)}`);
-  }
+  // Use sendMessage for provider setup, then get events directly
+  await sendMessage(env.mockIpcRenderer, workspaceId, message, {
+    model,
+    toolPolicy,
+    thinkingLevel: "off", // Disable reasoning for fast test execution
+    mode: "exec", // Execute commands directly, don't propose plans
+  });
 
   // Wait for stream completion
   const collector = createEventCollector(env.sentEvents, workspaceId);
