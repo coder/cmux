@@ -43,14 +43,14 @@ export const RetryBarrier: React.FC<RetryBarrierProps> = ({ workspaceId, classNa
   // Compute effective autoRetry state: user preference AND error is retryable
   // This ensures UI shows "Retry" button (not "Retrying...") for non-retryable errors
   const effectiveAutoRetry = useMemo(() => {
-    console.debug("[retry] RetryBarrier effectiveAutoRetry calculation:", {
+    console.log("[retry] RetryBarrier effectiveAutoRetry calculation:", {
       autoRetry,
       hasWorkspaceState: !!workspaceState,
       lastError,
     });
 
     if (!autoRetry || !workspaceState) {
-      console.debug("[retry] effectiveAutoRetry=false: autoRetry disabled or no workspace state");
+      console.log("[retry] effectiveAutoRetry=false: autoRetry disabled or no workspace state");
       return false;
     }
 
@@ -60,16 +60,16 @@ export const RetryBarrier: React.FC<RetryBarrierProps> = ({ workspaceId, classNa
       workspaceState.pendingStreamStartTime
     );
 
-    console.debug("[retry] messagesEligible:", messagesEligible);
+    console.log("[retry] messagesEligible:", messagesEligible);
 
     // Also check RetryState for SendMessageErrors (from resumeStream failures)
     // Note: isNonRetryableSendError already respects window.__CMUX_FORCE_ALL_RETRYABLE
     if (lastError && isNonRetryableSendError(lastError)) {
-      console.debug("[retry] effectiveAutoRetry=false: lastError is non-retryable");
+      console.log("[retry] effectiveAutoRetry=false: lastError is non-retryable");
       return false; // Non-retryable SendMessageError
     }
 
-    console.debug("[retry] effectiveAutoRetry:", messagesEligible);
+    console.log("[retry] effectiveAutoRetry:", messagesEligible);
     return messagesEligible;
   }, [autoRetry, workspaceState, lastError]);
 
@@ -127,6 +127,14 @@ export const RetryBarrier: React.FC<RetryBarrierProps> = ({ workspaceId, classNa
       ? `${formatted.message} Configure with ${formatted.providerCommand}`
       : formatted.message;
   };
+
+  console.log("[retry] RetryBarrier rendering:", {
+    effectiveAutoRetry,
+    autoRetry,
+    attempt,
+    countdown,
+    lastError,
+  });
 
   if (effectiveAutoRetry) {
     // Auto-retry mode: Show countdown and stop button

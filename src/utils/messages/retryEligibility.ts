@@ -36,7 +36,7 @@ const NON_RETRYABLE_STREAM_ERRORS: StreamErrorType[] = [
 export function isNonRetryableSendError(error: SendMessageError): boolean {
   // Debug flag: force all errors to be retryable
   if (window.__CMUX_FORCE_ALL_RETRYABLE) {
-    console.debug("[retry] __CMUX_FORCE_ALL_RETRYABLE enabled, treating error as retryable:", error);
+    console.log("[retry] __CMUX_FORCE_ALL_RETRYABLE enabled, treating error as retryable:", error);
     return false;
   }
 
@@ -52,7 +52,7 @@ export function isNonRetryableSendError(error: SendMessageError): boolean {
       break;
   }
 
-  console.debug("[retry] isNonRetryableSendError:", {
+  console.log("[retry] isNonRetryableSendError:", {
     errorType: error.type,
     isNonRetryable,
     debugFlag: window.__CMUX_FORCE_ALL_RETRYABLE,
@@ -118,7 +118,7 @@ export function isEligibleForAutoRetry(
 ): boolean {
   // First check if there's an interrupted stream at all
   if (!hasInterruptedStream(messages, pendingStreamStartTime)) {
-    console.debug("[retry] No interrupted stream detected");
+    console.log("[retry] No interrupted stream detected");
     return false;
   }
 
@@ -128,11 +128,11 @@ export function isEligibleForAutoRetry(
   if (lastMessage.type === "stream-error") {
     // Debug flag: force all errors to be retryable
     if (window.__CMUX_FORCE_ALL_RETRYABLE) {
-      console.debug("[retry] __CMUX_FORCE_ALL_RETRYABLE enabled, stream-error is retryable:", lastMessage.errorType);
+      console.log("[retry] __CMUX_FORCE_ALL_RETRYABLE enabled, stream-error is retryable:", lastMessage.errorType);
       return true;
     }
     const isRetryable = !NON_RETRYABLE_STREAM_ERRORS.includes(lastMessage.errorType);
-    console.debug("[retry] Stream error eligibility:", {
+    console.log("[retry] Stream error eligibility:", {
       errorType: lastMessage.errorType,
       isRetryable,
       debugFlag: window.__CMUX_FORCE_ALL_RETRYABLE,
@@ -141,6 +141,6 @@ export function isEligibleForAutoRetry(
   }
 
   // Other interrupted states (partial messages, user messages) are auto-retryable
-  console.debug("[retry] Other interrupted state (partial/user message), eligible for auto-retry");
+  console.log("[retry] Other interrupted state (partial/user message), eligible for auto-retry");
   return true;
 }
