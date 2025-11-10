@@ -87,6 +87,12 @@ export default defineConfig(({ mode }) => ({
     strictPort: true,
     allowedHosts: devServerHost === "0.0.0.0" ? undefined : ["localhost", "127.0.0.1"],
     sourcemapIgnoreList: () => false, // Show all sources in DevTools
+    hmr: {
+      // Configure HMR to use the correct host for remote access
+      host: devServerHost,
+      port: devServerPort,
+      protocol: "ws",
+    },
   },
   preview: {
     host: "127.0.0.1",
