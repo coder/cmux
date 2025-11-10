@@ -205,6 +205,17 @@ export async function sendMessageAndWait(
   toolPolicy?: ToolPolicy,
   timeoutMs: number = STREAM_TIMEOUT_LOCAL_MS
 ): Promise<WorkspaceChatMessage[]> {
+  // Setup provider on first use (idempotent across all sendMessageAndWait calls)
+  if (!setupProviderCache.has(env.mockIpcRenderer)) {
+    const { setupProviders, getApiKey } = await import("./setup");
+    await setupProviders(env.mockIpcRenderer, {
+      anthropic: {
+        apiKey: getApiKey("ANTHROPIC_API_KEY"),
+      },
+    });
+    setupProviderCache.add(env.mockIpcRenderer);
+  }
+
   // Clear previous events
   env.sentEvents.length = 0;
 
