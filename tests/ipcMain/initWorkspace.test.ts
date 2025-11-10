@@ -3,8 +3,7 @@ import {
   createTestEnvironment,
   cleanupTestEnvironment,
   validateApiKeys,
-  getApiKey,
-  setupProviders,
+
   type TestEnvironment,
 } from "./setup";
 import { IPC_CHANNELS, getChatChannel } from "../../src/constants/ipc-constants";
@@ -511,14 +510,8 @@ describeIntegration("Init Queue - Runtime Matrix", () => {
           const env = await createTestEnvironment();
           const branchName = generateBranchName("init-wait-file-read");
 
-          // Setup API provider
-          await setupProviders(env.mockIpcRenderer, {
-            anthropic: {
-              apiKey: getApiKey("ANTHROPIC_API_KEY"),
-            },
-          });
-
           // Create repo with init hook that sleeps 5s, writes a file, then FAILS
+          // Provider setup happens automatically in sendMessage
           // This tests that tools proceed even when init hook fails (exit code 1)
           const tempGitRepo = await createTempGitRepoWithInitHook({
             exitCode: 1, // EXIT WITH FAILURE

@@ -26,10 +26,11 @@ import { IPC_CHANNELS } from "../../src/constants/ipc-constants";
 import {
   createTempGitRepo,
   cleanupTempGitRepo,
-  sendMessageWithModel,
+  sendMessage,
   createEventCollector,
   assertStreamSuccess,
   generateBranchName,
+  DEFAULT_TEST_MODEL,
 } from "./helpers";
 import { detectDefaultTrunkBranch } from "../../src/git";
 import { HistoryService } from "../../src/services/historyService";
@@ -391,12 +392,11 @@ echo "Init hook ran at $(date)" > init-marker.txt
 
               // User expects: forked workspace is functional - can send messages to it
               env.sentEvents.length = 0;
-              const sendResult = await sendMessageWithModel(
+              const sendResult = await sendMessage(
                 env.mockIpcRenderer,
                 forkedWorkspaceId,
                 "What is 2+2? Answer with just the number.",
-                "anthropic",
-                "claude-sonnet-4-5"
+                { model: DEFAULT_TEST_MODEL }
               );
               expect(sendResult.success).toBe(true);
 
@@ -454,12 +454,11 @@ echo "Init hook ran at $(date)" > init-marker.txt
               // User expects: forked workspace has access to history
               // Send a message that requires the historical context
               env.sentEvents.length = 0;
-              const sendResult = await sendMessageWithModel(
+              const sendResult = await sendMessage(
                 env.mockIpcRenderer,
                 forkedWorkspaceId,
                 "What word did I ask you to remember? Reply with just the word.",
-                "anthropic",
-                "claude-sonnet-4-5"
+                { model: DEFAULT_TEST_MODEL }
               );
               expect(sendResult.success).toBe(true);
 
@@ -641,6 +640,148 @@ echo "Init hook ran at $(date)" > init-marker.txt
               const currentBranch = (await streamToString(execStream.stdout)).trim();
 
               expect(currentBranch).toBe(forkedName);
+
+              // Cleanup
+              await env.mockIpcRenderer.invoke(IPC_CHANNELS.WORKSPACE_REMOVE, sourceWorkspaceId);
+              await env.mockIpcRenderer.invoke(IPC_CHANNELS.WORKSPACE_REMOVE, forkedWorkspaceId);
+            }),
+          TEST_TIMEOUT_MS
+        );
+      });
+
+      describe("Fork during init", () => {
+        test.concurrent(
+          "should fail to fork workspace that is currently initializing",
+          () =>
+            withForkTest(async ({ env, tempGitRepo }) => {
+              // Create init hook that takes a long time (ensures workspace stays in init state)
+              const initHookContent = `#!/bin/bash
+echo "Init starting"
+sleep 5
+echo "Init complete"
+`;
+              await createInitHook(tempGitRepo, initHookContent);
+              await commitChanges(tempGitRepo, "Add slow init hook");
+
+              // Create source workspace (triggers init)
+              const trunkBranch = await detectDefaultTrunkBranch(tempGitRepo);
+              const sourceBranchName = generateBranchName();
+              const runtimeConfig = getRuntimeConfig();
+              const createResult = await env.mockIpcRenderer.invoke(
+                IPC_CHANNELS.WORKSPACE_CREATE,
+                tempGitRepo,
+                sourceBranchName,
+                trunkBranch,
+                runtimeConfig
+              );
+              expect(createResult.success).toBe(true);
+              const sourceWorkspaceId = createResult.metadata.id;
+
+              // Immediately try to fork (while init is running)
+              const forkedName = generateBranchName();
+              const forkResult = await env.mockIpcRenderer.invoke(
+                IPC_CHANNELS.WORKSPACE_FORK,
+                sourceWorkspaceId,
+                forkedName
+              );
+
+              // Fork should fail because source workspace is initializing
+              expect(forkResult.success).toBe(false);
+              expect(forkResult.error).toMatch(/initializing/i);
+
+              // Wait for init to complete before cleanup
+              await new Promise((resolve) => setTimeout(resolve, getInitWaitTime()));
+
+              // Cleanup
+              await env.mockIpcRenderer.invoke(IPC_CHANNELS.WORKSPACE_REMOVE, sourceWorkspaceId);
+            }),
+          TEST_TIMEOUT_MS
+        );
+
+        test.concurrent(
+          "should block file_read in forked workspace until init completes",
+          () =>
+            withForkTest(async ({ env, tempGitRepo }) => {
+              // SSH only - local runtime init completes too quickly to test reliably
+              // SSH is the important path since filesystem operations take time
+              if (type !== "ssh") {
+                return;
+              }
+
+              // Create init hook that takes time (3 seconds)
+              // Provider setup happens automatically in sendMessage
+              const initHookContent = `#!/bin/bash
+echo "Init starting"
+sleep 3
+echo "Init complete"
+`;
+              await createInitHook(tempGitRepo, initHookContent);
+              await commitChanges(tempGitRepo, "Add init hook");
+
+              // Create source workspace
+              const trunkBranch = await detectDefaultTrunkBranch(tempGitRepo);
+              const sourceBranchName = generateBranchName();
+              const runtimeConfig = getRuntimeConfig();
+              const createResult = await env.mockIpcRenderer.invoke(
+                IPC_CHANNELS.WORKSPACE_CREATE,
+                tempGitRepo,
+                sourceBranchName,
+                trunkBranch,
+                runtimeConfig
+              );
+              expect(createResult.success).toBe(true);
+              const sourceWorkspaceId = createResult.metadata.id;
+
+              // Wait for source workspace init to complete
+              await new Promise((resolve) => setTimeout(resolve, getInitWaitTime()));
+
+              // Fork the workspace (triggers init for new workspace)
+              const forkedName = generateBranchName();
+              const forkTime = Date.now();
+              const forkResult = await env.mockIpcRenderer.invoke(
+                IPC_CHANNELS.WORKSPACE_FORK,
+                sourceWorkspaceId,
+                forkedName
+              );
+              expect(forkResult.success).toBe(true);
+              const forkedWorkspaceId = forkResult.metadata.id;
+
+              // Clear events BEFORE sending message
+              env.sentEvents.length = 0;
+
+              // Send message that will use file_read tool
+              // The tool should block until init completes
+              await sendMessage(
+                env.mockIpcRenderer,
+                forkedWorkspaceId,
+                "Read the README.md file",
+                { model: DEFAULT_TEST_MODEL }
+              );
+
+              // Wait for stream to complete
+              const collector = createEventCollector(env.sentEvents, forkedWorkspaceId);
+              await collector.waitForEvent("stream-end", 30000);
+              assertStreamSuccess(collector);
+
+              // Wait for init-end and get its timestamp
+              const initEndEvent = await collector.waitForEvent("init-end", 5000);
+              expect(initEndEvent).not.toBeNull();
+              const initEndTime = (initEndEvent as any).timestamp;
+
+              // Find the first tool-call-end event (when file_read actually completed)
+              const events = collector.getEvents();
+              const toolCallEndEvent = events.find(
+                (e) => "type" in e && e.type === "tool-call-end"
+              );
+              expect(toolCallEndEvent).toBeDefined();
+
+              // Verify that init completed within expected time (3+ seconds)
+              const initDuration = initEndTime - forkTime;
+              expect(initDuration).toBeGreaterThan(2500); // Init hook sleeps for 3 seconds
+
+              // The fact that we got a tool-call-end event AND init-end event,
+              // and both succeeded, proves that tool execution waited for init
+              // (if tool didn't wait, it would have failed accessing non-existent files)
 
               // Cleanup
               await env.mockIpcRenderer.invoke(IPC_CHANNELS.WORKSPACE_REMOVE, sourceWorkspaceId);

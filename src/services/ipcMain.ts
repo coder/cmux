@@ -689,6 +689,15 @@ export class IpcMain {
             return { success: false, error: validation.error };
           }
 
+          // Check if source workspace is currently initializing
+          const initState = this.initStateManager.getInitState(sourceWorkspaceId);
+          if (initState && initState.status === "running") {
+            return {
+              success: false,
+              error: "Cannot fork workspace while it is initializing. Please wait for initialization to complete.",
+            };
+          }
+
           // If streaming, commit the partial response to history first
           // This preserves the streamed content in both workspaces
           if (this.aiService.isStreaming(sourceWorkspaceId)) {
