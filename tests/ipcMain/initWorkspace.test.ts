@@ -13,6 +13,7 @@ import {
   waitForInitEnd,
   collectInitEvents,
   waitFor,
+  sendMessage,
 } from "./helpers";
 import type { WorkspaceChatMessage, WorkspaceInitEvent } from "../../src/types/ipc";
 import { isInitStart, isInitOutput, isInitEnd } from "../../src/types/ipc";
