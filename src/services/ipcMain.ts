@@ -693,10 +693,167 @@ export class IpcMain {
       IPC_CHANNELS.WORKSPACE_SEND_MESSAGE,
       async (
         _event,
-        workspaceId: string,
+        workspaceId: string | null,
         message: string,
-        options?: SendMessageOptions & { imageParts?: Array<{ url: string; mediaType: string }> }
+        options?: SendMessageOptions & {
+          imageParts?: Array<{ url: string; mediaType: string }>;
+          runtimeConfig?: RuntimeConfig;
+          projectPath?: string;
+        }
       ) => {
+        // If workspaceId is null, create a new workspace first (lazy creation)
+        if (workspaceId === null) {
+          if (!options?.projectPath) {
+            return { success: false, error: "projectPath is required when workspaceId is null" };
+          }
+
+          log.debug("sendMessage handler: Creating workspace for first message", {
+            projectPath: options.projectPath,
+            messagePreview: message.substring(0, 50),
+          });
+
+          try {
+            // 1. Generate workspace title and branch name using AI (use same model as message)
+            const { title, branchName} = await generateWorkspaceNames(
+              message,
+              options.model,
+              this.config
+            );
+
+            log.debug("Generated workspace names", { title, branchName });
+
+            // 2. Get recommended trunk
+            const branches = await listLocalBranches(options.projectPath);
+            const recommendedTrunk =
+              (await detectDefaultTrunkBranch(options.projectPath, branches)) ?? "main";
+
+            // 3. Create workspace
+            const finalRuntimeConfig: RuntimeConfig = options.runtimeConfig ?? {
+              type: "local",
+              srcBaseDir: this.config.srcDir,
+            };
+
+            const workspaceId = this.config.generateStableId();
+
+            let runtime;
+            let resolvedSrcBaseDir: string;
+            try {
+              runtime = createRuntime(finalRuntimeConfig);
+              resolvedSrcBaseDir = await runtime.resolvePath(finalRuntimeConfig.srcBaseDir);
+
+              if (resolvedSrcBaseDir !== finalRuntimeConfig.srcBaseDir) {
+                const resolvedRuntimeConfig: RuntimeConfig = {
+                  ...finalRuntimeConfig,
+                  srcBaseDir: resolvedSrcBaseDir,
+                };
+                runtime = createRuntime(resolvedRuntimeConfig);
+                finalRuntimeConfig.srcBaseDir = resolvedSrcBaseDir;
+              }
+            } catch (error) {
+              const errorMsg = error instanceof Error ? error.message : String(error);
+              return { success: false, error: errorMsg };
+            }
+
+            const session = this.getOrCreateSession(workspaceId);
+            this.initStateManager.startInit(workspaceId, options.projectPath);
+
+            const initLogger = {
+              logStep: (message: string) => {
+                this.initStateManager.appendOutput(workspaceId, message, false);
+              },
+              logStdout: (line: string) => {
+                this.initStateManager.appendOutput(workspaceId, line, false);
+              },
+              logStderr: (line: string) => {
+                this.initStateManager.appendOutput(workspaceId, line, true);
+              },
+              logComplete: (exitCode: number) => {
+                void this.initStateManager.endInit(workspaceId, exitCode);
+              },
+            };
+
+            const createResult = await runtime.createWorkspace({
+              projectPath: options.projectPath,
+              branchName,
+              trunkBranch: recommendedTrunk,
+              directoryName: branchName,
+              initLogger,
+            });
+
+            if (!createResult.success || !createResult.workspacePath) {
+              return { success: false, error: createResult.error ?? "Failed to create workspace" };
+            }
+
+            const projectName =
+              options.projectPath.split("/").pop() ??
+              options.projectPath.split("\\").pop() ??
+              "unknown";
+
+            const metadata = {
+              id: workspaceId,
+              name: branchName,
+              displayName: title,
+              projectName,
+              projectPath: options.projectPath,
+              createdAt: new Date().toISOString(),
+            };
+
+            this.config.editConfig((config) => {
+              let projectConfig = config.projects.get(options.projectPath!);
+              if (!projectConfig) {
+                projectConfig = { workspaces: [] };
+                config.projects.set(options.projectPath!, projectConfig);
+              }
+              projectConfig.workspaces.push({
+                path: createResult.workspacePath!,
+                id: workspaceId,
+                name: branchName,
+                displayName: title,
+                createdAt: metadata.createdAt,
+                runtimeConfig: finalRuntimeConfig,
+              });
+              return config;
+            });
+
+            const allMetadata = this.config.getAllWorkspaceMetadata();
+            const completeMetadata = allMetadata.find((m) => m.id === workspaceId);
+            if (!completeMetadata) {
+              return { success: false, error: "Failed to retrieve workspace metadata" };
+            }
+
+            session.emitMetadata(completeMetadata);
+
+            void runtime
+              .initWorkspace({
+                projectPath: options.projectPath,
+                branchName,
+                trunkBranch: recommendedTrunk,
+                workspacePath: createResult.workspacePath,
+                initLogger,
+              })
+              .catch((error: unknown) => {
+                const errorMsg = error instanceof Error ? error.message : String(error);
+                log.error(`initWorkspace failed for ${workspaceId}:`, error);
+                initLogger.logStderr(`Initialization failed: ${errorMsg}`);
+                initLogger.logComplete(-1);
+              });
+
+            // Send message to new workspace
+            void session.sendMessage(message, options);
+
+            return {
+              success: true,
+              workspaceId,
+              metadata: completeMetadata,
+            };
+          } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            log.error("Unexpected error in sendMessage handler (lazy creation):", error);
+            return { success: false, error: `Failed to create workspace: ${errorMessage}` };
+          }
+        }
+
+        // Normal path: workspace already exists
         log.debug("sendMessage handler: Received", {
           workspaceId,
           messagePreview: message.substring(0, 50),
@@ -726,172 +883,6 @@ export class IpcMain {
             raw: `Failed to send message: ${errorMessage}`,
           };
           return { success: false, error: sendError };
-        }
-      }
-    );
-
-    ipcMain.handle(
-      IPC_CHANNELS.WORKSPACE_SEND_FIRST_MESSAGE,
-      async (
-        _event,
-        projectPath: string,
-        message: string,
-        options: SendMessageOptions & {
-          imageParts?: Array<{ url: string; mediaType: string }>;
-          runtimeConfig?: RuntimeConfig;
-        }
-      ) => {
-        log.debug("sendFirstMessage handler: Received", {
-          projectPath,
-          messagePreview: message.substring(0, 50),
-          mode: options?.mode,
-        });
-
-        try {
-          // 1. Generate workspace title and branch name using AI
-          const { title, branchName } = await generateWorkspaceNames(message, this.config);
-
-          log.debug("Generated workspace names", { title, branchName });
-
-          // 2. Get recommended trunk
-          const branches = await listLocalBranches(projectPath);
-          const recommendedTrunk =
-            (await detectDefaultTrunkBranch(projectPath, branches)) ?? "main";
-
-          // 3. Create workspace with git-safe branch name
-          const finalRuntimeConfig: RuntimeConfig = options.runtimeConfig ?? {
-            type: "local",
-            srcBaseDir: this.config.srcDir,
-          };
-
-          // Generate stable workspace ID
-          const workspaceId = this.config.generateStableId();
-
-          // Create runtime for workspace creation
-          let runtime;
-          let resolvedSrcBaseDir: string;
-          try {
-            runtime = createRuntime(finalRuntimeConfig);
-            resolvedSrcBaseDir = await runtime.resolvePath(finalRuntimeConfig.srcBaseDir);
-
-            if (resolvedSrcBaseDir !== finalRuntimeConfig.srcBaseDir) {
-              const resolvedRuntimeConfig: RuntimeConfig = {
-                ...finalRuntimeConfig,
-                srcBaseDir: resolvedSrcBaseDir,
-              };
-              runtime = createRuntime(resolvedRuntimeConfig);
-              finalRuntimeConfig.srcBaseDir = resolvedSrcBaseDir;
-            }
-          } catch (error) {
-            const errorMsg = error instanceof Error ? error.message : String(error);
-            return { success: false, error: errorMsg };
-          }
-
-          // Create session BEFORE starting init so events can be forwarded
-          const session = this.getOrCreateSession(workspaceId);
-
-          // Start init tracking
-          this.initStateManager.startInit(workspaceId, projectPath);
-
-          // Create InitLogger
-          const initLogger = {
-            logStep: (message: string) => {
-              this.initStateManager.appendOutput(workspaceId, message, false);
-            },
-            logStdout: (line: string) => {
-              this.initStateManager.appendOutput(workspaceId, line, false);
-            },
-            logStderr: (line: string) => {
-              this.initStateManager.appendOutput(workspaceId, line, true);
-            },
-            logComplete: (exitCode: number) => {
-              void this.initStateManager.endInit(workspaceId, exitCode);
-            },
-          };
-
-          // Create workspace with branch name
-          const createResult = await runtime.createWorkspace({
-            projectPath,
-            branchName,
-            trunkBranch: recommendedTrunk,
-            directoryName: branchName,
-            initLogger,
-          });
-
-          if (!createResult.success || !createResult.workspacePath) {
-            return { success: false, error: createResult.error ?? "Failed to create workspace" };
-          }
-
-          const projectName =
-            projectPath.split("/").pop() ?? projectPath.split("\\").pop() ?? "unknown";
-
-          // Initialize workspace metadata with branch name and optional display title
-          const metadata = {
-            id: workspaceId,
-            name: branchName, // Git branch name (used for directory path)
-            displayName: title, // Human-readable title for display
-            projectName,
-            projectPath,
-            createdAt: new Date().toISOString(),
-          };
-
-          // Update config with new workspace
-          this.config.editConfig((config) => {
-            let projectConfig = config.projects.get(projectPath);
-            if (!projectConfig) {
-              projectConfig = { workspaces: [] };
-              config.projects.set(projectPath, projectConfig);
-            }
-            projectConfig.workspaces.push({
-              path: createResult.workspacePath!,
-              id: workspaceId,
-              name: branchName, // Git branch name (used for directory)
-              displayName: title, // Human-readable title
-              createdAt: metadata.createdAt,
-              runtimeConfig: finalRuntimeConfig,
-            });
-            return config;
-          });
-
-          // Get complete metadata from config
-          const allMetadata = this.config.getAllWorkspaceMetadata();
-          const completeMetadata = allMetadata.find((m) => m.id === workspaceId);
-          if (!completeMetadata) {
-            return { success: false, error: "Failed to retrieve workspace metadata" };
-          }
-
-          // Emit metadata event
-          session.emitMetadata(completeMetadata);
-
-          // Initialize workspace asynchronously
-          void runtime
-            .initWorkspace({
-              projectPath,
-              branchName,
-              trunkBranch: recommendedTrunk,
-              workspacePath: createResult.workspacePath,
-              initLogger,
-            })
-            .catch((error: unknown) => {
-              const errorMsg = error instanceof Error ? error.message : String(error);
-              log.error(`initWorkspace failed for ${workspaceId}:`, error);
-              initLogger.logStderr(`Initialization failed: ${errorMsg}`);
-              initLogger.logComplete(-1);
-            });
-
-          // 4. Send message to new workspace (don't await - streams back)
-          void session.sendMessage(message, options);
-
-          // 5. Return workspace info for frontend to switch
-          return {
-            success: true,
-            workspaceId,
-            metadata: completeMetadata,
-          };
-        } catch (error) {
-          const errorMessage = error instanceof Error ? error.message : String(error);
-          log.error("Unexpected error in sendFirstMessage handler:", error);
-          return { success: false, error: `Failed to create workspace: ${errorMessage}` };
         }
       }
     );

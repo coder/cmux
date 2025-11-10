@@ -22,13 +22,17 @@ const workspaceNamesSchema = z.object({
 /**
  * Generate workspace title and branch name using AI
  * Falls back to timestamp-based names if AI generation fails
+ * @param message - The user's first message
+ * @param modelString - Model string from send message options (e.g., "anthropic:claude-3-5-sonnet-20241022")
+ * @param config - Config instance for provider access
  */
 export async function generateWorkspaceNames(
   message: string,
+  modelString: string,
   config: Config
 ): Promise<{ title: string; branchName: string }> {
   try {
-    const model = selectCheapModel(config);
+    const model = getModelForTitleGeneration(modelString, config);
 
     if (!model) {
       // No providers available, use fallback immediately
@@ -60,41 +64,45 @@ Both should be concise (2-5 words) and descriptive of the task.`,
 }
 
 /**
- * Select a cheap model for title generation
- * Prefers Haiku > GPT-4o-mini > Gemini Flash > null
+ * Get model for title generation using the same model as the message
+ * Falls back to null if provider not configured
  */
-function selectCheapModel(config: Config): LanguageModel | null {
+function getModelForTitleGeneration(modelString: string, config: Config): LanguageModel | null {
   const providersConfig = config.loadProvidersConfig();
 
   if (!providersConfig) {
     return null;
   }
 
-  // Prefer Anthropic Claude Haiku (fastest + cheapest)
-  if (providersConfig.anthropic?.apiKey) {
-    try {
+  // Parse model string (e.g., "anthropic:claude-3-5-sonnet-20241022")
+  const [providerName, modelId] = modelString.split(":", 2);
+
+  if (!providerName || !modelId) {
+    log.error("Invalid model string format:", modelString);
+    return null;
+  }
+
+  try {
+    if (providerName === "anthropic" && providersConfig.anthropic?.apiKey) {
       const provider = createAnthropic({
         apiKey: String(providersConfig.anthropic.apiKey),
       });
-      return provider("claude-3-5-haiku-20241022");
-    } catch (error) {
-      log.error("Failed to create Anthropic provider for title generation", error);
+      return provider(modelId);
     }
-  }
 
-  // Fall back to OpenAI GPT-4o-mini
-  if (providersConfig.openai?.apiKey) {
-    try {
+    if (providerName === "openai" && providersConfig.openai?.apiKey) {
       const provider = createOpenAI({
         apiKey: String(providersConfig.openai.apiKey),
       });
-      return provider("gpt-4o-mini");
-    } catch (error) {
-      log.error("Failed to create OpenAI provider for title generation", error);
+      return provider(modelId);
     }
-  }
 
-  return null;
+    log.error(`Provider ${providerName} not configured or not supported`);
+    return null;
+  } catch (error) {
+    log.error(`Failed to create model for title generation: ${modelString}`, error);
+    return null;
+  }
 }
 
 /**

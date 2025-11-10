@@ -4,7 +4,7 @@ import type { FrontendWorkspaceMetadata } from "@/types/workspace";
 import type { RuntimeConfig } from "@/types/runtime";
 import { parseRuntimeString } from "@/utils/chatCommands";
 import { getRuntimeKey } from "@/constants/storage";
-import { useModelLRU } from "@/hooks/useModelLRU";
+import { useSendMessageOptions } from "@/hooks/useSendMessageOptions";
 
 interface FirstMessageInputProps {
   projectPath: string;
@@ -25,9 +25,8 @@ export function FirstMessageInput({ projectPath, onWorkspaceCreated }: FirstMess
   const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
-  // Get most recent model from LRU (no workspace-specific model yet)
-  const { recentModels } = useModelLRU();
-  const model = recentModels[0]; // Most recently used model
+  // Use standard send message options (project-scoped, not workspace-specific)
+  const sendMessageOptions = useSendMessageOptions(`__project__${projectPath}`);
 
   const handleSend = useCallback(async () => {
     if (!input.trim() || isSending) return;
@@ -43,28 +42,42 @@ export function FirstMessageInput({ projectPath, onWorkspaceCreated }: FirstMess
         ? parseRuntimeString(runtimeString, "")
         : undefined;
 
-      const result = await window.api.workspace.sendFirstMessage(projectPath, input, {
-        model, // Use most recent model from LRU
+      const result = await window.api.workspace.sendMessage(null, input, {
+        ...sendMessageOptions,
         runtimeConfig,
+        projectPath, // Pass projectPath when workspaceId is null
       });
 
       if (!result.success) {
-        setError(result.error);
+        const errorMsg =
+          typeof result.error === "string"
+            ? result.error
+            : "raw" in result.error
+              ? result.error.raw
+              : result.error.type;
+        setError(errorMsg);
         setIsSending(false);
         return;
       }
 
-      // Clear input
-      setInput("");
+      // Check if this is a workspace creation result (has metadata field)
+      if ("metadata" in result && result.metadata) {
+        // Clear input
+        setInput("");
 
-      // Notify parent to switch workspace
-      onWorkspaceCreated(result.metadata);
+        // Notify parent to switch workspace
+        onWorkspaceCreated(result.metadata);
+      } else {
+        // This shouldn't happen for null workspaceId, but handle gracefully
+        setError("Unexpected response from server");
+        setIsSending(false);
+      }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : String(err);
       setError(`Failed to create workspace: ${errorMessage}`);
       setIsSending(false);
     }
-  }, [input, isSending, projectPath, model, onWorkspaceCreated]);
+  }, [input, isSending, projectPath, sendMessageOptions, onWorkspaceCreated]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
