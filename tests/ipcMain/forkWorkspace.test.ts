@@ -137,6 +137,35 @@ async function commitChanges(repoPath: string, message: string): Promise<void> {
   });
 }
 
+/**
+ * Set up test environment and git repo with automatic cleanup
+ */
+async function setupForkTest() {
+  const env = await createTestEnvironment();
+  const tempGitRepo = await createTempGitRepo();
+
+  const cleanup = async () => {
+    await cleanupTestEnvironment(env);
+    await cleanupTempGitRepo(tempGitRepo);
+  };
+
+  return { env, tempGitRepo, cleanup };
+}
+
+/**
+ * Wrapper that handles setup/cleanup for fork tests
+ */
+async function withForkTest(
+  fn: (ctx: { env: TestEnvironment; tempGitRepo: string }) => Promise<void>
+): Promise<void> {
+  const { env, tempGitRepo, cleanup } = await setupForkTest();
+  try {
+    await fn({ env, tempGitRepo });
+  } finally {
+    await cleanup();
+  }
+}
+
 describeIntegration("WORKSPACE_FORK with both runtimes", () => {
   // Enable retries in CI for flaky API tests
   if (process.env.CI && typeof jest !== "undefined" && jest.retryTimes) {
@@ -188,11 +217,8 @@ describeIntegration("WORKSPACE_FORK with both runtimes", () => {
       describe("Basic fork operations", () => {
         test.concurrent(
           "should fail to fork workspace with invalid name",
-          async () => {
-            const env = await createTestEnvironment();
-            const tempGitRepo = await createTempGitRepo();
-
-            try {
+          () =>
+            withForkTest(async ({ env, tempGitRepo }) => {
               // Create source workspace
               const trunkBranch = await detectDefaultTrunkBranch(tempGitRepo);
               const sourceBranchName = generateBranchName();
@@ -231,26 +257,19 @@ describeIntegration("WORKSPACE_FORK with both runtimes", () => {
 
               // Cleanup
               await env.mockIpcRenderer.invoke(IPC_CHANNELS.WORKSPACE_REMOVE, sourceWorkspaceId);
-            } finally {
-              await cleanupTestEnvironment(env);
-              await cleanupTempGitRepo(tempGitRepo);
-            }
-          },
+            }),
           TEST_TIMEOUT_MS
         );
 
         test.concurrent(
           "should fork workspace successfully",
-          async () => {
-            const env = await createTestEnvironment();
-            const tempGitRepo = await createTempGitRepo();
-
-            try {
+          () =>
+            withForkTest(async ({ env, tempGitRepo }) => {
               const trunkBranch = await detectDefaultTrunkBranch(tempGitRepo);
               const sourceBranchName = generateBranchName();
               const runtimeConfig = getRuntimeConfig();
 
-              // Create SSH workspace
+              // Create workspace
               const createResult = await env.mockIpcRenderer.invoke(
                 IPC_CHANNELS.WORKSPACE_CREATE,
                 tempGitRepo,
@@ -278,11 +297,7 @@ describeIntegration("WORKSPACE_FORK with both runtimes", () => {
               // Cleanup
               await env.mockIpcRenderer.invoke(IPC_CHANNELS.WORKSPACE_REMOVE, sourceWorkspaceId);
               await env.mockIpcRenderer.invoke(IPC_CHANNELS.WORKSPACE_REMOVE, forkResult.metadata.id);
-            } finally {
-              await cleanupTestEnvironment(env);
-              await cleanupTempGitRepo(tempGitRepo);
-            }
-          },
+            }),
           TEST_TIMEOUT_MS
         );
       });
@@ -290,11 +305,8 @@ describeIntegration("WORKSPACE_FORK with both runtimes", () => {
       describe("Init hook execution", () => {
         test.concurrent(
           "should run init hook when forking workspace",
-          async () => {
-            const env = await createTestEnvironment();
-            const tempGitRepo = await createTempGitRepo();
-
-            try {
+          () =>
+            withForkTest(async ({ env, tempGitRepo }) => {
               // Create init hook that writes a marker file
               const hookContent = `#!/bin/bash
 echo "Init hook ran at $(date)" > init-marker.txt
@@ -347,11 +359,7 @@ echo "Init hook ran at $(date)" > init-marker.txt
               // Cleanup
               await env.mockIpcRenderer.invoke(IPC_CHANNELS.WORKSPACE_REMOVE, sourceWorkspaceId);
               await env.mockIpcRenderer.invoke(IPC_CHANNELS.WORKSPACE_REMOVE, forkedWorkspaceId);
-            } finally {
-              await cleanupTestEnvironment(env);
-              await cleanupTempGitRepo(tempGitRepo);
-            }
-          },
+            }),
           TEST_TIMEOUT_MS
         );
       });
@@ -482,17 +490,14 @@ echo "Init hook ran at $(date)" > init-marker.txt
       describe("Fork preserves filesystem state", () => {
         test.concurrent(
           "should preserve uncommitted changes when forking workspace",
-          async () => {
+          () => {
             // Note: Local runtime creates git worktrees which are clean checkouts
             // Uncommitted changes are only preserved in SSH runtime (uses cp -a)
             if (type === "local") {
-              return; // Skip for local
+              return Promise.resolve(); // Skip for local
             }
 
-            const env = await createTestEnvironment();
-            const tempGitRepo = await createTempGitRepo();
-
-            try {
+            return withForkTest(async ({ env, tempGitRepo }) => {
               const trunkBranch = await detectDefaultTrunkBranch(tempGitRepo);
               const sourceBranchName = generateBranchName();
               const runtimeConfig = getRuntimeConfig();
@@ -576,21 +581,15 @@ echo "Init hook ran at $(date)" > init-marker.txt
               // Cleanup
               await env.mockIpcRenderer.invoke(IPC_CHANNELS.WORKSPACE_REMOVE, sourceWorkspaceId);
               await env.mockIpcRenderer.invoke(IPC_CHANNELS.WORKSPACE_REMOVE, forkedWorkspaceId);
-            } finally {
-              await cleanupTestEnvironment(env);
-              await cleanupTempGitRepo(tempGitRepo);
-            }
+            });
           },
           TEST_TIMEOUT_MS
         );
 
         test.concurrent(
           "should fork workspace and preserve git state",
-          async () => {
-            const env = await createTestEnvironment();
-            const tempGitRepo = await createTempGitRepo();
-
-            try {
+          () =>
+            withForkTest(async ({ env, tempGitRepo }) => {
               const trunkBranch = await detectDefaultTrunkBranch(tempGitRepo);
               const sourceBranchName = generateBranchName();
               const runtimeConfig = getRuntimeConfig();
@@ -646,11 +645,7 @@ echo "Init hook ran at $(date)" > init-marker.txt
               // Cleanup
               await env.mockIpcRenderer.invoke(IPC_CHANNELS.WORKSPACE_REMOVE, sourceWorkspaceId);
               await env.mockIpcRenderer.invoke(IPC_CHANNELS.WORKSPACE_REMOVE, forkedWorkspaceId);
-            } finally {
-              await cleanupTestEnvironment(env);
-              await cleanupTempGitRepo(tempGitRepo);
-            }
-          },
+            }),
           TEST_TIMEOUT_MS
         );
       });
