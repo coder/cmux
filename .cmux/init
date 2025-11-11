@@ -1,10 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Ensure bun is in PATH
-export PATH="$HOME/.bun/bin:$PATH"
-
 echo "Installing dependencies with bun..."
+command -v bun >/dev/null 2>&1 || { echo "Error: bun not found in PATH"; exit 1; }
 bun install
 echo "Dependencies installed successfully!"
 
