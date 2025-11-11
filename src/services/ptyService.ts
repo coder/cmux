@@ -1,14 +1,4 @@
 import { log } from "@/services/log";
-
-// Try to import node-pty, but gracefully handle if it's not available
-let pty: typeof import("node-pty") | null = null;
-let IPty: any = null;
-try {
-  pty = require("node-pty");
-  IPty = pty;
-} catch (err) {
-  log.error("node-pty not available - local terminals will not work:", err);
-}
 import type { Runtime } from "@/runtime/Runtime";
 import type { ExecStream } from "@/runtime/Runtime";
 import type {
@@ -58,10 +48,14 @@ export class PTYService {
     );
 
     if (runtime instanceof LocalRuntime) {
-      // Local: Use node-pty
-      if (!pty) {
+      // Local: Use node-pty (dynamically import to avoid crash if not available)
+      let pty: typeof import("node-pty");
+      try {
+        pty = require("node-pty");
+      } catch (err) {
+        log.error("node-pty not available - local terminals will not work:", err);
         throw new Error(
-          "node-pty is not available - local terminals require node-pty to be properly installed"
+          "Local terminals are not available. node-pty failed to load (likely due to Electron ABI version mismatch). Use SSH workspaces for terminal access."
         );
       }
 
