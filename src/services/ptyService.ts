@@ -1,6 +1,14 @@
-import * as pty from "node-pty";
-import type { IPty } from "node-pty";
 import { log } from "@/services/log";
+
+// Try to import node-pty, but gracefully handle if it's not available
+let pty: typeof import("node-pty") | null = null;
+let IPty: any = null;
+try {
+  pty = require("node-pty");
+  IPty = pty;
+} catch (err) {
+  log.error("node-pty not available - local terminals will not work:", err);
+}
 import type { Runtime } from "@/runtime/Runtime";
 import type { ExecStream } from "@/runtime/Runtime";
 import type {
@@ -12,7 +20,7 @@ import { SSHRuntime } from "@/runtime/SSHRuntime";
 import { LocalRuntime } from "@/runtime/LocalRuntime";
 
 interface SessionData {
-  pty?: IPty; // For local sessions
+  pty?: any; // For local sessions (IPty type)
   stream?: ExecStream; // For SSH sessions
   workspaceId: string;
   workspacePath: string;
@@ -51,6 +59,12 @@ export class PTYService {
 
     if (runtime instanceof LocalRuntime) {
       // Local: Use node-pty
+      if (!pty) {
+        throw new Error(
+          "node-pty is not available - local terminals require node-pty to be properly installed"
+        );
+      }
+
       const shell = process.env.SHELL || "/bin/bash";
 
       const ptyProcess = pty.spawn(shell, [], {
@@ -86,14 +100,14 @@ export class PTYService {
       const shell = "$SHELL"; // Use remote user's shell
 
       // Execute shell with PTY allocation
-      // Note: We need to add forcePTY option to SSHRuntime.exec()
+      // Use a very long timeout (24 hours) instead of Infinity
       const stream = await (runtime as any).exec(`exec ${shell}`, {
         cwd: workspacePath,
-        timeout: Infinity, // Terminal sessions don't timeout
+        timeout: 86400, // 24 hours in seconds
         env: {
           TERM: "xterm-256color",
         },
-        forcePTY: true, // Will be added to SSHRuntime
+        forcePTY: true,
       });
 
       this.sessions.set(sessionId, {

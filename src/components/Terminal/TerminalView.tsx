@@ -28,7 +28,7 @@ export function TerminalView({ workspaceId, visible }: TerminalViewProps) {
     const initTerminal = async () => {
       try {
         terminal = new Terminal({
-          wasmPath: "/assets/ghostty-vt.wasm",
+          wasmPath: "/src/assets/ghostty-vt.wasm",
           fontSize: 13,
           fontFamily: "Monaco, Menlo, 'Courier New', monospace",
           cursorBlink: true,
