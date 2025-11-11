@@ -91,8 +91,8 @@ export class PTYService {
       });
     } else if (runtime instanceof SSHRuntime) {
       // SSH: Use runtime.exec with PTY allocation
-      const shell = "$SHELL"; // Use remote user's shell
-      const command = `exec ${shell}`;
+      // Use bash login shell - most SSH servers have bash installed
+      const command = "bash -l";
 
       log.info(`[PTY] SSH command for ${sessionId}: ${command}`);
       log.info(`[PTY] SSH working directory: ${workspacePath}`);
