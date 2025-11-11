@@ -37,6 +37,7 @@ include fmt.mk
 .PHONY: lint lint-fix typecheck static-check
 .PHONY: test test-unit test-integration test-watch test-coverage test-e2e
 .PHONY: dist dist-mac dist-win dist-linux
+.PHONY: vscode-ext vscode-ext-install
 .PHONY: docs docs-build docs-watch
 .PHONY: storybook storybook-build test-storybook chromatic
 .PHONY: benchmark-terminal
@@ -266,6 +267,31 @@ dist-win: build ## Build Windows distributable
 
 dist-linux: build ## Build Linux distributable
 	@bun x electron-builder --linux --publish never
+
+## VS Code Extension
+
+vscode-ext: ## Build VS Code extension (.vsix)
+	@echo "Building VS Code extension..."
+	@cd vscode && npm install --silent
+	@cd vscode && npm run compile
+	@cd vscode && npm run package
+	@echo "✓ Extension packaged: vscode/cmux-0.1.0.vsix"
+
+vscode-ext-install: vscode-ext ## Build and install VS Code extension locally
+	@echo "Installing extension..."
+	@if command -v code >/dev/null 2>&1; then \
+		code --install-extension vscode/cmux-0.1.0.vsix && \
+		echo "✓ Extension installed in VS Code"; \
+	else \
+		echo "⚠ VS Code CLI (code) not found, skipping"; \
+	fi
+	@if command -v cursor >/dev/null 2>&1; then \
+		cursor --install-extension vscode/cmux-0.1.0.vsix && \
+		echo "✓ Extension installed in Cursor"; \
+	else \
+		echo "⚠ Cursor CLI (cursor) not found, skipping"; \
+	fi
+	@echo "✓ Installation complete. Reload your editor to use the extension."
 
 ## Documentation
 docs: ## Serve documentation locally
