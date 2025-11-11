@@ -457,33 +457,24 @@ export class AIService extends EventEmitter {
           "quantizations",
         ];
 
-        // Build extraBody, supporting both flat and nested config formats
+        // Build extraBody: routing options go under "provider", others stay at root
+        const routingOptions: Record<string, unknown> = {};
+        const otherOptions: Record<string, unknown> = {};
+
+        for (const [key, value] of Object.entries(extraOptions)) {
+          if (OPENROUTER_ROUTING_OPTIONS.includes(key)) {
+            routingOptions[key] = value;
+          } else {
+            otherOptions[key] = value;
+          }
+        }
+
+        // Build extraBody with provider nesting if routing options exist
         let extraBody: Record<string, unknown> | undefined;
-
-        if ("provider" in extraOptions && typeof extraOptions.provider === "object") {
-          // Old nested format: { provider: { order: [...], ... } }
-          // Pass through as-is for backwards compatibility
-          extraBody = extraOptions;
-        } else {
-          // New flat format: { order: [...], allow_fallbacks: false, ... }
-          // Restructure: routing options go under "provider", others stay at root
-          const routingOptions: Record<string, unknown> = {};
-          const otherOptions: Record<string, unknown> = {};
-
-          for (const [key, value] of Object.entries(extraOptions)) {
-            if (OPENROUTER_ROUTING_OPTIONS.includes(key)) {
-              routingOptions[key] = value;
-            } else {
-              otherOptions[key] = value;
-            }
-          }
-
-          // Build extraBody with provider nesting if routing options exist
-          if (Object.keys(routingOptions).length > 0) {
-            extraBody = { provider: routingOptions, ...otherOptions };
-          } else if (Object.keys(otherOptions).length > 0) {
-            extraBody = otherOptions;
-          }
+        if (Object.keys(routingOptions).length > 0) {
+          extraBody = { provider: routingOptions, ...otherOptions };
+        } else if (Object.keys(otherOptions).length > 0) {
+          extraBody = otherOptions;
         }
 
         // Lazy-load OpenRouter provider to reduce startup time

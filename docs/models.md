@@ -89,8 +89,6 @@ Or require a specific provider (no fallbacks):
 
 See [OpenRouter Provider Routing docs](https://openrouter.ai/docs/features/provider-routing) for details.
 
-**Note:** The old nested format with `"provider": { ... }` is still supported for backwards compatibility.
-
 **Reasoning Models:**
 
 OpenRouter supports reasoning models like Claude Sonnet Thinking. Use the thinking slider to control reasoning effort:
