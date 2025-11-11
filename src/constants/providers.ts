@@ -36,50 +36,35 @@ export function isValidProvider(provider: string): provider is ProviderName {
 /**
  * Typed import helpers for provider packages
  *
- * These functions provide type-safe dynamic imports for provider packages by using
- * PROVIDER_REGISTRY as the single source of truth for package names. While TypeScript
- * cannot infer return types from dynamic imports with variables, the functions are
- * safe because:
- * 1. PROVIDER_REGISTRY is defined with `as const` (immutable literal types)
- * 2. Package names are validated at runtime (import will fail if invalid)
- * 3. Consuming code doesn't need explicit types - inference works from usage
- *
- * The eslint-disable is localized to these wrapper functions rather than spread
- * throughout the codebase at call sites.
+ * These functions provide type-safe dynamic imports for provider packages,
+ * eliminating the need for eslint-disable comments and ensuring compile-time
+ * type safety for provider constructors.
  */
 
 /**
  * Dynamically import the Anthropic provider package
  */
 export async function importAnthropic() {
-  const { anthropic } = PROVIDER_REGISTRY;
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-return
-  return await import(anthropic);
+  return await import("@ai-sdk/anthropic");
 }
 
 /**
  * Dynamically import the OpenAI provider package
  */
 export async function importOpenAI() {
-  const { openai } = PROVIDER_REGISTRY;
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-return
-  return await import(openai);
+  return await import("@ai-sdk/openai");
 }
 
 /**
  * Dynamically import the Ollama provider package
  */
 export async function importOllama() {
-  const { ollama } = PROVIDER_REGISTRY;
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-return
-  return await import(ollama);
+  return await import("ollama-ai-provider-v2");
 }
 
 /**
  * Dynamically import the OpenRouter provider package
  */
 export async function importOpenRouter() {
-  const { openrouter } = PROVIDER_REGISTRY;
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-return
-  return await import(openrouter);
+  return await import("@openrouter/ai-sdk-provider");
 }
