@@ -102,15 +102,6 @@ OpenRouter supports reasoning models like Claude Sonnet Thinking. Use the thinki
 
 The thinking level is passed to OpenRouter as `reasoning.effort` and works with any reasoning-capable model. See [OpenRouter Reasoning docs](https://openrouter.ai/docs/use-cases/reasoning-tokens) for details.
 
-**Benefits:**
-
-- Single API key for hundreds of models
-- Pay-as-you-go pricing with no monthly fees
-- Transparent per-token costs
-- Automatic failover for high availability
-- Control which infrastructure provider serves your requests
-- Unified thinking/reasoning interface across providers
-
 #### Ollama (Local)
 
 Run models locally with Ollama. No API key required:
