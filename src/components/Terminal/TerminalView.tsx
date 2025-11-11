@@ -99,11 +99,16 @@ export function TerminalView({ workspaceId, visible }: TerminalViewProps) {
 
   // WebSocket output → Terminal
   useEffect(() => {
-    if (!wsRef.current || !termRef.current) return;
+    if (!wsRef.current || !termRef.current) {
+      console.log("[TerminalView] WebSocket effect - ws:", !!wsRef.current, "term:", !!termRef.current, "connected:", connected);
+      return;
+    }
 
+    console.log("[TerminalView] Setting up WebSocket message handler");
     const handleMessage = (event: MessageEvent) => {
       try {
         const msg = JSON.parse(event.data as string);
+        console.log("[TerminalView] Received WebSocket message:", msg.type, msg.data?.length || 0, "bytes");
         if (msg.type === "output") {
           termRef.current?.write(msg.data);
         } else if (msg.type === "exit") {
@@ -116,6 +121,7 @@ export function TerminalView({ workspaceId, visible }: TerminalViewProps) {
 
     wsRef.current.addEventListener("message", handleMessage);
     return () => {
+      console.log("[TerminalView] Removing WebSocket message handler");
       wsRef.current?.removeEventListener("message", handleMessage);
     };
   }, [connected, wsRef]);
