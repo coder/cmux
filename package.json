@@ -58,7 +58,7 @@
     "@radix-ui/react-tooltip": "^1.2.8",
     "ai": "^5.0.72",
     "ai-tokenizer": "^1.0.3",
-    "chalk": "^5.6.2",
+    "chalk": "4",
     "cors": "^2.8.5",
     "crc-32": "^1.2.2",
     "diff": "^8.0.2",
