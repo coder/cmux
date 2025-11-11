@@ -122,55 +122,57 @@ const app = express();
 app.use(cors());
 app.use(express.json({ limit: "50mb" }));
 
-// Initialize config and IPC service
-const config = new Config();
-const ipcMainService = new IpcMain(config);
+// Initialize server in async context
+(async () => {
+  // Initialize config and IPC service
+  const config = new Config();
+  const ipcMainService = new IpcMain(config);
 
-// Track WebSocket clients and their subscriptions
-const clients: Clients = new Map();
+  // Track WebSocket clients and their subscriptions
+  const clients: Clients = new Map();
 
-const mockWindow = new MockBrowserWindow(clients);
-const httpIpcMain = new HttpIpcMainAdapter(app);
+  const mockWindow = new MockBrowserWindow(clients);
+  const httpIpcMain = new HttpIpcMainAdapter(app);
 
-// Register IPC handlers
-ipcMainService.register(
-  httpIpcMain as unknown as ElectronIpcMain,
-  mockWindow as unknown as BrowserWindow
-);
+  // Register IPC handlers
+  await ipcMainService.register(
+    httpIpcMain as unknown as ElectronIpcMain,
+    mockWindow as unknown as BrowserWindow
+  );
 
-// Serve static files from dist directory (built renderer)
-app.use(express.static(path.join(__dirname, ".")));
+  // Serve static files from dist directory (built renderer)
+  app.use(express.static(path.join(__dirname, ".")));
 
-// Health check endpoint
-app.get("/health", (req, res) => {
-  res.json({ status: "ok" });
-});
-
-// Fallback to index.html for SPA routes (use middleware instead of deprecated wildcard)
-app.use((req, res, next) => {
-  if (!req.path.startsWith("/ipc") && !req.path.startsWith("/ws")) {
-    res.sendFile(path.join(__dirname, "index.html"));
-  } else {
-    next();
-  }
-});
-
-// Create HTTP server
-const server = http.createServer(app);
-
-// Create WebSocket server
-const wss = new WebSocketServer({ server, path: "/ws" });
-
-wss.on("connection", (ws) => {
-  console.log("Client connected");
-
-  // Initialize client tracking
-  clients.set(ws, {
-    chatSubscriptions: new Set(),
-    metadataSubscription: false,
+  // Health check endpoint
+  app.get("/health", (req, res) => {
+    res.json({ status: "ok" });
   });
 
-  ws.on("message", (rawData: RawData) => {
+  // Fallback to index.html for SPA routes (use middleware instead of deprecated wildcard)
+  app.use((req, res, next) => {
+    if (!req.path.startsWith("/ipc") && !req.path.startsWith("/ws")) {
+      res.sendFile(path.join(__dirname, "index.html"));
+    } else {
+      next();
+    }
+  });
+
+  // Create HTTP server
+  const server = http.createServer(app);
+
+  // Create WebSocket server
+  const wss = new WebSocketServer({ server, path: "/ws" });
+
+  wss.on("connection", (ws) => {
+    console.log("Client connected");
+
+    // Initialize client tracking
+    clients.set(ws, {
+      chatSubscriptions: new Set(),
+      metadataSubscription: false,
+    });
+
+    ws.on("message", (rawData: RawData) => {
     try {
       // WebSocket data can be Buffer, ArrayBuffer, or string - convert to string
       let dataStr: string;
@@ -247,6 +249,10 @@ wss.on("connection", (ws) => {
   });
 });
 
-server.listen(PORT, HOST, () => {
-  console.log(`Server is running on http://${HOST}:${PORT}`);
+  server.listen(PORT, HOST, () => {
+    console.log(`Server is running on http://${HOST}:${PORT}`);
+  });
+})().catch((err) => {
+  console.error("Failed to start server:", err);
+  process.exit(1);
 });

@@ -27,6 +27,9 @@ import { InitStateManager } from "@/services/initStateManager";
 import { createRuntime } from "@/runtime/runtimeFactory";
 import type { RuntimeConfig } from "@/types/runtime";
 import { validateProjectPath } from "@/utils/pathUtils";
+import { PTYService } from "@/services/ptyService";
+import { TerminalServer } from "@/services/terminalServer";
+import type { TerminalCreateParams, TerminalResizeParams } from "@/types/terminal";
 /**
  * IpcMain - Manages all IPC handlers and service coordination
  *
@@ -46,6 +49,8 @@ export class IpcMain {
   private readonly partialService: PartialService;
   private readonly aiService: AIService;
   private readonly initStateManager: InitStateManager;
+  private readonly ptyService: PTYService;
+  private readonly terminalServer: TerminalServer;
   private readonly sessions = new Map<string, AgentSession>();
   private readonly sessionSubscriptions = new Map<
     string,
@@ -66,6 +71,9 @@ export class IpcMain {
       this.partialService,
       this.initStateManager
     );
+    this.ptyService = new PTYService();
+    this.terminalServer = new TerminalServer(this.ptyService);
+    this.ptyService.setTerminalServer(this.terminalServer);
   }
 
   private getOrCreateSession(workspaceId: string): AgentSession {
@@ -136,7 +144,7 @@ export class IpcMain {
    * @param ipcMain - Electron's ipcMain module
    * @param mainWindow - The main BrowserWindow for sending events
    */
-  register(ipcMain: ElectronIpcMain, mainWindow: BrowserWindow): void {
+  async register(ipcMain: ElectronIpcMain, mainWindow: BrowserWindow): Promise<void> {
     // Always update the window reference (windows can be recreated on macOS)
     this.mainWindow = mainWindow;
 
@@ -146,11 +154,15 @@ export class IpcMain {
       return;
     }
 
+    // Start terminal server
+    await this.terminalServer.start();
+
     this.registerWindowHandlers(ipcMain);
     this.registerTokenizerHandlers(ipcMain);
     this.registerWorkspaceHandlers(ipcMain);
     this.registerProviderHandlers(ipcMain);
     this.registerProjectHandlers(ipcMain);
+    this.registerTerminalHandlers(ipcMain);
     this.registerSubscriptionHandlers(ipcMain);
     this.registered = true;
   }
@@ -1255,6 +1267,72 @@ export class IpcMain {
         }
       }
     );
+  }
+
+
+  private registerTerminalHandlers(ipcMain: ElectronIpcMain): void {
+    ipcMain.handle(
+      IPC_CHANNELS.TERMINAL_CREATE,
+      async (_event, params: TerminalCreateParams) => {
+        try {
+          // Get workspace metadata
+          const allMetadata = this.config.getAllWorkspaceMetadata();
+          const workspaceMetadata = allMetadata.find((ws) => ws.id === params.workspaceId);
+
+          if (!workspaceMetadata) {
+            throw new Error(`Workspace ${params.workspaceId} not found`);
+          }
+
+          // Create runtime for this workspace (default to local if not specified)
+          const runtime = createRuntime(
+            workspaceMetadata.runtimeConfig ?? { type: "local", srcBaseDir: this.config.srcDir }
+          );
+
+          // Compute workspace path
+          const workspacePath = runtime.getWorkspacePath(
+            workspaceMetadata.projectPath,
+            workspaceMetadata.name
+          );
+
+          // Create terminal session
+          const session = await this.ptyService.createSession(
+            params,
+            runtime,
+            workspacePath
+          );
+
+          return session;
+        } catch (err) {
+          log.error("Error creating terminal session:", err);
+          throw err;
+        }
+      }
+    );
+
+    ipcMain.handle(IPC_CHANNELS.TERMINAL_CLOSE, async (_event, sessionId: string) => {
+      try {
+        await this.ptyService.closeSession(sessionId);
+      } catch (err) {
+        log.error("Error closing terminal session:", err);
+        throw err;
+      }
+    });
+
+    ipcMain.handle(
+      IPC_CHANNELS.TERMINAL_RESIZE,
+      async (_event, params: TerminalResizeParams) => {
+        try {
+          await this.ptyService.resize(params);
+        } catch (err) {
+          log.error("Error resizing terminal:", err);
+          throw err;
+        }
+      }
+    );
+
+    ipcMain.handle(IPC_CHANNELS.TERMINAL_GET_PORT, async () => {
+      return this.terminalServer.getPort();
+    });
   }
 
   private registerSubscriptionHandlers(ipcMain: ElectronIpcMain): void {
