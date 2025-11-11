@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Ensure bun is in PATH
+export PATH="$HOME/.bun/bin:$PATH"
+
 echo "Installing dependencies with bun..."
 bun install
 echo "Dependencies installed successfully!"

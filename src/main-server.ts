@@ -13,7 +13,6 @@ import * as path from "path";
 import type { RawData } from "ws";
 import { WebSocket, WebSocketServer } from "ws";
 import { Command } from "commander";
-import { validateProjectPath } from "./utils/pathUtils";
 
 // Parse command line arguments
 const program = new Command();
@@ -23,16 +22,11 @@ program
   .description("HTTP/WebSocket server for cmux - allows accessing cmux backend from mobile devices")
   .option("-h, --host <host>", "bind to specific host", "localhost")
   .option("-p, --port <port>", "bind to specific port", "3000")
-  .option("--add-project <path>", "add and open project at the specified path (idempotent)")
   .parse(process.argv);
 
 const options = program.opts();
 const HOST = options.host as string;
 const PORT = parseInt(options.port as string, 10);
-const ADD_PROJECT_PATH = options.addProject as string | undefined;
-
-// Track the launch project path for initial navigation
-let launchProjectPath: string | null = null;
 
 // Mock Electron's ipcMain for HTTP
 class HttpIpcMainAdapter {
@@ -40,13 +34,6 @@ class HttpIpcMainAdapter {
   private listeners = new Map<string, Array<(event: unknown, ...args: unknown[]) => void>>();
 
   constructor(private readonly app: express.Application) {}
-
-  // Public method to get a handler (for internal use)
-  getHandler(
-    channel: string
-  ): ((event: unknown, ...args: unknown[]) => Promise<unknown>) | undefined {
-    return this.handlers.get(channel);
-  }
 
   handle(channel: string, handler: (event: unknown, ...args: unknown[]) => Promise<unknown>): void {
     this.handlers.set(channel, handler);
@@ -135,29 +122,23 @@ const app = express();
 app.use(cors());
 app.use(express.json({ limit: "50mb" }));
 
-// Track WebSocket clients and their subscriptions
-const clients: Clients = new Map();
-
-const mockWindow = new MockBrowserWindow(clients);
-const httpIpcMain = new HttpIpcMainAdapter(app);
-
-// Initialize async services and register handlers
+// Initialize server in async context
 (async () => {
   // Initialize config and IPC service
   const config = new Config();
   const ipcMainService = new IpcMain(config);
-  await ipcMainService.initialize();
+
+  // Track WebSocket clients and their subscriptions
+  const clients: Clients = new Map();
+
+  const mockWindow = new MockBrowserWindow(clients);
+  const httpIpcMain = new HttpIpcMainAdapter(app);
 
   // Register IPC handlers
-  ipcMainService.register(
+  await ipcMainService.register(
     httpIpcMain as unknown as ElectronIpcMain,
     mockWindow as unknown as BrowserWindow
   );
-
-  // Add custom endpoint for launch project (only for server mode)
-  httpIpcMain.handle("server:getLaunchProject", () => {
-    return Promise.resolve(launchProjectPath);
-  });
 
   // Serve static files from dist directory (built renderer)
   app.use(express.static(path.join(__dirname, ".")));
@@ -192,166 +173,86 @@ const httpIpcMain = new HttpIpcMainAdapter(app);
     });
 
     ws.on("message", (rawData: RawData) => {
-      try {
-        // WebSocket data can be Buffer, ArrayBuffer, or string - convert to string
-        let dataStr: string;
-        if (typeof rawData === "string") {
-          dataStr = rawData;
-        } else if (Buffer.isBuffer(rawData)) {
-          dataStr = rawData.toString("utf-8");
-        } else if (rawData instanceof ArrayBuffer) {
-          dataStr = Buffer.from(rawData).toString("utf-8");
-        } else {
-          // Array of Buffers
-          dataStr = Buffer.concat(rawData as Buffer[]).toString("utf-8");
-        }
-        const message = JSON.parse(dataStr) as {
-          type: string;
-          channel: string;
-          workspaceId?: string;
-        };
-        const { type, channel, workspaceId } = message;
-
-        const clientInfo = clients.get(ws);
-        if (!clientInfo) return;
-
-        if (type === "subscribe") {
-          if (channel === "workspace:chat" && workspaceId) {
-            console.log(`[WS] Client subscribed to workspace chat: ${workspaceId}`);
-            clientInfo.chatSubscriptions.add(workspaceId);
-            console.log(
-              `[WS] Subscription added. Current subscriptions:`,
-              Array.from(clientInfo.chatSubscriptions)
-            );
-
-            // Send subscription acknowledgment through IPC system
-            console.log(`[WS] Triggering workspace:chat:subscribe handler for ${workspaceId}`);
-            httpIpcMain.send("workspace:chat:subscribe", workspaceId);
-          } else if (channel === "workspace:metadata") {
-            console.log("[WS] Client subscribed to workspace metadata");
-            clientInfo.metadataSubscription = true;
-
-            // Send subscription acknowledgment
-            httpIpcMain.send("workspace:metadata:subscribe");
-          }
-        } else if (type === "unsubscribe") {
-          if (channel === "workspace:chat" && workspaceId) {
-            console.log(`Client unsubscribed from workspace chat: ${workspaceId}`);
-            clientInfo.chatSubscriptions.delete(workspaceId);
-
-            // Send unsubscription acknowledgment
-            httpIpcMain.send("workspace:chat:unsubscribe", workspaceId);
-          } else if (channel === "workspace:metadata") {
-            console.log("Client unsubscribed from workspace metadata");
-            clientInfo.metadataSubscription = false;
-
-            // Send unsubscription acknowledgment
-            httpIpcMain.send("workspace:metadata:unsubscribe");
-          }
-        } else if (type === "invoke") {
-          // Handle direct IPC invocations over WebSocket (for streaming responses)
-          // This is not currently used but could be useful for future enhancements
-          console.log(`WebSocket invoke: ${channel}`);
-        }
-      } catch (error) {
-        console.error("Error handling WebSocket message:", error);
-      }
-    });
-
-    ws.on("close", () => {
-      console.log("Client disconnected");
-      clients.delete(ws);
-    });
-
-    ws.on("error", (error) => {
-      console.error("WebSocket error:", error);
-    });
-  });
-
-  /**
-   * Initialize a project from the --add-project flag
-   * This checks if a project exists at the given path, creates it if not, and opens it
-   */
-  async function initializeProject(
-    projectPath: string,
-    ipcAdapter: HttpIpcMainAdapter
-  ): Promise<void> {
     try {
-      // Trim trailing slashes to ensure proper project name extraction
-      projectPath = projectPath.replace(/\/+$/, "");
-
-      // Normalize path (expand tilde, make absolute) to match how PROJECT_CREATE normalizes paths
-      const validation = await validateProjectPath(projectPath);
-      if (!validation.valid) {
-        const errorMsg = validation.error ?? "Unknown validation error";
-        console.error(`Invalid project path: ${errorMsg}`);
-        return;
-      }
-      projectPath = validation.expandedPath!;
-
-      // First, check if project already exists by listing all projects
-      const handler = ipcAdapter.getHandler(IPC_CHANNELS.PROJECT_LIST);
-      if (!handler) {
-        console.error("PROJECT_LIST handler not found");
-        return;
-      }
-
-      const projectsList = await handler(null);
-      if (!Array.isArray(projectsList)) {
-        console.error("Unexpected PROJECT_LIST response format");
-        return;
-      }
-
-      // Check if the project already exists (projectsList is Array<[string, ProjectConfig]>)
-      const existingProject = (projectsList as Array<[string, unknown]>).find(
-        ([path]) => path === projectPath
-      );
-
-      if (existingProject) {
-        console.log(`Project already exists at: ${projectPath}`);
-        launchProjectPath = projectPath;
-        return;
-      }
-
-      // Project doesn't exist, create it
-      console.log(`Creating new project at: ${projectPath}`);
-      const createHandler = ipcAdapter.getHandler(IPC_CHANNELS.PROJECT_CREATE);
-      if (!createHandler) {
-        console.error("PROJECT_CREATE handler not found");
-        return;
-      }
-
-      const createResult = await createHandler(null, projectPath);
-
-      // Check if creation was successful using the Result type
-      if (createResult && typeof createResult === "object" && "success" in createResult) {
-        if (createResult.success) {
-          console.log(`Successfully created project at: ${projectPath}`);
-          launchProjectPath = projectPath;
-        } else if ("error" in createResult) {
-          const err = createResult as { error: unknown };
-          const errorMsg = err.error instanceof Error ? err.error.message : String(err.error);
-          console.error(`Failed to create project: ${errorMsg}`);
-        }
+      // WebSocket data can be Buffer, ArrayBuffer, or string - convert to string
+      let dataStr: string;
+      if (typeof rawData === "string") {
+        dataStr = rawData;
+      } else if (Buffer.isBuffer(rawData)) {
+        dataStr = rawData.toString("utf-8");
+      } else if (rawData instanceof ArrayBuffer) {
+        dataStr = Buffer.from(rawData).toString("utf-8");
       } else {
-        console.error("Unexpected PROJECT_CREATE response format");
+        // Array of Buffers
+        dataStr = Buffer.concat(rawData as Buffer[]).toString("utf-8");
+      }
+      const message = JSON.parse(dataStr) as {
+        type: string;
+        channel: string;
+        workspaceId?: string;
+      };
+      const { type, channel, workspaceId } = message;
+
+      const clientInfo = clients.get(ws);
+      if (!clientInfo) return;
+
+      if (type === "subscribe") {
+        if (channel === "workspace:chat" && workspaceId) {
+          console.log(`[WS] Client subscribed to workspace chat: ${workspaceId}`);
+          clientInfo.chatSubscriptions.add(workspaceId);
+          console.log(
+            `[WS] Subscription added. Current subscriptions:`,
+            Array.from(clientInfo.chatSubscriptions)
+          );
+
+          // Send subscription acknowledgment through IPC system
+          console.log(`[WS] Triggering workspace:chat:subscribe handler for ${workspaceId}`);
+          httpIpcMain.send("workspace:chat:subscribe", workspaceId);
+        } else if (channel === "workspace:metadata") {
+          console.log("[WS] Client subscribed to workspace metadata");
+          clientInfo.metadataSubscription = true;
+
+          // Send subscription acknowledgment
+          httpIpcMain.send("workspace:metadata:subscribe");
+        }
+      } else if (type === "unsubscribe") {
+        if (channel === "workspace:chat" && workspaceId) {
+          console.log(`Client unsubscribed from workspace chat: ${workspaceId}`);
+          clientInfo.chatSubscriptions.delete(workspaceId);
+
+          // Send unsubscription acknowledgment
+          httpIpcMain.send("workspace:chat:unsubscribe", workspaceId);
+        } else if (channel === "workspace:metadata") {
+          console.log("Client unsubscribed from workspace metadata");
+          clientInfo.metadataSubscription = false;
+
+          // Send unsubscription acknowledgment
+          httpIpcMain.send("workspace:metadata:unsubscribe");
+        }
+      } else if (type === "invoke") {
+        // Handle direct IPC invocations over WebSocket (for streaming responses)
+        // This is not currently used but could be useful for future enhancements
+        console.log(`WebSocket invoke: ${channel}`);
       }
     } catch (error) {
-      console.error(`Error initializing project:`, error);
-    }
-  }
-
-  // Start server after initialization
-  server.listen(PORT, HOST, () => {
-    console.log(`Server is running on http://${HOST}:${PORT}`);
-
-    // Handle --add-project flag if present
-    if (ADD_PROJECT_PATH) {
-      console.log(`Initializing project at: ${ADD_PROJECT_PATH}`);
-      void initializeProject(ADD_PROJECT_PATH, httpIpcMain);
+      console.error("Error handling WebSocket message:", error);
     }
   });
-})().catch((error) => {
-  console.error("Failed to initialize server:", error);
+
+  ws.on("close", () => {
+    console.log("Client disconnected");
+    clients.delete(ws);
+  });
+
+  ws.on("error", (error) => {
+    console.error("WebSocket error:", error);
+  });
+});
+
+  server.listen(PORT, HOST, () => {
+    console.log(`Server is running on http://${HOST}:${PORT}`);
+  });
+})().catch((err) => {
+  console.error("Failed to start server:", err);
   process.exit(1);
 });

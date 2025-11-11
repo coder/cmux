@@ -342,7 +342,7 @@ async function loadServices(): Promise<void> {
   console.log(`[${timestamp()}] Services loaded in ${loadTime}ms`);
 }
 
-function createWindow() {
+async function createWindow() {
   assert(ipcMain, "Services must be loaded before creating window");
 
   // Calculate window size based on screen dimensions (80% of available space)
@@ -371,7 +371,7 @@ function createWindow() {
 
   // Register IPC handlers with the main window
   console.log(`[${timestamp()}] [window] Registering IPC handlers...`);
-  ipcMain.register(electronIpcMain, mainWindow);
+  await ipcMain.register(electronIpcMain, mainWindow);
 
   // Register updater IPC handlers (available in both dev and prod)
   electronIpcMain.handle(IPC_CHANNELS.UPDATE_CHECK, () => {
@@ -510,7 +510,7 @@ if (gotTheLock) {
         await showSplashScreen(); // Wait for splash to actually load
       }
       await loadServices();
-      createWindow();
+      await createWindow();
       // Note: splash closes in ready-to-show event handler
 
       // Tokenizer modules load in background after did-finish-load event (see createWindow())
@@ -546,7 +546,7 @@ if (gotTheLock) {
       void (async () => {
         await showSplashScreen();
         await loadServices();
-        createWindow();
+        await createWindow();
       })();
     }
   });

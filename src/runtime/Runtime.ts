@@ -60,6 +60,8 @@ export interface ExecOptions {
   niceness?: number;
   /** Abort signal for cancellation */
   abortSignal?: AbortSignal;
+  /** Force PTY allocation (SSH only - adds -t flag) */
+  forcePTY?: boolean;
 }
 
 /**

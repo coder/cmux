@@ -69,6 +69,7 @@
     "lru-cache": "^11.2.2",
     "markdown-it": "^14.1.0",
     "minimist": "^1.2.8",
+    "ghostty-web": "git+ssh://git@github.com/coder/ghostty-web.git",
     "node-pty": "^1.0.0",
     "ollama-ai-provider-v2": "^1.5.3",
     "rehype-harden": "^1.1.5",

@@ -115,7 +115,9 @@ export class SSHRuntime implements Runtime {
     fullCommand = `timeout -s KILL ${remoteTimeout} bash -c ${shescape.quote(fullCommand)}`;
 
     // Build SSH args
-    const sshArgs: string[] = ["-T"];
+    // -T: Disable pseudo-terminal allocation (default)
+    // -t: Force pseudo-terminal allocation (for interactive shells)
+    const sshArgs: string[] = [options.forcePTY ? "-t" : "-T"];
 
     // Add port if specified
     if (this.config.port) {
