@@ -26,6 +26,10 @@ export interface TerminalResizeParams {
  */
 export type TerminalMessage =
   | {
+      type: "attach";
+      sessionId: string;
+    }
+  | {
       type: "input";
       sessionId: string;
       data: string;
