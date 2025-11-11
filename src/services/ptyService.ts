@@ -62,12 +62,15 @@ export class PTYService {
 
       const shell = process.env.SHELL || "/bin/bash";
 
-      const ptyProcess = pty.spawn(shell, [], {
+      const ptyProcess = pty.spawn(shell, ["-l"], {
         name: "xterm-256color",
         cols: params.cols,
         rows: params.rows,
         cwd: workspacePath,
-        env: process.env as Record<string, string>,
+        env: {
+          ...process.env,
+          TERM: "xterm-256color",
+        } as Record<string, string>,
       });
 
       // Forward PTY data to terminal server
