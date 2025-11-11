@@ -7,7 +7,7 @@ import { sanitizeToolInputs } from "@/utils/messages/sanitizeToolInput";
 import type { Result } from "@/types/result";
 import { Ok, Err } from "@/types/result";
 import type { WorkspaceMetadata } from "@/types/workspace";
-import { SUPPORTED_PROVIDERS, type ProviderName } from "@/constants/providers";
+import { PROVIDER_REGISTRY, SUPPORTED_PROVIDERS, type ProviderName } from "@/constants/providers";
 
 import type { CmuxMessage, CmuxTextPart } from "@/types/message";
 import { createCmuxMessage } from "@/types/message";
@@ -262,9 +262,9 @@ export class AIService extends EventEmitter {
         });
       }
 
-      // Check if provider is supported (prevents silent failures when adding to SUPPORTED_PROVIDERS
+      // Check if provider is supported (prevents silent failures when adding to PROVIDER_REGISTRY
       // but forgetting to implement handler below)
-      if (!SUPPORTED_PROVIDERS.includes(providerName as ProviderName)) {
+      if (!(providerName in PROVIDER_REGISTRY)) {
         return Err({
           type: "provider_not_supported",
           provider: providerName,
