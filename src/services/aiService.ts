@@ -7,7 +7,13 @@ import { sanitizeToolInputs } from "@/utils/messages/sanitizeToolInput";
 import type { Result } from "@/types/result";
 import { Ok, Err } from "@/types/result";
 import type { WorkspaceMetadata } from "@/types/workspace";
-import { PROVIDER_REGISTRY, SUPPORTED_PROVIDERS, type ProviderName } from "@/constants/providers";
+import {
+  PROVIDER_REGISTRY,
+  importAnthropic,
+  importOpenAI,
+  importOllama,
+  importOpenRouter,
+} from "@/constants/providers";
 
 import type { CmuxMessage, CmuxTextPart } from "@/types/message";
 import { createCmuxMessage } from "@/types/message";
@@ -306,7 +312,7 @@ export class AIService extends EventEmitter {
               : existingHeaders;
 
         // Lazy-load Anthropic provider to reduce startup time
-        const { createAnthropic } = await import(PROVIDER_REGISTRY.anthropic);
+        const { createAnthropic } = await importAnthropic();
         const provider = createAnthropic({ ...providerConfig, headers });
         return Ok(provider(modelId));
       }
@@ -394,11 +400,12 @@ export class AIService extends EventEmitter {
         );
 
         // Lazy-load OpenAI provider to reduce startup time
-        const { createOpenAI } = await import(PROVIDER_REGISTRY.openai);
+        const { createOpenAI } = await importOpenAI();
         const provider = createOpenAI({
           ...providerConfig,
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
-          fetch: fetchWithOpenAITruncation as any,
+          // Cast is safe: our fetch implementation is compatible with the SDK's fetch type.
+          // The preconnect method is optional in our implementation but required by the SDK type.
+          fetch: fetchWithOpenAITruncation as typeof fetch,
         });
         // Use Responses API for persistence and built-in tools
         // OpenAI manages reasoning state via previousResponseId - no middleware needed
@@ -412,11 +419,10 @@ export class AIService extends EventEmitter {
         const baseFetch = getProviderFetch(providerConfig);
 
         // Lazy-load Ollama provider to reduce startup time
-        const { createOllama } = await import(PROVIDER_REGISTRY.ollama);
+        const { createOllama } = await importOllama();
         const provider = createOllama({
           ...providerConfig,
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
-          fetch: baseFetch as any,
+          fetch: baseFetch,
           // Use strict mode for better compatibility with Ollama API
           compatibility: "strict",
         });
@@ -470,13 +476,12 @@ export class AIService extends EventEmitter {
         }
 
         // Lazy-load OpenRouter provider to reduce startup time
-        const { createOpenRouter } = await import(PROVIDER_REGISTRY.openrouter);
+        const { createOpenRouter } = await importOpenRouter();
         const provider = createOpenRouter({
           apiKey,
           baseURL: baseUrl,
           headers: headers as Record<string, string> | undefined,
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
-          fetch: baseFetch as any,
+          fetch: baseFetch,
           extraBody,
         });
         return Ok(provider(modelId));

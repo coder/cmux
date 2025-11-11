@@ -37,13 +37,13 @@ type ExtendedOpenAIResponsesProviderOptions = OpenAIResponsesProviderOptions & {
  * OpenRouter reasoning options
  * @see https://openrouter.ai/docs/use-cases/reasoning-tokens
  */
-type OpenRouterReasoningOptions = {
+interface OpenRouterReasoningOptions {
   reasoning?: {
     enabled?: boolean;
     exclude?: boolean;
     effort?: "low" | "medium" | "high";
   };
-};
+}
 
 /**
  * Provider-specific options structure for AI SDK

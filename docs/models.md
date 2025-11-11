@@ -60,9 +60,9 @@ OpenRouter can route requests to specific infrastructure providers (Cerebras, Fi
   "openrouter": {
     "apiKey": "sk-or-v1-...",
     // Use Cerebras for ultra-fast inference
-    "order": ["Cerebras", "Fireworks"],  // Try in order
-    "allow_fallbacks": true               // Allow other providers if unavailable
-  }
+    "order": ["Cerebras", "Fireworks"], // Try in order
+    "allow_fallbacks": true, // Allow other providers if unavailable
+  },
 }
 ```
 
@@ -72,9 +72,9 @@ Or require a specific provider (no fallbacks):
 {
   "openrouter": {
     "apiKey": "sk-or-v1-...",
-    "order": ["Cerebras"],        // Only try Cerebras
-    "allow_fallbacks": false      // Fail if Cerebras unavailable
-  }
+    "order": ["Cerebras"], // Only try Cerebras
+    "allow_fallbacks": false, // Fail if Cerebras unavailable
+  },
 }
 ```
 
