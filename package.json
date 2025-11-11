@@ -70,6 +70,7 @@
     "markdown-it": "^14.1.0",
     "minimist": "^1.2.8",
     "node-pty": "^1.0.0",
+    "node-pty-prebuilt-multiarch": "^0.10.1-pre.5",
     "ollama-ai-provider-v2": "^1.5.3",
     "rehype-harden": "^1.1.5",
     "shescape": "^2.1.6",
