@@ -252,7 +252,7 @@ body {
 html,
 body,
 #root {
-  height: 100vh;
+  height: 100dvh;
   overflow: hidden;
 }
 
