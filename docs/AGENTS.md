@@ -224,6 +224,11 @@ This project uses **Make** as the primary build orchestrator. See `Makefile` for
 - Always run `make typecheck` after making changes to verify types (checks both main and renderer)
 - **⚠️ CRITICAL: Unit tests MUST be colocated with the code they test** - Place `*.test.ts` files in the same directory as the implementation file (e.g., `src/utils/foo.test.ts` next to `src/utils/foo.ts`). Tests in `./tests/` are ONLY for integration/E2E tests that require complex setup.
 - **Don't test simple mapping operations** - If the test just verifies the code does what it obviously does from reading it, skip the test.
+  - ❌ **Bad**: `expect(REGISTRY.foo).toBe("bar")` - This just duplicates the implementation
+  - ✅ **Good**: `expect(Object.keys(REGISTRY).length).toBeGreaterThan(0)` - Tests an invariant
+  - ❌ **Bad**: `expect(isValid("foo")).toBe(true)` for every valid value - Duplicates implementation
+  - ✅ **Good**: `expect(isValid("invalid")).toBe(false)` - Tests boundary/error cases
+  - **Rule of thumb**: If changing the implementation requires changing the test in the same way, the test is probably useless
 - Strive to decompose complex logic away from the components and into `.src/utils/`
   - utils should be either pure functions or easily isolated (e.g. if they operate on the FS they accept
     a path). Testing them should not require complex mocks or setup.
