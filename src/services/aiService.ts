@@ -7,6 +7,7 @@ import { sanitizeToolInputs } from "@/utils/messages/sanitizeToolInput";
 import type { Result } from "@/types/result";
 import { Ok, Err } from "@/types/result";
 import type { WorkspaceMetadata } from "@/types/workspace";
+import { SUPPORTED_PROVIDERS, type ProviderName } from "@/constants/providers";
 
 import type { CmuxMessage, CmuxTextPart } from "@/types/message";
 import { createCmuxMessage } from "@/types/message";
@@ -258,6 +259,15 @@ export class AIService extends EventEmitter {
         return Err({
           type: "invalid_model_string",
           message: `Invalid model string format: "${modelString}". Expected "provider:model-id"`,
+        });
+      }
+
+      // Check if provider is supported (prevents silent failures when adding to SUPPORTED_PROVIDERS
+      // but forgetting to implement handler below)
+      if (!SUPPORTED_PROVIDERS.includes(providerName as ProviderName)) {
+        return Err({
+          type: "provider_not_supported",
+          provider: providerName,
         });
       }
 
