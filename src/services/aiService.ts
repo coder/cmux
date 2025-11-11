@@ -432,8 +432,49 @@ export class AIService extends EventEmitter {
             : defaultFetchWithUnlimitedTimeout;
 
         // Extract standard provider settings (apiKey, baseUrl, headers, fetch)
-        // and move everything else to extraBody for transparent pass-through
         const { apiKey, baseUrl, headers, fetch: _fetch, ...extraOptions } = providerConfig;
+
+        // OpenRouter routing options that need to be nested under "provider" in API request
+        // See: https://openrouter.ai/docs/features/provider-routing
+        const OPENROUTER_ROUTING_OPTIONS = [
+          "order",
+          "allow_fallbacks",
+          "only",
+          "ignore",
+          "require_parameters",
+          "data_collection",
+          "sort",
+          "quantizations",
+        ];
+
+        // Build extraBody, supporting both flat and nested config formats
+        let extraBody: Record<string, unknown> | undefined;
+
+        if ("provider" in extraOptions && typeof extraOptions.provider === "object") {
+          // Old nested format: { provider: { order: [...], ... } }
+          // Pass through as-is for backwards compatibility
+          extraBody = extraOptions;
+        } else {
+          // New flat format: { order: [...], allow_fallbacks: false, ... }
+          // Restructure: routing options go under "provider", others stay at root
+          const routingOptions: Record<string, unknown> = {};
+          const otherOptions: Record<string, unknown> = {};
+
+          for (const [key, value] of Object.entries(extraOptions)) {
+            if (OPENROUTER_ROUTING_OPTIONS.includes(key)) {
+              routingOptions[key] = value;
+            } else {
+              otherOptions[key] = value;
+            }
+          }
+
+          // Build extraBody with provider nesting if routing options exist
+          if (Object.keys(routingOptions).length > 0) {
+            extraBody = { provider: routingOptions, ...otherOptions };
+          } else if (Object.keys(otherOptions).length > 0) {
+            extraBody = otherOptions;
+          }
+        }
 
         // Lazy-load OpenRouter provider to reduce startup time
         const { createOpenRouter } = await import("@openrouter/ai-sdk-provider");
@@ -443,8 +484,7 @@ export class AIService extends EventEmitter {
           headers: headers as Record<string, string> | undefined,
           // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
           fetch: baseFetch as any,
-          // Pass all additional config options (like provider routing) via extraBody
-          extraBody: Object.keys(extraOptions).length > 0 ? extraOptions : undefined,
+          extraBody,
         });
         return Ok(provider(modelId));
       }
