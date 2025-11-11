@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { log } from "@/services/log";
 
 /**
  * Hook to manage terminal WebSocket connection and session lifecycle
@@ -22,7 +21,7 @@ export function useTerminalSession(workspaceId: string, enabled: boolean) {
 
     const initSession = async () => {
       try {
-        log.debug(`[Terminal] Initializing session for workspace ${workspaceId}`);
+        console.log(`[Terminal] Initializing session for workspace ${workspaceId}`);
         
         // Get WebSocket port from backend
         const port = await window.api.terminal.getPort();
@@ -35,13 +34,13 @@ export function useTerminalSession(workspaceId: string, enabled: boolean) {
         });
 
         if (!mounted) {
-          log.debug(`[Terminal] Component unmounted, aborting session ${session.sessionId}`);
+          console.log(`[Terminal] Component unmounted, aborting session ${session.sessionId}`);
           return;
         }
 
         createdSessionId = session.sessionId; // Store in closure
         setSessionId(session.sessionId);
-        log.debug(`[Terminal] Session created: ${session.sessionId}`);
+        console.log(`[Terminal] Session created: ${session.sessionId}`);
 
         // Connect WebSocket
         ws = new WebSocket(`ws://localhost:${port}/terminal`);
@@ -49,7 +48,7 @@ export function useTerminalSession(workspaceId: string, enabled: boolean) {
 
         ws.onopen = () => {
           if (mounted) {
-            log.debug(`[Terminal] WebSocket connected for session ${createdSessionId}`);
+            console.log(`[Terminal] WebSocket connected for session ${createdSessionId}`);
             setConnected(true);
             setError(null);
           }
@@ -57,19 +56,19 @@ export function useTerminalSession(workspaceId: string, enabled: boolean) {
 
         ws.onclose = () => {
           if (mounted) {
-            log.debug(`[Terminal] WebSocket closed for session ${createdSessionId}`);
+            console.log(`[Terminal] WebSocket closed for session ${createdSessionId}`);
             setConnected(false);
           }
         };
 
         ws.onerror = (event) => {
-          log.error(`[Terminal] WebSocket error for session ${createdSessionId}:`, event);
+          console.error(`[Terminal] WebSocket error for session ${createdSessionId}:`, event);
           if (mounted) {
             setError("WebSocket connection failed");
           }
         };
       } catch (err) {
-        log.error("[Terminal] Failed to create terminal session:", err);
+        console.error("[Terminal] Failed to create terminal session:", err);
         if (mounted) {
           setError(err instanceof Error ? err.message : "Failed to create terminal");
         }
@@ -81,7 +80,7 @@ export function useTerminalSession(workspaceId: string, enabled: boolean) {
     return () => {
       mounted = false;
       
-      log.debug(`[Terminal] Cleaning up session ${createdSessionId || '(not created)'}`);
+      console.log(`[Terminal] Cleaning up session ${createdSessionId || '(not created)'}`);
       
       // Close WebSocket
       if (ws) {
