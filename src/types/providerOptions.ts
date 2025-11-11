@@ -38,6 +38,14 @@ export interface OpenAIProviderOptions {
 export interface OllamaProviderOptions {}
 
 /**
+ * OpenRouter-specific options
+ * Transparently passes through options to the OpenRouter provider
+ * @see https://openrouter.ai/docs
+ */
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
+export interface OpenRouterProviderOptions {}
+
+/**
  * Cmux provider options - used by both frontend and backend
  */
 export interface CmuxProviderOptions {
@@ -45,4 +53,5 @@ export interface CmuxProviderOptions {
   anthropic?: AnthropicProviderOptions;
   openai?: OpenAIProviderOptions;
   ollama?: OllamaProviderOptions;
+  openrouter?: OpenRouterProviderOptions;
 }

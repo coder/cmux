@@ -7,10 +7,11 @@ import { sanitizeToolInputs } from "@/utils/messages/sanitizeToolInput";
 import type { Result } from "@/types/result";
 import { Ok, Err } from "@/types/result";
 import type { WorkspaceMetadata } from "@/types/workspace";
+import { PROVIDER_REGISTRY } from "@/constants/providers";
 
 import type { CmuxMessage, CmuxTextPart } from "@/types/message";
 import { createCmuxMessage } from "@/types/message";
-import type { Config } from "@/config";
+import type { Config, ProviderConfig } from "@/config";
 import { StreamManager } from "./streamManager";
 import type { InitStateManager } from "./initStateManager";
 import type { SendMessageError } from "@/types/errors";
@@ -92,6 +93,15 @@ if (typeof globalFetchWithExtras.certificate === "function") {
 }
 
 /**
+ * Get fetch function for provider - use custom if provided, otherwise unlimited timeout default
+ */
+function getProviderFetch(providerConfig: ProviderConfig): typeof fetch {
+  return typeof providerConfig.fetch === "function"
+    ? (providerConfig.fetch as typeof fetch)
+    : defaultFetchWithUnlimitedTimeout;
+}
+
+/**
  * Preload AI SDK provider modules to avoid race conditions in concurrent test environments.
  * This function loads @ai-sdk/anthropic, @ai-sdk/openai, and ollama-ai-provider-v2 eagerly
  * so that subsequent dynamic imports in createModel() hit the module cache instead of racing.
@@ -101,11 +111,7 @@ if (typeof globalFetchWithExtras.certificate === "function") {
  */
 export async function preloadAISDKProviders(): Promise<void> {
   // Preload providers to ensure they're in the module cache before concurrent tests run
-  await Promise.all([
-    import("@ai-sdk/anthropic"),
-    import("@ai-sdk/openai"),
-    import("ollama-ai-provider-v2"),
-  ]);
+  await Promise.all(Object.values(PROVIDER_REGISTRY).map((importFn) => importFn()));
 }
 
 /**
@@ -260,6 +266,15 @@ export class AIService extends EventEmitter {
         });
       }
 
+      // Check if provider is supported (prevents silent failures when adding to PROVIDER_REGISTRY
+      // but forgetting to implement handler below)
+      if (!(providerName in PROVIDER_REGISTRY)) {
+        return Err({
+          type: "provider_not_supported",
+          provider: providerName,
+        });
+      }
+
       // Load providers configuration - the ONLY source of truth
       const providersConfig = this.config.loadProvidersConfig();
       let providerConfig = providersConfig?.[providerName] ?? {};
@@ -291,7 +306,7 @@ export class AIService extends EventEmitter {
               : existingHeaders;
 
         // Lazy-load Anthropic provider to reduce startup time
-        const { createAnthropic } = await import("@ai-sdk/anthropic");
+        const { createAnthropic } = await PROVIDER_REGISTRY.anthropic();
         const provider = createAnthropic({ ...providerConfig, headers });
         return Ok(provider(modelId));
       }
@@ -304,11 +319,7 @@ export class AIService extends EventEmitter {
             provider: providerName,
           });
         }
-        // Use custom fetch if provided, otherwise default with unlimited timeout
-        const baseFetch =
-          typeof providerConfig.fetch === "function"
-            ? (providerConfig.fetch as typeof fetch)
-            : defaultFetchWithUnlimitedTimeout;
+        const baseFetch = getProviderFetch(providerConfig);
 
         // Wrap fetch to force truncation: "auto" for OpenAI Responses API calls.
         // This is a temporary override until @ai-sdk/openai supports passing
@@ -383,11 +394,12 @@ export class AIService extends EventEmitter {
         );
 
         // Lazy-load OpenAI provider to reduce startup time
-        const { createOpenAI } = await import("@ai-sdk/openai");
+        const { createOpenAI } = await PROVIDER_REGISTRY.openai();
         const provider = createOpenAI({
           ...providerConfig,
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
-          fetch: fetchWithOpenAITruncation as any,
+          // Cast is safe: our fetch implementation is compatible with the SDK's fetch type.
+          // The preconnect method is optional in our implementation but required by the SDK type.
+          fetch: fetchWithOpenAITruncation as typeof fetch,
         });
         // Use Responses API for persistence and built-in tools
         // OpenAI manages reasoning state via previousResponseId - no middleware needed
@@ -398,20 +410,73 @@ export class AIService extends EventEmitter {
       // Handle Ollama provider
       if (providerName === "ollama") {
         // Ollama doesn't require API key - it's a local service
-        // Use custom fetch if provided, otherwise default with unlimited timeout
-        const baseFetch =
-          typeof providerConfig.fetch === "function"
-            ? (providerConfig.fetch as typeof fetch)
-            : defaultFetchWithUnlimitedTimeout;
+        const baseFetch = getProviderFetch(providerConfig);
 
         // Lazy-load Ollama provider to reduce startup time
-        const { createOllama } = await import("ollama-ai-provider-v2");
+        const { createOllama } = await PROVIDER_REGISTRY.ollama();
         const provider = createOllama({
           ...providerConfig,
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
-          fetch: baseFetch as any,
+          fetch: baseFetch,
           // Use strict mode for better compatibility with Ollama API
           compatibility: "strict",
+        });
+        return Ok(provider(modelId));
+      }
+
+      // Handle OpenRouter provider
+      if (providerName === "openrouter") {
+        if (!providerConfig.apiKey) {
+          return Err({
+            type: "api_key_not_found",
+            provider: providerName,
+          });
+        }
+        const baseFetch = getProviderFetch(providerConfig);
+
+        // Extract standard provider settings (apiKey, baseUrl, headers, fetch)
+        const { apiKey, baseUrl, headers, fetch: _fetch, ...extraOptions } = providerConfig;
+
+        // OpenRouter routing options that need to be nested under "provider" in API request
+        // See: https://openrouter.ai/docs/features/provider-routing
+        const OPENROUTER_ROUTING_OPTIONS = [
+          "order",
+          "allow_fallbacks",
+          "only",
+          "ignore",
+          "require_parameters",
+          "data_collection",
+          "sort",
+          "quantizations",
+        ];
+
+        // Build extraBody: routing options go under "provider", others stay at root
+        const routingOptions: Record<string, unknown> = {};
+        const otherOptions: Record<string, unknown> = {};
+
+        for (const [key, value] of Object.entries(extraOptions)) {
+          if (OPENROUTER_ROUTING_OPTIONS.includes(key)) {
+            routingOptions[key] = value;
+          } else {
+            otherOptions[key] = value;
+          }
+        }
+
+        // Build extraBody with provider nesting if routing options exist
+        let extraBody: Record<string, unknown> | undefined;
+        if (Object.keys(routingOptions).length > 0) {
+          extraBody = { provider: routingOptions, ...otherOptions };
+        } else if (Object.keys(otherOptions).length > 0) {
+          extraBody = otherOptions;
+        }
+
+        // Lazy-load OpenRouter provider to reduce startup time
+        const { createOpenRouter } = await PROVIDER_REGISTRY.openrouter();
+        const provider = createOpenRouter({
+          apiKey,
+          baseURL: baseUrl,
+          headers: headers as Record<string, string> | undefined,
+          fetch: baseFetch,
+          extraBody,
         });
         return Ok(provider(modelId));
       }

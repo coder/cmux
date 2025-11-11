@@ -14,6 +14,7 @@ import { log } from "@/services/log";
 import { countTokens, countTokensBatch } from "@/utils/main/tokenizer";
 import { calculateTokenStats } from "@/utils/tokens/tokenStatsCalculator";
 import { IPC_CHANNELS, getChatChannel } from "@/constants/ipc-constants";
+import { SUPPORTED_PROVIDERS } from "@/constants/providers";
 import type { SendMessageError } from "@/types/errors";
 import type { SendMessageOptions, DeleteMessage } from "@/types/ipc";
 import { Ok, Err } from "@/types/result";
@@ -1120,9 +1121,9 @@ export class IpcMain {
 
     ipcMain.handle(IPC_CHANNELS.PROVIDERS_LIST, () => {
       try {
-        // Return all supported providers, not just configured ones
-        // This matches the providers defined in the registry
-        return ["anthropic", "openai"];
+        // Return all supported providers from centralized registry
+        // This automatically stays in sync as new providers are added
+        return [...SUPPORTED_PROVIDERS];
       } catch (error) {
         log.error("Failed to list providers:", error);
         return [];

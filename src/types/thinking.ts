@@ -47,3 +47,19 @@ export const OPENAI_REASONING_EFFORT: Record<ThinkingLevel, string | undefined> 
   medium: "medium",
   high: "high",
 };
+
+/**
+ * OpenRouter reasoning effort mapping
+ *
+ * Maps our unified levels to OpenRouter's reasoning.effort parameter
+ * (used by Claude Sonnet Thinking and other reasoning models via OpenRouter)
+ */
+export const OPENROUTER_REASONING_EFFORT: Record<
+  ThinkingLevel,
+  "low" | "medium" | "high" | undefined
+> = {
+  off: undefined,
+  low: "low",
+  medium: "medium",
+  high: "high",
+};

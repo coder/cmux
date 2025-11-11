@@ -27,6 +27,79 @@ GPT-5 family of models:
 
 TODO: add issue link here.
 
+#### OpenRouter (Cloud)
+
+Access 300+ models from multiple providers through a single API:
+
+- `openrouter:z-ai/glm-4.6`
+- `openrouter:anthropic/claude-3.5-sonnet`
+- `openrouter:google/gemini-2.0-flash-thinking-exp`
+- `openrouter:deepseek/deepseek-chat`
+- `openrouter:openai/gpt-4o`
+- Any model from [OpenRouter Models](https://openrouter.ai/models)
+
+**Setup:**
+
+1. Get your API key from [openrouter.ai](https://openrouter.ai/)
+2. Add to `~/.cmux/providers.jsonc`:
+
+```jsonc
+{
+  "openrouter": {
+    "apiKey": "sk-or-v1-...",
+  },
+}
+```
+
+**Provider Routing (Advanced):**
+
+OpenRouter can route requests to specific infrastructure providers (Cerebras, Fireworks, Together, etc.). Configure provider preferences in `~/.cmux/providers.jsonc`:
+
+```jsonc
+{
+  "openrouter": {
+    "apiKey": "sk-or-v1-...",
+    // Use Cerebras for ultra-fast inference
+    "order": ["Cerebras", "Fireworks"], // Try in order
+    "allow_fallbacks": true, // Allow other providers if unavailable
+  },
+}
+```
+
+Or require a specific provider (no fallbacks):
+
+```jsonc
+{
+  "openrouter": {
+    "apiKey": "sk-or-v1-...",
+    "order": ["Cerebras"], // Only try Cerebras
+    "allow_fallbacks": false, // Fail if Cerebras unavailable
+  },
+}
+```
+
+**Provider Routing Options:**
+
+- `order`: Array of provider names to try in priority order (e.g., `["Cerebras", "Fireworks"]`)
+- `allow_fallbacks`: Boolean - whether to fall back to other providers (default: `true`)
+- `only`: Array - restrict to only these providers
+- `ignore`: Array - exclude specific providers
+- `require_parameters`: Boolean - only use providers supporting all your request parameters
+- `data_collection`: `"allow"` or `"deny"` - control whether providers can store/train on your data
+
+See [OpenRouter Provider Routing docs](https://openrouter.ai/docs/features/provider-routing) for details.
+
+**Reasoning Models:**
+
+OpenRouter supports reasoning models like Claude Sonnet Thinking. Use the thinking slider to control reasoning effort:
+
+- **Off**: No extended reasoning
+- **Low**: Quick reasoning for straightforward tasks
+- **Medium**: Standard reasoning for moderate complexity (default)
+- **High**: Deep reasoning for complex problems
+
+The thinking level is passed to OpenRouter as `reasoning.effort` and works with any reasoning-capable model. See [OpenRouter Reasoning docs](https://openrouter.ai/docs/use-cases/reasoning-tokens) for details.
+
 #### Ollama (Local)
 
 Run models locally with Ollama. No API key required:
@@ -67,6 +140,10 @@ All providers are configured in `~/.cmux/providers.jsonc`. Example configuration
   // Required for OpenAI models
   "openai": {
     "apiKey": "sk-...",
+  },
+  // Required for OpenRouter models
+  "openrouter": {
+    "apiKey": "sk-or-v1-...",
   },
   // Optional for Ollama (only needed for custom URL)
   "ollama": {
