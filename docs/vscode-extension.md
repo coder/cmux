@@ -132,7 +132,8 @@ The extension is designed to **complement** the cmux app, not replace it. Use cm
 
 ## Development
 
-See the [extension README](../vscode/README.md) for development instructions.
+For development instructions, see `vscode/README.md` and `vscode/DEVELOPMENT.md` in the
+repository.
 
 ## Related
 
