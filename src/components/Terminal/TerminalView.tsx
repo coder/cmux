@@ -14,10 +14,19 @@ export function TerminalView({ workspaceId, visible }: TerminalViewProps) {
   const [terminalError, setTerminalError] = useState<string | null>(null);
   const [terminalReady, setTerminalReady] = useState(false);
 
-  const { connected, wsRef, sendInput, resize, error: sessionError } = useTerminalSession(
+  const { connected, sessionId, wsRef, sendInput, resize, error: sessionError } = useTerminalSession(
     workspaceId,
     visible
   );
+
+  // Keep refs to latest functions so onData callback always uses current version
+  const sendInputRef = useRef(sendInput);
+  const resizeRef = useRef(resize);
+  
+  useEffect(() => {
+    sendInputRef.current = sendInput;
+    resizeRef.current = resize;
+  }, [sendInput, resize]);
 
   // Initialize terminal when visible
   useEffect(() => {
@@ -71,12 +80,17 @@ export function TerminalView({ workspaceId, visible }: TerminalViewProps) {
         fitAddon.fit();
 
         console.log("[TerminalView] Terminal mounted and fitted");
-        // User input → WebSocket
-        terminal.onData(sendInput);
+        const { cols, rows } = terminal;
+        console.log(`[TerminalView] Fitted terminal dimensions: ${cols}x${rows}`);
+        
+        // User input → WebSocket (use ref to always get latest sendInput)
+        terminal.onData((data) => {
+          sendInputRef.current(data);
+        });
 
-        // Handle resize
+        // Handle resize (use ref to always get latest resize)
         terminal.onResize(({ cols, rows }: { cols: number; rows: number }) => {
-          resize(cols, rows);
+          resizeRef.current(cols, rows);
         });
 
         termRef.current = terminal;
@@ -93,13 +107,17 @@ export function TerminalView({ workspaceId, visible }: TerminalViewProps) {
 
     return () => {
       if (terminal) {
+        console.log("[TerminalView] Disposing terminal");
         terminal.dispose();
       }
       termRef.current = null;
       fitAddonRef.current = null;
       setTerminalReady(false);
     };
-  }, [visible, sendInput, resize]);
+    // Note: sendInput and resize are intentionally not in deps
+    // They're used in callbacks, not during effect execution
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visible, workspaceId]);
 
   // WebSocket output → Terminal
   useEffect(() => {
@@ -107,36 +125,34 @@ export function TerminalView({ workspaceId, visible }: TerminalViewProps) {
     const term = termRef.current;
     
     if (!ws || !term || !connected || !terminalReady) {
-      console.log("[TerminalView] WebSocket effect - ws:", !!ws, "term:", !!term, "connected:", connected, "terminalReady:", terminalReady);
       return;
     }
 
-    console.log("[TerminalView] Setting up WebSocket message handler");
     const handleMessage = (event: MessageEvent) => {
       try {
         const msg = JSON.parse(event.data as string);
-        console.log("[TerminalView] Received WebSocket message:", msg.type, msg.data?.length || 0, "bytes");
+        
+        // Use termRef.current to get the latest terminal instance
+        const currentTerm = termRef.current;
+        if (!currentTerm) {
+          return;
+        }
+        
         if (msg.type === "output") {
-          term.write(msg.data);
+          currentTerm.write(msg.data);
         } else if (msg.type === "exit") {
-          term.write(`\r\n[Process exited with code ${msg.exitCode}]\r\n`);
+          currentTerm.write(`\r\n[Process exited with code ${msg.exitCode}]\r\n`);
         }
       } catch (err) {
-        console.error("Error handling WebSocket message:", err);
+        console.error("[TerminalView] Error handling WebSocket message:", err);
       }
     };
 
     ws.addEventListener("message", handleMessage);
-    
-    // Send a newline to trigger shell prompt
-    console.log("[TerminalView] Sending newline to trigger prompt");
-    setTimeout(() => {
-      sendInput("\r");
-    }, 100);
     return () => {
-      console.log("[TerminalView] Removing WebSocket message handler");
       ws.removeEventListener("message", handleMessage);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [connected, terminalReady]);
 
   // Resize on container size change
@@ -144,7 +160,9 @@ export function TerminalView({ workspaceId, visible }: TerminalViewProps) {
     if (!visible || !fitAddonRef.current || !containerRef.current) return;
 
     const resizeObserver = new ResizeObserver(() => {
+      console.log("[TerminalView] Container resized, fitting terminal");
       fitAddonRef.current?.fit();
+      // Note: SSH sessions cannot dynamically resize, only the visual display will fit
     });
 
     resizeObserver.observe(containerRef.current);
@@ -157,7 +175,12 @@ export function TerminalView({ workspaceId, visible }: TerminalViewProps) {
   const errorMessage = terminalError || sessionError;
 
   return (
-    <div className="terminal-view border-t border-border bg-background">
+    <div className="terminal-view" style={{ 
+      width: "100%", 
+      height: "300px",
+      backgroundColor: "#1e1e1e",
+      borderTop: "1px solid #333"
+    }}>
       {errorMessage && (
         <div className="p-2 bg-red-900/20 text-red-400 text-sm border-b border-red-900/30">
           Terminal Error: {errorMessage}
@@ -168,8 +191,8 @@ export function TerminalView({ workspaceId, visible }: TerminalViewProps) {
         className="terminal-container"
         style={{
           width: "100%",
-          height: errorMessage ? "calc(300px - 2rem)" : "300px",
-          padding: "4px",
+          height: "100%",
+          overflow: "hidden",
         }}
       />
     </div>

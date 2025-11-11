@@ -171,11 +171,14 @@ export class TerminalServer {
   sendOutput(sessionId: string, data: string): void {
     const ws = this.connections.get(sessionId);
     if (ws) {
+      log.debug(`[TerminalServer] Sending ${data.length} bytes to session ${sessionId}`);
       this.sendMessage(ws, {
         type: "output",
         sessionId,
         data,
       });
+    } else {
+      log.info(`[TerminalServer] No WebSocket connection for session ${sessionId}, dropping ${data.length} bytes`);
     }
   }
 
