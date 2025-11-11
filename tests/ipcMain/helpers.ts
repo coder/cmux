@@ -205,7 +205,10 @@ export async function sendMessageAndWait(
   toolPolicy?: ToolPolicy,
   timeoutMs: number = STREAM_TIMEOUT_LOCAL_MS
 ): Promise<WorkspaceChatMessage[]> {
-  // Use sendMessage for provider setup, then get events directly
+  // Clear previous events
+  env.sentEvents.length = 0;
+
+  // Use sendMessage for provider setup, then send message
   await sendMessage(env.mockIpcRenderer, workspaceId, message, {
     model,
     toolPolicy,
