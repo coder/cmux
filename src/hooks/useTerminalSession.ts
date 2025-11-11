@@ -47,8 +47,14 @@ export function useTerminalSession(workspaceId: string, enabled: boolean) {
         wsRef.current = ws;
 
         ws.onopen = () => {
-          if (mounted) {
+          if (mounted && ws) {
             console.log(`[Terminal] WebSocket connected for session ${createdSessionId}`);
+            // Send attach message to register this WebSocket with the session
+            ws.send(JSON.stringify({
+              type: "attach",
+              sessionId: createdSessionId,
+            }));
+            console.log(`[Terminal] Sent attach message for session ${createdSessionId}`);
             setConnected(true);
             setError(null);
           }

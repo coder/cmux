@@ -121,7 +121,11 @@ export class TerminalServer {
    * Handle incoming terminal message
    */
   private handleMessage(ws: WebSocket, message: TerminalMessage): void {
-    if (message.type === "input") {
+    if (message.type === "attach") {
+      // Register this WebSocket connection for the session
+      log.info(`WebSocket attached to session ${message.sessionId}`);
+      this.connections.set(message.sessionId, ws);
+    } else if (message.type === "input") {
       // Forward input to PTY
       this.ptyService
         .sendInput(message.sessionId, message.data)
