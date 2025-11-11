@@ -127,6 +127,12 @@ export function TerminalView({ workspaceId, visible }: TerminalViewProps) {
     };
 
     ws.addEventListener("message", handleMessage);
+    
+    // Send a newline to trigger shell prompt
+    console.log("[TerminalView] Sending newline to trigger prompt");
+    setTimeout(() => {
+      sendInput("\r");
+    }, 100);
     return () => {
       console.log("[TerminalView] Removing WebSocket message handler");
       ws.removeEventListener("message", handleMessage);
