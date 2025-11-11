@@ -70,8 +70,7 @@ jobs:
 
       - uses: ./.github/actions/setup-cmux
 
-      - name: Build VS Code extension
-        run: make vscode-ext
+      - uses: ./.github/actions/build-vscode-extension
 
       - name: Upload VS Code extension to release
         env:
