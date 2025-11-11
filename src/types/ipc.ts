@@ -10,6 +10,7 @@ import type { BashToolResult } from "./tools";
 import type { Secret } from "./secrets";
 import type { CmuxProviderOptions } from "./providerOptions";
 import type { RuntimeConfig } from "./runtime";
+import type { TerminalSession, TerminalCreateParams, TerminalResizeParams } from "./terminal";
 import type {
   StreamStartEvent,
   StreamDeltaEvent,
@@ -292,6 +293,12 @@ export interface IPCApi {
   };
   window: {
     setTitle(title: string): Promise<void>;
+  };
+  terminal: {
+    create(params: TerminalCreateParams): Promise<TerminalSession>;
+    close(sessionId: string): Promise<void>;
+    resize(params: TerminalResizeParams): Promise<void>;
+    getPort(): Promise<number>;
   };
   update: {
     check(): Promise<void>;

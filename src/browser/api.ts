@@ -249,6 +249,12 @@ const webApi: IPCApi = {
       return Promise.resolve();
     },
   },
+  terminal: {
+    create: (params) => invokeIPC(IPC_CHANNELS.TERMINAL_CREATE, params),
+    close: (sessionId) => invokeIPC(IPC_CHANNELS.TERMINAL_CLOSE, sessionId),
+    resize: (params) => invokeIPC(IPC_CHANNELS.TERMINAL_RESIZE, params),
+    getPort: () => invokeIPC(IPC_CHANNELS.TERMINAL_GET_PORT),
+  },
   update: {
     check: () => invokeIPC(IPC_CHANNELS.UPDATE_CHECK),
     download: () => invokeIPC(IPC_CHANNELS.UPDATE_DOWNLOAD),
