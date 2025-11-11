@@ -27,10 +27,12 @@ export function useTerminalSession(workspaceId: string, enabled: boolean) {
         const port = await window.api.terminal.getPort();
 
         // Create terminal session
+        // Use reasonable defaults that work for most displays
+        // Note: SSH sessions cannot be dynamically resized, so this size is fixed
         const session = await window.api.terminal.create({
           workspaceId,
-          cols: 80,
-          rows: 24,
+          cols: 100,  // Wide enough for most command output
+          rows: 20,   // Matches ~300px height with font-size 13px
         });
 
         if (!mounted) {

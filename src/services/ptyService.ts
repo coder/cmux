@@ -12,6 +12,7 @@ import { LocalRuntime } from "@/runtime/LocalRuntime";
 interface SessionData {
   pty?: any; // For local sessions (IPty type)
   stream?: ExecStream; // For SSH sessions
+  stdinWriter?: WritableStreamDefaultWriter<Uint8Array>; // Persistent writer for SSH stdin
   workspaceId: string;
   workspacePath: string;
   runtime: Runtime;
@@ -91,10 +92,15 @@ export class PTYService {
       });
     } else if (runtime instanceof SSHRuntime) {
       // SSH: Use runtime.exec with PTY allocation
-      // Use bash login shell - most SSH servers have bash installed
-      const command = "bash -l";
+      // Use 'script' to force a proper PTY session with the shell
+      // Set LINES and COLUMNS before starting script so the shell knows the terminal size
+      // -q = quiet (no start/done messages)
+      // -c = command to run
+      // /dev/null = don't save output to a file
+      const command = `export LINES=${params.rows} COLUMNS=${params.cols}; script -qfc "$SHELL -i" /dev/null`;
 
       log.info(`[PTY] SSH command for ${sessionId}: ${command}`);
+      log.info(`[PTY] SSH terminal size: ${params.cols}x${params.rows}`);
       log.info(`[PTY] SSH working directory: ${workspacePath}`);
 
       let stream;
@@ -118,8 +124,12 @@ export class PTYService {
 
       log.info(`[PTY] SSH stream created for ${sessionId}, stdin writable: ${stream.stdin.locked === false}`);
 
+      // Get a persistent writer for stdin to avoid locking issues
+      const stdinWriter = stream.stdin.getWriter();
+
       this.sessions.set(sessionId, {
         stream,
+        stdinWriter,
         workspaceId: params.workspaceId,
         workspacePath,
         runtime,
@@ -149,10 +159,27 @@ export class PTYService {
         }
       })();
 
+      // Pipe stderr to terminal AND logs (zsh sends prompt to stderr)
+      const stderrReader = stream.stderr.getReader();
+      (async () => {
+        try {
+          while (true) {
+            const { done, value } = await stderrReader.read();
+            if (done) break;
+            const text = decoder.decode(value, { stream: true });
+            // Send stderr to terminal (shells often write prompts to stderr)
+            this.terminalServer?.sendOutput(sessionId, text);
+          }
+        } catch (err) {
+          log.error(`[PTY] Error reading stderr for ${sessionId}:`, err);
+        }
+      })();
+
       // Handle exit
       stream.exitCode
         .then((exitCode: number) => {
           log.info(`[PTY] SSH terminal session ${sessionId} exited with code ${exitCode}`);
+          log.info(`[PTY] Session was alive for ${((Date.now() - parseInt(sessionId.split('-')[1])) / 1000).toFixed(1)}s`);
           this.sessions.delete(sessionId);
           this.terminalServer?.sendExit(sessionId, exitCode);
         })
@@ -185,13 +212,13 @@ export class PTYService {
     if (session.pty) {
       // Local: Write to PTY
       session.pty.write(data);
-    } else if (session.stream) {
-      // SSH: Write to stdin
-      const writer = session.stream.stdin.getWriter();
+    } else if (session.stdinWriter) {
+      // SSH: Write to stdin using persistent writer
       try {
-        await writer.write(new TextEncoder().encode(data));
-      } finally {
-        writer.releaseLock();
+        await session.stdinWriter.write(new TextEncoder().encode(data));
+      } catch (err) {
+        log.error(`[PTY] Error writing to ${sessionId}:`, err);
+        throw err;
       }
     }
   }
@@ -213,10 +240,10 @@ export class PTYService {
         `Resized local terminal ${params.sessionId} to ${params.cols}x${params.rows}`
       );
     } else {
-      // SSH: Cannot resize remote PTY through exec stream
-      // This would require SIGWINCH support which exec() doesn't provide
-      log.info(
-        `Cannot resize SSH terminal ${params.sessionId}: resize not supported for SSH sessions`
+      // SSH: Dynamic resize not supported for SSH sessions
+      // The terminal size is set at session creation time via LINES/COLUMNS env vars
+      log.debug(
+        `SSH terminal ${params.sessionId} resize requested to ${params.cols}x${params.rows} (not supported)`
       );
     }
   }
@@ -236,11 +263,10 @@ export class PTYService {
     if (session.pty) {
       // Local: Kill PTY process
       session.pty.kill();
-    } else if (session.stream) {
-      // SSH: Close stdin to signal EOF
-      const writer = session.stream.stdin.getWriter();
+    } else if (session.stdinWriter) {
+      // SSH: Close stdin writer to signal EOF
       try {
-        await writer.close();
+        await session.stdinWriter.close();
       } catch (err) {
         log.error(`Error closing SSH terminal ${sessionId}:`, err);
       }
