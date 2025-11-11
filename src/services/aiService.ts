@@ -11,7 +11,7 @@ import { PROVIDER_REGISTRY, SUPPORTED_PROVIDERS, type ProviderName } from "@/con
 
 import type { CmuxMessage, CmuxTextPart } from "@/types/message";
 import { createCmuxMessage } from "@/types/message";
-import type { Config } from "@/config";
+import type { Config, ProviderConfig } from "@/config";
 import { StreamManager } from "./streamManager";
 import type { InitStateManager } from "./initStateManager";
 import type { SendMessageError } from "@/types/errors";
@@ -93,6 +93,15 @@ if (typeof globalFetchWithExtras.certificate === "function") {
 }
 
 /**
+ * Get fetch function for provider - use custom if provided, otherwise unlimited timeout default
+ */
+function getProviderFetch(providerConfig: ProviderConfig): typeof fetch {
+  return typeof providerConfig.fetch === "function"
+    ? (providerConfig.fetch as typeof fetch)
+    : defaultFetchWithUnlimitedTimeout;
+}
+
+/**
  * Preload AI SDK provider modules to avoid race conditions in concurrent test environments.
  * This function loads @ai-sdk/anthropic, @ai-sdk/openai, and ollama-ai-provider-v2 eagerly
  * so that subsequent dynamic imports in createModel() hit the module cache instead of racing.
@@ -102,12 +111,7 @@ if (typeof globalFetchWithExtras.certificate === "function") {
  */
 export async function preloadAISDKProviders(): Promise<void> {
   // Preload providers to ensure they're in the module cache before concurrent tests run
-  await Promise.all([
-    import("@ai-sdk/anthropic"),
-    import("@ai-sdk/openai"),
-    import("ollama-ai-provider-v2"),
-    import("@openrouter/ai-sdk-provider"),
-  ]);
+  await Promise.all(Object.values(PROVIDER_REGISTRY).map((pkg) => import(pkg)));
 }
 
 /**
@@ -302,7 +306,7 @@ export class AIService extends EventEmitter {
               : existingHeaders;
 
         // Lazy-load Anthropic provider to reduce startup time
-        const { createAnthropic } = await import("@ai-sdk/anthropic");
+        const { createAnthropic } = await import(PROVIDER_REGISTRY.anthropic);
         const provider = createAnthropic({ ...providerConfig, headers });
         return Ok(provider(modelId));
       }
@@ -315,11 +319,7 @@ export class AIService extends EventEmitter {
             provider: providerName,
           });
         }
-        // Use custom fetch if provided, otherwise default with unlimited timeout
-        const baseFetch =
-          typeof providerConfig.fetch === "function"
-            ? (providerConfig.fetch as typeof fetch)
-            : defaultFetchWithUnlimitedTimeout;
+        const baseFetch = getProviderFetch(providerConfig);
 
         // Wrap fetch to force truncation: "auto" for OpenAI Responses API calls.
         // This is a temporary override until @ai-sdk/openai supports passing
@@ -394,7 +394,7 @@ export class AIService extends EventEmitter {
         );
 
         // Lazy-load OpenAI provider to reduce startup time
-        const { createOpenAI } = await import("@ai-sdk/openai");
+        const { createOpenAI } = await import(PROVIDER_REGISTRY.openai);
         const provider = createOpenAI({
           ...providerConfig,
           // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
@@ -409,14 +409,10 @@ export class AIService extends EventEmitter {
       // Handle Ollama provider
       if (providerName === "ollama") {
         // Ollama doesn't require API key - it's a local service
-        // Use custom fetch if provided, otherwise default with unlimited timeout
-        const baseFetch =
-          typeof providerConfig.fetch === "function"
-            ? (providerConfig.fetch as typeof fetch)
-            : defaultFetchWithUnlimitedTimeout;
+        const baseFetch = getProviderFetch(providerConfig);
 
         // Lazy-load Ollama provider to reduce startup time
-        const { createOllama } = await import("ollama-ai-provider-v2");
+        const { createOllama } = await import(PROVIDER_REGISTRY.ollama);
         const provider = createOllama({
           ...providerConfig,
           // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
@@ -435,11 +431,7 @@ export class AIService extends EventEmitter {
             provider: providerName,
           });
         }
-        // Use custom fetch if provided, otherwise default with unlimited timeout
-        const baseFetch =
-          typeof providerConfig.fetch === "function"
-            ? (providerConfig.fetch as typeof fetch)
-            : defaultFetchWithUnlimitedTimeout;
+        const baseFetch = getProviderFetch(providerConfig);
 
         // Extract standard provider settings (apiKey, baseUrl, headers, fetch)
         const { apiKey, baseUrl, headers, fetch: _fetch, ...extraOptions } = providerConfig;
@@ -478,7 +470,7 @@ export class AIService extends EventEmitter {
         }
 
         // Lazy-load OpenRouter provider to reduce startup time
-        const { createOpenRouter } = await import("@openrouter/ai-sdk-provider");
+        const { createOpenRouter } = await import(PROVIDER_REGISTRY.openrouter);
         const provider = createOpenRouter({
           apiKey,
           baseURL: baseUrl,
