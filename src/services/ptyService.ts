@@ -97,9 +97,12 @@ export class PTYService {
       log.info(`[PTY] SSH command for ${sessionId}: ${command}`);
       log.info(`[PTY] SSH working directory: ${workspacePath}`);
 
-      // Execute shell with PTY allocation
-      // Use a very long timeout (24 hours) instead of Infinity
-      const stream = await (runtime as any).exec(command, {
+      let stream;
+      try {
+        log.info(`[PTY] Calling runtime.exec for ${sessionId}...`);
+        // Execute shell with PTY allocation
+        // Use a very long timeout (24 hours) instead of Infinity
+        stream = await (runtime as any).exec(command, {
         cwd: workspacePath,
         timeout: 86400, // 24 hours in seconds
         env: {
@@ -107,6 +110,11 @@ export class PTYService {
         },
         forcePTY: true,
       });
+        log.info(`[PTY] runtime.exec returned successfully for ${sessionId}`);
+      } catch (err) {
+        log.error(`[PTY] Failed to create SSH stream for ${sessionId}:`, err);
+        throw err;
+      }
 
       log.info(`[PTY] SSH stream created for ${sessionId}, stdin writable: ${stream.stdin.locked === false}`);
 
