@@ -22,6 +22,7 @@ Download the latest `.vsix` file from the [GitHub releases page](https://github.
 ### Install
 
 **Command line:**
+
 ```bash
 # For VS Code
 code --install-extension cmux-0.1.0.vsix
@@ -31,6 +32,7 @@ cursor --install-extension cmux-0.1.0.vsix
 ```
 
 **From editor UI:**
+
 1. Open Command Palette (`Cmd+Shift+P`)
 2. Type "Extensions: Install from VSIX..."
 3. Select the downloaded file
@@ -40,11 +42,13 @@ cursor --install-extension cmux-0.1.0.vsix
 ### Opening a Workspace
 
 **Command Palette**:
+
 1. Press `Cmd+Shift+P` → "cmux: Open Workspace"
 2. Select from list: Choose your workspace
 3. Opens automatically: New editor window with the workspace
 
 **Custom Keyboard Shortcut** (optional):
+
 - Open Keyboard Shortcuts settings (`Cmd+K Cmd+S`)
 - Search for "cmux: Open Workspace"
 - Set your preferred keybinding (suggestions: `Cmd+K Cmd+M` or `Cmd+O Cmd+M`)
@@ -73,6 +77,7 @@ For SSH workspaces to work, you need:
 If you haven't configured the SSH host yet:
 
 1. Open `~/.ssh/config` and add:
+
    ```ssh
    Host myserver
      HostName 192.168.1.100
@@ -114,14 +119,14 @@ This extension is ideal when:
 
 ## Comparison with cmux
 
-| Feature | cmux App | VS Code Extension |
-|---------|----------|-------------------|
-| Create workspaces | ✅ | ❌ (read-only) |
-| Open workspaces | ✅ | ✅ |
-| View git status | ✅ | ❌ |
-| AI chat interface | ✅ | ❌ |
-| Manage workspace lifecycle | ✅ | ❌ |
-| Quick access from VS Code | ❌ | ✅ |
+| Feature                    | cmux App | VS Code Extension |
+| -------------------------- | -------- | ----------------- |
+| Create workspaces          | ✅       | ❌ (read-only)    |
+| Open workspaces            | ✅       | ✅                |
+| View git status            | ✅       | ❌                |
+| AI chat interface          | ✅       | ❌                |
+| Manage workspace lifecycle | ✅       | ❌                |
+| Quick access from VS Code  | ❌       | ✅                |
 
 The extension is designed to **complement** the cmux app, not replace it. Use cmux for workspace management and the extension for quick access from VS Code.
 
