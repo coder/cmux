@@ -105,4 +105,5 @@ export default defineConfig(({ mode }) => ({
       target: "esnext",
     },
   },
+  assetsInclude: ["**/*.wasm"],
 }));
