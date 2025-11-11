@@ -20,12 +20,17 @@ export function TerminalView({ workspaceId, visible }: TerminalViewProps) {
 
   // Initialize terminal when visible
   useEffect(() => {
-    if (!containerRef.current || !visible) return;
+    if (!containerRef.current || !visible) {
+      console.log("[TerminalView] Skipping init - containerRef:", !!containerRef.current, "visible:", visible);
+      return;
+    }
 
+    console.log("[TerminalView] Initializing terminal for workspace:", workspaceId);
     let terminal: Terminal | null = null;
 
     const initTerminal = async () => {
       try {
+        console.log("[TerminalView] Creating Terminal instance...");
         terminal = new Terminal({
           wasmPath: "/src/assets/ghostty-vt.wasm",
           fontSize: 13,
@@ -56,12 +61,15 @@ export function TerminalView({ workspaceId, visible }: TerminalViewProps) {
           },
         });
 
+        console.log("[TerminalView] Terminal instance created, loading FitAddon...");
         const fitAddon = new FitAddon();
         terminal.loadAddon(fitAddon);
 
+        console.log("[TerminalView] Opening terminal in DOM...");
         await terminal.open(containerRef.current!);
         fitAddon.fit();
 
+        console.log("[TerminalView] Terminal mounted and fitted");
         // User input → WebSocket
         terminal.onData(sendInput);
 
