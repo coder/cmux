@@ -50,6 +50,7 @@ export const ForceDeleteModal: React.FC<ForceDeleteModalProps> = ({
       subtitle="The workspace could not be removed normally"
       onClose={onClose}
       maxWidth="600px"
+      maxHeight="90vh"
       isLoading={isDeleting}
     >
       <ErrorSection>

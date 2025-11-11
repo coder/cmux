@@ -30,6 +30,7 @@ export const ModalContent: React.FC<
     className={cn(
       "bg-dark rounded-lg p-6 w-[90%] flex flex-col shadow-lg border border-border",
       "[&_h2]:mt-0 [&_h2]:mb-2 [&_h2]:text-white",
+      maxHeight && "overflow-y-auto",
       className
     )}
     style={{ maxWidth, ...(maxHeight && { maxHeight }) }}
@@ -96,7 +97,8 @@ export const ErrorCodeBlock: React.FC<{ children: React.ReactNode; className?: s
   <pre
     className={cn(
       "bg-background-secondary border border-border rounded p-3",
-      "text-xs font-mono text-foreground overflow-x-auto whitespace-pre-wrap break-words leading-relaxed",
+      "text-xs font-mono text-foreground overflow-auto whitespace-pre-wrap break-words leading-relaxed",
+      "max-h-[400px]",
       className
     )}
   >
