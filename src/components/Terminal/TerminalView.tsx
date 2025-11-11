@@ -1,5 +1,4 @@
 import { useRef, useEffect, useState } from "react";
-// @ts-expect-error - ghostty-wasm types not yet published
 import { Terminal, FitAddon } from "ghostty-wasm";
 import { useTerminalSession } from "@/hooks/useTerminalSession";
 

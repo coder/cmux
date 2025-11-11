@@ -98,10 +98,14 @@ export class PTYService {
     } else if (runtime instanceof SSHRuntime) {
       // SSH: Use runtime.exec with PTY allocation
       const shell = "$SHELL"; // Use remote user's shell
+      const command = `exec ${shell}`;
+
+      log.debug(`[PTY] SSH command for ${sessionId}: ${command}`);
+      log.debug(`[PTY] SSH working directory: ${workspacePath}`);
 
       // Execute shell with PTY allocation
       // Use a very long timeout (24 hours) instead of Infinity
-      const stream = await (runtime as any).exec(`exec ${shell}`, {
+      const stream = await (runtime as any).exec(command, {
         cwd: workspacePath,
         timeout: 86400, // 24 hours in seconds
         env: {
@@ -109,6 +113,8 @@ export class PTYService {
         },
         forcePTY: true,
       });
+
+      log.debug(`[PTY] SSH stream created for ${sessionId}, stdin writable: ${stream.stdin.locked === false}`);
 
       this.sessions.set(sessionId, {
         stream,
@@ -125,26 +131,31 @@ export class PTYService {
 
       (async () => {
         try {
+          let bytesRead = 0;
           while (true) {
             const { done, value } = await reader.read();
-            if (done) break;
+            if (done) {
+              log.debug(`[PTY] SSH stdout closed for ${sessionId} after ${bytesRead} bytes`);
+              break;
+            }
+            bytesRead += value.length;
             const text = decoder.decode(value, { stream: true });
             this.terminalServer?.sendOutput(sessionId, text);
           }
         } catch (err) {
-          log.error(`Error reading from SSH terminal ${sessionId}:`, err);
+          log.error(`[PTY] Error reading from SSH terminal ${sessionId}:`, err);
         }
       })();
 
       // Handle exit
       stream.exitCode
         .then((exitCode: number) => {
-          log.info(`SSH terminal session ${sessionId} exited with code ${exitCode}`);
+          log.info(`[PTY] SSH terminal session ${sessionId} exited with code ${exitCode}`);
           this.sessions.delete(sessionId);
           this.terminalServer?.sendExit(sessionId, exitCode);
         })
         .catch((err: unknown) => {
-          log.error(`SSH terminal session ${sessionId} error:`, err);
+          log.error(`[PTY] SSH terminal session ${sessionId} error:`, err);
           this.sessions.delete(sessionId);
           this.terminalServer?.sendExit(sessionId, 1);
         });

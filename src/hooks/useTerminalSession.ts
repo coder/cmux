@@ -18,9 +18,12 @@ export function useTerminalSession(workspaceId: string, enabled: boolean) {
 
     let mounted = true;
     let ws: WebSocket | null = null;
+    let createdSessionId: string | null = null; // Track session ID in closure
 
     const initSession = async () => {
       try {
+        log.debug(`[Terminal] Initializing session for workspace ${workspaceId}`);
+        
         // Get WebSocket port from backend
         const port = await window.api.terminal.getPort();
 
@@ -31,9 +34,14 @@ export function useTerminalSession(workspaceId: string, enabled: boolean) {
           rows: 24,
         });
 
-        if (!mounted) return;
+        if (!mounted) {
+          log.debug(`[Terminal] Component unmounted, aborting session ${session.sessionId}`);
+          return;
+        }
 
+        createdSessionId = session.sessionId; // Store in closure
         setSessionId(session.sessionId);
+        log.debug(`[Terminal] Session created: ${session.sessionId}`);
 
         // Connect WebSocket
         ws = new WebSocket(`ws://localhost:${port}/terminal`);
@@ -41,6 +49,7 @@ export function useTerminalSession(workspaceId: string, enabled: boolean) {
 
         ws.onopen = () => {
           if (mounted) {
+            log.debug(`[Terminal] WebSocket connected for session ${createdSessionId}`);
             setConnected(true);
             setError(null);
           }
@@ -48,18 +57,19 @@ export function useTerminalSession(workspaceId: string, enabled: boolean) {
 
         ws.onclose = () => {
           if (mounted) {
+            log.debug(`[Terminal] WebSocket closed for session ${createdSessionId}`);
             setConnected(false);
           }
         };
 
         ws.onerror = (event) => {
-          console.error("WebSocket error:", event);
+          log.error(`[Terminal] WebSocket error for session ${createdSessionId}:`, event);
           if (mounted) {
             setError("WebSocket connection failed");
           }
         };
       } catch (err) {
-        console.error("Failed to create terminal session:", err);
+        log.error("[Terminal] Failed to create terminal session:", err);
         if (mounted) {
           setError(err instanceof Error ? err.message : "Failed to create terminal");
         }
@@ -71,17 +81,21 @@ export function useTerminalSession(workspaceId: string, enabled: boolean) {
     return () => {
       mounted = false;
       
+      log.debug(`[Terminal] Cleaning up session ${createdSessionId || '(not created)'}`);
+      
       // Close WebSocket
       if (ws) {
         ws.close();
       }
 
-      // Close terminal session
-      if (sessionId) {
-        void window.api.terminal.close(sessionId);
+      // Close terminal session using the closure variable
+      // This ensures we close the session created by this specific effect run
+      if (createdSessionId) {
+        void window.api.terminal.close(createdSessionId);
       }
     };
-  }, [workspaceId, enabled, sessionId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [workspaceId, enabled]); // sessionId intentionally excluded to prevent recreation loop
 
   // Send input to terminal
   const sendInput = useCallback(
