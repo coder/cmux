@@ -10,10 +10,11 @@ describe("Provider Registry", () => {
     expect(Object.keys(PROVIDER_REGISTRY).length).toBeGreaterThan(0);
   });
 
-  test("all package names follow npm conventions", () => {
-    // Package names should be scoped (@org/pkg) or plain (pkg)
-    for (const packageName of Object.values(PROVIDER_REGISTRY)) {
-      expect(packageName).toMatch(/^(@[\w-]+\/)?[\w-]+$/);
+  test("all registry values are import functions", () => {
+    // Registry should map provider names to async import functions
+    for (const importFn of Object.values(PROVIDER_REGISTRY)) {
+      expect(typeof importFn).toBe("function");
+      expect(importFn.constructor.name).toBe("AsyncFunction");
     }
   });
 

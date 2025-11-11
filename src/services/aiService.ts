@@ -7,13 +7,7 @@ import { sanitizeToolInputs } from "@/utils/messages/sanitizeToolInput";
 import type { Result } from "@/types/result";
 import { Ok, Err } from "@/types/result";
 import type { WorkspaceMetadata } from "@/types/workspace";
-import {
-  PROVIDER_REGISTRY,
-  importAnthropic,
-  importOpenAI,
-  importOllama,
-  importOpenRouter,
-} from "@/constants/providers";
+import { PROVIDER_REGISTRY } from "@/constants/providers";
 
 import type { CmuxMessage, CmuxTextPart } from "@/types/message";
 import { createCmuxMessage } from "@/types/message";
@@ -117,7 +111,7 @@ function getProviderFetch(providerConfig: ProviderConfig): typeof fetch {
  */
 export async function preloadAISDKProviders(): Promise<void> {
   // Preload providers to ensure they're in the module cache before concurrent tests run
-  await Promise.all(Object.values(PROVIDER_REGISTRY).map((pkg) => import(pkg)));
+  await Promise.all(Object.values(PROVIDER_REGISTRY).map((importFn) => importFn()));
 }
 
 /**
@@ -312,7 +306,7 @@ export class AIService extends EventEmitter {
               : existingHeaders;
 
         // Lazy-load Anthropic provider to reduce startup time
-        const { createAnthropic } = await importAnthropic();
+        const { createAnthropic } = await PROVIDER_REGISTRY.anthropic();
         const provider = createAnthropic({ ...providerConfig, headers });
         return Ok(provider(modelId));
       }
@@ -400,7 +394,7 @@ export class AIService extends EventEmitter {
         );
 
         // Lazy-load OpenAI provider to reduce startup time
-        const { createOpenAI } = await importOpenAI();
+        const { createOpenAI } = await PROVIDER_REGISTRY.openai();
         const provider = createOpenAI({
           ...providerConfig,
           // Cast is safe: our fetch implementation is compatible with the SDK's fetch type.
@@ -419,7 +413,7 @@ export class AIService extends EventEmitter {
         const baseFetch = getProviderFetch(providerConfig);
 
         // Lazy-load Ollama provider to reduce startup time
-        const { createOllama } = await importOllama();
+        const { createOllama } = await PROVIDER_REGISTRY.ollama();
         const provider = createOllama({
           ...providerConfig,
           fetch: baseFetch,
@@ -476,7 +470,7 @@ export class AIService extends EventEmitter {
         }
 
         // Lazy-load OpenRouter provider to reduce startup time
-        const { createOpenRouter } = await importOpenRouter();
+        const { createOpenRouter } = await PROVIDER_REGISTRY.openrouter();
         const provider = createOpenRouter({
           apiKey,
           baseURL: baseUrl,
