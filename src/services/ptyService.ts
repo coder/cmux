@@ -70,6 +70,10 @@ export class PTYService {
         env: {
           ...process.env,
           TERM: "xterm-256color",
+          TERM_PROGRAM: "cmux",
+          // Disable problematic zsh features for embedded terminal
+          DISABLE_AUTO_TITLE: "true",
+          ZSH_AUTOSUGGEST_STRATEGY: "history", // Simpler completion
         } as Record<string, string>,
       });
 
