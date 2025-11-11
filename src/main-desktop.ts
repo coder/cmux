@@ -128,8 +128,9 @@ process.on("unhandledRejection", (reason, promise) => {
   }
 });
 
-// Single instance lock
-const gotTheLock = app.requestSingleInstanceLock();
+// Single instance lock (can be disabled for development with CMUX_ALLOW_MULTIPLE_INSTANCES=1)
+const allowMultipleInstances = process.env.CMUX_ALLOW_MULTIPLE_INSTANCES === "1";
+const gotTheLock = allowMultipleInstances || app.requestSingleInstanceLock();
 console.log("Single instance lock acquired:", gotTheLock);
 
 if (!gotTheLock) {
