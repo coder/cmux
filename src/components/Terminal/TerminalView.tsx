@@ -99,8 +99,11 @@ export function TerminalView({ workspaceId, visible }: TerminalViewProps) {
 
   // WebSocket output → Terminal
   useEffect(() => {
-    if (!wsRef.current || !termRef.current) {
-      console.log("[TerminalView] WebSocket effect - ws:", !!wsRef.current, "term:", !!termRef.current, "connected:", connected);
+    const ws = wsRef.current;
+    const term = termRef.current;
+    
+    if (!ws || !term || !connected) {
+      console.log("[TerminalView] WebSocket effect - ws:", !!ws, "term:", !!term, "connected:", connected);
       return;
     }
 
@@ -110,21 +113,21 @@ export function TerminalView({ workspaceId, visible }: TerminalViewProps) {
         const msg = JSON.parse(event.data as string);
         console.log("[TerminalView] Received WebSocket message:", msg.type, msg.data?.length || 0, "bytes");
         if (msg.type === "output") {
-          termRef.current?.write(msg.data);
+          term.write(msg.data);
         } else if (msg.type === "exit") {
-          termRef.current?.write(`\r\n[Process exited with code ${msg.exitCode}]\r\n`);
+          term.write(`\r\n[Process exited with code ${msg.exitCode}]\r\n`);
         }
       } catch (err) {
         console.error("Error handling WebSocket message:", err);
       }
     };
 
-    wsRef.current.addEventListener("message", handleMessage);
+    ws.addEventListener("message", handleMessage);
     return () => {
       console.log("[TerminalView] Removing WebSocket message handler");
-      wsRef.current?.removeEventListener("message", handleMessage);
+      ws.removeEventListener("message", handleMessage);
     };
-  }, [connected, wsRef]);
+  }, [connected]);
 
   // Resize on container size change
   useEffect(() => {
