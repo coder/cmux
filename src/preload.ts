@@ -147,6 +147,12 @@ const api: IPCApi = {
       };
     },
   },
+  terminal: {
+    create: (params) => ipcRenderer.invoke(IPC_CHANNELS.TERMINAL_CREATE, params),
+    close: (sessionId) => ipcRenderer.invoke(IPC_CHANNELS.TERMINAL_CLOSE, sessionId),
+    resize: (params) => ipcRenderer.invoke(IPC_CHANNELS.TERMINAL_RESIZE, params),
+    getPort: () => ipcRenderer.invoke(IPC_CHANNELS.TERMINAL_GET_PORT),
+  },
 };
 
 // Expose the API along with platform/versions
