@@ -94,8 +94,8 @@ export class PTYService {
       const shell = "$SHELL"; // Use remote user's shell
       const command = `exec ${shell}`;
 
-      log.debug(`[PTY] SSH command for ${sessionId}: ${command}`);
-      log.debug(`[PTY] SSH working directory: ${workspacePath}`);
+      log.info(`[PTY] SSH command for ${sessionId}: ${command}`);
+      log.info(`[PTY] SSH working directory: ${workspacePath}`);
 
       // Execute shell with PTY allocation
       // Use a very long timeout (24 hours) instead of Infinity
@@ -108,7 +108,7 @@ export class PTYService {
         forcePTY: true,
       });
 
-      log.debug(`[PTY] SSH stream created for ${sessionId}, stdin writable: ${stream.stdin.locked === false}`);
+      log.info(`[PTY] SSH stream created for ${sessionId}, stdin writable: ${stream.stdin.locked === false}`);
 
       this.sessions.set(sessionId, {
         stream,
@@ -129,7 +129,7 @@ export class PTYService {
           while (true) {
             const { done, value } = await reader.read();
             if (done) {
-              log.debug(`[PTY] SSH stdout closed for ${sessionId} after ${bytesRead} bytes`);
+              log.info(`[PTY] SSH stdout closed for ${sessionId} after ${bytesRead} bytes`);
               break;
             }
             bytesRead += value.length;
