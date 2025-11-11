@@ -12,6 +12,7 @@ export function TerminalView({ workspaceId, visible }: TerminalViewProps) {
   const termRef = useRef<Terminal | null>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
   const [terminalError, setTerminalError] = useState<string | null>(null);
+  const [terminalReady, setTerminalReady] = useState(false);
 
   const { connected, wsRef, sendInput, resize, error: sessionError } = useTerminalSession(
     workspaceId,
@@ -80,6 +81,8 @@ export function TerminalView({ workspaceId, visible }: TerminalViewProps) {
 
         termRef.current = terminal;
         fitAddonRef.current = fitAddon;
+        setTerminalReady(true);
+        console.log("[TerminalView] Terminal ready for WebSocket data");
       } catch (err) {
         console.error("Failed to initialize terminal:", err);
         setTerminalError(err instanceof Error ? err.message : "Failed to initialize terminal");
@@ -94,6 +97,7 @@ export function TerminalView({ workspaceId, visible }: TerminalViewProps) {
       }
       termRef.current = null;
       fitAddonRef.current = null;
+      setTerminalReady(false);
     };
   }, [visible, sendInput, resize]);
 
@@ -102,8 +106,8 @@ export function TerminalView({ workspaceId, visible }: TerminalViewProps) {
     const ws = wsRef.current;
     const term = termRef.current;
     
-    if (!ws || !term || !connected) {
-      console.log("[TerminalView] WebSocket effect - ws:", !!ws, "term:", !!term, "connected:", connected);
+    if (!ws || !term || !connected || !terminalReady) {
+      console.log("[TerminalView] WebSocket effect - ws:", !!ws, "term:", !!term, "connected:", connected, "terminalReady:", terminalReady);
       return;
     }
 
@@ -127,7 +131,7 @@ export function TerminalView({ workspaceId, visible }: TerminalViewProps) {
       console.log("[TerminalView] Removing WebSocket message handler");
       ws.removeEventListener("message", handleMessage);
     };
-  }, [connected]);
+  }, [connected, terminalReady]);
 
   // Resize on container size change
   useEffect(() => {
