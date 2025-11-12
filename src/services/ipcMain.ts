@@ -1381,8 +1381,10 @@ export class IpcMain {
         const cmd = "open";
         let args: string[];
         if (isSSH && sshArgs) {
-          // Ghostty: Run ssh command directly
-          args = ["-a", "Ghostty", "--args", "ssh", ...sshArgs];
+          // Ghostty: Use --command flag to run SSH
+          // Build the full SSH command as a single string
+          const sshCommand = ["ssh", ...sshArgs].join(" ");
+          args = ["-n", "-a", "Ghostty", "--args", `--command=${sshCommand}`];
         } else {
           // Ghostty: Pass workspacePath to 'open -a Ghostty' to avoid regressions
           if (config.type !== "local") throw new Error("Expected local config");
