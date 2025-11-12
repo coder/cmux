@@ -75,7 +75,7 @@ const AIViewInner: React.FC<AIViewProps> = ({
   );
 
   // Auto-retry state - minimal setter for keybinds and message sent handler
-  // RetryBarrier manages its own state, but we need this for Ctrl+C keybind
+  // RetryBarrier manages its own state, but we need this for interrupt keybind
   const [, setAutoRetry] = usePersistedState<boolean>(getAutoRetryKey(workspaceId), true, {
     listener: true,
   });
@@ -259,7 +259,7 @@ const AIViewInner: React.FC<AIViewProps> = ({
   const activeStreamMessageId = aggregator.getActiveStreamMessageId();
 
   // Note: We intentionally do NOT reset autoRetry when streams start.
-  // If user pressed Ctrl+C, autoRetry stays false until they manually retry.
+  // If user pressed the interrupt key, autoRetry stays false until they manually retry.
   // This makes state transitions explicit and predictable.
 
   // Merge consecutive identical stream errors

@@ -754,7 +754,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     }
 
     // Note: ESC handled by VimTextArea (for mode transitions) and CommandSuggestions (for dismissal)
-    // Edit canceling is Ctrl+Q, stream interruption is Ctrl+C
+    // Edit canceling is Ctrl+Q, stream interruption is Ctrl+D (Linux/Win) or Ctrl+C (macOS)
 
     // Don't handle keys if command suggestions are visible
     if (

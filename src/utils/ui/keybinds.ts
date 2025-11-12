@@ -201,7 +201,10 @@ export const KEYBINDS = {
   CANCEL_EDIT: { key: "q", ctrl: true, macCtrlBehavior: "control" },
 
   /** Interrupt active stream (destructive - stops AI generation) */
-  INTERRUPT_STREAM: { key: "c", ctrl: true, macCtrlBehavior: "control" },
+  // Ctrl+D on Linux/Windows (doesn't conflict with copy), Ctrl+C on macOS
+  INTERRUPT_STREAM: (isMac()
+    ? { key: "c", ctrl: true, macCtrlBehavior: "control" }
+    : { key: "d", ctrl: true }) satisfies Keybind,
 
   /** Accept partial compaction early (adds [truncated] sentinel) */
   ACCEPT_EARLY_COMPACTION: { key: "a", ctrl: true, macCtrlBehavior: "control" },

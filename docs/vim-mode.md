@@ -146,7 +146,7 @@ ESC is used for:
 
 1. Exiting Vim normal mode (highest priority)
 2. NOT used for canceling edits (use **Ctrl-Q** instead)
-3. NOT used for interrupting streams (use **Ctrl-C** instead)
+3. NOT used for interrupting streams (use **Ctrl-D** on Linux/Windows or **Ctrl-C** on macOS)
 
 ## Tips
 
