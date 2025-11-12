@@ -3,12 +3,12 @@ import * as path from "path";
 import * as os from "os";
 import * as crypto from "crypto";
 import * as jsonc from "jsonc-parser";
+import writeFileAtomic from "write-file-atomic";
 import type { WorkspaceMetadata, FrontendWorkspaceMetadata } from "./types/workspace";
 import type { Secret, SecretsConfig } from "./types/secrets";
 import type { Workspace, ProjectConfig, ProjectsConfig } from "./types/project";
 import type { RuntimeConfig } from "./types/runtime";
 import { DEFAULT_RUNTIME_CONFIG } from "./constants/workspace";
-import { writeFileAtomicallySync } from "./utils/atomicWrite";
 
 // Re-export project types from dedicated types file (for preload usage)
 export type { Workspace, ProjectConfig, ProjectsConfig };
@@ -71,7 +71,7 @@ export class Config {
     };
   }
 
-  saveConfig(config: ProjectsConfig): void {
+  async saveConfig(config: ProjectsConfig): Promise<void> {
     try {
       if (!fs.existsSync(this.rootDir)) {
         fs.mkdirSync(this.rootDir, { recursive: true });
@@ -81,7 +81,7 @@ export class Config {
         projects: Array.from(config.projects.entries()),
       };
 
-      writeFileAtomicallySync(this.configFile, JSON.stringify(data, null, 2));
+      await writeFileAtomic(this.configFile, JSON.stringify(data, null, 2), "utf-8");
     } catch (error) {
       console.error("Error saving config:", error);
     }
@@ -91,10 +91,10 @@ export class Config {
    * Edit config atomically using a transformation function
    * @param fn Function that takes current config and returns modified config
    */
-  editConfig(fn: (config: ProjectsConfig) => ProjectsConfig): void {
+  async editConfig(fn: (config: ProjectsConfig) => ProjectsConfig): Promise<void> {
     const config = this.loadConfigOrDefault();
     const newConfig = fn(config);
-    this.saveConfig(newConfig);
+    await this.saveConfig(newConfig);
   }
 
   private getProjectName(projectPath: string): string {
@@ -354,9 +354,9 @@ export class Config {
       }
     }
 
-    // Save config if we migrated any workspaces
+    // Save config if we migrated any workspaces (fire and forget - don't block)
     if (configModified) {
-      this.saveConfig(config);
+      void this.saveConfig(config);
     }
 
     return workspaceMetadata;
@@ -479,13 +479,13 @@ ${jsonString}`;
    * Save secrets configuration to JSON file
    * @param config The secrets configuration to save
    */
-  saveSecretsConfig(config: SecretsConfig): void {
+  async saveSecretsConfig(config: SecretsConfig): Promise<void> {
     try {
       if (!fs.existsSync(this.rootDir)) {
         fs.mkdirSync(this.rootDir, { recursive: true });
       }
 
-      writeFileAtomicallySync(this.secretsFile, JSON.stringify(config, null, 2));
+      await writeFileAtomic(this.secretsFile, JSON.stringify(config, null, 2), "utf-8");
     } catch (error) {
       console.error("Error saving secrets config:", error);
       throw error;
@@ -507,10 +507,10 @@ ${jsonString}`;
    * @param projectPath The path to the project
    * @param secrets The secrets to save for the project
    */
-  updateProjectSecrets(projectPath: string, secrets: Secret[]): void {
+  async updateProjectSecrets(projectPath: string, secrets: Secret[]): Promise<void> {
     const config = this.loadSecretsConfig();
     config[projectPath] = secrets;
-    this.saveSecretsConfig(config);
+    await this.saveSecretsConfig(config);
   }
 }
 

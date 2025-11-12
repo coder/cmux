@@ -355,7 +355,7 @@ export class IpcMain {
         // Note: metadata.json no longer written - config is the only source of truth
 
         // Update config to include the new workspace (with full metadata)
-        this.config.editConfig((config) => {
+        await this.config.editConfig((config) => {
           let projectConfig = config.projects.get(projectPath);
           if (!projectConfig) {
             // Create project config if it doesn't exist
@@ -483,7 +483,7 @@ export class IpcMain {
           const { oldPath, newPath } = renameResult;
 
           // Update config with new name and path
-          this.config.editConfig((config) => {
+          await this.config.editConfig((config) => {
             const projectConfig = config.projects.get(projectPath);
             if (projectConfig) {
               const workspaceEntry = projectConfig.workspaces.find((w) => w.path === oldPath);
@@ -1111,7 +1111,7 @@ export class IpcMain {
         }
       }
       if (configUpdated) {
-        this.config.saveConfig(projectsConfig);
+        await this.config.saveConfig(projectsConfig);
       }
 
       // Emit metadata event for workspace removal (with null metadata to indicate deletion)
@@ -1210,7 +1210,7 @@ export class IpcMain {
 
         // Add to config with normalized path
         config.projects.set(normalizedPath, projectConfig);
-        this.config.saveConfig(config);
+        await this.config.saveConfig(config);
 
         // Return both the config and the normalized path so frontend can use it
         return Ok({ projectConfig, normalizedPath });
@@ -1220,7 +1220,7 @@ export class IpcMain {
       }
     });
 
-    ipcMain.handle(IPC_CHANNELS.PROJECT_REMOVE, (_event, projectPath: string) => {
+    ipcMain.handle(IPC_CHANNELS.PROJECT_REMOVE, async (_event, projectPath: string) => {
       try {
         const config = this.config.loadConfigOrDefault();
         const projectConfig = config.projects.get(projectPath);
@@ -1238,11 +1238,11 @@ export class IpcMain {
 
         // Remove project from config
         config.projects.delete(projectPath);
-        this.config.saveConfig(config);
+        await this.config.saveConfig(config);
 
         // Also remove project secrets if any
         try {
-          this.config.updateProjectSecrets(projectPath, []);
+          await this.config.updateProjectSecrets(projectPath, []);
         } catch (error) {
           log.error(`Failed to clean up secrets for project ${projectPath}:`, error);
           // Continue - don't fail the whole operation if secrets cleanup fails
@@ -1299,9 +1299,9 @@ export class IpcMain {
 
     ipcMain.handle(
       IPC_CHANNELS.PROJECT_SECRETS_UPDATE,
-      (_event, projectPath: string, secrets: Array<{ key: string; value: string }>) => {
+      async (_event, projectPath: string, secrets: Array<{ key: string; value: string }>) => {
         try {
-          this.config.updateProjectSecrets(projectPath, secrets);
+          await this.config.updateProjectSecrets(projectPath, secrets);
           return Ok(undefined);
         } catch (error) {
           const message = error instanceof Error ? error.message : String(error);

@@ -36,7 +36,7 @@ describe("Config", () => {
   });
 
   describe("getAllWorkspaceMetadata with migration", () => {
-    it("should migrate legacy workspace without metadata file", () => {
+    it("should migrate legacy workspace without metadata file", async () => {
       const projectPath = "/fake/project";
       const workspacePath = path.join(config.srcDir, "project", "feature-branch");
 
@@ -44,7 +44,7 @@ describe("Config", () => {
       fs.mkdirSync(workspacePath, { recursive: true });
 
       // Add workspace to config without metadata file
-      config.editConfig((cfg) => {
+      await config.editConfig((cfg) => {
         cfg.projects.set(projectPath, {
           workspaces: [{ path: workspacePath }],
         });
@@ -71,7 +71,7 @@ describe("Config", () => {
       expect(workspace.name).toBe("feature-branch");
     });
 
-    it("should use existing metadata file if present (legacy format)", () => {
+    it("should use existing metadata file if present (legacy format)", async () => {
       const projectPath = "/fake/project";
       const workspaceName = "my-feature";
       const workspacePath = path.join(config.srcDir, "project", workspaceName);
@@ -95,7 +95,7 @@ describe("Config", () => {
       fs.writeFileSync(metadataPath, JSON.stringify(existingMetadata));
 
       // Add workspace to config (without id/name, simulating legacy format)
-      config.editConfig((cfg) => {
+      await config.editConfig((cfg) => {
         cfg.projects.set(projectPath, {
           workspaces: [{ path: workspacePath }],
         });

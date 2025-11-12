@@ -1,12 +1,12 @@
 import { dirname } from "path";
 import { mkdir, readFile } from "fs/promises";
 import { existsSync } from "fs";
+import writeFileAtomic from "write-file-atomic";
 import {
   type ExtensionMetadata,
   type ExtensionMetadataFile,
   getExtensionMetadataPath,
 } from "@/utils/extensionMetadata";
-import { writeFileAtomically } from "@/utils/atomicWrite";
 
 /**
  * Stateless service for managing workspace metadata used by VS Code extension integration.
@@ -78,7 +78,7 @@ export class ExtensionMetadataService {
   private async save(data: ExtensionMetadataFile): Promise<void> {
     try {
       const content = JSON.stringify(data, null, 2);
-      await writeFileAtomically(this.filePath, content);
+      await writeFileAtomic(this.filePath, content, "utf-8");
     } catch (error) {
       console.error("[ExtensionMetadataService] Failed to save metadata:", error);
     }
