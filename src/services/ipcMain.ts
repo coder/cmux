@@ -1349,7 +1349,7 @@ export class IpcMain {
           remotePath: string;
         }
   ): Promise<void> {
-    const isSSH = isSSHRuntime(config);
+    const isSSH = config.type === "ssh";
 
     // Build SSH args if needed
     let sshArgs: string[] | null = null;
