@@ -75,7 +75,6 @@ export function buildRuntimeString(mode: RuntimeMode, host: string): string | un
   return undefined;
 }
 
-
 /**
  * Type guard to check if a runtime config is SSH
  */
