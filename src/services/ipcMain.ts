@@ -971,8 +971,9 @@ export class IpcMain {
         const runtimeConfig = workspace.runtimeConfig;
         const isSSH = runtimeConfig?.type === "ssh";
 
-        if (isSSH && runtimeConfig.type === "ssh") {
+        if (isSSH) {
           // SSH workspace - spawn local terminal that SSHs into remote host
+          // Type assertion is safe because isSSH === true means runtimeConfig.type === "ssh"
           await this.openTerminal({
             type: "ssh",
             sshConfig: runtimeConfig,
