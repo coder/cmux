@@ -1,14 +1,6 @@
 import type { ModelMessage } from "ai";
 
 /**
- * Cache control configuration for a message
- */
-interface CacheControl {
-  type: "ephemeral";
-  ttl: "5m" | "1h";
-}
-
-/**
  * Minimum token counts required for caching different Anthropic models
  * Based on https://docs.anthropic.com/en/docs/build-with-claude/prompt-caching
  */

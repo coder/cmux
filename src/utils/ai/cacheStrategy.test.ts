@@ -89,7 +89,11 @@ describe("applyCacheControl", () => {
 
     // System message should have 1h TTL
     const systemCacheControl = result[0].providerOptions?.anthropic?.cacheControl;
-    if (systemCacheControl && typeof systemCacheControl === "object" && "ttl" in systemCacheControl) {
+    if (
+      systemCacheControl &&
+      typeof systemCacheControl === "object" &&
+      "ttl" in systemCacheControl
+    ) {
       expect(systemCacheControl.ttl).toBe("1h");
     }
 
@@ -178,9 +182,7 @@ describe("applyCacheControl", () => {
 
   test("should not exceed 4 breakpoint limit", () => {
     // Create a very long conversation
-    const messages: ModelMessage[] = [
-      { role: "system", content: "System ".repeat(300) },
-    ];
+    const messages: ModelMessage[] = [{ role: "system", content: "System ".repeat(300) }];
 
     // Add 20 message pairs
     for (let i = 0; i < 20; i++) {
