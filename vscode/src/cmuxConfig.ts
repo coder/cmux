@@ -12,6 +12,14 @@ export interface ExtensionMetadata {
   lastModel: string | null;
 }
 
+// Row shape from metadata.db
+interface MetadataRow {
+  workspace_id: string;
+  recency: number;
+  streaming: number; // 0/1
+  last_model: string | null;
+}
+
 /**
  * Runtime configuration for workspace execution environments
  */
@@ -102,7 +110,7 @@ function readMetadataStore(): Map<string, ExtensionMetadata> {
       ORDER BY recency DESC
     `);
 
-    const rows = stmt.all() as any[];
+    const rows = stmt.all() as MetadataRow[];
     const map = new Map<string, ExtensionMetadata>();
 
     for (const row of rows) {
@@ -150,12 +158,12 @@ export function getAllWorkspaces(): WorkspaceWithContext[] {
   }
 
   // Sort by recency (metadata recency > createdAt > name)
-  workspaces.sort((a, b) => {
-    const aRecency =
-      a.extensionMetadata?.recency ?? (a.createdAt ? Date.parse(a.createdAt) : 0);
-    const bRecency =
-      b.extensionMetadata?.recency ?? (b.createdAt ? Date.parse(b.createdAt) : 0);
 
+  const recencyOf = (w: WorkspaceWithContext): number =>
+    w.extensionMetadata?.recency ?? (w.createdAt ? Date.parse(w.createdAt) : 0);
+  workspaces.sort((a, b) => {
+    const aRecency = recencyOf(a);
+    const bRecency = recencyOf(b);
     if (aRecency !== bRecency) return bRecency - aRecency;
     return a.name.localeCompare(b.name);
   });

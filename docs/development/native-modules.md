@@ -40,11 +40,13 @@ bun run rebuild     # Same thing
 When adding a new native module dependency:
 
 1. Add it to `package.json`:
+
    ```bash
    bun add <package-name>
    ```
 
 2. Update the rebuild script if needed:
+
    ```json
    {
      "scripts": {
@@ -77,6 +79,7 @@ node_modules/.installed: package.json bun.lock
 ```
 
 This ensures:
+
 - ✅ Native modules are always compiled for the correct Electron version
 - ✅ New developers don't hit module version errors
 - ✅ CI builds work consistently
@@ -93,6 +96,7 @@ This ensures:
 **Cause**: Missing build tools (C++ compiler, Python)
 
 **Solution**: Ensure CI has build dependencies:
+
 - macOS: Xcode Command Line Tools
 - Linux: `build-essential`, `python3`
 - Windows: Visual Studio Build Tools
@@ -102,6 +106,7 @@ This ensures:
 **Cause**: Rebuilding all modules
 
 **Solution**: Use whitelist in `rebuild` script to only rebuild native modules:
+
 ```json
 "rebuild": "electron-rebuild -f -w better-sqlite3"
 ```

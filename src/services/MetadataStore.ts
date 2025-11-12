@@ -1,5 +1,5 @@
 import Database from "better-sqlite3";
-import { join } from "path";
+import { join, dirname } from "path";
 import { homedir } from "os";
 import { existsSync, mkdirSync } from "fs";
 
@@ -38,8 +38,8 @@ export class MetadataStore {
   constructor(dbPath?: string) {
     const path = dbPath ?? join(homedir(), ".cmux", "metadata.db");
 
-    // Ensure directory exists
-    const dir = join(homedir(), ".cmux");
+    // Ensure directory exists (for provided or default path)
+    const dir = dirname(path);
     if (!existsSync(dir)) {
       mkdirSync(dir, { recursive: true });
     }
@@ -64,6 +64,22 @@ export class MetadataStore {
       CREATE INDEX IF NOT EXISTS idx_recency 
         ON workspace_metadata(recency DESC);
     `);
+  }
+
+  private static mapRow(row: {
+    workspace_id: string;
+    recency: number;
+    streaming: number;
+    last_model: string | null;
+    updated_at: number;
+  }): WorkspaceMetadata {
+    return {
+      workspaceId: row.workspace_id,
+      recency: row.recency,
+      streaming: row.streaming === 1,
+      lastModel: row.last_model,
+      updatedAt: row.updated_at,
+    };
   }
 
   /**
@@ -116,13 +132,7 @@ export class MetadataStore {
       | undefined;
     if (!row) return null;
 
-    return {
-      workspaceId: row.workspace_id,
-      recency: row.recency,
-      streaming: row.streaming === 1,
-      lastModel: row.last_model,
-      updatedAt: row.updated_at,
-    };
+    return MetadataStore.mapRow(row);
   }
 
   /**
@@ -142,13 +152,7 @@ export class MetadataStore {
     }>;
     const map = new Map<string, WorkspaceMetadata>();
     for (const row of rows) {
-      map.set(row.workspace_id, {
-        workspaceId: row.workspace_id,
-        recency: row.recency,
-        streaming: row.streaming === 1,
-        lastModel: row.last_model,
-        updatedAt: row.updated_at,
-      });
+      map.set(row.workspace_id, MetadataStore.mapRow(row));
     }
     return map;
   }

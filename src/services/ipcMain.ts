@@ -83,30 +83,27 @@ export class IpcMain {
    * This tracks workspace recency and streaming status for VS Code extension integration.
    */
   private setupMetadataListeners(): void {
+    const isObj = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null;
+    const isWorkspaceEvent = (v: unknown): v is { workspaceId: string } =>
+      isObj(v) && typeof (v as any).workspaceId === "string";
+    const isStreamStartEvent = (v: unknown): v is { workspaceId: string; model: string } =>
+      isWorkspaceEvent(v) && typeof (v as any).model === "string";
+
     // Update streaming status and recency on stream start
     this.aiService.on("stream-start", (data: unknown) => {
-      if (data && typeof data === "object" && "workspaceId" in data && "model" in data) {
-        this.metadataStore.setStreaming(
-          (data as { workspaceId: string; model: string }).workspaceId,
-          true,
-          (data as { workspaceId: string; model: string }).model
-        );
+      if (isStreamStartEvent(data)) {
+        this.metadataStore.setStreaming(data.workspaceId, true, data.model);
       }
     });
 
-    // Clear streaming status on stream end
-    this.aiService.on("stream-end", (data: unknown) => {
-      if (data && typeof data === "object" && "workspaceId" in data) {
-        this.metadataStore.setStreaming((data as { workspaceId: string }).workspaceId, false);
+    // Clear streaming status on stream end/abort
+    const handleStreamStop = (data: unknown) => {
+      if (isWorkspaceEvent(data)) {
+        this.metadataStore.setStreaming(data.workspaceId, false);
       }
-    });
-
-    // Clear streaming status on stream abort
-    this.aiService.on("stream-abort", (data: unknown) => {
-      if (data && typeof data === "object" && "workspaceId" in data) {
-        this.metadataStore.setStreaming((data as { workspaceId: string }).workspaceId, false);
-      }
-    });
+    };
+    this.aiService.on("stream-end", handleStreamStop);
+    this.aiService.on("stream-abort", handleStreamStop);
   }
 
   private getOrCreateSession(workspaceId: string): AgentSession {
