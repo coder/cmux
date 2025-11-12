@@ -5,12 +5,17 @@
     "outDir": "out",
     "lib": ["ES2020"],
     "sourceMap": true,
-    "rootDir": "src",
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
-    "resolveJsonModule": true
+    "resolveJsonModule": true,
+    "baseUrl": ".",
+    "paths": {
+      "cmux/*": ["../src/*"],
+      "@/*": ["../src/*"]
+    }
   },
+  "include": ["src/**/*"],
   "exclude": ["node_modules", ".vscode-test"]
 }
