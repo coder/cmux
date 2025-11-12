@@ -287,13 +287,13 @@ vscode-ext: ## Build VS Code extension (.vsix)
 vscode-ext-install: vscode-ext ## Build and install VS Code extension locally
 	@echo "Installing extension..."
 	@if command -v code >/dev/null 2>&1; then \
-		code --install-extension vscode/cmux-0.1.0.vsix && \
+		code --install-extension vscode/cmux-0.1.0.vsix --force && \
 		echo "✓ Extension installed in VS Code"; \
 	else \
 		echo "⚠ VS Code CLI (code) not found, skipping"; \
 	fi
 	@if command -v cursor >/dev/null 2>&1; then \
-		cursor --install-extension vscode/cmux-0.1.0.vsix && \
+		cursor --install-extension vscode/cmux-0.1.0.vsix --force && \
 		echo "✓ Extension installed in Cursor"; \
 	else \
 		echo "⚠ Cursor CLI (cursor) not found, skipping"; \
