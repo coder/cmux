@@ -68,14 +68,49 @@ async function openWorkspaceCommand() {
     return;
   }
 
-  // Create QuickPick items
-  const items = workspaces.map(createWorkspaceQuickPickItem);
+  // Create QuickPick items (already sorted by recency in getAllWorkspaces)
+  const allItems = workspaces.map(createWorkspaceQuickPickItem);
 
-  // Show QuickPick
-  const selected = await vscode.window.showQuickPick(items, {
-    placeHolder: "Select a cmux workspace to open",
-    matchOnDescription: true,
-    matchOnDetail: false,
+  // Use createQuickPick for more control over sorting behavior
+  const quickPick = vscode.window.createQuickPick<
+    vscode.QuickPickItem & { workspace: WorkspaceWithContext }
+  >();
+  quickPick.placeholder = "Select a cmux workspace to open";
+  quickPick.matchOnDescription = true;
+  quickPick.matchOnDetail = false;
+  quickPick.items = allItems;
+
+  // When user types, filter items but preserve recency order
+  quickPick.onDidChangeValue((value) => {
+    if (!value) {
+      // No filter - show all items in recency order
+      quickPick.items = allItems;
+      return;
+    }
+
+    // Filter items manually to preserve recency order
+    const lowerValue = value.toLowerCase();
+    quickPick.items = allItems.filter((item) => {
+      const labelMatch = item.label.toLowerCase().includes(lowerValue);
+      const descMatch = item.description?.toLowerCase().includes(lowerValue);
+      return labelMatch || descMatch;
+    });
+  });
+
+  quickPick.show();
+
+  // Wait for user selection
+  const selected = await new Promise<
+    (vscode.QuickPickItem & { workspace: WorkspaceWithContext }) | undefined
+  >((resolve) => {
+    quickPick.onDidAccept(() => {
+      resolve(quickPick.selectedItems[0]);
+      quickPick.dispose();
+    });
+    quickPick.onDidHide(() => {
+      resolve(undefined);
+      quickPick.dispose();
+    });
   });
 
   if (!selected) {
