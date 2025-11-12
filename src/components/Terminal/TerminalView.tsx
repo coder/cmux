@@ -13,10 +13,12 @@ export function TerminalView({ workspaceId, visible }: TerminalViewProps) {
   const fitAddonRef = useRef<FitAddon | null>(null);
   const [terminalError, setTerminalError] = useState<string | null>(null);
   const [terminalReady, setTerminalReady] = useState(false);
+  const [terminalSize, setTerminalSize] = useState<{ cols: number; rows: number } | null>(null);
 
   const { connected, sessionId, wsRef, sendInput, resize, error: sessionError } = useTerminalSession(
     workspaceId,
-    visible
+    visible,
+    terminalSize
   );
 
   // Keep refs to latest functions so onData callback always uses current version
@@ -83,6 +85,17 @@ export function TerminalView({ workspaceId, visible }: TerminalViewProps) {
         const { cols, rows } = terminal;
         console.log(`[TerminalView] Fitted terminal dimensions: ${cols}x${rows}`);
         
+        // Set terminal size so PTY session can be created with matching dimensions
+        // Use stable object reference to prevent unnecessary effect re-runs
+        setTerminalSize(prev => {
+          if (prev && prev.cols === cols && prev.rows === rows) {
+            console.log('[TerminalView] Size unchanged, keeping same object reference');
+            return prev;
+          }
+          console.log('[TerminalView] Size changed, updating state');
+          return { cols, rows };
+        });
+        
         // User input → WebSocket (use ref to always get latest sendInput)
         terminal.onData((data) => {
           sendInputRef.current(data);
@@ -90,6 +103,14 @@ export function TerminalView({ workspaceId, visible }: TerminalViewProps) {
 
         // Handle resize (use ref to always get latest resize)
         terminal.onResize(({ cols, rows }: { cols: number; rows: number }) => {
+          console.log(`[TerminalView] Terminal resized to ${cols}x${rows}`);
+          // Use stable object reference to prevent unnecessary effect re-runs
+          setTerminalSize(prev => {
+            if (prev && prev.cols === cols && prev.rows === rows) {
+              return prev;
+            }
+            return { cols, rows };
+          });
           resizeRef.current(cols, rows);
         });
 
@@ -113,6 +134,7 @@ export function TerminalView({ workspaceId, visible }: TerminalViewProps) {
       termRef.current = null;
       fitAddonRef.current = null;
       setTerminalReady(false);
+      setTerminalSize(null);
     };
     // Note: sendInput and resize are intentionally not in deps
     // They're used in callbacks, not during effect execution
@@ -125,8 +147,11 @@ export function TerminalView({ workspaceId, visible }: TerminalViewProps) {
     const term = termRef.current;
     
     if (!ws || !term || !connected || !terminalReady) {
+      console.log('[TerminalView] Message handler not ready - ws:', !!ws, 'term:', !!term, 'connected:', connected, 'terminalReady:', terminalReady);
       return;
     }
+    
+    console.log('[TerminalView] Attaching WebSocket message handler to:', ws);
 
     const handleMessage = (event: MessageEvent) => {
       try {
@@ -139,6 +164,7 @@ export function TerminalView({ workspaceId, visible }: TerminalViewProps) {
         }
         
         if (msg.type === "output") {
+          console.log('[TerminalView] Received output:', msg.data.length, 'bytes');
           currentTerm.write(msg.data);
         } else if (msg.type === "exit") {
           currentTerm.write(`\r\n[Process exited with code ${msg.exitCode}]\r\n`);
@@ -149,11 +175,13 @@ export function TerminalView({ workspaceId, visible }: TerminalViewProps) {
     };
 
     ws.addEventListener("message", handleMessage);
+    console.log('[TerminalView] Message handler attached');
     return () => {
+      console.log('[TerminalView] Removing message handler from:', ws);
       ws.removeEventListener("message", handleMessage);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [connected, terminalReady]);
+  }, [connected, terminalReady, sessionId]);
 
   // Resize on container size change
   useEffect(() => {
@@ -162,7 +190,7 @@ export function TerminalView({ workspaceId, visible }: TerminalViewProps) {
     const resizeObserver = new ResizeObserver(() => {
       console.log("[TerminalView] Container resized, fitting terminal");
       fitAddonRef.current?.fit();
-      // Note: SSH sessions cannot dynamically resize, only the visual display will fit
+      // Terminal will fire onResize event which will update terminalSize and propagate to PTY
     });
 
     resizeObserver.observe(containerRef.current);

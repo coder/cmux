@@ -3,7 +3,11 @@ import { useState, useEffect, useRef, useCallback } from "react";
 /**
  * Hook to manage terminal WebSocket connection and session lifecycle
  */
-export function useTerminalSession(workspaceId: string, enabled: boolean) {
+export function useTerminalSession(
+  workspaceId: string, 
+  enabled: boolean,
+  terminalSize?: { cols: number; rows: number } | null
+) {
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [connected, setConnected] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -11,7 +15,8 @@ export function useTerminalSession(workspaceId: string, enabled: boolean) {
 
   // Create terminal session and WebSocket connection
   useEffect(() => {
-    if (!enabled) {
+    if (!enabled || !terminalSize) {
+      console.log('[Terminal] Session effect skipped - enabled:', enabled, 'terminalSize:', terminalSize);
       return;
     }
 
@@ -21,18 +26,16 @@ export function useTerminalSession(workspaceId: string, enabled: boolean) {
 
     const initSession = async () => {
       try {
-        console.log(`[Terminal] Initializing session for workspace ${workspaceId}`);
+        console.log(`[Terminal] Initializing session for workspace ${workspaceId} with size ${terminalSize.cols}x${terminalSize.rows}`);
         
         // Get WebSocket port from backend
         const port = await window.api.terminal.getPort();
 
-        // Create terminal session
-        // Use reasonable defaults that work for most displays
-        // Note: SSH sessions cannot be dynamically resized, so this size is fixed
+        // Create terminal session with actual terminal size
         const session = await window.api.terminal.create({
           workspaceId,
-          cols: 100,  // Wide enough for most command output
-          rows: 20,   // Matches ~300px height with font-size 13px
+          cols: terminalSize.cols,
+          rows: terminalSize.rows,
         });
 
         if (!mounted) {
@@ -42,7 +45,7 @@ export function useTerminalSession(workspaceId: string, enabled: boolean) {
 
         createdSessionId = session.sessionId; // Store in closure
         setSessionId(session.sessionId);
-        console.log(`[Terminal] Session created: ${session.sessionId}`);
+        console.log(`[Terminal] Session created: ${session.sessionId} with size ${terminalSize.cols}x${terminalSize.rows}`);
 
         // Connect WebSocket
         ws = new WebSocket(`ws://localhost:${port}/terminal`);
@@ -102,7 +105,7 @@ export function useTerminalSession(workspaceId: string, enabled: boolean) {
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [workspaceId, enabled]); // sessionId intentionally excluded to prevent recreation loop
+  }, [workspaceId, enabled, terminalSize]); // Add terminalSize to deps
 
   // Send input to terminal
   const sendInput = useCallback(
