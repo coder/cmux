@@ -1,6 +1,6 @@
 import { dirname } from "path";
-import { mkdir, readFile } from "fs/promises";
-import { existsSync } from "fs";
+import { mkdir, readFile, access } from "fs/promises";
+import { constants } from "fs";
 import writeFileAtomic from "write-file-atomic";
 import {
   type ExtensionMetadata,
@@ -43,7 +43,9 @@ export class ExtensionMetadataService {
   async initialize(): Promise<void> {
     // Ensure directory exists
     const dir = dirname(this.filePath);
-    if (!existsSync(dir)) {
+    try {
+      await access(dir, constants.F_OK);
+    } catch {
       await mkdir(dir, { recursive: true });
     }
 
@@ -52,7 +54,9 @@ export class ExtensionMetadataService {
   }
 
   private async load(): Promise<ExtensionMetadataFile> {
-    if (!existsSync(this.filePath)) {
+    try {
+      await access(this.filePath, constants.F_OK);
+    } catch {
       return { version: 1, workspaces: {} };
     }
 
