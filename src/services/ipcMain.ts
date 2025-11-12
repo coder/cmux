@@ -1349,9 +1349,11 @@ export class IpcMain {
           remotePath: string;
         }
   ): Promise<void> {
+    const isSSH = config.type === "ssh";
+
     // Build SSH args if needed
     let sshArgs: string[] | null = null;
-    if (config.type === "ssh") {
+    if (isSSH) {
       sshArgs = [];
       // Add port if specified
       if (config.sshConfig.port) {
@@ -1371,7 +1373,7 @@ export class IpcMain {
       sshArgs.push(`cd '${config.remotePath.replace(/'/g, "'\\''")}' && exec $SHELL`);
     }
 
-    const logPrefix = config.type === "ssh" ? "SSH terminal" : "terminal";
+    const logPrefix = isSSH ? "SSH terminal" : "terminal";
 
     if (process.platform === "darwin") {
       // macOS - try Ghostty first, fallback to Terminal.app
@@ -1379,7 +1381,7 @@ export class IpcMain {
       if (terminal === "ghostty") {
         const cmd = "open";
         let args: string[];
-        if (config.type === "ssh" && sshArgs) {
+        if (isSSH && sshArgs) {
           // Ghostty: Use --command flag to run SSH
           // Build the full SSH command as a single string
           const sshCommand = ["ssh", ...sshArgs].join(" ");
@@ -1397,9 +1399,9 @@ export class IpcMain {
         child.unref();
       } else {
         // Terminal.app
-        const cmd = config.type === "ssh" ? "osascript" : "open";
+        const cmd = isSSH ? "osascript" : "open";
         let args: string[];
-        if (config.type === "ssh" && sshArgs) {
+        if (isSSH && sshArgs) {
           // Terminal.app: Use osascript with proper AppleScript structure
           // Properly escape single quotes in args before wrapping in quotes
           const sshCommand = `ssh ${sshArgs
@@ -1431,7 +1433,7 @@ export class IpcMain {
       // Windows
       const cmd = "cmd";
       let args: string[];
-      if (config.type === "ssh" && sshArgs) {
+      if (isSSH && sshArgs) {
         // Windows - use cmd to start ssh
         args = ["/c", "start", "cmd", "/K", "ssh", ...sshArgs];
       } else {
@@ -1449,7 +1451,7 @@ export class IpcMain {
       // Linux - try terminal emulators in order of preference
       let terminals: Array<{ cmd: string; args: string[]; cwd?: string }>;
 
-      if (config.type === "ssh" && sshArgs) {
+      if (isSSH && sshArgs) {
         // x-terminal-emulator is checked first as it respects user's system-wide preference
         terminals = [
           { cmd: "x-terminal-emulator", args: ["-e", "ssh", ...sshArgs] },
