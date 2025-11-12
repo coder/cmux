@@ -1,6 +1,5 @@
 import { readFileSync, existsSync } from "fs";
-import { join } from "path";
-import { homedir } from "os";
+import { CMUX_EXTENSION_METADATA_FILE } from "../constants/paths";
 
 /**
  * Extension metadata for a single workspace.
@@ -24,7 +23,7 @@ export interface ExtensionMetadataFile {
  * Get the path to the extension metadata file.
  */
 export function getExtensionMetadataPath(): string {
-  return join(homedir(), ".cmux", "extensionMetadata.json");
+  return CMUX_EXTENSION_METADATA_FILE;
 }
 
 /**

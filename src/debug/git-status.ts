@@ -8,14 +8,12 @@
 
 import { readdirSync, statSync } from "fs";
 import { join } from "path";
-import { homedir } from "os";
 import { execSync } from "child_process";
 
 // Import production code - script and parser stay in sync
 import { GIT_STATUS_SCRIPT, parseGitStatusScriptOutput } from "../utils/git/gitStatus";
 import { parseGitShowBranchForStatus } from "../utils/git/parseGitStatus";
-
-const CMUX_SRC_DIR = join(homedir(), ".cmux", "src");
+import { CMUX_SRC_DIR } from "../constants/paths";
 
 function findWorkspaces(): Array<{ id: string; path: string }> {
   const workspaces: Array<{ id: string; path: string }> = [];
