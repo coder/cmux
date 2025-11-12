@@ -369,7 +369,7 @@ export class Config {
 
       // Compute workspace path - this is only for legacy config migration
       // New code should use Runtime.getWorkspacePath() directly
-      // Sanitize branch name for directory path
+      // Note: We manually sanitize here since this is config-level code that doesn't use Runtime
       const { sanitizeBranchNameForDirectory } = require("./utils/workspace/directoryName");
       const directoryName = sanitizeBranchNameForDirectory(metadata.name);
       const projectName = this.getProjectName(projectPath);

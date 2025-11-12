@@ -188,10 +188,8 @@ export class AgentSession {
             const runtime = createRuntime(
               metadata.runtimeConfig ?? { type: "local", srcBaseDir: this.config.srcDir }
             );
-            // Sanitize branch name for directory path
-            const { sanitizeBranchNameForDirectory } = require("../utils/workspace/directoryName");
-            const directoryName = sanitizeBranchNameForDirectory(metadata.name);
-            return runtime.getWorkspacePath(metadata.projectPath, directoryName);
+            // getWorkspacePath sanitizes the branch name automatically
+            return runtime.getWorkspacePath(metadata.projectPath, metadata.name);
           })();
       assert(
         expectedPath === normalizedWorkspacePath,

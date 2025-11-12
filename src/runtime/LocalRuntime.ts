@@ -307,14 +307,17 @@ export class LocalRuntime implements Runtime {
 
   getWorkspacePath(projectPath: string, workspaceName: string): string {
     const projectName = getProjectName(projectPath);
-    return path.join(this.srcBaseDir, projectName, workspaceName);
+    // Always sanitize workspace name to ensure filesystem-safe directory names
+    // This is idempotent - sanitizing an already-sanitized name returns the same value
+    const directoryName = sanitizeBranchNameForDirectory(workspaceName);
+    return path.join(this.srcBaseDir, projectName, directoryName);
   }
 
   async createWorkspace(params: WorkspaceCreationParams): Promise<WorkspaceCreationResult> {
     const { projectPath, branchName, trunkBranch, directoryName, initLogger } = params;
 
     try {
-      // Compute workspace path using the sanitized directory name
+      // Compute workspace path (getWorkspacePath sanitizes the name automatically)
       const workspacePath = this.getWorkspacePath(projectPath, directoryName);
       initLogger.logStep("Creating git worktree...");
 
@@ -452,11 +455,9 @@ export class LocalRuntime implements Runtime {
     { success: true; oldPath: string; newPath: string } | { success: false; error: string }
   > {
     // Note: _abortSignal ignored for local operations (fast, no need for cancellation)
-    // Compute workspace paths using sanitized directory names
-    const oldDirName = sanitizeBranchNameForDirectory(oldName);
-    const newDirName = sanitizeBranchNameForDirectory(newName);
-    const oldPath = this.getWorkspacePath(projectPath, oldDirName);
-    const newPath = this.getWorkspacePath(projectPath, newDirName);
+    // Compute workspace paths (getWorkspacePath sanitizes the names automatically)
+    const oldPath = this.getWorkspacePath(projectPath, oldName);
+    const newPath = this.getWorkspacePath(projectPath, newName);
 
     try {
       // Create parent directory for new path if needed (for nested directory names)
@@ -490,9 +491,8 @@ export class LocalRuntime implements Runtime {
     // These are direct workspace directories (e.g., CLI/benchmark sessions), not git worktrees
     const isInPlace = projectPath === workspaceName;
 
-    // Compute workspace path using sanitized directory name
-    const directoryName = sanitizeBranchNameForDirectory(workspaceName);
-    const deletedPath = this.getWorkspacePath(projectPath, directoryName);
+    // Compute workspace path (getWorkspacePath sanitizes the name automatically)
+    const deletedPath = this.getWorkspacePath(projectPath, workspaceName);
 
     // Check if directory exists - if not, operation is idempotent
     try {
@@ -584,9 +584,8 @@ export class LocalRuntime implements Runtime {
   async forkWorkspace(params: WorkspaceForkParams): Promise<WorkspaceForkResult> {
     const { projectPath, sourceWorkspaceName, newWorkspaceName, initLogger } = params;
 
-    // Get source workspace path (sanitize source name for directory)
-    const sourceDirName = sanitizeBranchNameForDirectory(sourceWorkspaceName);
-    const sourceWorkspacePath = this.getWorkspacePath(projectPath, sourceDirName);
+    // Get source workspace path (getWorkspacePath sanitizes the name automatically)
+    const sourceWorkspacePath = this.getWorkspacePath(projectPath, sourceWorkspaceName);
 
     // Get current branch from source workspace
     try {

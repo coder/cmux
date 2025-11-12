@@ -780,13 +780,17 @@ export class SSHRuntime implements Runtime {
 
   getWorkspacePath(projectPath: string, workspaceName: string): string {
     const projectName = getProjectName(projectPath);
-    return path.posix.join(this.config.srcBaseDir, projectName, workspaceName);
+    // Always sanitize workspace name to ensure filesystem-safe directory names
+    // This is idempotent - sanitizing an already-sanitized name returns the same value
+    const { sanitizeBranchNameForDirectory } = require("../utils/workspace/directoryName");
+    const directoryName = sanitizeBranchNameForDirectory(workspaceName);
+    return path.posix.join(this.config.srcBaseDir, projectName, directoryName);
   }
 
   async createWorkspace(params: WorkspaceCreationParams): Promise<WorkspaceCreationResult> {
     try {
       const { projectPath, branchName, directoryName, initLogger, abortSignal } = params;
-      // Compute workspace path using sanitized directory name
+      // Compute workspace path (getWorkspacePath sanitizes the name automatically)
       const workspacePath = this.getWorkspacePath(projectPath, directoryName);
 
       // Prepare parent directory for git clone (fast - returns immediately)
@@ -922,13 +926,9 @@ export class SSHRuntime implements Runtime {
     if (abortSignal?.aborted) {
       return { success: false, error: "Rename operation aborted" };
     }
-    // Import sanitization utility for directory name conversion
-    const { sanitizeBranchNameForDirectory } = await import("../utils/workspace/directoryName");
-    const oldDirName = sanitizeBranchNameForDirectory(oldName);
-    const newDirName = sanitizeBranchNameForDirectory(newName);
-    // Compute workspace paths using sanitized directory names
-    const oldPath = this.getWorkspacePath(projectPath, oldDirName);
-    const newPath = this.getWorkspacePath(projectPath, newDirName);
+    // Compute workspace paths (getWorkspacePath sanitizes the names automatically)
+    const oldPath = this.getWorkspacePath(projectPath, oldName);
+    const newPath = this.getWorkspacePath(projectPath, newName);
 
     try {
       // SSH runtimes use plain directories, not git worktrees
@@ -987,11 +987,8 @@ export class SSHRuntime implements Runtime {
       return { success: false, error: "Delete operation aborted" };
     }
 
-    // Import sanitization utility for directory name conversion
-    const { sanitizeBranchNameForDirectory } = await import("../utils/workspace/directoryName");
-    const directoryName = sanitizeBranchNameForDirectory(workspaceName);
-    // Compute workspace path using sanitized directory name
-    const deletedPath = this.getWorkspacePath(projectPath, directoryName);
+    // Compute workspace path (getWorkspacePath sanitizes the name automatically)
+    const deletedPath = this.getWorkspacePath(projectPath, workspaceName);
 
     try {
       // Combine all pre-deletion checks into a single bash script to minimize round trips
