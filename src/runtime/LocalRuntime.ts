@@ -584,8 +584,9 @@ export class LocalRuntime implements Runtime {
   async forkWorkspace(params: WorkspaceForkParams): Promise<WorkspaceForkResult> {
     const { projectPath, sourceWorkspaceName, newWorkspaceName, initLogger } = params;
 
-    // Get source workspace path
-    const sourceWorkspacePath = this.getWorkspacePath(projectPath, sourceWorkspaceName);
+    // Get source workspace path (sanitize source name for directory)
+    const sourceDirName = sanitizeBranchNameForDirectory(sourceWorkspaceName);
+    const sourceWorkspacePath = this.getWorkspacePath(projectPath, sourceDirName);
 
     // Get current branch from source workspace
     try {

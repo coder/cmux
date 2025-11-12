@@ -946,7 +946,9 @@ export class IpcMain {
             srcBaseDir: this.config.srcDir,
           };
           const runtime = createRuntime(runtimeConfig);
-          const workspacePath = runtime.getWorkspacePath(metadata.projectPath, metadata.name);
+          // Sanitize branch name for directory path
+          const directoryName = sanitizeBranchNameForDirectory(metadata.name);
+          const workspacePath = runtime.getWorkspacePath(metadata.projectPath, directoryName);
 
           // Create bash tool with workspace's cwd and secrets
           // All IPC bash calls are from UI (background operations) - use truncate to avoid temp file spam
