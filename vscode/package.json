@@ -34,9 +34,11 @@
     ]
   },
   "scripts": {
+    "sync-shared": "bash scripts/sync-shared.sh",
+    "precompile": "npm run sync-shared",
     "vscode:prepublish": "npm run compile",
     "compile": "tsc -p ./",
-    "watch": "tsc -watch -p ./",
+    "watch": "npm run sync-shared && tsc -watch -p ./",
     "package": "vsce package"
   },
   "devDependencies": {

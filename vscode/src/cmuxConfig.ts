@@ -2,6 +2,7 @@ import * as fs from "fs";
 import * as path from "path";
 import * as os from "os";
 import Database from "better-sqlite3";
+import type { RuntimeConfig, WorkspaceMetadata } from "./shared/types";
 
 /**
  * Extension metadata from SQLite database
@@ -18,34 +19,6 @@ interface MetadataRow {
   recency: number;
   streaming: number; // 0/1
   last_model: string | null;
-}
-
-/**
- * Runtime configuration for workspace execution environments
- */
-export type RuntimeConfig =
-  | {
-      type: "local";
-      srcBaseDir: string;
-    }
-  | {
-      type: "ssh";
-      host: string;
-      srcBaseDir: string;
-      identityFile?: string;
-      port?: number;
-    };
-
-/**
- * Workspace metadata from cmux config
- */
-export interface WorkspaceMetadata {
-  id: string;
-  name: string;
-  projectName: string;
-  projectPath: string;
-  createdAt?: string;
-  runtimeConfig?: RuntimeConfig;
 }
 
 /**
