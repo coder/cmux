@@ -24,6 +24,15 @@
 #   Branches reduce reproducibility - builds should fail fast with clear errors
 #   if dependencies are missing, not silently fall back to different behavior.
 
+# Use PATH-resolved bash on Windows to avoid hardcoded /usr/bin/bash which doesn't
+# exist in Chocolatey's make environment or on GitHub Actions windows-latest.
+ifeq ($(OS),Windows_NT)
+SHELL := bash
+else
+SHELL := /bin/bash
+endif
+.SHELLFLAGS := -eu -o pipefail -c
+
 # Enable parallel execution by default (only if user didn't specify -j)
 ifeq (,$(filter -j%,$(MAKEFLAGS)))
 MAKEFLAGS += -j
@@ -97,8 +106,9 @@ help: ## Show this help message
 
 ## Development
 dev: node_modules/.installed build-main ## Start development server (Vite + tsgo watcher for 10x faster type checking)
-	@bun x concurrently -k \
-		"bun x concurrently \"$(TSGO) -w -p tsconfig.main.json\" \"bun x tsc-alias -w -p tsconfig.main.json\"" \
+	@npx concurrently -k --raw \
+		"$(TSGO) -w -p tsconfig.main.json" \
+		"bun x tsc-alias -w -p tsconfig.main.json" \
 		"vite"
 
 dev-server: node_modules/.installed build-main ## Start server mode with hot reload (backend :3000 + frontend :5173). Use VITE_HOST=0.0.0.0 BACKEND_HOST=0.0.0.0 for remote access
@@ -167,16 +177,16 @@ MAGICK_CMD := $(shell command -v magick 2>/dev/null || command -v convert 2>/dev
 build/icon.png: docs/img/logo.webp
 	@echo "Generating Linux icon..."
 	@mkdir -p build
-	@$(MAGICK_CMD) docs/img/logo.webp -resize 512x512 build/icon.png
+	@"$(MAGICK_CMD)" docs/img/logo.webp -resize 512x512 build/icon.png
 
 build/icon.icns: docs/img/logo.webp
 	@echo "Generating macOS icon..."
 	@mkdir -p build/icon.iconset
 	@for size in 16 32 64 128 256 512; do \
-		$(MAGICK_CMD) docs/img/logo.webp -resize $${size}x$${size} build/icon.iconset/icon_$${size}x$${size}.png; \
+		"$(MAGICK_CMD)" docs/img/logo.webp -resize $${size}x$${size} build/icon.iconset/icon_$${size}x$${size}.png; \
 		if [ $$size -le 256 ]; then \
 			double=$$((size * 2)); \
-			$(MAGICK_CMD) docs/img/logo.webp -resize $${double}x$${double} build/icon.iconset/icon_$${size}x$${size}@2x.png; \
+			"$(MAGICK_CMD)" docs/img/logo.webp -resize $${double}x$${double} build/icon.iconset/icon_$${size}x$${size}@2x.png; \
 		fi; \
 	done
 	@iconutil -c icns build/icon.iconset -o build/icon.icns
