@@ -315,7 +315,8 @@ async function loadServices(): Promise<void> {
   ]);
   /* eslint-enable no-restricted-syntax */
   config = new ConfigClass();
-  ipcMain = await IpcMainClass.create(config);
+  ipcMain = new IpcMainClass(config);
+  await ipcMain.initialize();
 
   loadTokenizerModules().catch((error) => {
     console.error("Failed to preload tokenizer modules:", error);

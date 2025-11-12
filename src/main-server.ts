@@ -145,7 +145,8 @@ const httpIpcMain = new HttpIpcMainAdapter(app);
 (async () => {
   // Initialize config and IPC service
   const config = new Config();
-  const ipcMainService = await IpcMain.create(config);
+  const ipcMainService = new IpcMain(config);
+  await ipcMainService.initialize();
 
   // Register IPC handlers
   ipcMainService.register(

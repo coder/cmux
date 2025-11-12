@@ -104,7 +104,8 @@ export async function createHeadlessEnvironment(
   const mockIpcMainModule = mockedElectron.ipcMain;
   const mockIpcRendererModule = mockedElectron.ipcRenderer;
 
-  const ipcMain = await IpcMain.create(config);
+  const ipcMain = new IpcMain(config);
+  await ipcMain.initialize();
   ipcMain.register(mockIpcMainModule, mockWindow);
 
   const dispose = async () => {

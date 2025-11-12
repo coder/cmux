@@ -3,12 +3,12 @@ import * as path from "path";
 import * as os from "os";
 import * as crypto from "crypto";
 import * as jsonc from "jsonc-parser";
-import writeFileAtomic from "write-file-atomic";
 import type { WorkspaceMetadata, FrontendWorkspaceMetadata } from "./types/workspace";
 import type { Secret, SecretsConfig } from "./types/secrets";
 import type { Workspace, ProjectConfig, ProjectsConfig } from "./types/project";
 import type { RuntimeConfig } from "./types/runtime";
 import { DEFAULT_RUNTIME_CONFIG } from "./constants/workspace";
+import { writeFileAtomicallySync } from "./utils/atomicWrite";
 
 // Re-export project types from dedicated types file (for preload usage)
 export type { Workspace, ProjectConfig, ProjectsConfig };
@@ -81,7 +81,7 @@ export class Config {
         projects: Array.from(config.projects.entries()),
       };
 
-      writeFileAtomic.sync(this.configFile, JSON.stringify(data, null, 2));
+      writeFileAtomicallySync(this.configFile, JSON.stringify(data, null, 2));
     } catch (error) {
       console.error("Error saving config:", error);
     }
@@ -485,7 +485,7 @@ ${jsonString}`;
         fs.mkdirSync(this.rootDir, { recursive: true });
       }
 
-      writeFileAtomic.sync(this.secretsFile, JSON.stringify(config, null, 2));
+      writeFileAtomicallySync(this.secretsFile, JSON.stringify(config, null, 2));
     } catch (error) {
       console.error("Error saving secrets config:", error);
       throw error;

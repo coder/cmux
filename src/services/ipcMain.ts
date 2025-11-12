@@ -59,44 +59,29 @@ export class IpcMain {
 
   private registered = false;
 
-  private constructor(
-    config: Config,
-    historyService: HistoryService,
-    partialService: PartialService,
-    initStateManager: InitStateManager,
-    extensionMetadata: ExtensionMetadataService,
-    aiService: AIService
-  ) {
+  constructor(config: Config) {
     this.config = config;
-    this.historyService = historyService;
-    this.partialService = partialService;
-    this.initStateManager = initStateManager;
-    this.extensionMetadata = extensionMetadata;
-    this.aiService = aiService;
+    this.historyService = new HistoryService(config);
+    this.partialService = new PartialService(config, this.historyService);
+    this.initStateManager = new InitStateManager(config);
+    this.extensionMetadata = new ExtensionMetadataService();
+    this.aiService = new AIService(
+      config,
+      this.historyService,
+      this.partialService,
+      this.initStateManager
+    );
 
     // Listen to AIService events to update metadata
     this.setupMetadataListeners();
   }
 
   /**
-   * Create a new IpcMain instance.
-   * Use this static factory method instead of the constructor.
+   * Initialize the service. Call this after construction.
+   * This is separate from the constructor to support async initialization.
    */
-  static async create(config: Config): Promise<IpcMain> {
-    const historyService = new HistoryService(config);
-    const partialService = new PartialService(config, historyService);
-    const initStateManager = new InitStateManager(config);
-    const extensionMetadata = await ExtensionMetadataService.create();
-    const aiService = new AIService(config, historyService, partialService, initStateManager);
-
-    return new IpcMain(
-      config,
-      historyService,
-      partialService,
-      initStateManager,
-      extensionMetadata,
-      aiService
-    );
+  async initialize(): Promise<void> {
+    await this.extensionMetadata.initialize();
   }
 
   /**
