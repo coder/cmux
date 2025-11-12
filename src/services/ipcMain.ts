@@ -1401,7 +1401,7 @@ export class IpcMain {
         const cmd = isSSH ? "osascript" : "open";
         let args: string[];
         if (isSSH && sshArgs) {
-          // Terminal.app: Use osascript to run ssh command
+          // Terminal.app: Use osascript with proper AppleScript structure
           // Properly escape single quotes in args before wrapping in quotes
           const sshCommand = `ssh ${sshArgs
             .map((arg) => {
@@ -1412,7 +1412,9 @@ export class IpcMain {
               return arg;
             })
             .join(" ")}`;
-          const script = `tell application "Terminal" to do script "${sshCommand.replace(/"/g, '\\"')}"`;
+          // Escape double quotes for AppleScript string
+          const escapedCommand = sshCommand.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+          const script = `tell application "Terminal"\nactivate\ndo script "${escapedCommand}"\nend tell`;
           args = ["-e", script];
         } else {
           // Terminal.app opens in the directory when passed as argument
