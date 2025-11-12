@@ -155,12 +155,9 @@ function AppInner() {
     }
   }, [selectedWorkspace, workspaceMetadata, setSelectedWorkspace]);
 
-  const openWorkspaceInTerminal = useCallback(
-    (workspaceId: string) => {
-      void window.api.workspace.openTerminal(workspaceId);
-    },
-    []
-  );
+  const openWorkspaceInTerminal = useCallback((workspaceId: string) => {
+    void window.api.workspace.openTerminal(workspaceId);
+  }, []);
 
   const handleRemoveProject = useCallback(
     async (path: string) => {
