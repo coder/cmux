@@ -1,6 +1,16 @@
 import * as fs from "fs";
 import * as path from "path";
 import * as os from "os";
+import Database from "better-sqlite3";
+
+/**
+ * Extension metadata from SQLite database
+ */
+export interface ExtensionMetadata {
+  recency: number;
+  streaming: boolean;
+  lastModel: string | null;
+}
 
 /**
  * Runtime configuration for workspace execution environments
@@ -50,6 +60,7 @@ export interface CmuxConfig {
  */
 export interface WorkspaceWithContext extends WorkspaceMetadata {
   projectPath: string;
+  extensionMetadata?: ExtensionMetadata;
 }
 
 /**
@@ -72,6 +83,45 @@ export function readCmuxConfig(): CmuxConfig | null {
 }
 
 /**
+ * Read workspace metadata from SQLite database.
+ * This provides recency and streaming status for sorting and display.
+ */
+function readMetadataStore(): Map<string, ExtensionMetadata> {
+  const dbPath = path.join(os.homedir(), ".cmux", "metadata.db");
+
+  // Check if DB exists
+  if (!fs.existsSync(dbPath)) {
+    return new Map();
+  }
+
+  try {
+    const db = new Database(dbPath, { readonly: true });
+    const stmt = db.prepare(`
+      SELECT workspace_id, recency, streaming, last_model
+      FROM workspace_metadata
+      ORDER BY recency DESC
+    `);
+
+    const rows = stmt.all() as any[];
+    const map = new Map<string, ExtensionMetadata>();
+
+    for (const row of rows) {
+      map.set(row.workspace_id, {
+        recency: row.recency,
+        streaming: row.streaming === 1,
+        lastModel: row.last_model,
+      });
+    }
+
+    db.close();
+    return map;
+  } catch (error) {
+    console.error("Failed to read metadata store:", error);
+    return new Map();
+  }
+}
+
+/**
  * Get all workspaces from the cmux configuration
  */
 export function getAllWorkspaces(): WorkspaceWithContext[] {
@@ -80,20 +130,35 @@ export function getAllWorkspaces(): WorkspaceWithContext[] {
     return [];
   }
 
+  const metadata = readMetadataStore();
   const workspaces: WorkspaceWithContext[] = [];
 
   for (const [projectPath, projectConfig] of config.projects) {
     const projectName = path.basename(projectPath);
-    
+
     for (const workspace of projectConfig.workspaces) {
+      const meta = metadata.get(workspace.id);
+
       workspaces.push({
         ...workspace,
         // Ensure projectName is set (use from workspace or derive from path)
         projectName: workspace.projectName || projectName,
         projectPath,
+        extensionMetadata: meta,
       });
     }
   }
+
+  // Sort by recency (metadata recency > createdAt > name)
+  workspaces.sort((a, b) => {
+    const aRecency =
+      a.extensionMetadata?.recency ?? (a.createdAt ? Date.parse(a.createdAt) : 0);
+    const bRecency =
+      b.extensionMetadata?.recency ?? (b.createdAt ? Date.parse(b.createdAt) : 0);
+
+    if (aRecency !== bRecency) return bRecency - aRecency;
+    return a.name.localeCompare(b.name);
+  });
 
   return workspaces;
 }

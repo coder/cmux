@@ -6,11 +6,21 @@ import { openWorkspace } from "./workspaceOpener";
  * Format workspace for display in QuickPick
  */
 function formatWorkspaceLabel(workspace: WorkspaceWithContext): string {
+  // Choose icon based on streaming status and runtime type
+  const icon = workspace.extensionMetadata?.streaming
+    ? "$(sync~spin)" // Spinning icon for active streaming
+    : workspace.runtimeConfig?.type === "ssh"
+      ? "$(remote)"
+      : "$(folder)";
+
+  const baseName = `${icon} [${workspace.projectName}] ${workspace.name}`;
+
+  // Add SSH host info if applicable
   if (workspace.runtimeConfig?.type === "ssh") {
-    return `$(remote) [${workspace.projectName}] ${workspace.name} (ssh: ${workspace.runtimeConfig.host})`;
+    return `${baseName} (ssh: ${workspace.runtimeConfig.host})`;
   }
 
-  return `$(folder) [${workspace.projectName}] ${workspace.name}`;
+  return baseName;
 }
 
 /**

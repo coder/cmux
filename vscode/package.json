@@ -40,6 +40,7 @@
     "package": "vsce package"
   },
   "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^20.0.0",
     "@types/vscode": "^1.85.0",
     "@vscode/vsce": "^2.22.0",
@@ -50,5 +51,8 @@
     "url": "https://github.com/coder/cmux.git",
     "directory": "vscode"
   },
-  "license": "AGPL-3.0-only"
+  "license": "AGPL-3.0-only",
+  "dependencies": {
+    "better-sqlite3": "^12.4.1"
+  }
 }

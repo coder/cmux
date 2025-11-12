@@ -28,12 +28,13 @@ import { InitStateManager } from "@/services/initStateManager";
 import { createRuntime } from "@/runtime/runtimeFactory";
 import type { RuntimeConfig } from "@/types/runtime";
 import { validateProjectPath } from "@/utils/pathUtils";
+import { MetadataStore } from "@/services/MetadataStore";
 /**
  * IpcMain - Manages all IPC handlers and service coordination
  *
  * This class encapsulates:
  * - All ipcMain handler registration
- * - Service lifecycle management (AIService, HistoryService, PartialService, InitStateManager)
+ * - Service lifecycle management (AIService, HistoryService, PartialService, InitStateManager, MetadataStore)
  * - Event forwarding from services to renderer
  *
  * Design:
@@ -47,6 +48,7 @@ export class IpcMain {
   private readonly partialService: PartialService;
   private readonly aiService: AIService;
   private readonly initStateManager: InitStateManager;
+  private readonly metadataStore: MetadataStore;
   private readonly sessions = new Map<string, AgentSession>();
   private readonly sessionSubscriptions = new Map<
     string,
@@ -61,12 +63,50 @@ export class IpcMain {
     this.historyService = new HistoryService(config);
     this.partialService = new PartialService(config, this.historyService);
     this.initStateManager = new InitStateManager(config);
+    this.metadataStore = new MetadataStore();
     this.aiService = new AIService(
       config,
       this.historyService,
       this.partialService,
       this.initStateManager
     );
+
+    // Clear stale streaming flags on startup (from crashes)
+    this.metadataStore.clearStaleStreaming();
+
+    // Listen to AIService events to update metadata store
+    this.setupMetadataListeners();
+  }
+
+  /**
+   * Setup listeners to update metadata store based on AIService events.
+   * This tracks workspace recency and streaming status for VS Code extension integration.
+   */
+  private setupMetadataListeners(): void {
+    // Update streaming status and recency on stream start
+    this.aiService.on("stream-start", (data: unknown) => {
+      if (data && typeof data === "object" && "workspaceId" in data && "model" in data) {
+        this.metadataStore.setStreaming(
+          (data as { workspaceId: string; model: string }).workspaceId,
+          true,
+          (data as { workspaceId: string; model: string }).model
+        );
+      }
+    });
+
+    // Clear streaming status on stream end
+    this.aiService.on("stream-end", (data: unknown) => {
+      if (data && typeof data === "object" && "workspaceId" in data) {
+        this.metadataStore.setStreaming((data as { workspaceId: string }).workspaceId, false);
+      }
+    });
+
+    // Clear streaming status on stream abort
+    this.aiService.on("stream-abort", (data: unknown) => {
+      if (data && typeof data === "object" && "workspaceId" in data) {
+        this.metadataStore.setStreaming((data as { workspaceId: string }).workspaceId, false);
+      }
+    });
   }
 
   private getOrCreateSession(workspaceId: string): AgentSession {
@@ -655,6 +695,10 @@ export class IpcMain {
         });
         try {
           const session = this.getOrCreateSession(workspaceId);
+
+          // Update recency on user message
+          this.metadataStore.updateRecency(workspaceId);
+
           const result = await session.sendMessage(message, options);
           if (!result.success) {
             log.error("sendMessage handler: session returned error", {
@@ -1046,6 +1090,9 @@ export class IpcMain {
       if (!aiResult.success) {
         return { success: false, error: aiResult.error };
       }
+
+      // Delete workspace metadata from metadata store
+      this.metadataStore.deleteWorkspace(workspaceId);
 
       // Update config to remove the workspace from all projects
       const projectsConfig = this.config.loadConfigOrDefault();
