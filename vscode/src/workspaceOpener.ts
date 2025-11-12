@@ -2,7 +2,7 @@ import * as vscode from "vscode";
 import {
   WorkspaceWithContext,
   getWorkspacePath,
-  getRemoteWorkspacePath,
+  getSSHWorkspacePath,
 } from "./cmuxConfig";
 
 /**
@@ -64,7 +64,7 @@ async function openSshWorkspace(workspace: WorkspaceWithContext) {
   }
 
   const host = workspace.runtimeConfig.host;
-  const remotePath = getRemoteWorkspacePath(workspace);
+  const remotePath = getSSHWorkspacePath(workspace);
 
   // Format: vscode-remote://ssh-remote+<host><absolute-path>
   // Both ms-vscode-remote.remote-ssh and anysphere.remote-ssh use the same URI scheme

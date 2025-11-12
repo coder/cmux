@@ -1,10 +1,12 @@
 import * as path from "path";
+import * as os from "os";
 import { Config } from "cmux/config";
 import type { WorkspaceMetadata } from "cmux/types/workspace";
 import {
   type ExtensionMetadata,
   readExtensionMetadata,
 } from "cmux/utils/extensionMetadata";
+import { getProjectName } from "cmux/utils/runtime/helpers";
 
 /**
  * Workspace with extension metadata for display in VS Code extension.
@@ -57,29 +59,27 @@ export function getAllWorkspaces(): WorkspaceWithContext[] {
 
 /**
  * Get the workspace path for a local workspace
- * This follows the same logic as cmux's Config.getWorkspacePath
+ * Uses the same logic as LocalRuntime.getWorkspacePath
  */
 export function getWorkspacePath(
   projectPath: string,
   workspaceName: string
 ): string {
-  const os = require("os");
-  const projectName = path.basename(projectPath);
+  const projectName = getProjectName(projectPath);
   const srcBaseDir = path.join(os.homedir(), ".cmux", "src");
   return path.join(srcBaseDir, projectName, workspaceName);
 }
 
 /**
  * Get the workspace path for an SSH workspace
+ * Uses the same logic as SSHRuntime.getWorkspacePath
  */
-export function getRemoteWorkspacePath(
-  workspace: WorkspaceWithContext
-): string {
+export function getSSHWorkspacePath(workspace: WorkspaceWithContext): string {
   if (!workspace.runtimeConfig || workspace.runtimeConfig.type !== "ssh") {
     throw new Error("Not an SSH workspace");
   }
 
-  const projectName = path.basename(workspace.projectPath);
+  const projectName = getProjectName(workspace.projectPath);
   const srcBaseDir = workspace.runtimeConfig.srcBaseDir;
 
   // Remote paths should be absolute (starting with / or ~)
@@ -88,5 +88,5 @@ export function getRemoteWorkspacePath(
       ? srcBaseDir
       : `/${srcBaseDir}`;
 
-  return `${basePath}/${projectName}/${workspace.name}`;
+  return path.posix.join(basePath, projectName, workspace.name);
 }
