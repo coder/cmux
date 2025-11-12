@@ -1188,8 +1188,7 @@ export class SSHRuntime implements Runtime {
     const sourceWorkspacePath = this.getWorkspacePath(projectPath, sourceWorkspaceName);
     const newWorkspacePath = this.getWorkspacePath(projectPath, newWorkspaceName);
 
-    // Expand tilde paths before using in remote commands
-    const expandedSourcePath = expandTildeForSSH(sourceWorkspacePath);
+    // Expand tilde path for the new workspace directory
     const expandedNewPath = expandTildeForSSH(newWorkspacePath);
 
     try {
