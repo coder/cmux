@@ -28,13 +28,15 @@ interface UseAIViewKeybindsParams {
 
 /**
  * Manages keyboard shortcuts for AIView:
- * - Esc (non-vim) or Ctrl+C (vim): Interrupt stream
+ * - Esc (non-vim) or Ctrl+C (vim): Interrupt stream (always, regardless of selection)
  * - Ctrl+I: Focus chat input
  * - Ctrl+Shift+T: Toggle thinking level
  * - Ctrl+G: Jump to bottom
  * - Ctrl+T: Open terminal
  * - Ctrl+C (during compaction in vim mode): Cancel compaction, restore command
  * - Ctrl+A (during compaction): Accept early with [truncated]
+ *
+ * Note: In vim mode, Ctrl+C always interrupts streams. Use vim yank (y) commands for copying.
  */
 export function useAIViewKeybinds({
   workspaceId,
@@ -74,43 +76,13 @@ export function useAIViewKeybinds({
         }
 
         // Normal stream interrupt (non-compaction)
-        // In vim mode with Ctrl+C: Allow copy when text is selected, interrupt otherwise
-        // In non-vim mode with Esc: Always interrupt (Esc doesn't have default copy behavior)
-        if (vimEnabled) {
-          // Vim mode: Check for text selection to allow Ctrl+C copy
-          const inEditableElement = isEditableElement(e.target);
-          let hasSelection = false;
-
-          if (inEditableElement) {
-            // For input/textarea elements, check selectionStart/selectionEnd
-            // (window.getSelection() doesn't work for form elements)
-            const target = e.target as HTMLInputElement | HTMLTextAreaElement;
-            hasSelection =
-              typeof target.selectionStart === "number" &&
-              typeof target.selectionEnd === "number" &&
-              target.selectionStart !== target.selectionEnd;
-          } else {
-            // For contentEditable and other elements, use window.getSelection()
-            hasSelection = (window.getSelection()?.toString().length ?? 0) > 0;
-          }
-
-          if ((canInterrupt || showRetryBarrier) && (!inEditableElement || !hasSelection)) {
-            e.preventDefault();
-            setAutoRetry(false); // User explicitly stopped - don't auto-retry
-            void window.api.workspace.interruptStream(workspaceId);
-            return;
-          }
-
-          // Let browser handle Ctrl+C (copy) when there's a selection
+        // Vim mode: Ctrl+C always interrupts (vim uses yank for copy, not Ctrl+C)
+        // Non-vim mode: Esc always interrupts
+        if (canInterrupt || showRetryBarrier) {
+          e.preventDefault();
+          setAutoRetry(false); // User explicitly stopped - don't auto-retry
+          void window.api.workspace.interruptStream(workspaceId);
           return;
-        } else {
-          // Non-vim mode: Esc always interrupts
-          if (canInterrupt || showRetryBarrier) {
-            e.preventDefault();
-            setAutoRetry(false);
-            void window.api.workspace.interruptStream(workspaceId);
-            return;
-          }
         }
       }
 

@@ -149,6 +149,14 @@ ESC is used for:
 3. NOT used for interrupting streams in Vim mode (use **Ctrl-C**)
 4. In non-Vim mode, **Esc** interrupts streams
 
+### Ctrl+C Key (Vim Mode)
+
+In Vim mode, **Ctrl+C always interrupts streams** (similar to terminal interrupt behavior). This means:
+
+- Standard Ctrl+C copy is **not available** in Vim mode
+- Use **vim yank commands** (`y`, `yy`, `yiw`, etc.) to copy text instead
+- This provides consistent interrupt behavior whether text is selected or not
+
 ## Tips
 
 1. **Learn operators + motions**: Instead of memorizing every command, learn the operators (d, c, y) and motions (w, b, $, 0). They combine naturally.
