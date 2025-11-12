@@ -42,7 +42,8 @@
     "storybook": "make storybook",
     "storybook:build": "make storybook-build",
     "test:storybook": "make test-storybook",
-    "rebuild": "echo \"No native modules to rebuild\""
+    "rebuild": "electron-rebuild -f -w better-sqlite3",
+    "postinstall": "npm run rebuild"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^2.0.29",
@@ -83,6 +84,7 @@
     "zod-to-json-schema": "^3.24.6"
   },
   "devDependencies": {
+    "@electron/rebuild": "^4.0.1",
     "@eslint/js": "^9.36.0",
     "@playwright/test": "^1.56.0",
     "@storybook/addon-docs": "^10.0.0",

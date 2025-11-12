@@ -79,10 +79,17 @@ all: build
 node_modules/.installed: package.json bun.lock
 	@echo "Dependencies out of date or missing, running bun install..."
 	@bun install
+	@echo "Rebuilding native modules for Electron..."
+	@bun run rebuild
 	@touch node_modules/.installed
 
 # Legacy target for backwards compatibility
 ensure-deps: node_modules/.installed
+
+# Rebuild native modules for Electron (run this after adding native dependencies)
+rebuild: ## Rebuild native modules for Electron
+	@echo "Rebuilding native modules for Electron..."
+	@bun run rebuild
 
 ## Help
 help: ## Show this help message
