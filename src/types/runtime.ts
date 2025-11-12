@@ -74,3 +74,13 @@ export function buildRuntimeString(mode: RuntimeMode, host: string): string | un
   }
   return undefined;
 }
+
+
+/**
+ * Type guard to check if a runtime config is SSH
+ */
+export function isSSHRuntime(
+  config: RuntimeConfig | undefined
+): config is Extract<RuntimeConfig, { type: "ssh" }> {
+  return config?.type === "ssh";
+}
