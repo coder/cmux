@@ -25,6 +25,7 @@ import { execAsync, DisposableProcess } from "../utils/disposableExec";
 import { getProjectName } from "../utils/runtime/helpers";
 import { getErrorMessage } from "../utils/errors";
 import { expandTilde } from "./tildeExpansion";
+import { sanitizeBranchNameForDirectory } from "../utils/workspace/directoryName";
 
 /**
  * Local runtime implementation that executes commands and file operations
@@ -310,11 +311,11 @@ export class LocalRuntime implements Runtime {
   }
 
   async createWorkspace(params: WorkspaceCreationParams): Promise<WorkspaceCreationResult> {
-    const { projectPath, branchName, trunkBranch, initLogger } = params;
+    const { projectPath, branchName, trunkBranch, directoryName, initLogger } = params;
 
     try {
-      // Compute workspace path using the canonical method
-      const workspacePath = this.getWorkspacePath(projectPath, branchName);
+      // Compute workspace path using the sanitized directory name
+      const workspacePath = this.getWorkspacePath(projectPath, directoryName);
       initLogger.logStep("Creating git worktree...");
 
       // Create parent directory if needed
@@ -451,11 +452,21 @@ export class LocalRuntime implements Runtime {
     { success: true; oldPath: string; newPath: string } | { success: false; error: string }
   > {
     // Note: _abortSignal ignored for local operations (fast, no need for cancellation)
-    // Compute workspace paths using canonical method
-    const oldPath = this.getWorkspacePath(projectPath, oldName);
-    const newPath = this.getWorkspacePath(projectPath, newName);
+    // Compute workspace paths using sanitized directory names
+    const oldDirName = sanitizeBranchNameForDirectory(oldName);
+    const newDirName = sanitizeBranchNameForDirectory(newName);
+    const oldPath = this.getWorkspacePath(projectPath, oldDirName);
+    const newPath = this.getWorkspacePath(projectPath, newDirName);
 
     try {
+      // Create parent directory for new path if needed (for nested directory names)
+      const newParentDir = path.dirname(newPath);
+      try {
+        await fsPromises.access(newParentDir);
+      } catch {
+        await fsPromises.mkdir(newParentDir, { recursive: true });
+      }
+
       // Use git worktree move to rename the worktree directory
       // This updates git's internal worktree metadata correctly
       using proc = execAsync(`git -C "${projectPath}" worktree move "${oldPath}" "${newPath}"`);
@@ -593,7 +604,7 @@ export class LocalRuntime implements Runtime {
         projectPath,
         branchName: newWorkspaceName,
         trunkBranch: sourceBranch, // Fork from source branch instead of main/master
-        directoryName: newWorkspaceName,
+        directoryName: sanitizeBranchNameForDirectory(newWorkspaceName),
         initLogger,
       });
 

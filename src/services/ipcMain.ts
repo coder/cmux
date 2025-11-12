@@ -19,6 +19,10 @@ import type { SendMessageError } from "@/types/errors";
 import type { SendMessageOptions, DeleteMessage } from "@/types/ipc";
 import { Ok, Err } from "@/types/result";
 import { validateWorkspaceName } from "@/utils/validation/workspaceValidation";
+import {
+  sanitizeBranchNameForDirectory,
+  detectDirectoryNameConflict,
+} from "@/utils/workspace/directoryName";
 import type { WorkspaceMetadata } from "@/types/workspace";
 import { createBashTool } from "@/services/tools/bash";
 import type { BashToolResult } from "@/types/tools";
@@ -220,6 +224,23 @@ export class IpcMain {
           return { success: false, error: validation.error };
         }
 
+        // Check for directory name conflicts with existing workspaces
+        const config = this.config.loadConfigOrDefault();
+        const projectConfig = config.projects.get(projectPath);
+        if (projectConfig) {
+          const existingBranchNames = projectConfig.workspaces
+            .map((ws) => ws.name)
+            .filter((name): name is string => name !== undefined);
+          const conflict = detectDirectoryNameConflict(branchName, existingBranchNames);
+          if (conflict) {
+            const sanitizedName = sanitizeBranchNameForDirectory(branchName);
+            return {
+              success: false,
+              error: `Branch name "${branchName}" conflicts with existing workspace "${conflict}" (both use directory "${sanitizedName}")`,
+            };
+          }
+        }
+
         if (typeof trunkBranch !== "string" || trunkBranch.trim().length === 0) {
           return { success: false, error: "Trunk branch is required" };
         }
@@ -284,11 +305,12 @@ export class IpcMain {
         };
 
         // Phase 1: Create workspace structure (FAST - returns immediately)
+        const directoryName = sanitizeBranchNameForDirectory(branchName);
         const createResult = await runtime.createWorkspace({
           projectPath,
           branchName,
           trunkBranch: normalizedTrunkBranch,
-          directoryName: branchName, // Use branch name as directory name
+          directoryName, // Sanitized directory name (slashes → dashes)
           initLogger,
         });
 
@@ -405,6 +427,48 @@ export class IpcMain {
             return Ok({ newWorkspaceId: workspaceId });
           }
 
+          // Find project path from config (needed for subsequent checks)
+          const workspace = this.config.findWorkspace(workspaceId);
+          if (!workspace) {
+            return Err("Failed to find workspace in config");
+          }
+          const { projectPath } = workspace;
+
+          // If the sanitized directory names are the same, it's also a no-op
+          // (e.g., renaming "feature-foo" to "feature/foo")
+          const oldDirName = sanitizeBranchNameForDirectory(oldName);
+          const newDirName = sanitizeBranchNameForDirectory(newName);
+          if (oldDirName === newDirName) {
+            // Still need to update the name in config even though directory stays the same
+            this.config.editConfig((config) => {
+              const projectConfig = config.projects.get(projectPath);
+              if (projectConfig) {
+                const workspaceEntry = projectConfig.workspaces.find((w) => w.id === workspaceId);
+                if (workspaceEntry) {
+                  workspaceEntry.name = newName;
+                }
+              }
+              return config;
+            });
+
+            // Get updated metadata and emit event
+            const allMetadata = this.config.getAllWorkspaceMetadata();
+            const updatedMetadata = allMetadata.find((m) => m.id === workspaceId);
+            if (updatedMetadata) {
+              const session = this.sessions.get(workspaceId);
+              if (session) {
+                session.emitMetadata(updatedMetadata);
+              } else if (this.mainWindow) {
+                this.mainWindow.webContents.send(IPC_CHANNELS.WORKSPACE_METADATA, {
+                  workspaceId,
+                  metadata: updatedMetadata,
+                });
+              }
+            }
+
+            return Ok({ newWorkspaceId: workspaceId });
+          }
+
           // Check if new name collides with existing workspace name or ID
           const allWorkspaces = this.config.getAllWorkspaceMetadata();
           const collision = allWorkspaces.find(
@@ -414,12 +478,23 @@ export class IpcMain {
             return Err(`Workspace with name "${newName}" already exists`);
           }
 
-          // Find project path from config
-          const workspace = this.config.findWorkspace(workspaceId);
-          if (!workspace) {
-            return Err("Failed to find workspace in config");
+          // Check for directory name conflicts with existing workspaces
+          const config = this.config.loadConfigOrDefault();
+          const projectConfig = config.projects.get(projectPath);
+          if (projectConfig) {
+            // Exclude the workspace being renamed from conflict detection
+            const existingBranchNames = projectConfig.workspaces
+              .filter((ws) => ws.id !== workspaceId)
+              .map((ws) => ws.name)
+              .filter((name): name is string => name !== undefined);
+            const conflict = detectDirectoryNameConflict(newName, existingBranchNames);
+            if (conflict) {
+              const sanitizedName = sanitizeBranchNameForDirectory(newName);
+              return Err(
+                `Branch name "${newName}" conflicts with existing workspace "${conflict}" (both use directory "${sanitizedName}")`
+              );
+            }
           }
-          const { projectPath } = workspace;
 
           // Create runtime instance for this workspace
           // For local runtimes, workdir should be srcDir, not the individual workspace path

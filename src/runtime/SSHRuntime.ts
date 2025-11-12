@@ -785,9 +785,9 @@ export class SSHRuntime implements Runtime {
 
   async createWorkspace(params: WorkspaceCreationParams): Promise<WorkspaceCreationResult> {
     try {
-      const { projectPath, branchName, initLogger, abortSignal } = params;
-      // Compute workspace path using canonical method
-      const workspacePath = this.getWorkspacePath(projectPath, branchName);
+      const { projectPath, branchName, directoryName, initLogger, abortSignal } = params;
+      // Compute workspace path using sanitized directory name
+      const workspacePath = this.getWorkspacePath(projectPath, directoryName);
 
       // Prepare parent directory for git clone (fast - returns immediately)
       // Note: git clone will create the workspace directory itself during initWorkspace,

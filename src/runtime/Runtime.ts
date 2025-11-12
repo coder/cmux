@@ -115,7 +115,11 @@ export interface WorkspaceCreationParams {
   branchName: string;
   /** Trunk branch to base new branches on */
   trunkBranch: string;
-  /** Directory name to use for workspace (typically branch name) */
+  /**
+   * Directory name to use for workspace (sanitized branch name).
+   * This is the filesystem-safe version with slashes converted to dashes.
+   * ALWAYS computed via sanitizeBranchNameForDirectory(), never stored.
+   */
   directoryName: string;
   /** Logger for streaming creation progress and init hook output */
   initLogger: InitLogger;
