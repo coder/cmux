@@ -7,6 +7,8 @@ import writeFileAtomic from "write-file-atomic";
 import type { WorkspaceMetadata, FrontendWorkspaceMetadata } from "./types/workspace";
 import type { Secret, SecretsConfig } from "./types/secrets";
 import type { Workspace, ProjectConfig, ProjectsConfig } from "./types/project";
+import type { RuntimeConfig } from "./types/runtime";
+import { DEFAULT_RUNTIME_CONFIG } from "./constants/workspace";
 
 // Re-export project types from dedicated types file (for preload usage)
 export type { Workspace, ProjectConfig, ProjectsConfig };
@@ -97,6 +99,28 @@ export class Config {
 
   private getProjectName(projectPath: string): string {
     return projectPath.split("/").pop() ?? projectPath.split("\\").pop() ?? "unknown";
+  }
+
+  /**
+   * Get default runtime config for local workspaces
+   * This ensures all workspaces have a runtime config set
+   */
+  private getDefaultRuntimeConfig(): RuntimeConfig {
+    return DEFAULT_RUNTIME_CONFIG;
+  }
+
+  /**
+   * Ensure workspace metadata has a runtime config
+   * If missing, applies the default local runtime config
+   */
+  private ensureRuntimeConfig(metadata: WorkspaceMetadata): WorkspaceMetadata {
+    if (!metadata.runtimeConfig) {
+      return {
+        ...metadata,
+        runtimeConfig: this.getDefaultRuntimeConfig(),
+      };
+    }
+    return metadata;
   }
 
   /**
@@ -249,15 +273,15 @@ export class Config {
         try {
           // NEW FORMAT: If workspace has metadata in config, use it directly
           if (workspace.id && workspace.name) {
-            const metadata: WorkspaceMetadata = {
+            let metadata: WorkspaceMetadata = {
               id: workspace.id,
               name: workspace.name,
               projectName,
               projectPath,
               // GUARANTEE: All workspaces must have createdAt (assign now if missing)
               createdAt: workspace.createdAt ?? new Date().toISOString(),
-              // Include runtime config if present (for SSH workspaces)
-              runtimeConfig: workspace.runtimeConfig,
+              // Include runtime config if present, otherwise default will be applied below
+              runtimeConfig: workspace.runtimeConfig ?? this.getDefaultRuntimeConfig(),
             };
 
             // Migrate missing createdAt to config for next load
@@ -265,6 +289,9 @@ export class Config {
               workspace.createdAt = metadata.createdAt;
               configModified = true;
             }
+
+            // GUARANTEE: All workspaces must have runtimeConfig (apply default if missing)
+            metadata = this.ensureRuntimeConfig(metadata);
 
             workspaceMetadata.push(this.addPathsToMetadata(metadata, workspace.path, projectPath));
             continue; // Skip metadata file lookup
@@ -293,6 +320,9 @@ export class Config {
             // GUARANTEE: All workspaces must have createdAt
             metadata.createdAt ??= new Date().toISOString();
 
+            // GUARANTEE: All workspaces must have runtimeConfig
+            metadata = this.ensureRuntimeConfig(metadata);
+
             // Migrate to config for next load
             workspace.id = metadata.id;
             workspace.name = metadata.name;
@@ -313,6 +343,8 @@ export class Config {
               projectPath,
               // GUARANTEE: All workspaces must have createdAt
               createdAt: new Date().toISOString(),
+              // GUARANTEE: All workspaces must have runtimeConfig
+              runtimeConfig: this.getDefaultRuntimeConfig(),
             };
 
             // Save to config for next load
@@ -334,6 +366,8 @@ export class Config {
             projectPath,
             // GUARANTEE: All workspaces must have createdAt (even in error cases)
             createdAt: new Date().toISOString(),
+            // GUARANTEE: All workspaces must have runtimeConfig (even in error cases)
+            runtimeConfig: this.getDefaultRuntimeConfig(),
           };
           workspaceMetadata.push(this.addPathsToMetadata(metadata, workspace.path, projectPath));
         }

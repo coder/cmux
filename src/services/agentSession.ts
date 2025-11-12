@@ -8,6 +8,7 @@ import type { HistoryService } from "@/services/historyService";
 import type { PartialService } from "@/services/partialService";
 import type { InitStateManager } from "@/services/initStateManager";
 import type { WorkspaceMetadata } from "@/types/workspace";
+import { DEFAULT_RUNTIME_CONFIG } from "@/constants/workspace";
 import type { WorkspaceChatMessage, StreamErrorMessage, SendMessageOptions } from "@/types/ipc";
 import type { SendMessageError } from "@/types/errors";
 import { createUnknownSendMessageError } from "@/services/utils/sendMessageError";
@@ -231,6 +232,7 @@ export class AgentSession {
       name: workspaceName,
       projectName: derivedProjectName,
       projectPath: derivedProjectPath,
+      runtimeConfig: DEFAULT_RUNTIME_CONFIG,
     };
 
     // Write metadata directly to config.json (single source of truth)

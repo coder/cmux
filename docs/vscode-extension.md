@@ -25,10 +25,10 @@ Download the latest `.vsix` file from the [GitHub releases page](https://github.
 
 ```bash
 # For VS Code
-code --install-extension cmux-0.1.0.vsix
+code --install-extension cmux-*.vsix
 
 # For Cursor
-cursor --install-extension cmux-0.1.0.vsix
+cursor --install-extension cmux-*.vsix
 ```
 
 **From editor UI:**
@@ -87,48 +87,6 @@ If you haven't configured the SSH host yet:
 
 2. Or use VS Code's Remote-SSH command:
    - `Cmd+Shift+P` → "Remote-SSH: Add New SSH Host..."
-
-### Troubleshooting SSH
-
-If opening an SSH workspace fails:
-
-1. **Verify host is configured**: Check `~/.ssh/config`
-2. **Test connection**: Run `ssh <hostname>` in terminal
-3. **Check Remote-SSH**: Ensure the extension is installed and working
-4. **Match host names**: The host in cmux must match the one in SSH config
-
-## How It Works
-
-The extension:
-
-1. Reads `~/.cmux/config.json` to get all workspaces
-2. Displays them in a QuickPick menu
-3. Opens local workspaces using `file://` URIs
-4. Opens SSH workspaces using `vscode-remote://` URIs (via Remote-SSH)
-
-The extension delegates SSH connection handling to VS Code's Remote-SSH extension, so it works the same way as manually opening remote folders.
-
-## When to Use
-
-This extension is ideal when:
-
-- You primarily work in VS Code
-- You want quick access to cmux workspaces without switching apps
-- You're jumping between multiple workspaces frequently
-- You have both local and SSH workspaces
-
-## Comparison with cmux
-
-| Feature                    | cmux App | VS Code Extension |
-| -------------------------- | -------- | ----------------- |
-| Create workspaces          | ✅       | ❌ (read-only)    |
-| Open workspaces            | ✅       | ✅                |
-| View git status            | ✅       | ❌                |
-| AI chat interface          | ✅       | ❌                |
-| Manage workspace lifecycle | ✅       | ❌                |
-| Quick access from VS Code  | ❌       | ✅                |
-
-The extension is designed to **complement** the cmux app, not replace it. Use cmux for workspace management and the extension for quick access from VS Code.
 
 ## Development
 

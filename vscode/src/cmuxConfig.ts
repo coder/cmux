@@ -2,11 +2,9 @@ import * as path from "path";
 import * as os from "os";
 import { Config } from "cmux/config";
 import type { WorkspaceMetadata } from "cmux/types/workspace";
-import {
-  type ExtensionMetadata,
-  readExtensionMetadata,
-} from "cmux/utils/extensionMetadata";
+import { type ExtensionMetadata, readExtensionMetadata } from "cmux/utils/extensionMetadata";
 import { getProjectName } from "cmux/utils/runtime/helpers";
+import { createRuntime } from "cmux/runtime/runtimeFactory";
 
 /**
  * Workspace with extension metadata for display in VS Code extension.
@@ -33,9 +31,7 @@ export function getAllWorkspaces(): WorkspaceWithContext[] {
   const enriched: WorkspaceWithContext[] = workspaces.map((ws) => {
     const meta = extensionMeta.get(ws.id);
     if (meta) {
-      console.log(
-        `[cmux]   ${ws.id}: recency=${meta.recency}, streaming=${meta.streaming}`
-      );
+      console.log(`[cmux]   ${ws.id}: recency=${meta.recency}, streaming=${meta.streaming}`);
     }
     return {
       ...ws,
@@ -58,35 +54,10 @@ export function getAllWorkspaces(): WorkspaceWithContext[] {
 }
 
 /**
- * Get the workspace path for a local workspace
- * Uses the same logic as LocalRuntime.getWorkspacePath
+ * Get the workspace path for local or SSH workspaces
+ * Uses Runtime to compute path using main app's logic
  */
-export function getWorkspacePath(
-  projectPath: string,
-  workspaceName: string
-): string {
-  const projectName = getProjectName(projectPath);
-  const srcBaseDir = path.join(os.homedir(), ".cmux", "src");
-  return path.join(srcBaseDir, projectName, workspaceName);
-}
-
-/**
- * Get the workspace path for an SSH workspace
- * Uses the same logic as SSHRuntime.getWorkspacePath
- */
-export function getSSHWorkspacePath(workspace: WorkspaceWithContext): string {
-  if (!workspace.runtimeConfig || workspace.runtimeConfig.type !== "ssh") {
-    throw new Error("Not an SSH workspace");
-  }
-
-  const projectName = getProjectName(workspace.projectPath);
-  const srcBaseDir = workspace.runtimeConfig.srcBaseDir;
-
-  // Remote paths should be absolute (starting with / or ~)
-  const basePath =
-    srcBaseDir.startsWith("/") || srcBaseDir.startsWith("~")
-      ? srcBaseDir
-      : `/${srcBaseDir}`;
-
-  return path.posix.join(basePath, projectName, workspace.name);
+export function getWorkspacePath(workspace: WorkspaceWithContext): string {
+  const runtime = createRuntime(workspace.runtimeConfig);
+  return runtime.getWorkspacePath(workspace.projectPath, workspace.name);
 }

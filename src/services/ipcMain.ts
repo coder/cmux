@@ -15,6 +15,7 @@ import { countTokens, countTokensBatch } from "@/utils/main/tokenizer";
 import { calculateTokenStats } from "@/utils/tokens/tokenStatsCalculator";
 import { IPC_CHANNELS, getChatChannel } from "@/constants/ipc-constants";
 import { SUPPORTED_PROVIDERS } from "@/constants/providers";
+import { DEFAULT_RUNTIME_CONFIG } from "@/constants/workspace";
 import type { SendMessageError } from "@/types/errors";
 import type { SendMessageOptions, DeleteMessage } from "@/types/ipc";
 import { Ok, Err } from "@/types/result";
@@ -637,6 +638,7 @@ export class IpcMain {
             projectName,
             projectPath: foundProjectPath,
             createdAt: new Date().toISOString(),
+            runtimeConfig: DEFAULT_RUNTIME_CONFIG,
           };
 
           // Write metadata to config.json

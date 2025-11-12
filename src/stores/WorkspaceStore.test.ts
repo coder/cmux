@@ -1,4 +1,5 @@
 import type { FrontendWorkspaceMetadata } from "@/types/workspace";
+import { DEFAULT_RUNTIME_CONFIG } from "@/constants/workspace";
 import { WorkspaceStore } from "./WorkspaceStore";
 
 // Mock window.api
@@ -54,6 +55,7 @@ function createAndAddWorkspace(
     projectPath: options.projectPath ?? "/path/to/project",
     namedWorkspacePath: options.namedWorkspacePath ?? "/path/to/workspace",
     createdAt: options.createdAt ?? new Date().toISOString(),
+    runtimeConfig: options.runtimeConfig ?? DEFAULT_RUNTIME_CONFIG,
   };
   store.addWorkspace(metadata);
   return metadata;
@@ -85,6 +87,7 @@ describe("WorkspaceStore", () => {
         projectPath: "/path/to/project",
         namedWorkspacePath: "/path/to/workspace",
         createdAt,
+        runtimeConfig: DEFAULT_RUNTIME_CONFIG,
       };
 
       // Add workspace with createdAt
@@ -112,6 +115,7 @@ describe("WorkspaceStore", () => {
         projectPath: "/path/to/project",
         namedWorkspacePath: "/path/to/workspace",
         createdAt,
+        runtimeConfig: DEFAULT_RUNTIME_CONFIG,
       };
 
       // Add workspace
@@ -153,6 +157,7 @@ describe("WorkspaceStore", () => {
         projectPath: "/test/project",
         namedWorkspacePath: "/test/project/test-workspace",
         createdAt: new Date().toISOString(),
+        runtimeConfig: DEFAULT_RUNTIME_CONFIG,
       };
 
       // Add workspace (should trigger IPC subscription)
@@ -181,6 +186,7 @@ describe("WorkspaceStore", () => {
         projectPath: "/test/project",
         namedWorkspacePath: "/test/project/test-workspace",
         createdAt: new Date().toISOString(),
+        runtimeConfig: DEFAULT_RUNTIME_CONFIG,
       };
 
       store.addWorkspace(metadata);
@@ -204,6 +210,7 @@ describe("WorkspaceStore", () => {
         projectPath: "/project-1",
         namedWorkspacePath: "/path/1",
         createdAt: new Date().toISOString(),
+        runtimeConfig: DEFAULT_RUNTIME_CONFIG,
       };
 
       const workspaceMap = new Map([[metadata1.id, metadata1]]);
@@ -223,6 +230,7 @@ describe("WorkspaceStore", () => {
         projectPath: "/project-1",
         namedWorkspacePath: "/path/1",
         createdAt: new Date().toISOString(),
+        runtimeConfig: DEFAULT_RUNTIME_CONFIG,
       };
 
       // Add workspace
@@ -289,6 +297,7 @@ describe("WorkspaceStore", () => {
         projectPath: "/test/project",
         namedWorkspacePath: "/test/project/test-workspace",
         createdAt: new Date().toISOString(),
+        runtimeConfig: DEFAULT_RUNTIME_CONFIG,
       };
 
       store.addWorkspace(metadata);
@@ -334,6 +343,7 @@ describe("WorkspaceStore", () => {
         projectPath: "/test/project",
         namedWorkspacePath: "/test/project/test-workspace",
         createdAt: new Date().toISOString(),
+        runtimeConfig: DEFAULT_RUNTIME_CONFIG,
       };
       store.addWorkspace(metadata);
 
@@ -389,6 +399,7 @@ describe("WorkspaceStore", () => {
         projectPath: "/test/project",
         namedWorkspacePath: "/test/project/test-workspace",
         createdAt: new Date().toISOString(),
+        runtimeConfig: DEFAULT_RUNTIME_CONFIG,
       };
       store.addWorkspace(metadata);
 
@@ -428,6 +439,7 @@ describe("WorkspaceStore", () => {
         projectPath: "/test/project",
         namedWorkspacePath: "/test/project/test-workspace",
         createdAt: new Date().toISOString(),
+        runtimeConfig: DEFAULT_RUNTIME_CONFIG,
       };
       store.addWorkspace(metadata);
 
@@ -467,6 +479,7 @@ describe("WorkspaceStore", () => {
         projectPath: "/test/project",
         namedWorkspacePath: "/test/project/test-workspace",
         createdAt,
+        runtimeConfig: DEFAULT_RUNTIME_CONFIG,
       };
       store.addWorkspace(metadata);
 
@@ -484,6 +497,7 @@ describe("WorkspaceStore", () => {
         projectPath: "/test/project",
         namedWorkspacePath: "/test/project/test-workspace",
         createdAt: new Date().toISOString(),
+        runtimeConfig: DEFAULT_RUNTIME_CONFIG,
       };
       store.addWorkspace(metadata);
 
@@ -513,6 +527,7 @@ describe("WorkspaceStore", () => {
         projectPath: "/test/project",
         namedWorkspacePath: "/test/project/test-workspace",
         createdAt: new Date().toISOString(),
+        runtimeConfig: DEFAULT_RUNTIME_CONFIG,
       };
       store.addWorkspace(metadata);
 
@@ -541,6 +556,7 @@ describe("WorkspaceStore", () => {
         projectPath: "/project-1",
         namedWorkspacePath: "/path/1",
         createdAt: new Date().toISOString(),
+        runtimeConfig: DEFAULT_RUNTIME_CONFIG,
       };
       const metadata2: FrontendWorkspaceMetadata = {
         id: "workspace-2",
@@ -549,6 +565,7 @@ describe("WorkspaceStore", () => {
         projectPath: "/project-2",
         namedWorkspacePath: "/path/2",
         createdAt: new Date().toISOString(),
+        runtimeConfig: DEFAULT_RUNTIME_CONFIG,
       };
 
       // Add workspaces concurrently
@@ -569,6 +586,7 @@ describe("WorkspaceStore", () => {
         projectPath: "/test/project",
         namedWorkspacePath: "/test/project/test-workspace",
         createdAt: new Date().toISOString(),
+        runtimeConfig: DEFAULT_RUNTIME_CONFIG,
       };
       store.addWorkspace(metadata);
 

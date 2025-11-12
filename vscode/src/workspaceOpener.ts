@@ -1,9 +1,5 @@
 import * as vscode from "vscode";
-import {
-  WorkspaceWithContext,
-  getWorkspacePath,
-  getSSHWorkspacePath,
-} from "./cmuxConfig";
+import { WorkspaceWithContext, getWorkspacePath } from "./cmuxConfig";
 
 /**
  * Check if a Remote-SSH extension is installed
@@ -17,24 +13,19 @@ function isRemoteSshInstalled(): boolean {
 }
 
 /**
- * Open a local workspace in a new VS Code window
- */
-async function openLocalWorkspace(workspace: WorkspaceWithContext) {
-  const workspacePath = getWorkspacePath(
-    workspace.projectPath,
-    workspace.name
-  );
-  const uri = vscode.Uri.file(workspacePath);
-
-  await vscode.commands.executeCommand("vscode.openFolder", uri, {
-    forceNewWindow: true,
-  });
-}
-
-/**
  * Open an SSH workspace in a new VS Code window
  */
-async function openSshWorkspace(workspace: WorkspaceWithContext) {
+export async function openWorkspace(workspace: WorkspaceWithContext) {
+  if (workspace.runtimeConfig.type === "local") {
+    const workspacePath = getWorkspacePath(workspace);
+    const uri = vscode.Uri.file(workspacePath);
+
+    await vscode.commands.executeCommand("vscode.openFolder", uri, {
+      forceNewWindow: true,
+    });
+    return;
+  }
+
   // Check if Remote-SSH is installed
   if (!isRemoteSshInstalled()) {
     const selection = await vscode.window.showErrorMessage(
@@ -48,23 +39,18 @@ async function openSshWorkspace(workspace: WorkspaceWithContext) {
       const extensionId = vscode.env.appName.toLowerCase().includes("cursor")
         ? "anysphere.remote-ssh"
         : "ms-vscode-remote.remote-ssh";
-      await vscode.commands.executeCommand(
-        "workbench.extensions.search",
-        `@id:${extensionId}`
-      );
+      await vscode.commands.executeCommand("workbench.extensions.search", `@id:${extensionId}`);
     }
     return;
   }
 
-  if (!workspace.runtimeConfig || workspace.runtimeConfig.type !== "ssh") {
-    vscode.window.showErrorMessage(
-      "cmux: Workspace is not configured for SSH."
-    );
+  if (workspace.runtimeConfig.type !== "ssh") {
+    vscode.window.showErrorMessage("cmux: Workspace is not configured for SSH.");
     return;
   }
 
   const host = workspace.runtimeConfig.host;
-  const remotePath = getSSHWorkspacePath(workspace);
+  const remotePath = getWorkspacePath(workspace);
 
   // Format: vscode-remote://ssh-remote+<host><absolute-path>
   // Both ms-vscode-remote.remote-ssh and anysphere.remote-ssh use the same URI scheme
@@ -72,11 +58,9 @@ async function openSshWorkspace(workspace: WorkspaceWithContext) {
   const remoteUri = `vscode-remote://ssh-remote+${host}${remotePath}`;
 
   try {
-    await vscode.commands.executeCommand(
-      "vscode.openFolder",
-      vscode.Uri.parse(remoteUri),
-      { forceNewWindow: true }
-    );
+    await vscode.commands.executeCommand("vscode.openFolder", vscode.Uri.parse(remoteUri), {
+      forceNewWindow: true,
+    });
   } catch (error) {
     const selection = await vscode.window.showErrorMessage(
       `cmux: Failed to open SSH workspace on host "${host}". ` +
@@ -88,21 +72,5 @@ async function openSshWorkspace(workspace: WorkspaceWithContext) {
     if (selection === "Open SSH Config") {
       await vscode.commands.executeCommand("remote-ssh.openConfigFile");
     }
-  }
-}
-
-/**
- * Open a cmux workspace (local or SSH) in a new VS Code window
- */
-export async function openWorkspace(
-  workspace: WorkspaceWithContext
-): Promise<void> {
-  const isRemote =
-    workspace.runtimeConfig && workspace.runtimeConfig.type === "ssh";
-
-  if (isRemote) {
-    await openSshWorkspace(workspace);
-  } else {
-    await openLocalWorkspace(workspace);
   }
 }
