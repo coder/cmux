@@ -22,7 +22,12 @@ import {
   validateApiKeys,
 } from "./setup";
 import type { TestEnvironment } from "./setup";
-import { IPC_CHANNELS } from "../../src/constants/ipc-constants";
+import {
+  IPC_CHANNELS,
+  EVENT_TYPE_PREFIX_INIT,
+  EVENT_TYPE_INIT_OUTPUT,
+  EVENT_TYPE_INIT_END,
+} from "../../src/constants/ipc-constants";
 import {
   createTempGitRepo,
   cleanupTempGitRepo,
@@ -44,6 +49,7 @@ import {
 import type { RuntimeConfig } from "../../src/types/runtime";
 import { createRuntime } from "../../src/runtime/runtimeFactory";
 import { streamToString } from "../../src/runtime/SSHRuntime";
+import { CMUX_DIR, INIT_HOOK_FILENAME } from "../../src/runtime/initHook";
 
 const execAsync = promisify(exec);
 
@@ -51,14 +57,6 @@ const execAsync = promisify(exec);
 const TEST_TIMEOUT_MS = 90000;
 const INIT_HOOK_WAIT_MS = 1500; // Wait for async init hook completion (local runtime)
 const SSH_INIT_WAIT_MS = 7000; // SSH init takes longer
-const CMUX_DIR = ".cmux";
-const INIT_HOOK_FILENAME = "init";
-
-// Event type constants
-const EVENT_PREFIX_WORKSPACE_CHAT = "workspace:chat:";
-const EVENT_TYPE_PREFIX_INIT = "init-";
-const EVENT_TYPE_INIT_OUTPUT = "init-output";
-const EVENT_TYPE_INIT_END = "init-end";
 
 // Skip all tests if TEST_INTEGRATION is not set
 const describeIntegration = shouldRunIntegrationTests() ? describe : describe.skip;
@@ -110,7 +108,7 @@ function setupInitEventCapture(env: TestEnvironment): Array<{ channel: string; d
   const originalSend = env.mockWindow.webContents.send;
 
   env.mockWindow.webContents.send = ((channel: string, data: unknown) => {
-    if (channel.startsWith(EVENT_PREFIX_WORKSPACE_CHAT) && isInitEvent(data)) {
+    if (channel.startsWith(IPC_CHANNELS.WORKSPACE_CHAT_PREFIX) && isInitEvent(data)) {
       capturedEvents.push({ channel, data });
     }
     originalSend.call(env.mockWindow.webContents, channel, data);
