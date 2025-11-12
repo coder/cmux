@@ -6,6 +6,8 @@ Configure cmux to use a separate Git identity for AI-generated commits, making i
 - Preventing (accidental) destructive actions
 - Enforcing review flow, e.g. preventing AI from merging into `main` while allowing humans
 
+![agentic git identity](./img/agentic-git-id.webp)
+
 ## Setup Overview
 
 1. Create a GitHub account for your agent (e.g., `username-agent`)
