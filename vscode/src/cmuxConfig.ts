@@ -1,11 +1,10 @@
 import * as fs from "fs";
 import * as path from "path";
 import * as os from "os";
-import Database from "better-sqlite3";
 import type { RuntimeConfig, WorkspaceMetadata } from "./shared/types";
 
 /**
- * Extension metadata from SQLite database
+ * Extension metadata from JSON file
  */
 export interface ExtensionMetadata {
   recency: number;
@@ -13,12 +12,10 @@ export interface ExtensionMetadata {
   lastModel: string | null;
 }
 
-// Row shape from metadata.db
-interface MetadataRow {
-  workspace_id: string;
-  recency: number;
-  streaming: number; // 0/1
-  last_model: string | null;
+// File structure for extensionMetadata.json
+interface ExtensionMetadataFile {
+  version: 1;
+  workspaces: Record<string, ExtensionMetadata>;
 }
 
 /**
@@ -64,42 +61,39 @@ export function readCmuxConfig(): CmuxConfig | null {
 }
 
 /**
- * Read workspace metadata from SQLite database.
+ * Read workspace metadata from JSON file.
  * This provides recency and streaming status for sorting and display.
  */
-function readMetadataStore(): Map<string, ExtensionMetadata> {
-  const dbPath = path.join(os.homedir(), ".cmux", "metadata.db");
+function readExtensionMetadata(): Map<string, ExtensionMetadata> {
+  const metadataPath = path.join(os.homedir(), ".cmux", "extensionMetadata.json");
 
-  // Check if DB exists
-  if (!fs.existsSync(dbPath)) {
+  // Check if file exists
+  if (!fs.existsSync(metadataPath)) {
     return new Map();
   }
 
   try {
-    const db = new Database(dbPath, { readonly: true });
-    const stmt = db.prepare(`
-      SELECT workspace_id, recency, streaming, last_model
-      FROM workspace_metadata
-      ORDER BY recency DESC
-    `);
+    const content = fs.readFileSync(metadataPath, "utf-8");
+    const data = JSON.parse(content) as ExtensionMetadataFile;
 
-    const rows = stmt.all() as MetadataRow[];
-    const map = new Map<string, ExtensionMetadata>();
-
-    console.log(`[cmux] Read ${rows.length} entries from metadata store`);
-    for (const row of rows) {
-      console.log(`[cmux]   ${row.workspace_id}: recency=${row.recency}, streaming=${row.streaming}`);
-      map.set(row.workspace_id, {
-        recency: row.recency,
-        streaming: row.streaming === 1,
-        lastModel: row.last_model,
-      });
+    // Validate structure
+    if (typeof data !== "object" || data.version !== 1) {
+      console.error("[cmux] Invalid metadata file format");
+      return new Map();
     }
 
-    db.close();
+    const map = new Map<string, ExtensionMetadata>();
+    const entries = Object.entries(data.workspaces || {});
+
+    console.log(`[cmux] Read ${entries.length} entries from extension metadata`);
+    for (const [workspaceId, metadata] of entries) {
+      console.log(`[cmux]   ${workspaceId}: recency=${metadata.recency}, streaming=${metadata.streaming}`);
+      map.set(workspaceId, metadata);
+    }
+
     return map;
   } catch (error) {
-    console.error("[cmux] Failed to read metadata store:", error);
+    console.error("[cmux] Failed to read extension metadata:", error);
     return new Map();
   }
 }
@@ -113,7 +107,7 @@ export function getAllWorkspaces(): WorkspaceWithContext[] {
     return [];
   }
 
-  const metadata = readMetadataStore();
+  const metadata = readExtensionMetadata();
   const workspaces: WorkspaceWithContext[] = [];
 
   for (const [projectPath, projectConfig] of config.projects) {

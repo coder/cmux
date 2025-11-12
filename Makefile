@@ -79,17 +79,12 @@ all: build
 node_modules/.installed: package.json bun.lock
 	@echo "Dependencies out of date or missing, running bun install..."
 	@bun install
-	@echo "Rebuilding native modules for Electron..."
-	@bun run rebuild
 	@touch node_modules/.installed
 
 # Legacy target for backwards compatibility
 ensure-deps: node_modules/.installed
 
-# Rebuild native modules for Electron (run this after adding native dependencies)
-rebuild: ## Rebuild native modules for Electron
-	@echo "Rebuilding native modules for Electron..."
-	@bun run rebuild
+
 
 ## Help
 help: ## Show this help message
@@ -282,7 +277,7 @@ vscode-ext: ## Build VS Code extension (.vsix)
 	@cd vscode && rm -rf out src/shared cmux-0.1.0.vsix
 	@cd vscode && bun install
 	@cd vscode && bun run compile
-	@cd vscode && bun run package
+	@cd vscode && npx @vscode/vsce package --no-dependencies
 	@echo "✓ Extension packaged: vscode/cmux-0.1.0.vsix"
 
 vscode-ext-install: vscode-ext ## Build and install VS Code extension locally

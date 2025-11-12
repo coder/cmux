@@ -28,13 +28,13 @@ import { InitStateManager } from "@/services/initStateManager";
 import { createRuntime } from "@/runtime/runtimeFactory";
 import type { RuntimeConfig } from "@/types/runtime";
 import { validateProjectPath } from "@/utils/pathUtils";
-import { MetadataStore } from "@/services/MetadataStore";
+import { ExtensionMetadataService } from "@/services/ExtensionMetadataService";
 /**
  * IpcMain - Manages all IPC handlers and service coordination
  *
  * This class encapsulates:
  * - All ipcMain handler registration
- * - Service lifecycle management (AIService, HistoryService, PartialService, InitStateManager, MetadataStore)
+ * - Service lifecycle management (AIService, HistoryService, PartialService, InitStateManager, ExtensionMetadataService)
  * - Event forwarding from services to renderer
  *
  * Design:
@@ -48,7 +48,7 @@ export class IpcMain {
   private readonly partialService: PartialService;
   private readonly aiService: AIService;
   private readonly initStateManager: InitStateManager;
-  private readonly metadataStore: MetadataStore;
+  private readonly extensionMetadata: ExtensionMetadataService;
   private readonly sessions = new Map<string, AgentSession>();
   private readonly sessionSubscriptions = new Map<
     string,
@@ -63,7 +63,7 @@ export class IpcMain {
     this.historyService = new HistoryService(config);
     this.partialService = new PartialService(config, this.historyService);
     this.initStateManager = new InitStateManager(config);
-    this.metadataStore = new MetadataStore();
+    this.extensionMetadata = new ExtensionMetadataService();
     this.aiService = new AIService(
       config,
       this.historyService,
@@ -71,10 +71,7 @@ export class IpcMain {
       this.initStateManager
     );
 
-    // Clear stale streaming flags on startup (from crashes)
-    this.metadataStore.clearStaleStreaming();
-
-    // Listen to AIService events to update metadata store
+    // Listen to AIService events to update metadata
     this.setupMetadataListeners();
   }
 
@@ -92,14 +89,14 @@ export class IpcMain {
     // Update streaming status and recency on stream start
     this.aiService.on("stream-start", (data: unknown) => {
       if (isStreamStartEvent(data)) {
-        this.metadataStore.setStreaming(data.workspaceId, true, data.model);
+        this.extensionMetadata.setStreaming(data.workspaceId, true, data.model);
       }
     });
 
     // Clear streaming status on stream end/abort
     const handleStreamStop = (data: unknown) => {
       if (isWorkspaceEvent(data)) {
-        this.metadataStore.setStreaming(data.workspaceId, false);
+        this.extensionMetadata.setStreaming(data.workspaceId, false);
       }
     };
     this.aiService.on("stream-end", handleStreamStop);
@@ -694,7 +691,7 @@ export class IpcMain {
           const session = this.getOrCreateSession(workspaceId);
 
           // Update recency on user message
-          this.metadataStore.updateRecency(workspaceId);
+          this.extensionMetadata.updateRecency(workspaceId);
 
           const result = await session.sendMessage(message, options);
           if (!result.success) {
@@ -1088,8 +1085,8 @@ export class IpcMain {
         return { success: false, error: aiResult.error };
       }
 
-      // Delete workspace metadata from metadata store
-      this.metadataStore.deleteWorkspace(workspaceId);
+      // Delete workspace metadata
+      this.extensionMetadata.deleteWorkspace(workspaceId);
 
       // Update config to remove the workspace from all projects
       const projectsConfig = this.config.loadConfigOrDefault();

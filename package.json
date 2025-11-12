@@ -41,9 +41,7 @@
     "docs:watch": "make docs-watch",
     "storybook": "make storybook",
     "storybook:build": "make storybook-build",
-    "test:storybook": "make test-storybook",
-    "rebuild": "electron-rebuild -f -w better-sqlite3",
-    "postinstall": "npm run rebuild"
+    "test:storybook": "make test-storybook"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^2.0.29",
@@ -60,7 +58,6 @@
     "@radix-ui/react-tooltip": "^1.2.8",
     "ai": "^5.0.72",
     "ai-tokenizer": "^1.0.3",
-    "better-sqlite3": "^12.4.1",
     "chalk": "^5.6.2",
     "cors": "^2.8.5",
     "crc-32": "^1.2.2",
@@ -93,7 +90,6 @@
     "@storybook/test-runner": "^0.24.0",
     "@tailwindcss/vite": "^4.1.15",
     "@testing-library/react": "^16.3.0",
-    "@types/better-sqlite3": "^7.6.13",
     "@types/bun": "^1.2.23",
     "@types/commander": "^2.12.5",
     "@types/cors": "^2.8.19",
