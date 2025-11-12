@@ -97,7 +97,14 @@ function determineBreakpoints(
   const cumulative = calculateCumulativeTokens(messages);
 
   // Find system messages (prefer 1h cache for stability)
-  const lastSystemIndex = messages.findLastIndex((msg) => msg.role === "system");
+  // Use manual loop instead of findLastIndex for ES2021 compatibility
+  let lastSystemIndex = -1;
+  for (let i = messages.length - 1; i >= 0; i--) {
+    if (messages[i].role === "system") {
+      lastSystemIndex = i;
+      break;
+    }
+  }
   if (lastSystemIndex >= 0 && cumulative[lastSystemIndex] >= minTokens) {
     breakpoints.push({ index: lastSystemIndex, ttl: "1h" });
   }
