@@ -5,7 +5,7 @@ import { InterruptedBarrier } from "./Messages/ChatBarrier/InterruptedBarrier";
 import { StreamingBarrier } from "./Messages/ChatBarrier/StreamingBarrier";
 import { RetryBarrier } from "./Messages/ChatBarrier/RetryBarrier";
 import { PinnedTodoList } from "./PinnedTodoList";
-import { getAutoRetryKey } from "@/constants/storage";
+import { getAutoRetryKey, VIM_ENABLED_KEY } from "@/constants/storage";
 import { ChatInput, type ChatInputAPI } from "./ChatInput";
 import { RightSidebar, type TabType } from "./RightSidebar";
 import { useResizableSidebar } from "@/hooks/useResizableSidebar";
@@ -79,6 +79,9 @@ const AIViewInner: React.FC<AIViewProps> = ({
   const [, setAutoRetry] = usePersistedState<boolean>(getAutoRetryKey(workspaceId), true, {
     listener: true,
   });
+
+  // Vim mode state - needed for keybind selection (Ctrl+C in vim, Esc otherwise)
+  const [vimEnabled] = usePersistedState<boolean>(VIM_ENABLED_KEY, false, { listener: true });
 
   // Use auto-scroll hook for scroll management
   const {
@@ -214,6 +217,7 @@ const AIViewInner: React.FC<AIViewProps> = ({
     handleOpenTerminal,
     aggregator,
     setEditingMessage,
+    vimEnabled,
   });
 
   // Clear editing state if the message being edited no longer exists
@@ -416,8 +420,8 @@ const AIViewInner: React.FC<AIViewProps> = ({
                 }
                 cancelText={
                   isCompacting
-                    ? `${formatKeybind(KEYBINDS.INTERRUPT_STREAM)} cancel | ${formatKeybind(KEYBINDS.ACCEPT_EARLY_COMPACTION)} accept early`
-                    : `hit ${formatKeybind(KEYBINDS.INTERRUPT_STREAM)} to cancel`
+                    ? `${formatKeybind(vimEnabled ? KEYBINDS.INTERRUPT_STREAM_VIM : KEYBINDS.INTERRUPT_STREAM_NORMAL)} cancel | ${formatKeybind(KEYBINDS.ACCEPT_EARLY_COMPACTION)} accept early`
+                    : `hit ${formatKeybind(vimEnabled ? KEYBINDS.INTERRUPT_STREAM_VIM : KEYBINDS.INTERRUPT_STREAM_NORMAL)} to cancel`
                 }
                 tokenCount={
                   activeStreamMessageId

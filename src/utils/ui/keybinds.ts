@@ -201,10 +201,10 @@ export const KEYBINDS = {
   CANCEL_EDIT: { key: "q", ctrl: true, macCtrlBehavior: "control" },
 
   /** Interrupt active stream (destructive - stops AI generation) */
-  // Ctrl+D on Linux/Windows (doesn't conflict with copy), Ctrl+C on macOS
-  INTERRUPT_STREAM: (isMac()
-    ? { key: "c", ctrl: true, macCtrlBehavior: "control" }
-    : { key: "d", ctrl: true }) satisfies Keybind,
+  // Vim mode: Ctrl+C (familiar from terminal interrupt)
+  // Non-Vim mode: Esc (intuitive cancel/stop key)
+  INTERRUPT_STREAM_VIM: { key: "c", ctrl: true, macCtrlBehavior: "control" },
+  INTERRUPT_STREAM_NORMAL: { key: "Escape" },
 
   /** Accept partial compaction early (adds [truncated] sentinel) */
   ACCEPT_EARLY_COMPACTION: { key: "a", ctrl: true, macCtrlBehavior: "control" },

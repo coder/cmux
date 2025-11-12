@@ -754,7 +754,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     }
 
     // Note: ESC handled by VimTextArea (for mode transitions) and CommandSuggestions (for dismissal)
-    // Edit canceling is Ctrl+Q, stream interruption is Ctrl+D (Linux/Win) or Ctrl+C (macOS)
+    // Edit canceling is Ctrl+Q, stream interruption is Ctrl+C (vim) or Esc (normal)
 
     // Don't handle keys if command suggestions are visible
     if (
@@ -778,13 +778,19 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       return `Edit your message... (${formatKeybind(KEYBINDS.CANCEL_EDIT)} to cancel, ${formatKeybind(KEYBINDS.SEND_MESSAGE)} to send)`;
     }
     if (isCompacting) {
-      return `Compacting... (${formatKeybind(KEYBINDS.INTERRUPT_STREAM)} cancel | ${formatKeybind(KEYBINDS.ACCEPT_EARLY_COMPACTION)} accept early)`;
+      const interruptKeybind = vimEnabled
+        ? KEYBINDS.INTERRUPT_STREAM_VIM
+        : KEYBINDS.INTERRUPT_STREAM_NORMAL;
+      return `Compacting... (${formatKeybind(interruptKeybind)} cancel | ${formatKeybind(KEYBINDS.ACCEPT_EARLY_COMPACTION)} accept early)`;
     }
 
     // Build hints for normal input
     const hints: string[] = [];
     if (canInterrupt) {
-      hints.push(`${formatKeybind(KEYBINDS.INTERRUPT_STREAM)} to interrupt`);
+      const interruptKeybind = vimEnabled
+        ? KEYBINDS.INTERRUPT_STREAM_VIM
+        : KEYBINDS.INTERRUPT_STREAM_NORMAL;
+      hints.push(`${formatKeybind(interruptKeybind)} to interrupt`);
     }
     hints.push(`${formatKeybind(KEYBINDS.SEND_MESSAGE)} to send`);
     hints.push(`${formatKeybind(KEYBINDS.OPEN_MODEL_SELECTOR)} to change model`);
