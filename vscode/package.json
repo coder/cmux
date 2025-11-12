@@ -54,6 +54,7 @@
     "directory": "vscode"
   },
   "license": "AGPL-3.0-only",
+  "packageManager": "bun@1.1.42",
   "dependencies": {
     "better-sqlite3": "^12.4.1"
   }

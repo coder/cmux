@@ -2,3 +2,5 @@ out/
 node_modules/
 *.vsix
 .vscode-test/
+src/shared/
+package-lock.json
