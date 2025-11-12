@@ -1371,8 +1371,7 @@ export class IpcMain {
       sshArgs.push(`cd '${config.remotePath.replace(/'/g, "'\\''")}' && exec $SHELL`);
     }
 
-    const isSSH = config.type === "ssh";
-    const logPrefix = isSSH ? "SSH terminal" : "terminal";
+    const logPrefix = config.type === "ssh" ? "SSH terminal" : "terminal";
 
     if (process.platform === "darwin") {
       // macOS - try Ghostty first, fallback to Terminal.app
@@ -1380,7 +1379,7 @@ export class IpcMain {
       if (terminal === "ghostty") {
         const cmd = "open";
         let args: string[];
-        if (isSSH && sshArgs) {
+        if (config.type === "ssh" && sshArgs) {
           // Ghostty: Use --command flag to run SSH
           // Build the full SSH command as a single string
           const sshCommand = ["ssh", ...sshArgs].join(" ");
@@ -1398,9 +1397,9 @@ export class IpcMain {
         child.unref();
       } else {
         // Terminal.app
-        const cmd = isSSH ? "osascript" : "open";
+        const cmd = config.type === "ssh" ? "osascript" : "open";
         let args: string[];
-        if (isSSH && sshArgs) {
+        if (config.type === "ssh" && sshArgs) {
           // Terminal.app: Use osascript with proper AppleScript structure
           // Properly escape single quotes in args before wrapping in quotes
           const sshCommand = `ssh ${sshArgs
@@ -1432,7 +1431,7 @@ export class IpcMain {
       // Windows
       const cmd = "cmd";
       let args: string[];
-      if (isSSH && sshArgs) {
+      if (config.type === "ssh" && sshArgs) {
         // Windows - use cmd to start ssh
         args = ["/c", "start", "cmd", "/K", "ssh", ...sshArgs];
       } else {
@@ -1450,7 +1449,7 @@ export class IpcMain {
       // Linux - try terminal emulators in order of preference
       let terminals: Array<{ cmd: string; args: string[]; cwd?: string }>;
 
-      if (isSSH && sshArgs) {
+      if (config.type === "ssh" && sshArgs) {
         // x-terminal-emulator is checked first as it respects user's system-wide preference
         terminals = [
           { cmd: "x-terminal-emulator", args: ["-e", "ssh", ...sshArgs] },
