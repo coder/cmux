@@ -34,17 +34,16 @@
     ]
   },
   "scripts": {
-    "sync-shared": "bash scripts/sync-shared.sh",
-    "precompile": "bun run sync-shared",
     "vscode:prepublish": "bun run compile",
-    "compile": "tsc -p ./",
-    "watch": "bun run sync-shared && tsc -watch -p ./",
+    "compile": "node esbuild.config.js",
+    "watch": "node esbuild.config.js --watch",
     "package": "vsce package"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
     "@types/vscode": "^1.85.0",
     "@vscode/vsce": "^2.22.0",
+    "esbuild": "^0.27.0",
     "typescript": "^5.3.0"
   },
   "repository": {
@@ -53,5 +52,8 @@
     "directory": "vscode"
   },
   "license": "AGPL-3.0-only",
-  "packageManager": "bun@1.1.42"
+  "packageManager": "bun@1.1.42",
+  "dependencies": {
+    "cmux": "file:.."
+  }
 }

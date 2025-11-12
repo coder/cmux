@@ -1,7 +1,7 @@
 import * as vscode from "vscode";
 import { getAllWorkspaces, WorkspaceWithContext } from "./cmuxConfig";
 import { openWorkspace } from "./workspaceOpener";
-import { formatRelativeTime } from "./shared/dateTime";
+import { formatRelativeTime } from "cmux/utils/ui/dateTime";
 
 /**
  * Format workspace for display in QuickPick

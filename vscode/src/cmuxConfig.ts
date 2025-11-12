@@ -1,9 +1,10 @@
 import * as path from "path";
-import type { RuntimeConfig, WorkspaceMetadata } from "./shared/types";
+import type { RuntimeConfig } from "cmux/types/runtime";
+import type { WorkspaceMetadata } from "cmux/types/workspace";
 import {
   type ExtensionMetadata,
   readExtensionMetadata,
-} from "./shared/extensionMetadata";
+} from "cmux/utils/extensionMetadata";
 
 /**
  * Project configuration from cmux
