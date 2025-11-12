@@ -66,7 +66,7 @@ export async function createTestEnvironment(): Promise<TestEnvironment> {
   const mockIpcRendererModule = mocked.ipcRenderer;
 
   // Create IpcMain instance
-  const ipcMain = new IpcMain(config);
+  const ipcMain = await IpcMain.create(config);
 
   // Register handlers with mock ipcMain and window
   ipcMain.register(mockIpcMainModule, mockWindow);

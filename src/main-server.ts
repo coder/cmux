@@ -135,26 +135,28 @@ const app = express();
 app.use(cors());
 app.use(express.json({ limit: "50mb" }));
 
-// Initialize config and IPC service
-const config = new Config();
-const ipcMainService = new IpcMain(config);
-
 // Track WebSocket clients and their subscriptions
 const clients: Clients = new Map();
 
 const mockWindow = new MockBrowserWindow(clients);
 const httpIpcMain = new HttpIpcMainAdapter(app);
 
-// Register IPC handlers
-ipcMainService.register(
-  httpIpcMain as unknown as ElectronIpcMain,
-  mockWindow as unknown as BrowserWindow
-);
+// Initialize async services and register handlers
+(async () => {
+  // Initialize config and IPC service
+  const config = new Config();
+  const ipcMainService = await IpcMain.create(config);
 
-// Add custom endpoint for launch project (only for server mode)
-httpIpcMain.handle("server:getLaunchProject", () => {
-  return Promise.resolve(launchProjectPath);
-});
+  // Register IPC handlers
+  ipcMainService.register(
+    httpIpcMain as unknown as ElectronIpcMain,
+    mockWindow as unknown as BrowserWindow
+  );
+
+  // Add custom endpoint for launch project (only for server mode)
+  httpIpcMain.handle("server:getLaunchProject", () => {
+    return Promise.resolve(launchProjectPath);
+  });
 
 // Serve static files from dist directory (built renderer)
 app.use(express.static(path.join(__dirname, ".")));
@@ -338,12 +340,17 @@ async function initializeProject(
   }
 }
 
-server.listen(PORT, HOST, () => {
-  console.log(`Server is running on http://${HOST}:${PORT}`);
+  // Start server after initialization
+  server.listen(PORT, HOST, () => {
+    console.log(`Server is running on http://${HOST}:${PORT}`);
 
-  // Handle --add-project flag if present
-  if (ADD_PROJECT_PATH) {
-    console.log(`Initializing project at: ${ADD_PROJECT_PATH}`);
-    void initializeProject(ADD_PROJECT_PATH, httpIpcMain);
-  }
+    // Handle --add-project flag if present
+    if (ADD_PROJECT_PATH) {
+      console.log(`Initializing project at: ${ADD_PROJECT_PATH}`);
+      void initializeProject(ADD_PROJECT_PATH, httpIpcMain);
+    }
+  });
+})().catch((error) => {
+  console.error("Failed to initialize server:", error);
+  process.exit(1);
 });

@@ -1,5 +1,6 @@
 import { dirname } from "path";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
+import { mkdir, readFile, writeFile } from "fs/promises";
+import { existsSync } from "fs";
 import {
   type ExtensionMetadata,
   type ExtensionMetadataFile,
@@ -29,29 +30,42 @@ export class ExtensionMetadataService {
   private readonly filePath: string;
   private data: ExtensionMetadataFile;
 
-  constructor(filePath?: string) {
-    this.filePath = filePath ?? getExtensionMetadataPath();
+  private constructor(filePath: string, data: ExtensionMetadataFile) {
+    this.filePath = filePath;
+    this.data = data;
+  }
+
+  /**
+   * Create a new ExtensionMetadataService instance.
+   * Use this static factory method instead of the constructor.
+   */
+  static async create(filePath?: string): Promise<ExtensionMetadataService> {
+    const path = filePath ?? getExtensionMetadataPath();
 
     // Ensure directory exists
-    const dir = dirname(this.filePath);
+    const dir = dirname(path);
     if (!existsSync(dir)) {
-      mkdirSync(dir, { recursive: true });
+      await mkdir(dir, { recursive: true });
     }
 
     // Load existing data or initialize
-    this.data = this.load();
+    const data = await ExtensionMetadataService.loadData(path);
+
+    const service = new ExtensionMetadataService(path, data);
 
     // Clear stale streaming flags (from crashes)
-    this.clearStaleStreaming();
+    await service.clearStaleStreaming();
+
+    return service;
   }
 
-  private load(): ExtensionMetadataFile {
-    if (!existsSync(this.filePath)) {
+  private static async loadData(filePath: string): Promise<ExtensionMetadataFile> {
+    if (!existsSync(filePath)) {
       return { version: 1, workspaces: {} };
     }
 
     try {
-      const content = readFileSync(this.filePath, "utf-8");
+      const content = await readFile(filePath, "utf-8");
       const parsed = JSON.parse(content) as ExtensionMetadataFile;
 
       // Validate structure
@@ -69,12 +83,10 @@ export class ExtensionMetadataService {
     }
   }
 
-  private save() {
+  private async save(): Promise<void> {
     try {
       const content = JSON.stringify(this.data, null, 2);
-      // Simple synchronous write - atomic enough for our use case
-      // VS Code extension only reads, never writes concurrently
-      writeFileSync(this.filePath, content, "utf-8");
+      await writeFile(this.filePath, content, "utf-8");
     } catch (error) {
       console.error("[ExtensionMetadataService] Failed to save metadata:", error);
     }
@@ -84,7 +96,7 @@ export class ExtensionMetadataService {
    * Update the recency timestamp for a workspace.
    * Call this on user messages or other interactions.
    */
-  updateRecency(workspaceId: string, timestamp: number = Date.now()) {
+  async updateRecency(workspaceId: string, timestamp: number = Date.now()): Promise<void> {
     if (!this.data.workspaces[workspaceId]) {
       this.data.workspaces[workspaceId] = {
         recency: timestamp,
@@ -94,14 +106,14 @@ export class ExtensionMetadataService {
     } else {
       this.data.workspaces[workspaceId].recency = timestamp;
     }
-    this.save();
+    await this.save();
   }
 
   /**
    * Set the streaming status for a workspace.
    * Call this when streams start/end.
    */
-  setStreaming(workspaceId: string, streaming: boolean, model?: string) {
+  async setStreaming(workspaceId: string, streaming: boolean, model?: string): Promise<void> {
     const now = Date.now();
     if (!this.data.workspaces[workspaceId]) {
       this.data.workspaces[workspaceId] = {
@@ -115,7 +127,7 @@ export class ExtensionMetadataService {
         this.data.workspaces[workspaceId].lastModel = model;
       }
     }
-    this.save();
+    await this.save();
   }
 
   /**
@@ -158,10 +170,10 @@ export class ExtensionMetadataService {
    * Delete metadata for a workspace.
    * Call this when a workspace is deleted.
    */
-  deleteWorkspace(workspaceId: string) {
+  async deleteWorkspace(workspaceId: string): Promise<void> {
     if (this.data.workspaces[workspaceId]) {
       delete this.data.workspaces[workspaceId];
-      this.save();
+      await this.save();
     }
   }
 
@@ -169,7 +181,7 @@ export class ExtensionMetadataService {
    * Clear all streaming flags.
    * Call this on app startup to clean up stale streaming states from crashes.
    */
-  clearStaleStreaming() {
+  async clearStaleStreaming(): Promise<void> {
     let modified = false;
     for (const entry of Object.values(this.data.workspaces)) {
       if (entry.streaming) {
@@ -178,7 +190,7 @@ export class ExtensionMetadataService {
       }
     }
     if (modified) {
-      this.save();
+      await this.save();
     }
   }
 }

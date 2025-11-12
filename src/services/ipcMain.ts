@@ -59,21 +59,44 @@ export class IpcMain {
 
   private registered = false;
 
-  constructor(config: Config) {
+  private constructor(
+    config: Config,
+    historyService: HistoryService,
+    partialService: PartialService,
+    initStateManager: InitStateManager,
+    extensionMetadata: ExtensionMetadataService,
+    aiService: AIService
+  ) {
     this.config = config;
-    this.historyService = new HistoryService(config);
-    this.partialService = new PartialService(config, this.historyService);
-    this.initStateManager = new InitStateManager(config);
-    this.extensionMetadata = new ExtensionMetadataService();
-    this.aiService = new AIService(
-      config,
-      this.historyService,
-      this.partialService,
-      this.initStateManager
-    );
+    this.historyService = historyService;
+    this.partialService = partialService;
+    this.initStateManager = initStateManager;
+    this.extensionMetadata = extensionMetadata;
+    this.aiService = aiService;
 
     // Listen to AIService events to update metadata
     this.setupMetadataListeners();
+  }
+
+  /**
+   * Create a new IpcMain instance.
+   * Use this static factory method instead of the constructor.
+   */
+  static async create(config: Config): Promise<IpcMain> {
+    const historyService = new HistoryService(config);
+    const partialService = new PartialService(config, historyService);
+    const initStateManager = new InitStateManager(config);
+    const extensionMetadata = await ExtensionMetadataService.create();
+    const aiService = new AIService(config, historyService, partialService, initStateManager);
+
+    return new IpcMain(
+      config,
+      historyService,
+      partialService,
+      initStateManager,
+      extensionMetadata,
+      aiService
+    );
   }
 
   /**
@@ -90,14 +113,16 @@ export class IpcMain {
     // Update streaming status and recency on stream start
     this.aiService.on("stream-start", (data: unknown) => {
       if (isStreamStartEvent(data)) {
-        this.extensionMetadata.setStreaming(data.workspaceId, true, data.model);
+        // Fire and forget - don't block event handler
+        void this.extensionMetadata.setStreaming(data.workspaceId, true, data.model);
       }
     });
 
     // Clear streaming status on stream end/abort
     const handleStreamStop = (data: unknown) => {
       if (isWorkspaceEvent(data)) {
-        this.extensionMetadata.setStreaming(data.workspaceId, false);
+        // Fire and forget - don't block event handler
+        void this.extensionMetadata.setStreaming(data.workspaceId, false);
       }
     };
     this.aiService.on("stream-end", handleStreamStop);
@@ -692,8 +717,8 @@ export class IpcMain {
         try {
           const session = this.getOrCreateSession(workspaceId);
 
-          // Update recency on user message
-          this.extensionMetadata.updateRecency(workspaceId);
+          // Update recency on user message (fire and forget)
+          void this.extensionMetadata.updateRecency(workspaceId);
 
           const result = await session.sendMessage(message, options);
           if (!result.success) {
@@ -1087,8 +1112,8 @@ export class IpcMain {
         return { success: false, error: aiResult.error };
       }
 
-      // Delete workspace metadata
-      this.extensionMetadata.deleteWorkspace(workspaceId);
+      // Delete workspace metadata (fire and forget)
+      void this.extensionMetadata.deleteWorkspace(workspaceId);
 
       // Update config to remove the workspace from all projects
       const projectsConfig = this.config.loadConfigOrDefault();
