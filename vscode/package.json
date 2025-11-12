@@ -35,6 +35,8 @@
   },
   "scripts": {
     "sync-shared": "bash scripts/sync-shared.sh",
+    "rebuild": "electron-rebuild -f -w better-sqlite3 -v 34.0.0",
+    "postinstall": "bun run rebuild",
     "precompile": "bun run sync-shared",
     "vscode:prepublish": "bun run compile",
     "compile": "tsc -p ./",
@@ -42,6 +44,7 @@
     "package": "vsce package"
   },
   "devDependencies": {
+    "@electron/rebuild": "^4.0.1",
     "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^20.0.0",
     "@types/vscode": "^1.85.0",
