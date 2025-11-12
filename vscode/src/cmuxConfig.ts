@@ -86,7 +86,9 @@ function readMetadataStore(): Map<string, ExtensionMetadata> {
     const rows = stmt.all() as MetadataRow[];
     const map = new Map<string, ExtensionMetadata>();
 
+    console.log(`[cmux] Read ${rows.length} entries from metadata store`);
     for (const row of rows) {
+      console.log(`[cmux]   ${row.workspace_id}: recency=${row.recency}, streaming=${row.streaming}`);
       map.set(row.workspace_id, {
         recency: row.recency,
         streaming: row.streaming === 1,
@@ -97,7 +99,7 @@ function readMetadataStore(): Map<string, ExtensionMetadata> {
     db.close();
     return map;
   } catch (error) {
-    console.error("Failed to read metadata store:", error);
+    console.error("[cmux] Failed to read metadata store:", error);
     return new Map();
   }
 }
@@ -119,6 +121,15 @@ export function getAllWorkspaces(): WorkspaceWithContext[] {
 
     for (const workspace of projectConfig.workspaces) {
       const meta = metadata.get(workspace.id);
+      
+      if (workspace.name === 'vscode-ext') {
+        console.log(`[cmux] vscode-ext workspace:`);
+        console.log(`[cmux]   id: ${workspace.id}`);
+        console.log(`[cmux]   has metadata: ${!!meta}`);
+        if (meta) {
+          console.log(`[cmux]   metadata.recency: ${meta.recency}`);
+        }
+      }
 
       workspaces.push({
         ...workspace,

@@ -279,9 +279,10 @@ dist-linux: build ## Build Linux distributable
 
 vscode-ext: ## Build VS Code extension (.vsix)
 	@echo "Building VS Code extension..."
-	@cd vscode && npm install --silent
-	@cd vscode && npm run compile
-	@cd vscode && npm run package
+	@cd vscode && rm -rf out src/shared cmux-0.1.0.vsix
+	@cd vscode && bun install
+	@cd vscode && bun run compile
+	@cd vscode && bun run package
 	@echo "✓ Extension packaged: vscode/cmux-0.1.0.vsix"
 
 vscode-ext-install: vscode-ext ## Build and install VS Code extension locally
