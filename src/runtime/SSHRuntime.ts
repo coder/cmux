@@ -897,13 +897,13 @@ export class SSHRuntime implements Runtime {
       }
 
       // 2. Checkout branch remotely
-      // If branch exists locally, check it out; otherwise create it from the specified trunk branch
-      // Note: We've already created local branches for all remote refs in syncProjectToRemote
       initLogger.logStep(`Checking out branch: ${branchName}`);
 
-      // Try to checkout existing branch, or create new branch from trunk
-      // Since we've created local branches for all remote refs, we can use branch names directly
-      const checkoutCmd = `git checkout ${shescape.quote(branchName)} 2>/dev/null || git checkout -b ${shescape.quote(branchName)} ${shescape.quote(trunkBranch)}`;
+      // For forked workspaces (copied with cp -a), HEAD is already on the source branch
+      // For synced workspaces, we need to specify the trunk branch to create from
+      const checkoutCmd = sourceWorkspacePath
+        ? `git checkout ${shescape.quote(branchName)} 2>/dev/null || git checkout -b ${shescape.quote(branchName)}`
+        : `git checkout ${shescape.quote(branchName)} 2>/dev/null || git checkout -b ${shescape.quote(branchName)} ${shescape.quote(trunkBranch)}`;
 
       const checkoutStream = await this.exec(checkoutCmd, {
         cwd: workspacePath, // Use the full workspace path for git operations
@@ -1193,40 +1193,7 @@ export class SSHRuntime implements Runtime {
     const expandedNewPath = expandTildeForSSH(newWorkspacePath);
 
     try {
-      // Step 1: Detect current branch in source workspace (fast)
-      initLogger.logStep("Detecting source workspace branch...");
-      const detectStream = await this.exec(`git -C ${expandedSourcePath} branch --show-current`, {
-        cwd: "~",
-        timeout: 10,
-      });
-
-      // Command doesn't use stdin - abort to close immediately
-      await detectStream.stdin.abort();
-
-      const [detectExitCode, sourceBranch] = await Promise.all([
-        detectStream.exitCode,
-        streamToString(detectStream.stdout),
-      ]);
-
-      if (detectExitCode !== 0) {
-        const stderr = await streamToString(detectStream.stderr);
-        return {
-          success: false,
-          error: `Failed to detect branch in source workspace: ${stderr}`,
-        };
-      }
-
-      const trimmedSourceBranch = sourceBranch.trim();
-      if (!trimmedSourceBranch) {
-        return {
-          success: false,
-          error: "Failed to detect branch in source workspace",
-        };
-      }
-
-      initLogger.logStep(`Detected source branch: ${trimmedSourceBranch}`);
-
-      // Step 2: Create empty directory for new workspace (instant)
+      // Step 1: Create empty directory for new workspace (instant)
       // The actual copy happens in initWorkspace (fire-and-forget)
       initLogger.logStep("Creating workspace directory...");
       const mkdirStream = await this.exec(`mkdir -p ${expandedNewPath}`, { cwd: "~", timeout: 10 });
@@ -1248,7 +1215,6 @@ export class SSHRuntime implements Runtime {
         success: true,
         workspacePath: newWorkspacePath,
         sourceWorkspacePath,
-        sourceBranch: trimmedSourceBranch,
       };
     } catch (error) {
       return {

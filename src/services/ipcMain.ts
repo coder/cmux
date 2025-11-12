@@ -822,7 +822,7 @@ export class IpcMain {
             .initWorkspace({
               projectPath: foundProjectPath,
               branchName: newName,
-              trunkBranch: forkResult.sourceBranch ?? "main",
+              trunkBranch: "main", // Only used for non-fork (sync) case in SSH runtime
               workspacePath,
               initLogger,
               sourceWorkspacePath: forkResult.sourceWorkspacePath, // Fork from source, not sync from local
