@@ -922,9 +922,13 @@ export class SSHRuntime implements Runtime {
     if (abortSignal?.aborted) {
       return { success: false, error: "Rename operation aborted" };
     }
-    // Compute workspace paths using canonical method
-    const oldPath = this.getWorkspacePath(projectPath, oldName);
-    const newPath = this.getWorkspacePath(projectPath, newName);
+    // Import sanitization utility for directory name conversion
+    const { sanitizeBranchNameForDirectory } = await import("../utils/workspace/directoryName");
+    const oldDirName = sanitizeBranchNameForDirectory(oldName);
+    const newDirName = sanitizeBranchNameForDirectory(newName);
+    // Compute workspace paths using sanitized directory names
+    const oldPath = this.getWorkspacePath(projectPath, oldDirName);
+    const newPath = this.getWorkspacePath(projectPath, newDirName);
 
     try {
       // SSH runtimes use plain directories, not git worktrees
@@ -983,8 +987,11 @@ export class SSHRuntime implements Runtime {
       return { success: false, error: "Delete operation aborted" };
     }
 
-    // Compute workspace path using canonical method
-    const deletedPath = this.getWorkspacePath(projectPath, workspaceName);
+    // Import sanitization utility for directory name conversion
+    const { sanitizeBranchNameForDirectory } = await import("../utils/workspace/directoryName");
+    const directoryName = sanitizeBranchNameForDirectory(workspaceName);
+    // Compute workspace path using sanitized directory name
+    const deletedPath = this.getWorkspacePath(projectPath, directoryName);
 
     try {
       // Combine all pre-deletion checks into a single bash script to minimize round trips

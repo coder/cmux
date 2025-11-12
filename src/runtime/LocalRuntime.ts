@@ -490,8 +490,9 @@ export class LocalRuntime implements Runtime {
     // These are direct workspace directories (e.g., CLI/benchmark sessions), not git worktrees
     const isInPlace = projectPath === workspaceName;
 
-    // Compute workspace path using the canonical method
-    const deletedPath = this.getWorkspacePath(projectPath, workspaceName);
+    // Compute workspace path using sanitized directory name
+    const directoryName = sanitizeBranchNameForDirectory(workspaceName);
+    const deletedPath = this.getWorkspacePath(projectPath, directoryName);
 
     // Check if directory exists - if not, operation is idempotent
     try {
