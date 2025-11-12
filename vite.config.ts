@@ -85,7 +85,8 @@ export default defineConfig(({ mode }) => ({
     host: devServerHost, // Configurable via CMUX_VITE_HOST (defaults to 127.0.0.1 for security)
     port: devServerPort,
     strictPort: true,
-    allowedHosts: devServerHost === "0.0.0.0" ? undefined : ["localhost", "127.0.0.1"],
+    // allowedHosts: devServerHost === "0.0.0.0" ? undefined : ["localhost", "127.0.0.1"],
+    allowedHosts: ["coderbook-pro.manakin-ray.ts.net"],
     sourcemapIgnoreList: () => false, // Show all sources in DevTools
     hmr: {
       // Configure HMR to use the correct host for remote access
@@ -98,7 +99,7 @@ export default defineConfig(({ mode }) => ({
     host: "127.0.0.1",
     port: previewPort,
     strictPort: true,
-    allowedHosts: ["localhost", "127.0.0.1"],
+    allowedHosts: ["localhost", "127.0.0.1", "coderbook-pro.manakin-ray.ts.net"],
   },
   optimizeDeps: {
     esbuildOptions: {

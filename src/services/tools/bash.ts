@@ -243,7 +243,10 @@ export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
       // Execute using runtime interface (works for both local and SSH)
       const execStream = await config.runtime.exec(script, {
         cwd: config.cwd,
-        env: config.secrets,
+        env: {
+          ...(config.secrets ?? {}),
+          ...(config.env ?? {}),
+        },
         timeout: effectiveTimeout,
         niceness: config.niceness,
         abortSignal,

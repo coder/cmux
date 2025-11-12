@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+# Description: Demo script to showcase the script execution feature
+set -euo pipefail
+
+# Regular output goes to stdout (visible in console logs)
+echo "Running demo script..."
+echo "Current workspace: $(pwd)"
+echo "Timestamp: $(date)"
+
+# Write formatted output to CMUX_OUTPUT for toast display
+cat >> "$CMUX_OUTPUT" << 'EOF'
+## 🎉 Script Execution Demo
+
+✅ Script executed successfully!
+
+**Environment Variables Available:**
+- `CMUX_OUTPUT`: Custom toast display
+- `CMUX_PROMPT`: Send messages to agent
+EOF
+
+# Write a prompt to CMUX_PROMPT to send a message to the agent
+cat >> "$CMUX_PROMPT" << 'EOF'
+The demo script has completed successfully. The script execution feature is working correctly with:
+1. Custom toast output via CMUX_OUTPUT
+2. Agent prompting via CMUX_PROMPT
+
+You can now create workspace-specific scripts to automate tasks and interact with the agent.
+EOF

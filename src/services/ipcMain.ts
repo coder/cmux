@@ -28,6 +28,8 @@ import { InitStateManager } from "@/services/initStateManager";
 import { createRuntime } from "@/runtime/runtimeFactory";
 import type { RuntimeConfig } from "@/types/runtime";
 import { validateProjectPath } from "@/utils/pathUtils";
+import { listScripts, getScriptPath } from "@/utils/scripts/discovery";
+import { execBuffered, readFileString, writeFileString } from "@/utils/runtime/helpers";
 /**
  * IpcMain - Manages all IPC handlers and service coordination
  *
@@ -905,6 +907,179 @@ export class IpcMain {
       }
     );
 
+    ipcMain.handle(
+      IPC_CHANNELS.WORKSPACE_EXECUTE_SCRIPT,
+      async (_event, workspaceId: string, scriptName: string, args: string[] = []) => {
+        try {
+          // Get workspace metadata
+          const metadataResult = this.aiService.getWorkspaceMetadata(workspaceId);
+          if (!metadataResult.success) {
+            return Err(`Failed to get workspace metadata: ${metadataResult.error}`);
+          }
+
+          const metadata = metadataResult.data;
+
+          // Get workspace path from config
+          const workspace = this.config.findWorkspace(workspaceId);
+          if (!workspace) {
+            return Err(`Workspace ${workspaceId} not found in config`);
+          }
+
+          // Load project secrets
+          const projectSecrets = this.config.getProjectSecrets(metadata.projectPath);
+
+          // Create runtime and compute workspace path
+          const runtimeConfig = metadata.runtimeConfig ?? {
+            type: "local" as const,
+            srcBaseDir: this.config.srcDir,
+          };
+          const runtimeInstance = createRuntime(runtimeConfig);
+          const workspacePath = runtimeInstance.getWorkspacePath(
+            metadata.projectPath,
+            metadata.name
+          );
+
+          // Prepare runtime-scoped temp directory so CMUX_* files exist in the correct environment
+          const remoteToken = Math.random().toString(16).substring(2, 10);
+          const tempDirCommand = `mkdir -p ~/.cmux-tmp/${remoteToken} && cd ~/.cmux-tmp/${remoteToken} && pwd`;
+          const tempDirResult = await execBuffered(runtimeInstance, tempDirCommand, {
+            cwd: "/",
+            timeout: 10,
+          });
+
+          if (tempDirResult.exitCode !== 0) {
+            return Err(
+              `Failed to prepare script environment: mkdir exited with code ${tempDirResult.exitCode}`
+            );
+          }
+
+          const runtimeTempDir = tempDirResult.stdout.trim();
+          if (!runtimeTempDir) {
+            return Err("Failed to prepare script environment: runtime temp directory was empty");
+          }
+
+          const outputFile = path.posix.join(runtimeTempDir, "output.txt");
+          const promptFile = path.posix.join(runtimeTempDir, "prompt.txt");
+
+          try {
+            await writeFileString(runtimeInstance, outputFile, "");
+            await writeFileString(runtimeInstance, promptFile, "");
+          } catch (prepError) {
+            return Err(
+              `Failed to prepare script environment files: ${
+                prepError instanceof Error ? prepError.message : String(prepError)
+              }`
+            );
+          }
+
+          // Ensure runtime temp directory is cleaned up regardless of execution outcome
+          try {
+            // Get script path and verify it exists via runtime (works for both local and SSH)
+            const scriptPath = getScriptPath(workspacePath, scriptName);
+
+            let scriptExists = false;
+            try {
+              const stat = await runtimeInstance.stat(scriptPath);
+              scriptExists = !stat.isDirectory; // Must be a file, not directory
+            } catch {
+              // File doesn't exist or can't be accessed
+              scriptExists = false;
+            }
+
+            if (!scriptExists) {
+              return Err(
+                `Script not found: .cmux/scripts/${scriptName}. Create the script in your workspace and make it executable (chmod +x).`
+              );
+            }
+
+            // Note: We don't check executable bit here - bash will fail with clear error if not executable
+            // This is intentional because SSH doesn't reliably expose permission bits via stat()
+
+            // Build command with arguments
+            const escapedArgs = args.map((arg) => `"${arg.replace(/"/g, '\\"')}"`).join(" ");
+            const command = `"${scriptPath}"${escapedArgs ? ` ${escapedArgs}` : ""}`;
+
+            // Create bash tool to execute the script with env files
+            const bashTool = createBashTool({
+              cwd: workspacePath,
+              runtime: runtimeInstance,
+              secrets: secretsToRecord(projectSecrets),
+              runtimeTempDir,
+              overflow_policy: "truncate",
+              env: {
+                CMUX_OUTPUT: outputFile,
+                CMUX_PROMPT: promptFile,
+              },
+            });
+
+            // Execute the script with 5 minute timeout by default
+            const result = (await bashTool.execute!(
+              {
+                script: command,
+                timeout_secs: 300,
+              },
+              {
+                toolCallId: `script-${scriptName}-${Date.now()}`,
+                messages: [],
+              }
+            )) as BashToolResult;
+
+            // Read environment files after execution
+            const MAX_OUTPUT_SIZE = 10 * 1024; // 10KB
+            const MAX_PROMPT_SIZE = 100 * 1024; // 100KB
+
+            let outputContent = "";
+            try {
+              outputContent = await readFileString(runtimeInstance, outputFile);
+              if (outputContent.length > MAX_OUTPUT_SIZE) {
+                outputContent =
+                  outputContent.substring(0, MAX_OUTPUT_SIZE) +
+                  "\n\n[Truncated - output too large]";
+              }
+            } catch {
+              // File doesn't exist or can't be read - ignore
+            }
+
+            let promptContent = "";
+            try {
+              promptContent = await readFileString(runtimeInstance, promptFile);
+              if (promptContent.length > MAX_PROMPT_SIZE) {
+                promptContent =
+                  promptContent.substring(0, MAX_PROMPT_SIZE) +
+                  "\n\n[Truncated - prompt too large]";
+              }
+            } catch {
+              // File doesn't exist or can't be read - ignore
+            }
+
+            // Add environment file contents to result
+            const enhancedResult: BashToolResult = {
+              ...result,
+              outputFile: outputContent.trim() || undefined,
+              promptFile: promptContent.trim() || undefined,
+            };
+
+            return Ok(enhancedResult);
+          } finally {
+            try {
+              await execBuffered(runtimeInstance, `rm -rf -- ${JSON.stringify(runtimeTempDir)}`, {
+                cwd: "/",
+                timeout: 10,
+              });
+            } catch (cleanupError) {
+              log.debug("Failed to clean up runtime temp directory", {
+                runtimeTempDir,
+                error: cleanupError instanceof Error ? cleanupError.message : String(cleanupError),
+              });
+            }
+          }
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          return Err(`Failed to execute script: ${message}`);
+        }
+      }
+    );
+
     ipcMain.handle(IPC_CHANNELS.WORKSPACE_OPEN_TERMINAL, async (_event, workspacePath: string) => {
       try {
         if (process.platform === "darwin") {
@@ -1256,6 +1431,30 @@ export class IpcMain {
         }
       }
     );
+
+    ipcMain.handle(IPC_CHANNELS.WORKSPACE_LIST_SCRIPTS, async (_event, workspaceId: string) => {
+      try {
+        // Get workspace metadata to find workspace path
+        const metadataResult = this.aiService.getWorkspaceMetadata(workspaceId);
+        if (!metadataResult.success) {
+          return Err(`Workspace not found: ${workspaceId}`);
+        }
+
+        const metadata = metadataResult.data;
+        const runtimeConfig = metadata.runtimeConfig ?? {
+          type: "local" as const,
+          srcBaseDir: this.config.srcDir,
+        };
+        const runtime = createRuntime(runtimeConfig);
+        const workspacePath = runtime.getWorkspacePath(metadata.projectPath, metadata.name);
+
+        const scripts = await listScripts(runtime, workspacePath);
+        return Ok(scripts);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        return Err(`Failed to list scripts: ${message}`);
+      }
+    });
   }
 
   private registerSubscriptionHandlers(ipcMain: ElectronIpcMain): void {

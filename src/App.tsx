@@ -65,6 +65,37 @@ function AppInner() {
     setSidebarCollapsed((prev) => !prev);
   }, [setSidebarCollapsed]);
 
+  // Cache of scripts available in each workspace (lazy-loaded per workspace)
+  const [scriptCache, setScriptCache] = useState(
+    new Map<string, Array<{ name: string; description?: string }>>()
+  );
+
+  // Load scripts for current workspace when workspace is selected
+  // Reloads every time workspace changes to pick up new scripts
+  useEffect(() => {
+    if (!selectedWorkspace) return;
+
+    const workspaceId = selectedWorkspace.workspaceId;
+
+    const loadScriptsForWorkspace = async () => {
+      try {
+        const result = await window.api.workspace.listScripts(workspaceId);
+        if (result.success) {
+          // Filter to only executable scripts for suggestions
+          const executableScripts = result.data
+            .filter((s) => s.isExecutable)
+            .map((s) => ({ name: s.name, description: s.description }));
+
+          setScriptCache((prev) => new Map(prev).set(workspaceId, executableScripts));
+        }
+      } catch (error) {
+        console.error(`Failed to load scripts for ${workspaceId}:`, error);
+      }
+    };
+
+    void loadScriptsForWorkspace();
+  }, [selectedWorkspace]);
+
   // Telemetry tracking
   const telemetry = useTelemetry();
 
@@ -670,10 +701,17 @@ function AppInner() {
           </div>
         </div>
         <CommandPalette
-          getSlashContext={() => ({
-            providerNames: [],
-            workspaceId: selectedWorkspace?.workspaceId,
-          })}
+          getSlashContext={() => {
+            const availableScripts = selectedWorkspace
+              ? (scriptCache.get(selectedWorkspace.workspaceId) ?? [])
+              : [];
+
+            return {
+              providerNames: [],
+              availableScripts,
+              workspaceId: selectedWorkspace?.workspaceId,
+            };
+          }}
         />
         {workspaceModalOpen && workspaceModalProject && (
           <NewWorkspaceModal

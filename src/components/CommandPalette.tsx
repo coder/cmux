@@ -8,7 +8,11 @@ import { CUSTOM_EVENTS, createCustomEvent } from "@/constants/events";
 import { filterCommandsByPrefix } from "@/utils/commandPaletteFiltering";
 
 interface CommandPaletteProps {
-  getSlashContext?: () => { providerNames: string[]; workspaceId?: string };
+  getSlashContext?: () => {
+    providerNames: string[];
+    availableScripts?: Array<{ name: string; description?: string }>;
+    workspaceId?: string;
+  };
 }
 
 type PromptDef = NonNullable<NonNullable<CommandAction["prompt"]>>;
@@ -178,8 +182,11 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ getSlashContext 
     const q = query.trim();
 
     if (q.startsWith("/")) {
-      const ctx = getSlashContext?.() ?? { providerNames: [] };
-      const suggestions = getSlashCommandSuggestions(q, { providerNames: ctx.providerNames });
+      const ctx = getSlashContext?.() ?? { providerNames: [], availableScripts: [] };
+      const suggestions = getSlashCommandSuggestions(q, {
+        providerNames: ctx.providerNames,
+        availableScripts: ctx.availableScripts,
+      });
       const section = "Slash Commands";
       const groups: PaletteGroup[] = [
         {
