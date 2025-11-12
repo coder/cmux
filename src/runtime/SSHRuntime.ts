@@ -377,8 +377,8 @@ export class SSHRuntime implements Runtime {
     // Bash will expand ~ automatically when we echo the unquoted variable
     // This works with BusyBox (doesn't require GNU coreutils)
     const command = `bash -c 'p=${shescape.quote(filePath)}; echo $p'`;
-    // Use 5 second timeout for path resolution (should be near-instant)
-    return this.execSSHCommand(command, 5000);
+    // Use 10 second timeout for path resolution to allow for slower SSH connections
+    return this.execSSHCommand(command, 10000);
   }
 
   /**
