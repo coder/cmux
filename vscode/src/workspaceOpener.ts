@@ -17,19 +17,6 @@ function isRemoteSshInstalled(): boolean {
 }
 
 /**
- * Get the ID of the installed Remote-SSH extension
- */
-function getRemoteSshExtensionId(): string | undefined {
-  if (vscode.extensions.getExtension("ms-vscode-remote.remote-ssh")) {
-    return "ms-vscode-remote.remote-ssh";
-  }
-  if (vscode.extensions.getExtension("anysphere.remote-ssh")) {
-    return "anysphere.remote-ssh";
-  }
-  return undefined;
-}
-
-/**
  * Open a local workspace in a new VS Code window
  */
 async function openLocalWorkspace(workspace: WorkspaceWithContext) {
@@ -50,22 +37,22 @@ async function openLocalWorkspace(workspace: WorkspaceWithContext) {
 async function openSshWorkspace(workspace: WorkspaceWithContext) {
   // Check if Remote-SSH is installed
   if (!isRemoteSshInstalled()) {
-    vscode.window.showErrorMessage(
+    const selection = await vscode.window.showErrorMessage(
       'cmux: The "Remote - SSH" extension is required to open SSH workspaces. ' +
         "Please install it from the Extensions marketplace.",
       "Open Extensions"
-    ).then((selection) => {
-      if (selection === "Open Extensions") {
-        // Search for the appropriate extension based on the editor
-        const extensionId = vscode.env.appName.toLowerCase().includes("cursor")
-          ? "anysphere.remote-ssh"
-          : "ms-vscode-remote.remote-ssh";
-        vscode.commands.executeCommand(
-          "workbench.extensions.search",
-          `@id:${extensionId}`
-        );
-      }
-    });
+    );
+
+    if (selection === "Open Extensions") {
+      // Search for the appropriate extension based on the editor
+      const extensionId = vscode.env.appName.toLowerCase().includes("cursor")
+        ? "anysphere.remote-ssh"
+        : "ms-vscode-remote.remote-ssh";
+      await vscode.commands.executeCommand(
+        "workbench.extensions.search",
+        `@id:${extensionId}`
+      );
+    }
     return;
   }
 
@@ -91,18 +78,16 @@ async function openSshWorkspace(workspace: WorkspaceWithContext) {
       { forceNewWindow: true }
     );
   } catch (error) {
-    vscode.window.showErrorMessage(
+    const selection = await vscode.window.showErrorMessage(
       `cmux: Failed to open SSH workspace on host "${host}". ` +
         `Make sure the host is configured in your ~/.ssh/config or in the Remote-SSH extension. ` +
         `Error: ${error instanceof Error ? error.message : String(error)}`,
       "Open SSH Config"
-    ).then((selection) => {
-      if (selection === "Open SSH Config") {
-        vscode.commands.executeCommand(
-          "remote-ssh.openConfigFile"
-        );
-      }
-    });
+    );
+
+    if (selection === "Open SSH Config") {
+      await vscode.commands.executeCommand("remote-ssh.openConfigFile");
+    }
   }
 }
 

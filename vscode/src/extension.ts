@@ -6,10 +6,7 @@ import { openWorkspace } from "./workspaceOpener";
  * Format workspace for display in QuickPick
  */
 function formatWorkspaceLabel(workspace: WorkspaceWithContext): string {
-  const isRemote =
-    workspace.runtimeConfig && workspace.runtimeConfig.type === "ssh";
-
-  if (isRemote && workspace.runtimeConfig?.type === "ssh") {
+  if (workspace.runtimeConfig?.type === "ssh") {
     return `$(remote) [${workspace.projectName}] ${workspace.name} (ssh: ${workspace.runtimeConfig.host})`;
   }
 
@@ -76,8 +73,6 @@ async function openWorkspaceCommand() {
  * Activate the extension
  */
 export function activate(context: vscode.ExtensionContext) {
-  console.log('cmux extension is now active');
-
   // Register the openWorkspace command
   const disposable = vscode.commands.registerCommand(
     "cmux.openWorkspace",

@@ -124,10 +124,9 @@ export function getRemoteWorkspacePath(
   const projectName = path.basename(workspace.projectPath);
   const srcBaseDir = workspace.runtimeConfig.srcBaseDir;
 
-  // Ensure path starts with / for absolute path
-  const basePath = srcBaseDir.startsWith("~")
-    ? srcBaseDir
-    : srcBaseDir.startsWith("/")
+  // Remote paths should be absolute (starting with / or ~)
+  const basePath =
+    srcBaseDir.startsWith("/") || srcBaseDir.startsWith("~")
       ? srcBaseDir
       : `/${srcBaseDir}`;
 
