@@ -27,7 +27,7 @@ build: node_modules/.installed ## Build VS Code extension (.vsix)
 	@rm -rf out cmux-0.1.0.vsix
 	@bun run compile
 	@npx @vscode/vsce package --no-dependencies
-	@echo "✓ Extension packaged: cmux-0.1.0.vsix (bundle size: ~21 KB)"
+	@echo "✓ Extension packaged: cmux-0.1.0.vsix (bundle size: ~27 KB)"
 
 ## Install extension locally
 install: build ## Build and install extension locally
