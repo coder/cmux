@@ -67,12 +67,11 @@ export function useAIViewKeybinds({
         }
 
         // Normal stream interrupt (non-compaction)
-        // Allow interrupt in editable elements if there's no text selection
+        // Check for text selection anywhere - only interrupt if nothing is selected
         // This way Ctrl+C works for both copy (when text is selected) and interrupt (when not)
-        const inEditableElement = isEditableElement(e.target);
         let hasSelection = false;
 
-        if (inEditableElement) {
+        if (isEditableElement(e.target)) {
           // For input/textarea elements, check selectionStart/selectionEnd
           // (window.getSelection() doesn't work for form elements)
           const target = e.target as HTMLInputElement | HTMLTextAreaElement;
@@ -85,7 +84,8 @@ export function useAIViewKeybinds({
           hasSelection = (window.getSelection()?.toString().length ?? 0) > 0;
         }
 
-        if ((canInterrupt || showRetryBarrier) && (!inEditableElement || !hasSelection)) {
+        // Only interrupt if there's no selection (allow Ctrl+C to copy when text is selected)
+        if ((canInterrupt || showRetryBarrier) && !hasSelection) {
           e.preventDefault();
           setAutoRetry(false); // User explicitly stopped - don't auto-retry
           void window.api.workspace.interruptStream(workspaceId);
