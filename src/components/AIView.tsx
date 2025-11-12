@@ -168,8 +168,8 @@ const AIViewInner: React.FC<AIViewProps> = ({
   );
 
   const handleOpenTerminal = useCallback(() => {
-    void window.api.workspace.openTerminal(namedWorkspacePath);
-  }, [namedWorkspacePath]);
+    void window.api.workspace.openTerminal(workspaceId);
+  }, [workspaceId]);
 
   // Auto-scroll when messages or todos update (during streaming)
   useEffect(() => {

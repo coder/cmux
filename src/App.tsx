@@ -157,13 +157,9 @@ function AppInner() {
 
   const openWorkspaceInTerminal = useCallback(
     (workspaceId: string) => {
-      // Look up workspace metadata to get the workspace path (directory uses workspace name)
-      const metadata = workspaceMetadata.get(workspaceId);
-      if (metadata) {
-        void window.api.workspace.openTerminal(metadata.namedWorkspacePath);
-      }
+      void window.api.workspace.openTerminal(workspaceId);
     },
-    [workspaceMetadata]
+    []
   );
 
   const handleRemoveProject = useCallback(
