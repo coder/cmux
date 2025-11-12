@@ -6,8 +6,12 @@ import { join } from "path";
  * Can be overridden with CMUX_TEST_ROOT environment variable.
  *
  * This is a getter function to support test mocking of os.homedir().
+ *
+ * Note: This file is only used by main process code, but lives in constants/
+ * for organizational purposes. The process.env access is safe.
  */
 export function getCmuxHome(): string {
+  // eslint-disable-next-line no-restricted-syntax, no-restricted-globals
   return process.env.CMUX_TEST_ROOT ?? join(homedir(), ".cmux");
 }
 

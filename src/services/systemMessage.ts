@@ -1,5 +1,3 @@
-import * as os from "os";
-import * as path from "path";
 import type { WorkspaceMetadata } from "@/types/workspace";
 import { readInstructionSet, readInstructionSetFromRuntime } from "@/utils/main/instructionFiles";
 import { extractModeSection } from "@/utils/main/markdown";

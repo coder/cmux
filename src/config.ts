@@ -1,6 +1,5 @@
 import * as fs from "fs";
 import * as path from "path";
-import * as os from "os";
 import * as crypto from "crypto";
 import * as jsonc from "jsonc-parser";
 import writeFileAtomic from "write-file-atomic";
