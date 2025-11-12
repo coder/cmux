@@ -20,9 +20,9 @@ export interface WorkspaceWithContext extends WorkspaceMetadata {
  * Uses main app's Config class to read workspace metadata, then enriches
  * with extension-specific data (recency, streaming status).
  */
-export function getAllWorkspaces(): WorkspaceWithContext[] {
+export async function getAllWorkspaces(): Promise<WorkspaceWithContext[]> {
   const config = new Config();
-  const workspaces = config.getAllWorkspaceMetadata();
+  const workspaces = await config.getAllWorkspaceMetadata();
   const extensionMeta = readExtensionMetadata();
 
   console.log(`[cmux] Read ${extensionMeta.size} entries from extension metadata`);

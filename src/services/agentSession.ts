@@ -175,7 +175,7 @@ export class AgentSession {
     assert(trimmedWorkspacePath.length > 0, "workspacePath must not be empty");
 
     const normalizedWorkspacePath = path.resolve(trimmedWorkspacePath);
-    const existing = this.aiService.getWorkspaceMetadata(this.workspaceId);
+    const existing = await this.aiService.getWorkspaceMetadata(this.workspaceId);
 
     if (existing.success) {
       // Metadata already exists, verify workspace path matches

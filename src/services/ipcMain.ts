@@ -378,7 +378,7 @@ export class IpcMain {
         // No longer creating symlinks - directory name IS the workspace name
 
         // Get complete metadata from config (includes paths)
-        const allMetadata = this.config.getAllWorkspaceMetadata();
+        const allMetadata = await this.config.getAllWorkspaceMetadata();
         const completeMetadata = allMetadata.find((m) => m.id === workspaceId);
         if (!completeMetadata) {
           return { success: false, error: "Failed to retrieve workspace metadata" };
@@ -438,7 +438,7 @@ export class IpcMain {
           }
 
           // Get current metadata
-          const metadataResult = this.aiService.getWorkspaceMetadata(workspaceId);
+          const metadataResult = await this.aiService.getWorkspaceMetadata(workspaceId);
           if (!metadataResult.success) {
             return Err(`Failed to get workspace metadata: ${metadataResult.error}`);
           }
@@ -451,7 +451,7 @@ export class IpcMain {
           }
 
           // Check if new name collides with existing workspace name or ID
-          const allWorkspaces = this.config.getAllWorkspaceMetadata();
+          const allWorkspaces = await this.config.getAllWorkspaceMetadata();
           const collision = allWorkspaces.find(
             (ws) => (ws.name === newName || ws.id === newName) && ws.id !== workspaceId
           );
@@ -500,7 +500,7 @@ export class IpcMain {
           });
 
           // Get updated metadata from config (includes updated name and paths)
-          const allMetadata = this.config.getAllWorkspaceMetadata();
+          const allMetadata = await this.config.getAllWorkspaceMetadata();
           const updatedMetadata = allMetadata.find((m) => m.id === workspaceId);
           if (!updatedMetadata) {
             return Err("Failed to retrieve updated workspace metadata");
@@ -542,7 +542,7 @@ export class IpcMain {
           }
 
           // Get source workspace metadata
-          const sourceMetadataResult = this.aiService.getWorkspaceMetadata(sourceWorkspaceId);
+          const sourceMetadataResult = await this.aiService.getWorkspaceMetadata(sourceWorkspaceId);
           if (!sourceMetadataResult.success) {
             return {
               success: false,
@@ -669,19 +669,19 @@ export class IpcMain {
       }
     );
 
-    ipcMain.handle(IPC_CHANNELS.WORKSPACE_LIST, () => {
+    ipcMain.handle(IPC_CHANNELS.WORKSPACE_LIST, async () => {
       try {
         // getAllWorkspaceMetadata now returns complete metadata with paths
-        return this.config.getAllWorkspaceMetadata();
+        return await this.config.getAllWorkspaceMetadata();
       } catch (error) {
         console.error("Failed to list workspaces:", error);
         return [];
       }
     });
 
-    ipcMain.handle(IPC_CHANNELS.WORKSPACE_GET_INFO, (_event, workspaceId: string) => {
+    ipcMain.handle(IPC_CHANNELS.WORKSPACE_GET_INFO, async (_event, workspaceId: string) => {
       // Get complete metadata from config (includes paths)
-      const allMetadata = this.config.getAllWorkspaceMetadata();
+      const allMetadata = await this.config.getAllWorkspaceMetadata();
       return allMetadata.find((m) => m.id === workspaceId) ?? null;
     });
 
@@ -893,7 +893,7 @@ export class IpcMain {
       ) => {
         try {
           // Get workspace metadata
-          const metadataResult = this.aiService.getWorkspaceMetadata(workspaceId);
+          const metadataResult = await this.aiService.getWorkspaceMetadata(workspaceId);
           if (!metadataResult.success) {
             return Err(`Failed to get workspace metadata: ${metadataResult.error}`);
           }
@@ -1061,7 +1061,7 @@ export class IpcMain {
   ): Promise<{ success: boolean; error?: string }> {
     try {
       // Get workspace metadata
-      const metadataResult = this.aiService.getWorkspaceMetadata(workspaceId);
+      const metadataResult = await this.aiService.getWorkspaceMetadata(workspaceId);
       if (!metadataResult.success) {
         // If metadata doesn't exist, workspace is already gone - consider it success
         log.info(`Workspace ${workspaceId} metadata not found, considering removal successful`);
@@ -1329,19 +1329,21 @@ export class IpcMain {
 
     // Handle subscription events for metadata
     ipcMain.on(IPC_CHANNELS.WORKSPACE_METADATA_SUBSCRIBE, () => {
-      try {
-        const workspaceMetadata = this.config.getAllWorkspaceMetadata();
+      void (async () => {
+        try {
+          const workspaceMetadata = await this.config.getAllWorkspaceMetadata();
 
-        // Emit current metadata for each workspace
-        for (const metadata of workspaceMetadata) {
-          this.mainWindow?.webContents.send(IPC_CHANNELS.WORKSPACE_METADATA, {
-            workspaceId: metadata.id,
-            metadata,
-          });
+          // Emit current metadata for each workspace
+          for (const metadata of workspaceMetadata) {
+            this.mainWindow?.webContents.send(IPC_CHANNELS.WORKSPACE_METADATA, {
+              workspaceId: metadata.id,
+              metadata,
+            });
+          }
+        } catch (error) {
+          console.error("Failed to emit current metadata:", error);
         }
-      } catch (error) {
-        console.error("Failed to emit current metadata:", error);
-      }
+      })();
     });
   }
 

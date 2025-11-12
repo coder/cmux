@@ -51,7 +51,7 @@ function createWorkspaceQuickPickItem(
  */
 async function openWorkspaceCommand() {
   // Get all workspaces, this is intentionally not cached.
-  const workspaces = getAllWorkspaces();
+  const workspaces = await getAllWorkspaces();
 
   if (workspaces.length === 0) {
     const selection = await vscode.window.showInformationMessage(

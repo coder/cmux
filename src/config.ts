@@ -234,7 +234,7 @@ export class Config {
    * If missing from config or legacy metadata, a new timestamp is assigned and
    * saved to config for subsequent loads.
    */
-  getAllWorkspaceMetadata(): FrontendWorkspaceMetadata[] {
+  async getAllWorkspaceMetadata(): Promise<FrontendWorkspaceMetadata[]> {
     const config = this.loadConfigOrDefault();
     const workspaceMetadata: FrontendWorkspaceMetadata[] = [];
     let configModified = false;
@@ -351,9 +351,9 @@ export class Config {
       }
     }
 
-    // Save config if we migrated any workspaces (fire and forget - don't block)
+    // Save config if we migrated any workspaces
     if (configModified) {
-      void this.saveConfig(config);
+      await this.saveConfig(config);
     }
 
     return workspaceMetadata;
