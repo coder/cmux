@@ -1,5 +1,5 @@
 import * as path from "path";
-import type { RuntimeConfig } from "cmux/types/runtime";
+import { Config } from "cmux/config";
 import type { WorkspaceMetadata } from "cmux/types/workspace";
 import {
   type ExtensionMetadata,
@@ -7,22 +7,8 @@ import {
 } from "cmux/utils/extensionMetadata";
 
 /**
- * Project configuration from cmux
- */
-export interface ProjectConfig {
-  path: string;
-  workspaces: WorkspaceMetadata[];
-}
-
-/**
- * Full cmux configuration structure
- */
-export interface CmuxConfig {
-  projects: Array<[string, ProjectConfig]>;
-}
-
-/**
- * Workspace with additional context for display
+ * Workspace with extension metadata for display in VS Code extension.
+ * Combines workspace metadata from main app with extension-specific data.
  */
 export interface WorkspaceWithContext extends WorkspaceMetadata {
   projectPath: string;
@@ -30,72 +16,43 @@ export interface WorkspaceWithContext extends WorkspaceMetadata {
 }
 
 /**
- * Read and parse the cmux configuration file
- */
-export function readCmuxConfig(): CmuxConfig | null {
-  const os = require("os");
-  const fs = require("fs");
-  const configPath = path.join(os.homedir(), ".cmux", "config.json");
-
-  if (!fs.existsSync(configPath)) {
-    return null;
-  }
-
-  try {
-    const configData = fs.readFileSync(configPath, "utf-8");
-    return JSON.parse(configData) as CmuxConfig;
-  } catch (error) {
-    console.error("Failed to read cmux config:", error);
-    return null;
-  }
-}
-
-/**
- * Get all workspaces from the cmux configuration
+ * Get all workspaces from cmux config, enriched with extension metadata.
+ * Uses main app's Config class to read workspace metadata, then enriches
+ * with extension-specific data (recency, streaming status).
  */
 export function getAllWorkspaces(): WorkspaceWithContext[] {
-  const config = readCmuxConfig();
-  if (!config) {
-    return [];
-  }
+  const config = new Config();
+  const workspaces = config.getAllWorkspaceMetadata();
+  const extensionMeta = readExtensionMetadata();
 
-  const metadata = readExtensionMetadata();
-  console.log(`[cmux] Read ${metadata.size} entries from extension metadata`);
-  
-  const workspaces: WorkspaceWithContext[] = [];
+  console.log(`[cmux] Read ${extensionMeta.size} entries from extension metadata`);
 
-  for (const [projectPath, projectConfig] of config.projects) {
-    const projectName = path.basename(projectPath);
-
-    for (const workspace of projectConfig.workspaces) {
-      const meta = metadata.get(workspace.id);
-      
-      if (meta) {
-        console.log(`[cmux]   ${workspace.id}: recency=${meta.recency}, streaming=${meta.streaming}`);
-      }
-
-      workspaces.push({
-        ...workspace,
-        // Ensure projectName is set (use from workspace or derive from path)
-        projectName: workspace.projectName || projectName,
-        projectPath,
-        extensionMetadata: meta,
-      });
+  // Enrich with extension metadata
+  const enriched: WorkspaceWithContext[] = workspaces.map((ws) => {
+    const meta = extensionMeta.get(ws.id);
+    if (meta) {
+      console.log(
+        `[cmux]   ${ws.id}: recency=${meta.recency}, streaming=${meta.streaming}`
+      );
     }
-  }
+    return {
+      ...ws,
+      extensionMetadata: meta,
+    };
+  });
 
-  // Sort by recency (metadata recency > createdAt > name)
-
+  // Sort by recency (extension metadata > createdAt > name)
   const recencyOf = (w: WorkspaceWithContext): number =>
     w.extensionMetadata?.recency ?? (w.createdAt ? Date.parse(w.createdAt) : 0);
-  workspaces.sort((a, b) => {
+
+  enriched.sort((a, b) => {
     const aRecency = recencyOf(a);
     const bRecency = recencyOf(b);
     if (aRecency !== bRecency) return bRecency - aRecency;
     return a.name.localeCompare(b.name);
   });
 
-  return workspaces;
+  return enriched;
 }
 
 /**
