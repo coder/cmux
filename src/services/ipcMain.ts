@@ -28,6 +28,7 @@ import { DisposableTempDir } from "@/services/tempDir";
 import { InitStateManager } from "@/services/initStateManager";
 import { createRuntime } from "@/runtime/runtimeFactory";
 import type { RuntimeConfig } from "@/types/runtime";
+import { isSSHRuntime } from "@/types/runtime";
 import { validateProjectPath } from "@/utils/pathUtils";
 import { ExtensionMetadataService } from "@/services/ExtensionMetadataService";
 /**
@@ -969,11 +970,9 @@ export class IpcMain {
         }
 
         const runtimeConfig = workspace.runtimeConfig;
-        const isSSH = runtimeConfig?.type === "ssh";
 
-        if (isSSH) {
+        if (isSSHRuntime(runtimeConfig)) {
           // SSH workspace - spawn local terminal that SSHs into remote host
-          // Type assertion is safe because isSSH === true means runtimeConfig.type === "ssh"
           await this.openTerminal({
             type: "ssh",
             sshConfig: runtimeConfig,
