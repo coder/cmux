@@ -1,9 +1,13 @@
-import { join, dirname } from "path";
-import { homedir } from "os";
+import { dirname } from "path";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
+import {
+  type ExtensionMetadata,
+  type ExtensionMetadataFile,
+  getExtensionMetadataPath,
+} from "@/utils/extensionMetadata";
 
 /**
- * Workspace metadata for VS Code extension integration.
+ * Service for managing workspace metadata used by VS Code extension integration.
  * 
  * This service tracks:
  * - recency: Unix timestamp (ms) of last user interaction
@@ -16,17 +20,9 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
  * main app writes on user interactions).
  */
 
-export interface WorkspaceMetadata {
+export interface WorkspaceMetadata extends ExtensionMetadata {
   workspaceId: string;
-  recency: number;
-  streaming: boolean;
-  lastModel: string | null;
   updatedAt: number;
-}
-
-interface ExtensionMetadataFile {
-  version: 1;
-  workspaces: Record<string, Omit<WorkspaceMetadata, "workspaceId">>;
 }
 
 export class ExtensionMetadataService {
@@ -34,8 +30,7 @@ export class ExtensionMetadataService {
   private data: ExtensionMetadataFile;
 
   constructor(filePath?: string) {
-    this.filePath =
-      filePath ?? join(homedir(), ".cmux", "extensionMetadata.json");
+    this.filePath = filePath ?? getExtensionMetadataPath();
 
     // Ensure directory exists
     const dir = dirname(this.filePath);
@@ -95,11 +90,9 @@ export class ExtensionMetadataService {
         recency: timestamp,
         streaming: false,
         lastModel: null,
-        updatedAt: timestamp,
       };
     } else {
       this.data.workspaces[workspaceId].recency = timestamp;
-      this.data.workspaces[workspaceId].updatedAt = timestamp;
     }
     this.save();
   }
@@ -115,14 +108,12 @@ export class ExtensionMetadataService {
         recency: now,
         streaming,
         lastModel: model ?? null,
-        updatedAt: now,
       };
     } else {
       this.data.workspaces[workspaceId].streaming = streaming;
       if (model) {
         this.data.workspaces[workspaceId].lastModel = model;
       }
-      this.data.workspaces[workspaceId].updatedAt = now;
     }
     this.save();
   }
@@ -136,6 +127,7 @@ export class ExtensionMetadataService {
 
     return {
       workspaceId,
+      updatedAt: entry.recency, // Use recency as updatedAt for backwards compatibility
       ...entry,
     };
   }
@@ -154,6 +146,7 @@ export class ExtensionMetadataService {
     for (const [workspaceId, entry] of entries) {
       map.set(workspaceId, {
         workspaceId,
+        updatedAt: entry.recency, // Use recency as updatedAt for backwards compatibility
         ...entry,
       });
     }

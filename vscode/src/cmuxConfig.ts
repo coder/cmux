@@ -1,22 +1,9 @@
-import * as fs from "fs";
 import * as path from "path";
-import * as os from "os";
 import type { RuntimeConfig, WorkspaceMetadata } from "./shared/types";
-
-/**
- * Extension metadata from JSON file
- */
-export interface ExtensionMetadata {
-  recency: number;
-  streaming: boolean;
-  lastModel: string | null;
-}
-
-// File structure for extensionMetadata.json
-interface ExtensionMetadataFile {
-  version: 1;
-  workspaces: Record<string, ExtensionMetadata>;
-}
+import {
+  type ExtensionMetadata,
+  readExtensionMetadata,
+} from "./shared/extensionMetadata";
 
 /**
  * Project configuration from cmux
@@ -45,6 +32,8 @@ export interface WorkspaceWithContext extends WorkspaceMetadata {
  * Read and parse the cmux configuration file
  */
 export function readCmuxConfig(): CmuxConfig | null {
+  const os = require("os");
+  const fs = require("fs");
   const configPath = path.join(os.homedir(), ".cmux", "config.json");
 
   if (!fs.existsSync(configPath)) {
@@ -61,44 +50,6 @@ export function readCmuxConfig(): CmuxConfig | null {
 }
 
 /**
- * Read workspace metadata from JSON file.
- * This provides recency and streaming status for sorting and display.
- */
-function readExtensionMetadata(): Map<string, ExtensionMetadata> {
-  const metadataPath = path.join(os.homedir(), ".cmux", "extensionMetadata.json");
-
-  // Check if file exists
-  if (!fs.existsSync(metadataPath)) {
-    return new Map();
-  }
-
-  try {
-    const content = fs.readFileSync(metadataPath, "utf-8");
-    const data = JSON.parse(content) as ExtensionMetadataFile;
-
-    // Validate structure
-    if (typeof data !== "object" || data.version !== 1) {
-      console.error("[cmux] Invalid metadata file format");
-      return new Map();
-    }
-
-    const map = new Map<string, ExtensionMetadata>();
-    const entries = Object.entries(data.workspaces || {});
-
-    console.log(`[cmux] Read ${entries.length} entries from extension metadata`);
-    for (const [workspaceId, metadata] of entries) {
-      console.log(`[cmux]   ${workspaceId}: recency=${metadata.recency}, streaming=${metadata.streaming}`);
-      map.set(workspaceId, metadata);
-    }
-
-    return map;
-  } catch (error) {
-    console.error("[cmux] Failed to read extension metadata:", error);
-    return new Map();
-  }
-}
-
-/**
  * Get all workspaces from the cmux configuration
  */
 export function getAllWorkspaces(): WorkspaceWithContext[] {
@@ -108,6 +59,8 @@ export function getAllWorkspaces(): WorkspaceWithContext[] {
   }
 
   const metadata = readExtensionMetadata();
+  console.log(`[cmux] Read ${metadata.size} entries from extension metadata`);
+  
   const workspaces: WorkspaceWithContext[] = [];
 
   for (const [projectPath, projectConfig] of config.projects) {
@@ -116,13 +69,8 @@ export function getAllWorkspaces(): WorkspaceWithContext[] {
     for (const workspace of projectConfig.workspaces) {
       const meta = metadata.get(workspace.id);
       
-      if (workspace.name === 'vscode-ext') {
-        console.log(`[cmux] vscode-ext workspace:`);
-        console.log(`[cmux]   id: ${workspace.id}`);
-        console.log(`[cmux]   has metadata: ${!!meta}`);
-        if (meta) {
-          console.log(`[cmux]   metadata.recency: ${meta.recency}`);
-        }
+      if (meta) {
+        console.log(`[cmux]   ${workspace.id}: recency=${meta.recency}, streaming=${meta.streaming}`);
       }
 
       workspaces.push({
@@ -157,6 +105,7 @@ export function getWorkspacePath(
   projectPath: string,
   workspaceName: string
 ): string {
+  const os = require("os");
   const projectName = path.basename(projectPath);
   const srcBaseDir = path.join(os.homedir(), ".cmux", "src");
   return path.join(srcBaseDir, projectName, workspaceName);

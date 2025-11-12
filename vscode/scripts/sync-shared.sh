@@ -15,6 +15,10 @@ mkdir -p "$SHARED_DIR"
 echo "   Copying dateTime.ts..."
 cp "$MAIN_APP_DIR/src/utils/ui/dateTime.ts" "$SHARED_DIR/dateTime.ts"
 
+# Copy extensionMetadata.ts (metadata reading logic)
+echo "   Copying extensionMetadata.ts..."
+cp "$MAIN_APP_DIR/src/utils/extensionMetadata.ts" "$SHARED_DIR/extensionMetadata.ts"
+
 # Create types.ts with relevant types
 echo "   Extracting types..."
 cat > "$SHARED_DIR/types.ts" << 'TYPES_HEADER'
@@ -51,4 +55,5 @@ mv "$TEMP_FILE" "$SHARED_DIR/dateTime.ts"
 
 echo "✅ Synced shared code:"
 echo "   - dateTime.ts (formatRelativeTime utility)"
+echo "   - extensionMetadata.ts (ExtensionMetadata types and reading logic)"
 echo "   - types.ts (RuntimeConfig, WorkspaceMetadata)"
