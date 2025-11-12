@@ -1400,7 +1400,16 @@ export class IpcMain {
         let args: string[];
         if (isSSH && sshArgs) {
           // Terminal.app: Use osascript to run ssh command
-          const sshCommand = `ssh ${sshArgs.map((arg) => (arg.includes(" ") ? `'${arg}'` : arg)).join(" ")}`;
+          // Properly escape single quotes in args before wrapping in quotes
+          const sshCommand = `ssh ${sshArgs
+            .map((arg) => {
+              if (arg.includes(" ") || arg.includes("'")) {
+                // Escape single quotes by ending quote, adding escaped quote, starting quote again
+                return `'${arg.replace(/'/g, "'\\''")}'`;
+              }
+              return arg;
+            })
+            .join(" ")}`;
           const script = `tell application "Terminal" to do script "${sshCommand.replace(/"/g, '\\"')}"`;
           args = ["-e", script];
         } else {
