@@ -3,6 +3,39 @@ import { getAllWorkspaces, WorkspaceWithContext } from "./cmuxConfig";
 import { openWorkspace } from "./workspaceOpener";
 
 /**
+ * Format relative time (e.g., "2 hours ago", "yesterday")
+ */
+function formatRelativeTime(timestamp: number): string {
+  const now = Date.now();
+  const diff = now - timestamp;
+  const seconds = Math.floor(diff / 1000);
+  const minutes = Math.floor(seconds / 60);
+  const hours = Math.floor(minutes / 60);
+  const days = Math.floor(hours / 24);
+
+  if (seconds < 60) {
+    return "just now";
+  } else if (minutes < 60) {
+    return `${minutes} minute${minutes !== 1 ? "s" : ""} ago`;
+  } else if (hours < 24) {
+    return `${hours} hour${hours !== 1 ? "s" : ""} ago`;
+  } else if (days === 1) {
+    return "yesterday";
+  } else if (days < 7) {
+    return `${days} days ago`;
+  } else if (days < 30) {
+    const weeks = Math.floor(days / 7);
+    return `${weeks} week${weeks !== 1 ? "s" : ""} ago`;
+  } else if (days < 365) {
+    const months = Math.floor(days / 30);
+    return `${months} month${months !== 1 ? "s" : ""} ago`;
+  } else {
+    const years = Math.floor(days / 365);
+    return `${years} year${years !== 1 ? "s" : ""} ago`;
+  }
+}
+
+/**
  * Format workspace for display in QuickPick
  */
 function formatWorkspaceLabel(workspace: WorkspaceWithContext): string {
@@ -29,12 +62,18 @@ function formatWorkspaceLabel(workspace: WorkspaceWithContext): string {
 function createWorkspaceQuickPickItem(
   workspace: WorkspaceWithContext
 ): vscode.QuickPickItem & { workspace: WorkspaceWithContext } {
+  // Prefer recency (last used) over created timestamp
+  let detail: string | undefined;
+  if (workspace.extensionMetadata?.recency) {
+    detail = `Last used: ${formatRelativeTime(workspace.extensionMetadata.recency)}`;
+  } else if (workspace.createdAt) {
+    detail = `Created: ${new Date(workspace.createdAt).toLocaleDateString()}`;
+  }
+
   return {
     label: formatWorkspaceLabel(workspace),
     description: workspace.projectPath,
-    detail: workspace.createdAt
-      ? `Created: ${new Date(workspace.createdAt).toLocaleDateString()}`
-      : undefined,
+    detail,
     workspace,
   };
 }

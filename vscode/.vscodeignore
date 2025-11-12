@@ -8,4 +8,6 @@ vsc-extension-quickstart.md
 **/.eslintrc.json
 **/*.map
 **/*.ts
-node_modules/**
+# Include node_modules for dependencies (especially native modules like better-sqlite3)
+# The extension needs these at runtime
+!node_modules/better-sqlite3/**
