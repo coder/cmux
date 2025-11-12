@@ -91,9 +91,9 @@ export class IpcMain {
   private setupMetadataListeners(): void {
     const isObj = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null;
     const isWorkspaceEvent = (v: unknown): v is { workspaceId: string } =>
-      isObj(v) && typeof (v as any).workspaceId === "string";
+      isObj(v) && "workspaceId" in v && typeof v.workspaceId === "string";
     const isStreamStartEvent = (v: unknown): v is { workspaceId: string; model: string } =>
-      isWorkspaceEvent(v) && typeof (v as any).model === "string";
+      isWorkspaceEvent(v) && "model" in v && typeof v.model === "string";
 
     // Update streaming status and recency on stream start
     this.aiService.on("stream-start", (data: unknown) => {
@@ -652,7 +652,7 @@ export class IpcMain {
           };
 
           // Write metadata to config.json
-          this.config.addWorkspace(foundProjectPath, metadata);
+          await this.config.addWorkspace(foundProjectPath, metadata);
 
           // Emit metadata event
           session.emitMetadata(metadata);

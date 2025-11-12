@@ -10,14 +10,14 @@ import {
 
 /**
  * Stateless service for managing workspace metadata used by VS Code extension integration.
- * 
+ *
  * This service tracks:
  * - recency: Unix timestamp (ms) of last user interaction
  * - streaming: Boolean indicating if workspace has an active stream
  * - lastModel: Last model used in this workspace
- * 
+ *
  * File location: ~/.cmux/extensionMetadata.json
- * 
+ *
  * Design:
  * - Stateless: reads from disk on every operation, no in-memory cache
  * - Atomic writes: uses write-file-atomic to prevent corruption
@@ -66,9 +66,7 @@ export class ExtensionMetadataService {
 
       // Validate structure
       if (typeof parsed !== "object" || parsed.version !== 1) {
-        console.error(
-          "[ExtensionMetadataService] Invalid metadata file, resetting"
-        );
+        console.error("[ExtensionMetadataService] Invalid metadata file, resetting");
         return { version: 1, workspaces: {} };
       }
 
@@ -94,7 +92,7 @@ export class ExtensionMetadataService {
    */
   async updateRecency(workspaceId: string, timestamp: number = Date.now()): Promise<void> {
     const data = await this.load();
-    
+
     if (!data.workspaces[workspaceId]) {
       data.workspaces[workspaceId] = {
         recency: timestamp,
@@ -104,7 +102,7 @@ export class ExtensionMetadataService {
     } else {
       data.workspaces[workspaceId].recency = timestamp;
     }
-    
+
     await this.save(data);
   }
 
@@ -115,7 +113,7 @@ export class ExtensionMetadataService {
   async setStreaming(workspaceId: string, streaming: boolean, model?: string): Promise<void> {
     const data = await this.load();
     const now = Date.now();
-    
+
     if (!data.workspaces[workspaceId]) {
       data.workspaces[workspaceId] = {
         recency: now,
@@ -128,7 +126,7 @@ export class ExtensionMetadataService {
         data.workspaces[workspaceId].lastModel = model;
       }
     }
-    
+
     await this.save(data);
   }
 
@@ -176,7 +174,7 @@ export class ExtensionMetadataService {
    */
   async deleteWorkspace(workspaceId: string): Promise<void> {
     const data = await this.load();
-    
+
     if (data.workspaces[workspaceId]) {
       delete data.workspaces[workspaceId];
       await this.save(data);
@@ -190,14 +188,14 @@ export class ExtensionMetadataService {
   async clearStaleStreaming(): Promise<void> {
     const data = await this.load();
     let modified = false;
-    
+
     for (const entry of Object.values(data.workspaces)) {
       if (entry.streaming) {
         entry.streaming = false;
         modified = true;
       }
     }
-    
+
     if (modified) {
       await this.save(data);
     }

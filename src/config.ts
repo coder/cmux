@@ -7,7 +7,6 @@ import writeFileAtomic from "write-file-atomic";
 import type { WorkspaceMetadata, FrontendWorkspaceMetadata } from "./types/workspace";
 import type { Secret, SecretsConfig } from "./types/secrets";
 import type { Workspace, ProjectConfig, ProjectsConfig } from "./types/project";
-import type { RuntimeConfig } from "./types/runtime";
 import { DEFAULT_RUNTIME_CONFIG } from "./constants/workspace";
 
 // Re-export project types from dedicated types file (for preload usage)
@@ -100,8 +99,6 @@ export class Config {
   private getProjectName(projectPath: string): string {
     return projectPath.split("/").pop() ?? projectPath.split("\\").pop() ?? "unknown";
   }
-
-
 
   /**
    * Generate a stable unique workspace ID.
@@ -369,8 +366,8 @@ export class Config {
    * @param projectPath Absolute path to the project
    * @param metadata Workspace metadata to save
    */
-  addWorkspace(projectPath: string, metadata: WorkspaceMetadata): void {
-    this.editConfig((config) => {
+  async addWorkspace(projectPath: string, metadata: WorkspaceMetadata): Promise<void> {
+    await this.editConfig((config) => {
       let project = config.projects.get(projectPath);
 
       if (!project) {

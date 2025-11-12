@@ -61,6 +61,9 @@ describe("Config", () => {
       expect(metadata.projectName).toBe("project");
       expect(metadata.projectPath).toBe(projectPath);
 
+      // Wait for async config save to complete (getAllWorkspaceMetadata fires off async save)
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
       // Verify metadata was migrated to config
       const configData = config.loadConfigOrDefault();
       const projectConfig = configData.projects.get(projectPath);
@@ -110,6 +113,9 @@ describe("Config", () => {
       expect(metadata.id).toBe(legacyId);
       expect(metadata.name).toBe(workspaceName);
       expect(metadata.createdAt).toBe("2025-01-01T00:00:00.000Z");
+
+      // Wait for async config save to complete (getAllWorkspaceMetadata fires off async save)
+      await new Promise((resolve) => setTimeout(resolve, 100));
 
       // Verify metadata was migrated to config
       const configData = config.loadConfigOrDefault();

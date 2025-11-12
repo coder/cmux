@@ -165,7 +165,7 @@ export class AgentSession {
     });
   }
 
-  ensureMetadata(args: { workspacePath: string; projectName?: string }): void {
+  async ensureMetadata(args: { workspacePath: string; projectName?: string }): Promise<void> {
     this.assertNotDisposed("ensureMetadata");
     assert(args, "ensureMetadata requires arguments");
     const { workspacePath, projectName } = args;
@@ -236,7 +236,7 @@ export class AgentSession {
     };
 
     // Write metadata directly to config.json (single source of truth)
-    this.config.addWorkspace(derivedProjectPath, metadata);
+    await this.config.addWorkspace(derivedProjectPath, metadata);
     this.emitMetadata(metadata);
   }
 
