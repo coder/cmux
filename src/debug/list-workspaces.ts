@@ -1,7 +1,7 @@
 import { defaultConfig } from "@/config";
 import * as path from "path";
 import * as fs from "fs";
-import { CMUX_SESSIONS_DIR } from "@/constants/paths";
+import { getCmuxSessionsDir } from "@/constants/paths";
 
 export function listWorkspacesCommand() {
   const config = defaultConfig.loadConfigOrDefault();
@@ -47,9 +47,10 @@ export function listWorkspacesCommand() {
   }
 
   console.log("\n=== Sessions Directory ===\n");
-  if (fs.existsSync(CMUX_SESSIONS_DIR)) {
-    const sessions = fs.readdirSync(CMUX_SESSIONS_DIR);
-    console.log(`Sessions in ${CMUX_SESSIONS_DIR}:`);
+  const sessionsDir = getCmuxSessionsDir();
+  if (fs.existsSync(sessionsDir)) {
+    const sessions = fs.readdirSync(sessionsDir);
+    console.log(`Sessions in ${sessionsDir}:`);
     for (const session of sessions) {
       console.log(`  - ${session}`);
     }

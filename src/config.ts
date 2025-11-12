@@ -8,7 +8,7 @@ import type { WorkspaceMetadata, FrontendWorkspaceMetadata } from "./types/works
 import type { Secret, SecretsConfig } from "./types/secrets";
 import type { Workspace, ProjectConfig, ProjectsConfig } from "./types/project";
 import { DEFAULT_RUNTIME_CONFIG } from "./constants/workspace";
-import { CMUX_HOME } from "./constants/paths";
+import { getCmuxHome } from "./constants/paths";
 
 // Re-export project types from dedicated types file (for preload usage)
 export type { Workspace, ProjectConfig, ProjectsConfig };
@@ -36,7 +36,7 @@ export class Config {
   private readonly secretsFile: string;
 
   constructor(rootDir?: string) {
-    this.rootDir = rootDir ?? CMUX_HOME;
+    this.rootDir = rootDir ?? getCmuxHome();
     this.sessionsDir = path.join(this.rootDir, "sessions");
     this.srcDir = path.join(this.rootDir, "src");
     this.configFile = path.join(this.rootDir, "config.json");

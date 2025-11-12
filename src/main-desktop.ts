@@ -18,7 +18,7 @@ import type { Config } from "./config";
 import type { IpcMain } from "./services/ipcMain";
 import { VERSION } from "./version";
 import { IPC_CHANNELS } from "./constants/ipc-constants";
-import { CMUX_HOME } from "./constants/paths";
+import { getCmuxHome } from "./constants/paths";
 import { log } from "./services/log";
 import { parseDebugUpdater } from "./utils/env";
 import assert from "./utils/assert";
@@ -75,8 +75,8 @@ const forceDistLoad = process.env.CMUX_E2E_LOAD_DIST === "1";
 
 if (isE2ETest) {
   // For e2e tests, use a test-specific userData directory
-  // Note: CMUX_HOME already respects CMUX_TEST_ROOT for test isolation
-  const e2eUserData = path.join(CMUX_HOME, "user-data");
+  // Note: getCmuxHome() already respects CMUX_TEST_ROOT for test isolation
+  const e2eUserData = path.join(getCmuxHome(), "user-data");
   try {
     fs.mkdirSync(e2eUserData, { recursive: true });
     app.setPath("userData", e2eUserData);

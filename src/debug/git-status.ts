@@ -13,15 +13,16 @@ import { execSync } from "child_process";
 // Import production code - script and parser stay in sync
 import { GIT_STATUS_SCRIPT, parseGitStatusScriptOutput } from "../utils/git/gitStatus";
 import { parseGitShowBranchForStatus } from "../utils/git/parseGitStatus";
-import { CMUX_SRC_DIR } from "../constants/paths";
+import { getCmuxSrcDir } from "../constants/paths";
 
 function findWorkspaces(): Array<{ id: string; path: string }> {
   const workspaces: Array<{ id: string; path: string }> = [];
+  const cmuxSrcDir = getCmuxSrcDir();
 
   try {
-    const projects = readdirSync(CMUX_SRC_DIR);
+    const projects = readdirSync(cmuxSrcDir);
     for (const project of projects) {
-      const projectPath = join(CMUX_SRC_DIR, project);
+      const projectPath = join(cmuxSrcDir, project);
       if (!statSync(projectPath).isDirectory()) continue;
 
       const branches = readdirSync(projectPath);
@@ -121,8 +122,9 @@ function testGitStatus(workspaceId: string, workspacePath: string) {
 }
 
 export function gitStatusCommand(workspaceId?: string) {
+  const cmuxSrcDir = getCmuxSrcDir();
   console.log("🔍 Git Status Debug Tool");
-  console.log("Finding workspaces in:", CMUX_SRC_DIR);
+  console.log("Finding workspaces in:", cmuxSrcDir);
   console.log();
 
   const workspaces = findWorkspaces();

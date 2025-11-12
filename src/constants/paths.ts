@@ -12,42 +12,63 @@ export function getCmuxHome(): string {
 }
 
 /**
- * Root directory for all cmux configuration and data.
- * Can be overridden with CMUX_TEST_ROOT environment variable.
- *
- * Note: For most use cases, prefer getCmuxHome() over this constant
- * to support test mocking of os.homedir().
- */
-export const CMUX_HOME = getCmuxHome();
-
-/**
- * Directory where workspace git worktrees are stored.
+ * Get the directory where workspace git worktrees are stored.
  * Example: ~/.cmux/src/my-project/feature-branch
+ *
+ * @param rootDir - Optional root directory (defaults to getCmuxHome())
  */
-export const CMUX_SRC_DIR = join(CMUX_HOME, "src");
+export function getCmuxSrcDir(rootDir?: string): string {
+  const root = rootDir ?? getCmuxHome();
+  return join(root, "src");
+}
 
 /**
- * Directory where session chat histories are stored.
+ * Get the directory where session chat histories are stored.
  * Example: ~/.cmux/sessions/workspace-id/chat.jsonl
+ *
+ * @param rootDir - Optional root directory (defaults to getCmuxHome())
  */
-export const CMUX_SESSIONS_DIR = join(CMUX_HOME, "sessions");
+export function getCmuxSessionsDir(rootDir?: string): string {
+  const root = rootDir ?? getCmuxHome();
+  return join(root, "sessions");
+}
 
 /**
- * Main configuration file path.
+ * Get the main configuration file path.
+ *
+ * @param rootDir - Optional root directory (defaults to getCmuxHome())
  */
-export const CMUX_CONFIG_FILE = join(CMUX_HOME, "config.json");
+export function getCmuxConfigFile(rootDir?: string): string {
+  const root = rootDir ?? getCmuxHome();
+  return join(root, "config.json");
+}
 
 /**
- * Providers configuration file path.
+ * Get the providers configuration file path.
+ *
+ * @param rootDir - Optional root directory (defaults to getCmuxHome())
  */
-export const CMUX_PROVIDERS_FILE = join(CMUX_HOME, "providers.jsonc");
+export function getCmuxProvidersFile(rootDir?: string): string {
+  const root = rootDir ?? getCmuxHome();
+  return join(root, "providers.jsonc");
+}
 
 /**
- * Secrets file path.
+ * Get the secrets file path.
+ *
+ * @param rootDir - Optional root directory (defaults to getCmuxHome())
  */
-export const CMUX_SECRETS_FILE = join(CMUX_HOME, "secrets.json");
+export function getCmuxSecretsFile(rootDir?: string): string {
+  const root = rootDir ?? getCmuxHome();
+  return join(root, "secrets.json");
+}
 
 /**
- * Extension metadata file path (shared with VS Code extension).
+ * Get the extension metadata file path (shared with VS Code extension).
+ *
+ * @param rootDir - Optional root directory (defaults to getCmuxHome())
  */
-export const CMUX_EXTENSION_METADATA_FILE = join(CMUX_HOME, "extensionMetadata.json");
+export function getCmuxExtensionMetadataPath(rootDir?: string): string {
+  const root = rootDir ?? getCmuxHome();
+  return join(root, "extensionMetadata.json");
+}

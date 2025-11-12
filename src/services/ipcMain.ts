@@ -64,7 +64,9 @@ export class IpcMain {
     this.historyService = new HistoryService(config);
     this.partialService = new PartialService(config, this.historyService);
     this.initStateManager = new InitStateManager(config);
-    this.extensionMetadata = new ExtensionMetadataService();
+    this.extensionMetadata = new ExtensionMetadataService(
+      path.join(config.rootDir, "extensionMetadata.json")
+    );
     this.aiService = new AIService(
       config,
       this.historyService,
