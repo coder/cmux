@@ -52,8 +52,5 @@
     "directory": "vscode"
   },
   "license": "AGPL-3.0-only",
-  "packageManager": "bun@1.1.42",
-  "dependencies": {
-    "cmux": "file:.."
-  }
+  "packageManager": "bun@1.1.42"
 }
