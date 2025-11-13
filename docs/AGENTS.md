@@ -1,5 +1,7 @@
 # AGENT INSTRUCTIONS
 
+**Edits to this file must be minimal and token-efficient.** Think carefully about how to represent information concisely. Avoid redundant examples or verbose explanations when the knowledge can be conveyed in a sentence or two.
+
 ## Project Context
 
 - Project is named `mux`
@@ -364,6 +366,8 @@ If IPC is hard to test, fix the test infrastructure or IPC layer, don't work aro
 ## Component State Management
 
 **For per-operation state tied to async workflows, parent components should own all localStorage operations.** Child components should notify parents of user intent without manipulating storage directly, preventing bugs from stale or orphaned state across component lifecycles.
+
+**Always use persistedState helpers (`usePersistedState`, `readPersistedState`, `updatePersistedState`) instead of direct `localStorage` calls** - provides cross-component sync and consistent error handling.
 
 ## Module Imports
 

@@ -3,8 +3,9 @@ import type { FrontendWorkspaceMetadata } from "@/types/workspace";
 import type { RuntimeConfig } from "@/types/runtime";
 import { RUNTIME_MODE } from "@/types/runtime";
 import { parseRuntimeString } from "@/utils/chatCommands";
-import { getModelKey } from "@/constants/storage";
+import { getModelKey, getRuntimeKey } from "@/constants/storage";
 import { useModelLRU } from "@/hooks/useModelLRU";
+import { updatePersistedState, readPersistedState } from "@/hooks/usePersistedState";
 import { useNewWorkspaceOptions } from "@/hooks/useNewWorkspaceOptions";
 import { useMode } from "@/contexts/ModeContext";
 import { useThinkingLevel } from "@/hooks/useThinkingLevel";
@@ -60,13 +61,13 @@ export function FirstMessageInput({
   // Get most recent model from LRU (project-scoped preference)
   const { recentModels, addModel } = useModelLRU();
   const projectModelKey = getModelKey(`__project__${projectPath}`);
-  const preferredModel = localStorage.getItem(projectModelKey) ?? recentModels[0];
+  const preferredModel = readPersistedState(projectModelKey, recentModels[0]);
 
   // Setter for model
   const setPreferredModel = useCallback(
     (model: string) => {
       addModel(model);
-      localStorage.setItem(projectModelKey, model);
+      updatePersistedState(projectModelKey, model);
     },
     [projectModelKey, addModel]
   );
@@ -155,6 +156,13 @@ export function FirstMessageInput({
       if ("metadata" in result && result.metadata) {
         // Clear input
         setInput("");
+
+        // Save runtime preference for this project
+        const runtimeString = getRuntimeString();
+        if (runtimeString) {
+          const runtimeKey = getRuntimeKey(projectPath);
+          updatePersistedState(runtimeKey, runtimeString);
+        }
 
         // Notify parent to switch workspace
         onWorkspaceCreated(result.metadata);
@@ -249,8 +257,9 @@ export function FirstMessageInput({
           />
         </div>
 
-        {/* Options row - Model + Thinking + Context + Mode + Runtime */}
+        {/* Options section - separated into two rows */}
         <div className="@container flex flex-col gap-1" data-component="FirstMessageOptions">
+          {/* First row: Model + Thinking + Context + Mode */}
           <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
             {/* Model Selector */}
             <div className="flex items-center" data-component="ModelSelectorGroup">
@@ -262,6 +271,24 @@ export function FirstMessageInput({
               />
             </div>
 
+            {/* Thinking Slider - slider hidden on narrow containers, label always clickable */}
+            <div
+              className="flex items-center [&_.thinking-slider]:[@container(max-width:550px)]:hidden"
+              data-component="ThinkingSliderGroup"
+            >
+              <ThinkingSliderComponent modelString={preferredModel} />
+            </div>
+
+            {/* Context 1M Checkbox - always visible */}
+            <div className="flex items-center" data-component="Context1MGroup">
+              <Context1MCheckbox modelString={preferredModel} />
+            </div>
+
+            <ModeSelector mode={mode} onChange={setMode} className="ml-auto" />
+          </div>
+
+          {/* Second row: New workspace controls (Trunk Branch + Runtime) */}
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
             {/* Trunk Branch Selector */}
             {branches.length > 0 && (
               <div className="flex items-center gap-1" data-component="TrunkBranchGroup">
@@ -284,23 +311,9 @@ export function FirstMessageInput({
               </div>
             )}
 
-            {/* Thinking Slider - slider hidden on narrow containers, label always clickable */}
-            <div
-              className="flex items-center [&_.thinking-slider]:[@container(max-width:550px)]:hidden"
-              data-component="ThinkingSliderGroup"
-            >
-              <ThinkingSliderComponent modelString={preferredModel} />
-            </div>
-
-            {/* Context 1M Checkbox - always visible */}
-            <div className="flex items-center" data-component="Context1MGroup">
-              <Context1MCheckbox modelString={preferredModel} />
-            </div>
-
-            <ModeSelector mode={mode} onChange={setMode} className="ml-auto" />
-
             {/* Runtime Selector */}
             <div className="flex items-center gap-1" data-component="RuntimeSelectorGroup">
+              <label className="text-muted text-xs">Runtime:</label>
               <select
                 value={runtimeMode}
                 onChange={(e) => {
