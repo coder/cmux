@@ -73,6 +73,15 @@ export function getRuntimeKey(projectPath: string): string {
 }
 
 /**
+ * Get the localStorage key for trunk branch preference for a project
+ * Stores the last used trunk branch when creating a workspace
+ * Format: "trunkBranch:{projectPath}"
+ */
+export function getTrunkBranchKey(projectPath: string): string {
+  return `trunkBranch:${projectPath}`;
+}
+
+/**
  * Get the localStorage key for the 1M context preference (global)
  * Format: "use1MContext"
  */

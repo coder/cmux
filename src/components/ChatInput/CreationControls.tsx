@@ -1,6 +1,7 @@
 import React from "react";
 import { RUNTIME_MODE } from "@/types/runtime";
 import { TooltipWrapper, Tooltip } from "../Tooltip";
+import { Select } from "../Select";
 
 interface CreationControlsProps {
   branches: string[];
@@ -37,39 +38,33 @@ export function CreationControls({
           <label htmlFor="trunk-branch" className="text-muted text-xs">
             From:
           </label>
-          <select
+          <Select
             id="trunk-branch"
             value={trunkBranch}
-            onChange={(e) => onTrunkBranchChange(e.target.value)}
+            options={branches}
+            onChange={onTrunkBranchChange}
             disabled={disabled}
-            className="bg-separator text-foreground border-border-medium focus:border-accent max-w-[120px] rounded border px-2 py-1 text-xs focus:outline-none disabled:opacity-50"
-          >
-            {branches.map((branch) => (
-              <option key={branch} value={branch}>
-                {branch}
-              </option>
-            ))}
-          </select>
+            className="max-w-[120px]"
+          />
         </div>
       )}
 
       {/* Runtime Selector */}
       <div className="flex items-center gap-1" data-component="RuntimeSelectorGroup">
         <label className="text-muted text-xs">Runtime:</label>
-        <select
+        <Select
           value={runtimeMode}
-          onChange={(e) => {
-            const newMode = e.target.value as
-              | typeof RUNTIME_MODE.LOCAL
-              | typeof RUNTIME_MODE.SSH;
-            onRuntimeChange(newMode, newMode === RUNTIME_MODE.LOCAL ? "" : sshHost);
+          options={[
+            { value: RUNTIME_MODE.LOCAL, label: "Local" },
+            { value: RUNTIME_MODE.SSH, label: "SSH Remote" },
+          ]}
+          onChange={(newMode) => {
+            const mode = newMode as typeof RUNTIME_MODE.LOCAL | typeof RUNTIME_MODE.SSH;
+            onRuntimeChange(mode, mode === RUNTIME_MODE.LOCAL ? "" : sshHost);
           }}
           disabled={disabled}
-          className="bg-separator text-foreground border-border-medium focus:border-accent rounded border px-2 py-1 text-xs focus:outline-none disabled:opacity-50"
-        >
-          <option value={RUNTIME_MODE.LOCAL}>Local</option>
-          <option value={RUNTIME_MODE.SSH}>SSH Remote</option>
-        </select>
+          aria-label="Runtime mode"
+        />
         {runtimeMode === RUNTIME_MODE.SSH && (
           <input
             type="text"

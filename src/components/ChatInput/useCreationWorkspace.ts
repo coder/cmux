@@ -3,9 +3,7 @@ import type { FrontendWorkspaceMetadata } from "@/types/workspace";
 import type { RuntimeConfig } from "@/types/runtime";
 import type { RUNTIME_MODE } from "@/types/runtime";
 import { parseRuntimeString } from "@/utils/chatCommands";
-import { getRuntimeKey } from "@/constants/storage";
-import { updatePersistedState } from "@/hooks/usePersistedState";
-import { useNewWorkspaceOptions } from "@/hooks/useNewWorkspaceOptions";
+import { useDraftWorkspaceSettings } from "@/hooks/useDraftWorkspaceSettings";
 import { useSendMessageOptions } from "@/hooks/useSendMessageOptions";
 import { extractErrorMessage } from "./utils";
 
@@ -42,13 +40,13 @@ export function useCreationWorkspace({
   onWorkspaceCreated,
 }: UseCreationWorkspaceOptions): UseCreationWorkspaceReturn {
   const [branches, setBranches] = useState<string[]>([]);
-  const [trunkBranch, setTrunkBranch] = useState<string>("");
+  const [recommendedTrunk, setRecommendedTrunk] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isSending, setIsSending] = useState(false);
 
-  // Runtime configuration (Local vs SSH)
-  const [runtimeOptions, setRuntimeOptions] = useNewWorkspaceOptions(projectPath);
-  const { runtimeMode, sshHost, getRuntimeString } = runtimeOptions;
+  // Centralized draft workspace settings with automatic persistence
+  const { settings, setRuntimeOptions, setTrunkBranch, getRuntimeString } =
+    useDraftWorkspaceSettings(projectPath, branches, recommendedTrunk);
 
   // Get send options from shared hook (uses project-scoped storage key)
   const sendMessageOptions = useSendMessageOptions(`__project__${projectPath}`);
@@ -59,11 +57,7 @@ export function useCreationWorkspace({
       try {
         const result = await window.api.projects.listBranches(projectPath);
         setBranches(result.branches);
-        if (result.recommendedTrunk) {
-          setTrunkBranch(result.recommendedTrunk);
-        } else if (result.branches.length > 0) {
-          setTrunkBranch(result.branches[0]);
-        }
+        setRecommendedTrunk(result.recommendedTrunk);
       } catch (err) {
         console.error("Failed to load branches:", err);
       }
@@ -90,7 +84,7 @@ export function useCreationWorkspace({
           ...sendMessageOptions,
           runtimeConfig,
           projectPath, // Pass projectPath when workspaceId is null
-          trunkBranch, // Pass selected trunk branch
+          trunkBranch: settings.trunkBranch, // Pass selected trunk branch from settings
         });
 
         if (!result.success) {
@@ -101,13 +95,7 @@ export function useCreationWorkspace({
 
         // Check if this is a workspace creation result (has metadata field)
         if ("metadata" in result && result.metadata) {
-          // Save runtime preference for this project
-          const runtimeString = getRuntimeString();
-          if (runtimeString) {
-            const runtimeKey = getRuntimeKey(projectPath);
-            updatePersistedState(runtimeKey, runtimeString);
-          }
-
+          // Settings are already persisted via useDraftWorkspaceSettings
           // Notify parent to switch workspace (clears input via parent unmount)
           onWorkspaceCreated(result.metadata);
         } else {
@@ -121,15 +109,15 @@ export function useCreationWorkspace({
         setIsSending(false);
       }
     },
-    [isSending, projectPath, onWorkspaceCreated, getRuntimeString, sendMessageOptions, trunkBranch]
+    [isSending, projectPath, onWorkspaceCreated, getRuntimeString, sendMessageOptions, settings.trunkBranch]
   );
 
   return {
     branches,
-    trunkBranch,
+    trunkBranch: settings.trunkBranch,
     setTrunkBranch,
-    runtimeMode,
-    sshHost,
+    runtimeMode: settings.runtimeMode,
+    sshHost: settings.sshHost,
     setRuntimeOptions,
     error,
     setError,
