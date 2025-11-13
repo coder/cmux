@@ -6,19 +6,20 @@ import { parseRuntimeString } from "@/utils/chatCommands";
 import { getModelKey } from "@/constants/storage";
 import { useModelLRU } from "@/hooks/useModelLRU";
 import { useNewWorkspaceOptions } from "@/hooks/useNewWorkspaceOptions";
-import { usePersistedState } from "@/hooks/usePersistedState";
+import { useMode } from "@/contexts/ModeContext";
+import { useThinkingLevel } from "@/hooks/useThinkingLevel";
 import { use1MContext } from "@/hooks/use1MContext";
 import { modeToToolPolicy, PLAN_MODE_INSTRUCTION } from "@/utils/ui/modeUtils";
 import { enforceThinkingPolicy } from "@/utils/thinking/policy";
 import type { SendMessageOptions } from "@/types/ipc";
-import type { ThinkingLevel } from "@/types/thinking";
-import { getModeKey, getThinkingLevelKey } from "@/constants/storage";
 import { ModelSelector } from "./ModelSelector";
 import { TooltipWrapper, Tooltip, HelpIndicator } from "./Tooltip";
 import { VimTextArea } from "./VimTextArea";
 import { ToggleGroup, type ToggleOption } from "./ToggleGroup";
 import type { UIMode } from "@/types/mode";
 import { cn } from "@/lib/utils";
+import { ThinkingSliderComponent } from "./ThinkingSlider";
+import { Context1MCheckbox } from "./Context1MCheckbox";
 
 interface FirstMessageInputProps {
   projectPath: string;
@@ -44,56 +45,6 @@ const ModeHelpTooltip: React.FC = () => (
 );
 
 /**
- * Simple thinking level control that doesn't require ThinkingProvider
- * Uses local state passed as props
- */
-const SimpleThinkingControl: React.FC<{
-  thinkingLevel: ThinkingLevel;
-  setThinkingLevel: (level: ThinkingLevel) => void;
-}> = ({ thinkingLevel, setThinkingLevel }) => {
-  const levels: ThinkingLevel[] = ["off", "low", "medium", "high"];
-  const currentIndex = levels.indexOf(thinkingLevel);
-
-  const handleClick = () => {
-    const nextIndex = (currentIndex + 1) % levels.length;
-    setThinkingLevel(levels[nextIndex]);
-  };
-
-  const label = thinkingLevel === "off" ? "Thinking: Off" : `Thinking: ${thinkingLevel}`;
-
-  return (
-    <button
-      onClick={handleClick}
-      className="text-muted hover:text-foreground cursor-pointer text-xs transition-colors"
-      type="button"
-    >
-      {label}
-    </button>
-  );
-};
-
-/**
- * Simple 1M context checkbox that doesn't require provider
- * Uses local state passed as props
- */
-const Simple1MCheckbox: React.FC<{
-  use1M: boolean;
-  setUse1M: (value: boolean) => void;
-}> = ({ use1M, setUse1M }) => {
-  return (
-    <label className="text-muted hover:text-foreground flex cursor-pointer items-center gap-1.5 text-xs transition-colors">
-      <input
-        type="checkbox"
-        checked={use1M}
-        onChange={(e) => setUse1M(e.target.checked)}
-        className="accent-accent cursor-pointer"
-      />
-      <span>1M Context</span>
-    </label>
-  );
-};
-
-/**
  * FirstMessageInput - Simplified input for sending first message without a workspace
  *
  * When user sends a message, it:
@@ -114,24 +65,14 @@ export function FirstMessageInput({
   const [trunkBranch, setTrunkBranch] = useState<string>("");
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
-  // Mode selection (Exec/Plan) - use project-scoped key since no workspace exists yet
-  const projectModeKey = getModeKey(`__project__${projectPath}`);
-  const [mode, setMode] = usePersistedState<UIMode>(projectModeKey, "exec", {
-    listener: true,
-  });
+  // Mode selection (Exec/Plan) - uses global key via ModeProvider
+  const [mode, setMode] = useMode();
 
-  // Thinking level - use project-scoped key since no workspace exists yet
-  const projectThinkingKey = getThinkingLevelKey(`__project__${projectPath}`);
-  const [thinkingLevel, setThinkingLevel] = usePersistedState<ThinkingLevel>(
-    projectThinkingKey,
-    "off",
-    {
-      listener: true,
-    }
-  );
+  // Thinking level - uses global key via ThinkingProvider
+  const [thinkingLevel] = useThinkingLevel();
 
   // 1M context (global setting)
-  const [use1M, setUse1M] = use1MContext();
+  const [use1M] = use1MContext();
 
   // Get most recent model from LRU (project-scoped preference)
   const { recentModels, addModel } = useModelLRU();
@@ -330,17 +271,17 @@ export function FirstMessageInput({
               />
             </div>
 
-            {/* Thinking Level - clickable label */}
-            <div className="flex items-center" data-component="ThinkingGroup">
-              <SimpleThinkingControl
-                thinkingLevel={thinkingLevel}
-                setThinkingLevel={setThinkingLevel}
-              />
+            {/* Thinking Slider - slider hidden on narrow containers, label always clickable */}
+            <div
+              className="flex items-center [&_.thinking-slider]:[@container(max-width:550px)]:hidden"
+              data-component="ThinkingSliderGroup"
+            >
+              <ThinkingSliderComponent modelString={preferredModel} />
             </div>
 
             {/* Context 1M Checkbox - always visible */}
             <div className="flex items-center" data-component="Context1MGroup">
-              <Simple1MCheckbox use1M={use1M} setUse1M={setUse1M} />
+              <Context1MCheckbox modelString={preferredModel} />
             </div>
 
             {/* Mode Switch - full version for wider containers */}

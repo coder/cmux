@@ -10,12 +10,14 @@ type ModeContextType = [UIMode, (mode: UIMode) => void];
 const ModeContext = createContext<ModeContextType | undefined>(undefined);
 
 interface ModeProviderProps {
-  workspaceId: string;
+  workspaceId?: string; // Optional - if not provided, uses global key
   children: ReactNode;
 }
 
 export const ModeProvider: React.FC<ModeProviderProps> = ({ workspaceId, children }) => {
-  const [mode, setMode] = usePersistedState<UIMode>(getModeKey(workspaceId), "exec", {
+  // Use workspace-scoped key if workspaceId provided, otherwise use global key
+  const modeKey = workspaceId ? getModeKey(workspaceId) : getModeKey("__global__");
+  const [mode, setMode] = usePersistedState<UIMode>(modeKey, "exec", {
     listener: true, // Listen for changes from command palette and other sources
   });
 
