@@ -107,6 +107,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: vscode-extension
-          path: vscode/mux-*.vsix
+          path: vscode/cmux-*.vsix
           retention-days: 30
           if-no-files-found: error
