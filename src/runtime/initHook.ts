@@ -27,6 +27,16 @@ export function getInitHookPath(projectPath: string): string {
 }
 
 /**
+ * Get environment variables for init hook execution
+ * Centralizes env var injection to avoid duplication across runtimes
+ */
+export function getInitHookEnv(projectPath: string): Record<string, string> {
+  return {
+    PROJECT_PATH: projectPath,
+  };
+}
+
+/**
  * Line-buffered logger that splits stream output into lines and logs them
  * Handles incomplete lines by buffering until a newline is received
  */

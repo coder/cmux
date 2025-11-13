@@ -18,7 +18,7 @@ import type {
 import { RuntimeError as RuntimeErrorClass } from "./Runtime";
 import { EXIT_CODE_ABORTED, EXIT_CODE_TIMEOUT } from "../constants/exitCodes";
 import { log } from "../services/log";
-import { checkInitHookExists, createLineBufferedLoggers } from "./initHook";
+import { checkInitHookExists, createLineBufferedLoggers, getInitHookEnv } from "./initHook";
 import { streamProcessToLogger } from "./streamProcess";
 import { expandTildeForSSH, cdCommandForSSH } from "./tildeExpansion";
 import { getProjectName } from "../utils/runtime/helpers";
@@ -734,9 +734,7 @@ export class SSHRuntime implements Runtime {
       cwd: workspacePath, // Run in the workspace directory
       timeout: 3600, // 1 hour - generous timeout for init hooks
       abortSignal,
-      env: {
-        PROJECT_PATH: projectPath,
-      },
+      env: getInitHookEnv(projectPath),
     });
 
     // Create line-buffered loggers
