@@ -157,7 +157,11 @@ export class IpcMain {
   > {
     try {
       // 1. Generate workspace title and branch name using AI (use same model as message)
-      const { title, branchName } = await generateWorkspaceNames(message, options.model, this.config);
+      const { title, branchName } = await generateWorkspaceNames(
+        message,
+        options.model,
+        this.config
+      );
 
       log.debug("Generated workspace names", { title, branchName });
 
@@ -818,7 +822,7 @@ export class IpcMain {
       // Get complete metadata from config (includes paths)
       const allMetadata = await this.config.getAllWorkspaceMetadata();
       const metadata = allMetadata.find((m) => m.id === workspaceId);
-      
+
       // Regenerate title/branch if missing (robust to errors/restarts)
       if (metadata && (!metadata.displayName || !metadata.name)) {
         log.info(`Workspace ${workspaceId} missing title or branch name, regenerating...`);
@@ -828,27 +832,27 @@ export class IpcMain {
             log.error(`Failed to load history for workspace ${workspaceId}:`, historyResult.error);
             return metadata;
           }
-          
+
           const firstUserMessage = historyResult.data.find((m: CmuxMessage) => m.role === "user");
-          
+
           if (firstUserMessage) {
             // Extract text content from message parts
             const textParts = firstUserMessage.parts.filter((p) => p.type === "text");
             const messageText = textParts.map((p) => p.text).join(" ");
-            
+
             if (messageText.trim()) {
               const { title, branchName } = await generateWorkspaceNames(
                 messageText,
                 "anthropic:claude-sonnet-4-5", // Use reasonable default model
                 this.config
               );
-              
+
               // Update config with regenerated names
-              this.config.updateWorkspaceMetadata(workspaceId, {
+              await this.config.updateWorkspaceMetadata(workspaceId, {
                 name: branchName,
                 displayName: title,
               });
-              
+
               // Return updated metadata
               metadata.name = branchName;
               metadata.displayName = title;
@@ -859,7 +863,7 @@ export class IpcMain {
           log.error(`Failed to regenerate workspace names for ${workspaceId}:`, error);
         }
       }
-      
+
       return metadata ?? null;
     });
 
