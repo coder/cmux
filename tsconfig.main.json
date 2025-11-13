@@ -6,6 +6,10 @@
     "noEmit": false,
     "sourceMap": true
   },
+  "watchOptions": {
+    "excludeDirectories": ["**/node_modules", "**/dist", "**/build", "**/.git"],
+    "excludeFiles": ["**/*.d.ts.map"]
+  },
   "include": [
     "src/main.ts",
     "src/main-server.ts",

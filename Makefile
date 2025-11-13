@@ -41,7 +41,7 @@ endif
 # Include formatting rules
 include fmt.mk
 
-.PHONY: all build dev start clean help
+.PHONY: all build dev start clean clean-cache help
 .PHONY: build-renderer version build-icons build-static
 .PHONY: lint lint-fix typecheck static-check
 .PHONY: test test-unit test-integration test-watch test-coverage test-e2e
@@ -100,11 +100,15 @@ help: ## Show this help message
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-20s\033[0m %s\n", $$1, $$2}'
 
 ## Development
-dev: node_modules/.installed build-main ## Start development server (Vite + tsgo watcher for 10x faster type checking)
-	@npx concurrently -k --raw \
-		"$(TSGO) -w -p tsconfig.main.json" \
-		"bun x tsc-alias -w -p tsconfig.main.json" \
+dev: node_modules/.installed build-main clean-cache ## Start development server (Vite + nodemon watcher for Windows compatibility)
+	@echo "Starting dev mode (2 watchers: nodemon for main process, vite for renderer)..."
+	@NODE_OPTIONS="--max-old-space-size=4096" npx concurrently -k --raw \
+		"npx nodemon --exec node scripts/build-main-watch.js" \
 		"vite"
+
+clean-cache: ## Clean Vite cache (helps with EMFILE errors on Windows)
+	@echo "Cleaning Vite cache..."
+	@rm -rf node_modules/.vite
 
 dev-server: node_modules/.installed build-main ## Start server mode with hot reload (backend :3000 + frontend :5173). Use VITE_HOST=0.0.0.0 BACKEND_HOST=0.0.0.0 for remote access
 	@echo "Starting dev-server..."
@@ -113,7 +117,7 @@ dev-server: node_modules/.installed build-main ## Start server mode with hot rel
 	@echo ""
 	@echo "For remote access: make dev-server VITE_HOST=0.0.0.0 BACKEND_HOST=0.0.0.0"
 	@npx concurrently -k \
-		"npx concurrently \"$(TSGO) -w -p tsconfig.main.json\" \"bun x tsc-alias -w -p tsconfig.main.json\"" \
+		"npx nodemon --exec node scripts/build-main-watch.js" \
 		"bun x nodemon --watch dist/main.js --watch dist/main-server.js --delay 500ms --exec \"node dist/main.js server --host $(or $(BACKEND_HOST),localhost) --port $(or $(BACKEND_PORT),3000)\"" \
 		"$(SHELL) -lc \"CMUX_VITE_HOST=$(or $(VITE_HOST),127.0.0.1) CMUX_VITE_PORT=$(or $(VITE_PORT),5173) VITE_BACKEND_URL=http://$(or $(BACKEND_HOST),localhost):$(or $(BACKEND_PORT),3000) vite\""
 
@@ -197,7 +201,7 @@ lint-fix: node_modules/.installed ## Run linter with --fix
 	@./scripts/lint.sh --fix
 
 typecheck: node_modules/.installed src/version.ts ## Run TypeScript type checking (uses tsgo for 10x speedup)
-	@bun x concurrently -g \
+	@npx concurrently -g \
 		"$(TSGO) --noEmit" \
 		"$(TSGO) --noEmit -p tsconfig.main.json"
 
