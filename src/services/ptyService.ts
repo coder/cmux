@@ -8,6 +8,7 @@ import type {
 } from "@/types/terminal";
 import { SSHRuntime } from "@/runtime/SSHRuntime";
 import { LocalRuntime } from "@/runtime/LocalRuntime";
+import * as fs from "fs";
 
 interface SessionData {
   pty?: any; // For local sessions (IPty type)
@@ -60,18 +61,37 @@ export class PTYService {
         );
       }
 
-      const shell = process.env.SHELL || "/bin/bash";
+      // Validate workspace path exists
+      if (!fs.existsSync(workspacePath)) {
+        throw new Error(`Workspace path does not exist: ${workspacePath}`);
+      }
 
-      const ptyProcess = pty.spawn(shell, ["-l"], {
-        name: "xterm-256color",
-        cols: params.cols,
-        rows: params.rows,
-        cwd: workspacePath,
-        env: {
-          ...process.env,
-          TERM: "xterm-256color",
-        } as Record<string, string>,
-      });
+      const shell = process.env.SHELL || "/bin/bash";
+      
+      log.info(`Spawning PTY with shell: ${shell}, cwd: ${workspacePath}, size: ${params.cols}x${params.rows}`);
+      log.debug(`PATH env: ${process.env.PATH}`);
+
+      let ptyProcess;
+      try {
+        ptyProcess = pty.spawn(shell, ["-l"], {
+          name: "xterm-256color",
+          cols: params.cols,
+          rows: params.rows,
+          cwd: workspacePath,
+          env: {
+            ...process.env,
+            TERM: "xterm-256color",
+            // Ensure PATH is set properly for shell to find commands
+            PATH: process.env.PATH || "/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin",
+          } as Record<string, string>,
+        });
+      } catch (err) {
+        log.error(`Failed to spawn PTY: ${err}`);
+        log.error(`Shell: ${shell}, CWD: ${workspacePath}`);
+        log.error(`process.env.SHELL: ${process.env.SHELL}`);
+        log.error(`process.env.PATH: ${process.env.PATH}`);
+        throw new Error(`Failed to spawn shell "${shell}": ${err instanceof Error ? err.message : String(err)}`);
+      }
 
       // Forward PTY data to terminal server
       ptyProcess.onData((data) => {

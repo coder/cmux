@@ -1,5 +1,5 @@
 import { useRef, useEffect, useState } from "react";
-import { Terminal, FitAddon } from "ghostty-wasm";
+import { Terminal, FitAddon } from "ghostty-web";
 import { useTerminalSession } from "@/hooks/useTerminalSession";
 
 interface TerminalViewProps {
