@@ -31,7 +31,7 @@ import type { RuntimeConfig } from "@/types/runtime";
 import { isSSHRuntime } from "@/types/runtime";
 import { validateProjectPath } from "@/utils/pathUtils";
 import { ExtensionMetadataService } from "@/services/ExtensionMetadataService";
-import { generateWorkspaceNames } from "./workspaceTitleGenerator";
+import { generateWorkspaceName } from "./workspaceTitleGenerator";
 /**
  * IpcMain - Manages all IPC handlers and service coordination
  *
@@ -156,14 +156,14 @@ export class IpcMain {
     | { success: false; error: string }
   > {
     try {
-      // 1. Generate workspace title and branch name using AI (use same model as message)
-      const { title, branchName } = await generateWorkspaceNames(
+      // 1. Generate workspace branch name using AI (use same model as message)
+      const branchName = await generateWorkspaceName(
         message,
         options.model,
         this.config
       );
 
-      log.debug("Generated workspace names", { title, branchName });
+      log.debug("Generated workspace name", { branchName });
 
       // 2. Get trunk branch (use provided trunkBranch or auto-detect)
       const branches = await listLocalBranches(projectPath);
@@ -220,7 +220,6 @@ export class IpcMain {
       const metadata = {
         id: workspaceId,
         name: branchName,
-        displayName: title,
         projectName,
         projectPath,
         createdAt: new Date().toISOString(),
@@ -236,7 +235,6 @@ export class IpcMain {
           path: createResult.workspacePath!,
           id: workspaceId,
           name: branchName,
-          displayName: title,
           createdAt: metadata.createdAt,
           runtimeConfig: finalRuntimeConfig,
         });
@@ -824,7 +822,7 @@ export class IpcMain {
       const metadata = allMetadata.find((m) => m.id === workspaceId);
 
       // Regenerate title/branch if missing (robust to errors/restarts)
-      if (metadata && (!metadata.displayName || !metadata.name)) {
+      if (metadata && !metadata.name) {
         log.info(`Workspace ${workspaceId} missing title or branch name, regenerating...`);
         try {
           const historyResult = await this.historyService.getHistory(workspaceId);
@@ -841,22 +839,20 @@ export class IpcMain {
             const messageText = textParts.map((p) => p.text).join(" ");
 
             if (messageText.trim()) {
-              const { title, branchName } = await generateWorkspaceNames(
+              const branchName = await generateWorkspaceName(
                 messageText,
                 "anthropic:claude-sonnet-4-5", // Use reasonable default model
                 this.config
               );
 
-              // Update config with regenerated names
+              // Update config with regenerated name
               await this.config.updateWorkspaceMetadata(workspaceId, {
                 name: branchName,
-                displayName: title,
               });
 
               // Return updated metadata
               metadata.name = branchName;
-              metadata.displayName = title;
-              log.info(`Regenerated workspace names: ${title} (${branchName})`);
+              log.info(`Regenerated workspace name: ${branchName}`);
             }
           }
         } catch (error) {

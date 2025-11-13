@@ -5,61 +5,52 @@ import { log } from "./log";
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { createOpenAI } from "@ai-sdk/openai";
 
-const workspaceNamesSchema = z.object({
-  title: z
-    .string()
-    .min(10)
-    .max(80)
-    .describe("Human-readable workspace title with proper capitalization and spaces"),
-  branchName: z
+const workspaceNameSchema = z.object({
+  name: z
     .string()
     .regex(/^[a-z0-9-]+$/)
     .min(3)
     .max(50)
-    .describe("Git-safe branch name: lowercase, hyphens only"),
+    .describe("Git-safe branch/workspace name: lowercase, hyphens only"),
 });
 
 /**
- * Generate workspace title and branch name using AI
- * Falls back to timestamp-based names if AI generation fails
+ * Generate workspace name using AI
+ * Falls back to timestamp-based name if AI generation fails
  * @param message - The user's first message
  * @param modelString - Model string from send message options (e.g., "anthropic:claude-3-5-sonnet-20241022")
  * @param config - Config instance for provider access
  */
-export async function generateWorkspaceNames(
+export async function generateWorkspaceName(
   message: string,
   modelString: string,
   config: Config
-): Promise<{ title: string; branchName: string }> {
+): Promise<string> {
   try {
     const model = getModelForTitleGeneration(modelString, config);
 
     if (!model) {
       // No providers available, use fallback immediately
-      return createFallbackNames();
+      return createFallbackName();
     }
 
     const result = await generateObject({
       model,
-      schema: workspaceNamesSchema,
-      prompt: `Generate a workspace title and git branch name for this development task:
+      schema: workspaceNameSchema,
+      prompt: `Generate a git-safe branch/workspace name for this development task:
 
 "${message}"
 
 Requirements:
-- title: Clear, readable description (e.g., "Implementing automatic chat title generation")
-- branchName: Git-safe identifier (e.g., "automatic-title-generation")
-
-Both should be concise (2-5 words) and descriptive of the task.`,
+- Git-safe identifier (e.g., "automatic-title-generation")
+- Lowercase, hyphens only, no spaces
+- Concise (2-5 words) and descriptive of the task`,
     });
 
-    return {
-      title: result.object.title,
-      branchName: validateBranchName(result.object.branchName),
-    };
+    return validateBranchName(result.object.name);
   } catch (error) {
-    log.error("Failed to generate workspace names with AI, using fallback", error);
-    return createFallbackNames();
+    log.error("Failed to generate workspace name with AI, using fallback", error);
+    return createFallbackName();
   }
 }
 
@@ -122,14 +113,11 @@ function getModelForTitleGeneration(modelString: string, config: Config): Langua
 }
 
 /**
- * Create fallback names using timestamp
+ * Create fallback name using timestamp
  */
-function createFallbackNames(): { title: string; branchName: string } {
+function createFallbackName(): string {
   const timestamp = Date.now().toString(36);
-  return {
-    title: `Chat ${timestamp}`,
-    branchName: `chat-${timestamp}`,
-  };
+  return `chat-${timestamp}`;
 }
 
 /**

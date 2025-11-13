@@ -41,7 +41,6 @@ const WorkspaceListItemInner: React.FC<WorkspaceListItemProps> = ({
   const {
     id: workspaceId,
     name: workspaceName,
-    displayName: displayTitle,
     namedWorkspacePath,
   } = metadata;
   const gitStatus = useGitStatus(workspaceId);
@@ -53,8 +52,7 @@ const WorkspaceListItemInner: React.FC<WorkspaceListItemProps> = ({
   const [editingName, setEditingName] = useState<string>("");
   const [renameError, setRenameError] = useState<string | null>(null);
 
-  // Prefer displayName (human-readable title) over name (branch name) for AI-generated workspaces
-  const displayName = displayTitle ?? workspaceName;
+  const displayName = workspaceName;
   const isEditing = editingWorkspaceId === workspaceId;
 
   const startRenaming = () => {
