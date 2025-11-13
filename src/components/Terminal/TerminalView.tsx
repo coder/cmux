@@ -169,16 +169,24 @@ export function TerminalView({ workspaceId, visible }: TerminalViewProps) {
 
   // Resize on container size change
   useEffect(() => {
-    if (!visible || !fitAddonRef.current || !containerRef.current) return;
+    if (!visible || !fitAddonRef.current || !containerRef.current) {
+      console.log("[TerminalView] Resize observer not set up:", { visible, hasFitAddon: !!fitAddonRef.current, hasContainer: !!containerRef.current });
+      return;
+    }
 
+    console.log("[TerminalView] Setting up ResizeObserver");
     const resizeObserver = new ResizeObserver(() => {
+      console.log("[TerminalView] Container resized, calling fit()");
       fitAddonRef.current?.fit();
       // Terminal will fire onResize event which will update terminalSize and propagate to PTY
     });
 
     resizeObserver.observe(containerRef.current);
 
-    return () => resizeObserver.disconnect();
+    return () => {
+      console.log("[TerminalView] Disconnecting ResizeObserver");
+      resizeObserver.disconnect();
+    };
   }, [visible]);
 
   if (!visible) return null;
