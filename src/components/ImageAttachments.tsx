@@ -25,7 +25,7 @@ export const ImageAttachments: React.FC<ImageAttachmentsProps> = ({ images, onRe
           <button
             onClick={() => onRemove(image.id)}
             title="Remove image"
-            className="absolute top-1 right-1 flex h-5 w-5 cursor-pointer items-center justify-center rounded-full border border-white/30 bg-black/80 p-0 text-xs leading-none font-bold text-white transition-all hover:scale-110 hover:border-white/50 hover:bg-red-600"
+            className="absolute top-1 right-1 flex h-6 w-6 cursor-pointer items-center justify-center rounded-full border-2 border-white bg-red-600 p-0 text-sm leading-none font-bold text-white shadow-lg transition-all hover:scale-110 hover:bg-red-700"
             aria-label="Remove image"
           >
             ×
