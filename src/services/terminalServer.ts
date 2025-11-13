@@ -17,6 +17,7 @@ export class TerminalServer {
   private port = 0;
   private readonly ptyService: PTYService;
   private readonly connections = new Map<string, WebSocket>(); // sessionId -> WebSocket
+  private startPromise: Promise<number> | null = null;
 
   constructor(ptyService: PTYService) {
     this.ptyService = ptyService;
@@ -24,9 +25,18 @@ export class TerminalServer {
 
   /**
    * Start the WebSocket server on a random port
+   * Can be called multiple times safely - subsequent calls return the same promise
    */
   async start(): Promise<number> {
-    return new Promise((resolve, reject) => {
+    // If already started or starting, return existing promise/port
+    if (this.startPromise) {
+      return this.startPromise;
+    }
+    if (this.port > 0) {
+      return this.port;
+    }
+
+    this.startPromise = new Promise((resolve, reject) => {
       // Create HTTP server on random port
       this.server = createServer();
 
@@ -79,9 +89,12 @@ export class TerminalServer {
   }
 
   /**
-   * Get the server port
+   * Get the server port (starts server if not already started)
    */
-  getPort(): number {
+  async getPort(): Promise<number> {
+    if (this.port === 0) {
+      await this.start();
+    }
     return this.port;
   }
 

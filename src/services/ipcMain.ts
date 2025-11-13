@@ -353,7 +353,7 @@ export class IpcMain {
    * @param ipcMain - Electron's ipcMain module
    * @param mainWindow - The main BrowserWindow for sending events
    */
-  async register(ipcMain: ElectronIpcMain, mainWindow: BrowserWindow): Promise<void> {
+  register(ipcMain: ElectronIpcMain, mainWindow: BrowserWindow): void {
     // Always update the window reference (windows can be recreated on macOS)
     this.mainWindow = mainWindow;
 
@@ -363,9 +363,7 @@ export class IpcMain {
       return;
     }
 
-    // Start terminal server
-    await this.terminalServer.start();
-
+    // Terminal server starts lazily when first terminal is opened
     this.registerWindowHandlers(ipcMain);
     this.registerTokenizerHandlers(ipcMain);
     this.registerWorkspaceHandlers(ipcMain);
@@ -1573,8 +1571,8 @@ export class IpcMain {
       }
     );
 
-    ipcMain.handle(IPC_CHANNELS.TERMINAL_GET_PORT, () => {
-      return this.terminalServer.getPort();
+    ipcMain.handle(IPC_CHANNELS.TERMINAL_GET_PORT, async () => {
+      return await this.terminalServer.getPort();
     });
 
     ipcMain.handle(IPC_CHANNELS.TERMINAL_WINDOW_OPEN, (_event, workspaceId: string) => {

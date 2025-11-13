@@ -372,7 +372,7 @@ async function createWindow() {
 
   // Register IPC handlers with the main window
   console.log(`[${timestamp()}] [window] Registering IPC handlers...`);
-  await ipcMain.register(electronIpcMain, mainWindow);
+  ipcMain.register(electronIpcMain, mainWindow);
 
   // Register updater IPC handlers (available in both dev and prod)
   electronIpcMain.handle(IPC_CHANNELS.UPDATE_CHECK, () => {
