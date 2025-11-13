@@ -415,6 +415,10 @@ export class LocalRuntime implements Runtime {
       const proc = spawn("bash", ["-c", `"${hookPath}"`], {
         cwd: workspacePath,
         stdio: ["ignore", "pipe", "pipe"],
+        env: {
+          ...process.env,
+          PROJECT_PATH: projectPath,
+        },
       });
 
       proc.stdout.on("data", (data: Buffer) => {

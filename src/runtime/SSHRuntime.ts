@@ -734,6 +734,9 @@ export class SSHRuntime implements Runtime {
       cwd: workspacePath, // Run in the workspace directory
       timeout: 3600, // 1 hour - generous timeout for init hooks
       abortSignal,
+      env: {
+        PROJECT_PATH: projectPath,
+      },
     });
 
     // Create line-buffered loggers
