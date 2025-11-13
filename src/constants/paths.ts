@@ -14,6 +14,7 @@ import { join } from "path";
 export function getCmuxHome(): string {
   // eslint-disable-next-line no-restricted-syntax, no-restricted-globals
   if (process.env.CMUX_TEST_ROOT) {
+    // eslint-disable-next-line no-restricted-syntax, no-restricted-globals
     return process.env.CMUX_TEST_ROOT;
   }
 
