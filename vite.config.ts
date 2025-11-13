@@ -132,21 +132,6 @@ export default defineConfig(({ mode }) => ({
       target: "esnext",
     },
     
-    // Force include CommonJS packages that need pre-bundling
-    include: [
-      'fast-deep-equal',
-    ],
-    
-    // Exclude problematic large packages from optimization
-    // These packages have many files and can cause EMFILE errors on Windows
-    exclude: [
-      'langium',
-      'vscode-languageserver',
-      'vscode-languageserver-protocol',
-      'vscode-languageserver-types',
-      'vscode-languageclient',
-    ],
-    
     // Include only what's actually imported to reduce scanning
     entries: ['src/**/*.{ts,tsx}'],
     
