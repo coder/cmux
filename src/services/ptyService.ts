@@ -1,6 +1,6 @@
 /**
  * PTY Service - Manages terminal PTY sessions
- * 
+ *
  * Note: Extensive eslint-disable rules below are due to the circular dependency
  * workaround with TerminalServer (using `any` type). Fixing this would require
  * significant refactoring of the PTY/SSH infrastructure.
@@ -23,11 +23,7 @@
 import { log } from "@/services/log";
 import type { Runtime } from "@/runtime/Runtime";
 import type { ExecStream } from "@/runtime/Runtime";
-import type {
-  TerminalSession,
-  TerminalCreateParams,
-  TerminalResizeParams,
-} from "@/types/terminal";
+import type { TerminalSession, TerminalCreateParams, TerminalResizeParams } from "@/types/terminal";
 import { SSHRuntime } from "@/runtime/SSHRuntime";
 import { LocalRuntime } from "@/runtime/LocalRuntime";
 import * as fs from "fs";
@@ -89,8 +85,10 @@ export class PTYService {
       }
 
       const shell = process.env.SHELL || "/bin/bash";
-      
-      log.info(`Spawning PTY with shell: ${shell}, cwd: ${workspacePath}, size: ${params.cols}x${params.rows}`);
+
+      log.info(
+        `Spawning PTY with shell: ${shell}, cwd: ${workspacePath}, size: ${params.cols}x${params.rows}`
+      );
       log.debug(`PATH env: ${process.env.PATH}`);
 
       let ptyProcess;
@@ -112,25 +110,27 @@ export class PTYService {
         log.error(`Shell: ${shell}, CWD: ${workspacePath}`);
         log.error(`process.env.SHELL: ${process.env.SHELL}`);
         log.error(`process.env.PATH: ${process.env.PATH}`);
-        throw new Error(`Failed to spawn shell "${shell}": ${err instanceof Error ? err.message : String(err)}`);
+        throw new Error(
+          `Failed to spawn shell "${shell}": ${err instanceof Error ? err.message : String(err)}`
+        );
       }
 
       // Forward PTY data to terminal server
       // Buffer to handle escape sequences split across chunks
-      let buffer = '';
-      
+      let buffer = "";
+
       ptyProcess.onData((data) => {
         // Append new data to buffer
         buffer += data;
-        
+
         // Check if buffer ends with an incomplete escape sequence
         // Look for ESC at the end without its complete sequence
         let sendUpTo = buffer.length;
-        
+
         // If buffer ends with ESC or ESC[, hold it back for next chunk
-        if (buffer.endsWith('\x1b')) {
+        if (buffer.endsWith("\x1b")) {
           sendUpTo = buffer.length - 1;
-        } else if (buffer.endsWith('\x1b[')) {
+        } else if (buffer.endsWith("\x1b[")) {
           sendUpTo = buffer.length - 2;
         } else {
           // Check if it ends with ESC[ followed by incomplete CSI sequence
@@ -140,7 +140,7 @@ export class PTYService {
             sendUpTo = buffer.length - match[0].length;
           }
         }
-        
+
         // Send complete data
         if (sendUpTo > 0) {
           const toSend = buffer.substring(0, sendUpTo);
@@ -183,20 +183,22 @@ export class PTYService {
         // Execute shell with PTY allocation
         // Use a very long timeout (24 hours) instead of Infinity
         stream = await (runtime as any).exec(command, {
-        cwd: workspacePath,
-        timeout: 86400, // 24 hours in seconds
-        env: {
-          TERM: "xterm-256color",
-        },
-        forcePTY: true,
-      });
+          cwd: workspacePath,
+          timeout: 86400, // 24 hours in seconds
+          env: {
+            TERM: "xterm-256color",
+          },
+          forcePTY: true,
+        });
         log.info(`[PTY] runtime.exec returned successfully for ${sessionId}`);
       } catch (err) {
         log.error(`[PTY] Failed to create SSH stream for ${sessionId}:`, err);
         throw err;
       }
 
-      log.info(`[PTY] SSH stream created for ${sessionId}, stdin writable: ${stream.stdin.locked === false}`);
+      log.info(
+        `[PTY] SSH stream created for ${sessionId}, stdin writable: ${stream.stdin.locked === false}`
+      );
 
       // Get a persistent writer for stdin to avoid locking issues
       const stdinWriter = stream.stdin.getWriter();
@@ -253,7 +255,9 @@ export class PTYService {
       stream.exitCode
         .then((exitCode: number) => {
           log.info(`[PTY] SSH terminal session ${sessionId} exited with code ${exitCode}`);
-          log.info(`[PTY] Session was alive for ${((Date.now() - parseInt(sessionId.split('-')[1])) / 1000).toFixed(1)}s`);
+          log.info(
+            `[PTY] Session was alive for ${((Date.now() - parseInt(sessionId.split("-")[1])) / 1000).toFixed(1)}s`
+          );
           this.sessions.delete(sessionId);
           this.terminalServer?.sendExit(sessionId, exitCode);
         })
@@ -310,9 +314,7 @@ export class PTYService {
     if (session.pty) {
       // Local: Resize PTY
       session.pty.resize(params.cols, params.rows);
-      log.debug(
-        `Resized local terminal ${params.sessionId} to ${params.cols}x${params.rows}`
-      );
+      log.debug(`Resized local terminal ${params.sessionId} to ${params.cols}x${params.rows}`);
     } else {
       // SSH: Dynamic resize not supported for SSH sessions
       // The terminal size is set at session creation time via LINES/COLUMNS env vars
@@ -357,9 +359,7 @@ export class PTYService {
       .filter(([, session]) => session.workspaceId === workspaceId)
       .map(([id]) => id);
 
-    log.info(
-      `Closing ${sessionIds.length} terminal session(s) for workspace ${workspaceId}`
-    );
+    log.info(`Closing ${sessionIds.length} terminal session(s) for workspace ${workspaceId}`);
 
     await Promise.all(sessionIds.map((id) => this.closeSession(id)));
   }

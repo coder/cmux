@@ -1,6 +1,6 @@
 /**
  * Terminal Window Manager
- * 
+ *
  * Manages pop-out terminal windows for workspaces.
  * Each workspace can have multiple terminal windows open simultaneously.
  */
@@ -30,7 +30,7 @@ export class TerminalWindowManager {
     // Look up workspace metadata to get project and branch names
     const allWorkspaces = await this.config.getAllWorkspaceMetadata();
     const workspace = allWorkspaces.find((ws) => ws.id === workspaceId);
-    
+
     let title: string;
     if (workspace) {
       title = `Terminal ${windowId} — ${workspace.projectName} (${workspace.name})`;
@@ -38,7 +38,7 @@ export class TerminalWindowManager {
       // Fallback if workspace not found
       title = `Terminal ${windowId} — ${workspaceId}`;
     }
-    
+
     const terminalWindow = new BrowserWindow({
       width: 1000,
       height: 600,
@@ -73,7 +73,7 @@ export class TerminalWindowManager {
     // Load the terminal page
     const isDev = !process.env.NODE_ENV || process.env.NODE_ENV === "development";
     const port = devServerPort ?? "5173";
-    
+
     if (isDev) {
       // Development mode - load from Vite dev server
       await terminalWindow.loadURL(

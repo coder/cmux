@@ -141,16 +141,14 @@ export class TerminalServer {
       this.connections.set(message.sessionId, ws);
     } else if (message.type === "input") {
       // Forward input to PTY
-      this.ptyService
-        .sendInput(message.sessionId, message.data)
-        .catch((err) => {
-          log.error(`Error sending input to session ${message.sessionId}:`, err);
-          this.sendMessage(ws, {
-            type: "exit",
-            sessionId: message.sessionId,
-            exitCode: 1,
-          });
+      this.ptyService.sendInput(message.sessionId, message.data).catch((err) => {
+        log.error(`Error sending input to session ${message.sessionId}:`, err);
+        this.sendMessage(ws, {
+          type: "exit",
+          sessionId: message.sessionId,
+          exitCode: 1,
         });
+      });
 
       // Register this connection for the session
       if (!this.connections.has(message.sessionId)) {
@@ -192,7 +190,9 @@ export class TerminalServer {
         data,
       });
     } else {
-      log.info(`[TerminalServer] No WebSocket connection for session ${sessionId}, dropping ${data.length} bytes`);
+      log.info(
+        `[TerminalServer] No WebSocket connection for session ${sessionId}, dropping ${data.length} bytes`
+      );
     }
   }
 

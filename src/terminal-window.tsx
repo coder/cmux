@@ -1,6 +1,6 @@
 /**
  * Terminal Window Entry Point
- * 
+ *
  * Separate entry point for pop-out terminal windows.
  * Each window connects to a terminal session via WebSocket.
  */

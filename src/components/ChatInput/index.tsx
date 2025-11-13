@@ -239,10 +239,11 @@ export const ChatInput: React.FC<ChatInputProps> = (props) => {
 
       // Don't trigger focus keybinds when in terminal
       const target = event.target as HTMLElement;
-      const terminalHasFocus = target?.closest?.('.terminal-view') !== null || 
-                                target?.classList?.contains('terminal-view') ||
-                                target?.classList?.contains('terminal-container') ||
-                                target?.tagName === 'CANVAS'; // ghostty-wasm uses canvas
+      const terminalHasFocus =
+        target?.closest?.(".terminal-view") !== null ||
+        target?.classList?.contains("terminal-view") ||
+        target?.classList?.contains("terminal-container") ||
+        target?.tagName === "CANVAS"; // ghostty-wasm uses canvas
       if (terminalHasFocus) {
         return;
       }
@@ -373,7 +374,7 @@ export const ChatInput: React.FC<ChatInputProps> = (props) => {
     // Don't auto-focus if the terminal has focus (user is typing in terminal)
     const timer = setTimeout(() => {
       const activeElement = document.activeElement;
-      const terminalHasFocus = activeElement?.closest('.terminal-view') !== null;
+      const terminalHasFocus = activeElement?.closest(".terminal-view") !== null;
       if (!terminalHasFocus) {
         focusMessageInput();
       }

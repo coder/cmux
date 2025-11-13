@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
  * Hook to manage terminal WebSocket connection and session lifecycle
  */
 export function useTerminalSession(
-  workspaceId: string, 
+  workspaceId: string,
   enabled: boolean,
   terminalSize?: { cols: number; rows: number } | null
 ) {
@@ -41,7 +41,7 @@ export function useTerminalSession(
         if (!window.api.terminal) {
           throw new Error("window.api.terminal is not available");
         }
-        
+
         // Get WebSocket port from backend
         const port = await window.api.terminal.getPort();
 
@@ -66,10 +66,12 @@ export function useTerminalSession(
         ws.onopen = () => {
           if (mounted && ws) {
             // Send attach message to register this WebSocket with the session
-            ws.send(JSON.stringify({
-              type: "attach",
-              sessionId: createdSessionId,
-            }));
+            ws.send(
+              JSON.stringify({
+                type: "attach",
+                sessionId: createdSessionId,
+              })
+            );
             setConnected(true);
             setError(null);
           }
@@ -82,7 +84,10 @@ export function useTerminalSession(
         };
 
         ws.onerror = (event) => {
-          console.error(`[Terminal] WebSocket error for session ${createdSessionId ?? "unknown"}:`, event);
+          console.error(
+            `[Terminal] WebSocket error for session ${createdSessionId ?? "unknown"}:`,
+            event
+          );
           if (mounted) {
             setError("WebSocket connection failed");
           }
@@ -99,7 +104,7 @@ export function useTerminalSession(
 
     return () => {
       mounted = false;
-      
+
       // Close WebSocket
       if (ws) {
         ws.close();

@@ -196,81 +196,81 @@ const httpIpcMain = new HttpIpcMainAdapter(app);
     });
 
     ws.on("message", (rawData: RawData) => {
-    try {
-      // WebSocket data can be Buffer, ArrayBuffer, or string - convert to string
-      let dataStr: string;
-      if (typeof rawData === "string") {
-        dataStr = rawData;
-      } else if (Buffer.isBuffer(rawData)) {
-        dataStr = rawData.toString("utf-8");
-      } else if (rawData instanceof ArrayBuffer) {
-        dataStr = Buffer.from(rawData).toString("utf-8");
-      } else {
-        // Array of Buffers
-        dataStr = Buffer.concat(rawData as Buffer[]).toString("utf-8");
-      }
-      const message = JSON.parse(dataStr) as {
-        type: string;
-        channel: string;
-        workspaceId?: string;
-      };
-      const { type, channel, workspaceId } = message;
-
-      const clientInfo = clients.get(ws);
-      if (!clientInfo) return;
-
-      if (type === "subscribe") {
-        if (channel === "workspace:chat" && workspaceId) {
-          console.log(`[WS] Client subscribed to workspace chat: ${workspaceId}`);
-          clientInfo.chatSubscriptions.add(workspaceId);
-          console.log(
-            `[WS] Subscription added. Current subscriptions:`,
-            Array.from(clientInfo.chatSubscriptions)
-          );
-
-          // Send subscription acknowledgment through IPC system
-          console.log(`[WS] Triggering workspace:chat:subscribe handler for ${workspaceId}`);
-          httpIpcMain.send("workspace:chat:subscribe", workspaceId);
-        } else if (channel === "workspace:metadata") {
-          console.log("[WS] Client subscribed to workspace metadata");
-          clientInfo.metadataSubscription = true;
-
-          // Send subscription acknowledgment
-          httpIpcMain.send("workspace:metadata:subscribe");
+      try {
+        // WebSocket data can be Buffer, ArrayBuffer, or string - convert to string
+        let dataStr: string;
+        if (typeof rawData === "string") {
+          dataStr = rawData;
+        } else if (Buffer.isBuffer(rawData)) {
+          dataStr = rawData.toString("utf-8");
+        } else if (rawData instanceof ArrayBuffer) {
+          dataStr = Buffer.from(rawData).toString("utf-8");
+        } else {
+          // Array of Buffers
+          dataStr = Buffer.concat(rawData as Buffer[]).toString("utf-8");
         }
-      } else if (type === "unsubscribe") {
-        if (channel === "workspace:chat" && workspaceId) {
-          console.log(`Client unsubscribed from workspace chat: ${workspaceId}`);
-          clientInfo.chatSubscriptions.delete(workspaceId);
+        const message = JSON.parse(dataStr) as {
+          type: string;
+          channel: string;
+          workspaceId?: string;
+        };
+        const { type, channel, workspaceId } = message;
 
-          // Send unsubscription acknowledgment
-          httpIpcMain.send("workspace:chat:unsubscribe", workspaceId);
-        } else if (channel === "workspace:metadata") {
-          console.log("Client unsubscribed from workspace metadata");
-          clientInfo.metadataSubscription = false;
+        const clientInfo = clients.get(ws);
+        if (!clientInfo) return;
 
-          // Send unsubscription acknowledgment
-          httpIpcMain.send("workspace:metadata:unsubscribe");
+        if (type === "subscribe") {
+          if (channel === "workspace:chat" && workspaceId) {
+            console.log(`[WS] Client subscribed to workspace chat: ${workspaceId}`);
+            clientInfo.chatSubscriptions.add(workspaceId);
+            console.log(
+              `[WS] Subscription added. Current subscriptions:`,
+              Array.from(clientInfo.chatSubscriptions)
+            );
+
+            // Send subscription acknowledgment through IPC system
+            console.log(`[WS] Triggering workspace:chat:subscribe handler for ${workspaceId}`);
+            httpIpcMain.send("workspace:chat:subscribe", workspaceId);
+          } else if (channel === "workspace:metadata") {
+            console.log("[WS] Client subscribed to workspace metadata");
+            clientInfo.metadataSubscription = true;
+
+            // Send subscription acknowledgment
+            httpIpcMain.send("workspace:metadata:subscribe");
+          }
+        } else if (type === "unsubscribe") {
+          if (channel === "workspace:chat" && workspaceId) {
+            console.log(`Client unsubscribed from workspace chat: ${workspaceId}`);
+            clientInfo.chatSubscriptions.delete(workspaceId);
+
+            // Send unsubscription acknowledgment
+            httpIpcMain.send("workspace:chat:unsubscribe", workspaceId);
+          } else if (channel === "workspace:metadata") {
+            console.log("Client unsubscribed from workspace metadata");
+            clientInfo.metadataSubscription = false;
+
+            // Send unsubscription acknowledgment
+            httpIpcMain.send("workspace:metadata:unsubscribe");
+          }
+        } else if (type === "invoke") {
+          // Handle direct IPC invocations over WebSocket (for streaming responses)
+          // This is not currently used but could be useful for future enhancements
+          console.log(`WebSocket invoke: ${channel}`);
         }
-      } else if (type === "invoke") {
-        // Handle direct IPC invocations over WebSocket (for streaming responses)
-        // This is not currently used but could be useful for future enhancements
-        console.log(`WebSocket invoke: ${channel}`);
+      } catch (error) {
+        console.error("Error handling WebSocket message:", error);
       }
-    } catch (error) {
-      console.error("Error handling WebSocket message:", error);
-    }
-  });
+    });
 
-  ws.on("close", () => {
-    console.log("Client disconnected");
-    clients.delete(ws);
-  });
+    ws.on("close", () => {
+      console.log("Client disconnected");
+      clients.delete(ws);
+    });
 
-  ws.on("error", (error) => {
-    console.error("WebSocket error:", error);
+    ws.on("error", (error) => {
+      console.error("WebSocket error:", error);
+    });
   });
-});
 
   /**
    * Initialize a project from the --add-project flag
@@ -349,7 +349,6 @@ const httpIpcMain = new HttpIpcMainAdapter(app);
   if (ADD_PROJECT_PATH) {
     await initializeProject(ADD_PROJECT_PATH, httpIpcMain);
   }
-
 
   server.listen(PORT, HOST, () => {
     console.log(`Server is running on http://${HOST}:${PORT}`);

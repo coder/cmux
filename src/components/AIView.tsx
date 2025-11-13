@@ -27,7 +27,6 @@ import type { DisplayedMessage } from "@/types/message";
 import type { RuntimeConfig } from "@/types/runtime";
 import { useAIViewKeybinds } from "@/hooks/useAIViewKeybinds";
 
-
 interface AIViewProps {
   workspaceId: string;
   projectName: string;

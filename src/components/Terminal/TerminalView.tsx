@@ -22,16 +22,19 @@ export function TerminalView({ workspaceId, visible }: TerminalViewProps) {
   const [terminalReady, setTerminalReady] = useState(false);
   const [terminalSize, setTerminalSize] = useState<{ cols: number; rows: number } | null>(null);
 
-  const { connected, sessionId, wsRef, sendInput, resize, error: sessionError } = useTerminalSession(
-    workspaceId,
-    visible,
-    terminalSize
-  );
+  const {
+    connected,
+    sessionId,
+    wsRef,
+    sendInput,
+    resize,
+    error: sessionError,
+  } = useTerminalSession(workspaceId, visible, terminalSize);
 
   // Keep refs to latest functions so callbacks always use current version
   const sendInputRef = useRef(sendInput);
   const resizeRef = useRef(resize);
-  
+
   useEffect(() => {
     sendInputRef.current = sendInput;
     resizeRef.current = resize;
@@ -83,16 +86,16 @@ export function TerminalView({ workspaceId, visible }: TerminalViewProps) {
         fitAddon.fit();
 
         const { cols, rows } = terminal;
-        
+
         // Set terminal size so PTY session can be created with matching dimensions
         // Use stable object reference to prevent unnecessary effect re-runs
-        setTerminalSize(prev => {
+        setTerminalSize((prev) => {
           if (prev && prev.cols === cols && prev.rows === rows) {
             return prev;
           }
           return { cols, rows };
         });
-        
+
         // User input → WebSocket (use ref to always get latest sendInput)
         terminal.onData((data: string) => {
           sendInputRef.current(data);
@@ -126,22 +129,21 @@ export function TerminalView({ workspaceId, visible }: TerminalViewProps) {
   useEffect(() => {
     const ws = wsRef.current;
     const term = termRef.current;
-    
+
     if (!ws || !term || !connected || !terminalReady) {
       return;
     }
-    
 
     const handleMessage = (event: MessageEvent) => {
       try {
         const msg = JSON.parse(event.data as string);
-        
+
         // Use termRef.current to get the latest terminal instance
         const currentTerm = termRef.current;
         if (!currentTerm) {
           return;
         }
-        
+
         if (msg.type === "output") {
           currentTerm.write(msg.data);
         } else if (msg.type === "exit") {
@@ -164,50 +166,52 @@ export function TerminalView({ workspaceId, visible }: TerminalViewProps) {
     if (!visible || !fitAddonRef.current || !containerRef.current || !termRef.current) {
       return;
     }
-    
+
     let lastCols = 0;
     let lastRows = 0;
     let resizeTimeoutId: ReturnType<typeof setTimeout> | null = null;
     let pendingResize: { cols: number; rows: number } | null = null;
-    
+
     // Use both ResizeObserver (for container changes) and window resize (as backup)
     const handleResize = () => {
       if (fitAddonRef.current && termRef.current) {
         try {
           // Resize terminal UI to fit container immediately for responsive UX
           fitAddonRef.current.fit();
-          
+
           // Get new dimensions
           const { cols, rows } = termRef.current;
-          
+
           // Only process if dimensions actually changed
           if (cols === lastCols && rows === lastRows) {
             return;
           }
-          
+
           lastCols = cols;
           lastRows = rows;
-          
+
           // Update state (with stable reference to prevent unnecessary re-renders)
-          setTerminalSize(prev => {
+          setTerminalSize((prev) => {
             if (prev && prev.cols === cols && prev.rows === rows) {
               return prev;
             }
             return { cols, rows };
           });
-          
+
           // Store pending resize
           pendingResize = { cols, rows };
-          
+
           // Always debounce PTY resize to prevent vim corruption
           // Clear any pending timeout and set a new one
           if (resizeTimeoutId !== null) {
             clearTimeout(resizeTimeoutId);
           }
-          
+
           resizeTimeoutId = setTimeout(() => {
             if (pendingResize) {
-              console.log(`[TerminalView] Sending resize to PTY: ${pendingResize.cols}x${pendingResize.rows}`);
+              console.log(
+                `[TerminalView] Sending resize to PTY: ${pendingResize.cols}x${pendingResize.rows}`
+              );
               // Double requestAnimationFrame to ensure vim is ready
               requestAnimationFrame(() => {
                 requestAnimationFrame(() => {
@@ -225,19 +229,19 @@ export function TerminalView({ workspaceId, visible }: TerminalViewProps) {
         }
       }
     };
-    
+
     const resizeObserver = new ResizeObserver(handleResize);
     resizeObserver.observe(containerRef.current);
-    
+
     // Also listen to window resize as backup
-    window.addEventListener('resize', handleResize);
+    window.addEventListener("resize", handleResize);
 
     return () => {
       if (resizeTimeoutId !== null) {
         clearTimeout(resizeTimeoutId);
       }
       resizeObserver.disconnect();
-      window.removeEventListener('resize', handleResize);
+      window.removeEventListener("resize", handleResize);
     };
   }, [visible, terminalReady]); // terminalReady ensures ResizeObserver is set up after terminal is initialized
 
@@ -246,11 +250,14 @@ export function TerminalView({ workspaceId, visible }: TerminalViewProps) {
   const errorMessage = terminalError || sessionError;
 
   return (
-    <div className="terminal-view" style={{ 
-      width: "100%", 
-      height: "100%",
-      backgroundColor: "#1e1e1e"
-    }}>
+    <div
+      className="terminal-view"
+      style={{
+        width: "100%",
+        height: "100%",
+        backgroundColor: "#1e1e1e",
+      }}
+    >
       {errorMessage && (
         <div className="border-b border-red-900/30 bg-red-900/20 p-2 text-sm text-red-400">
           Terminal Error: {errorMessage}

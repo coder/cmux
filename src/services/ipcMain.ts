@@ -1471,45 +1471,37 @@ export class IpcMain {
     );
   }
 
-
   private registerTerminalHandlers(ipcMain: ElectronIpcMain): void {
-    ipcMain.handle(
-      IPC_CHANNELS.TERMINAL_CREATE,
-      async (_event, params: TerminalCreateParams) => {
-        try {
-          // Get workspace metadata
-          const allMetadata = await this.config.getAllWorkspaceMetadata();
-          const workspaceMetadata = allMetadata.find((ws) => ws.id === params.workspaceId);
+    ipcMain.handle(IPC_CHANNELS.TERMINAL_CREATE, async (_event, params: TerminalCreateParams) => {
+      try {
+        // Get workspace metadata
+        const allMetadata = await this.config.getAllWorkspaceMetadata();
+        const workspaceMetadata = allMetadata.find((ws) => ws.id === params.workspaceId);
 
-          if (!workspaceMetadata) {
-            throw new Error(`Workspace ${params.workspaceId} not found`);
-          }
-
-          // Create runtime for this workspace (default to local if not specified)
-          const runtime = createRuntime(
-            workspaceMetadata.runtimeConfig ?? { type: "local", srcBaseDir: this.config.srcDir }
-          );
-
-          // Compute workspace path
-          const workspacePath = runtime.getWorkspacePath(
-            workspaceMetadata.projectPath,
-            workspaceMetadata.name
-          );
-
-          // Create terminal session
-          const session = await this.ptyService.createSession(
-            params,
-            runtime,
-            workspacePath
-          );
-
-          return session;
-        } catch (err) {
-          log.error("Error creating terminal session:", err);
-          throw err;
+        if (!workspaceMetadata) {
+          throw new Error(`Workspace ${params.workspaceId} not found`);
         }
+
+        // Create runtime for this workspace (default to local if not specified)
+        const runtime = createRuntime(
+          workspaceMetadata.runtimeConfig ?? { type: "local", srcBaseDir: this.config.srcDir }
+        );
+
+        // Compute workspace path
+        const workspacePath = runtime.getWorkspacePath(
+          workspaceMetadata.projectPath,
+          workspaceMetadata.name
+        );
+
+        // Create terminal session
+        const session = await this.ptyService.createSession(params, runtime, workspacePath);
+
+        return session;
+      } catch (err) {
+        log.error("Error creating terminal session:", err);
+        throw err;
       }
-    );
+    });
 
     ipcMain.handle(IPC_CHANNELS.TERMINAL_CLOSE, async (_event, sessionId: string) => {
       try {
@@ -1520,17 +1512,14 @@ export class IpcMain {
       }
     });
 
-    ipcMain.handle(
-      IPC_CHANNELS.TERMINAL_RESIZE,
-      async (_event, params: TerminalResizeParams) => {
-        try {
-          await this.ptyService.resize(params);
-        } catch (err) {
-          log.error("Error resizing terminal:", err);
-          throw err;
-        }
+    ipcMain.handle(IPC_CHANNELS.TERMINAL_RESIZE, async (_event, params: TerminalResizeParams) => {
+      try {
+        await this.ptyService.resize(params);
+      } catch (err) {
+        log.error("Error resizing terminal:", err);
+        throw err;
       }
-    );
+    });
 
     ipcMain.handle(IPC_CHANNELS.TERMINAL_GET_PORT, async () => {
       return await this.terminalServer.getPort();
@@ -1814,5 +1803,3 @@ export class IpcMain {
     return null;
   }
 }
-
-
