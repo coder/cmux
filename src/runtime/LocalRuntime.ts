@@ -20,7 +20,12 @@ import { RuntimeError as RuntimeErrorClass } from "./Runtime";
 import { NON_INTERACTIVE_ENV_VARS } from "../constants/env";
 import { EXIT_CODE_ABORTED, EXIT_CODE_TIMEOUT } from "../constants/exitCodes";
 import { listLocalBranches } from "../git";
-import { checkInitHookExists, getInitHookPath, createLineBufferedLoggers, getInitHookEnv } from "./initHook";
+import {
+  checkInitHookExists,
+  getInitHookPath,
+  createLineBufferedLoggers,
+  getInitHookEnv,
+} from "./initHook";
 import { execAsync, DisposableProcess } from "../utils/disposableExec";
 import { getProjectName } from "../utils/runtime/helpers";
 import { getErrorMessage } from "../utils/errors";
