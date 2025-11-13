@@ -4,7 +4,7 @@ import { join } from "path";
 /**
  * Get the root directory for all cmux configuration and data.
  * Can be overridden with CMUX_TEST_ROOT environment variable.
- * Appends '-dev' suffix unless NODE_ENV=production (i.e., in unpackaged/dev builds).
+ * Appends '-dev' suffix when NODE_ENV=development (explicit dev mode).
  *
  * This is a getter function to support test mocking of os.homedir().
  *
@@ -18,9 +18,9 @@ export function getCmuxHome(): string {
   }
 
   const baseName = ".cmux";
-  // Use -dev suffix unless explicitly in production mode
+  // Use -dev suffix only when explicitly in development mode
   // eslint-disable-next-line no-restricted-syntax, no-restricted-globals
-  const suffix = process.env.NODE_ENV === "production" ? "" : "-dev";
+  const suffix = process.env.NODE_ENV === "development" ? "-dev" : "";
   return join(homedir(), baseName + suffix);
 }
 

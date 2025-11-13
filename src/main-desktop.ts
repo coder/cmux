@@ -12,12 +12,6 @@ import {
   dialog,
   screen,
 } from "electron";
-
-// Set NODE_ENV=production for packaged apps to ensure correct data directory
-// Unpackaged/dev builds will use ~/.cmux-dev, packaged builds use ~/.cmux
-if (app.isPackaged && !process.env.NODE_ENV) {
-  process.env.NODE_ENV = "production";
-}
 import * as fs from "fs";
 import * as path from "path";
 import type { Config } from "./config";
