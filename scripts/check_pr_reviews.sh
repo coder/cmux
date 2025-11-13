@@ -42,7 +42,7 @@ if [ -n "$UNRESOLVED" ]; then
   echo "To resolve a comment thread, use:"
   echo "$UNRESOLVED" | jq -r '"  ./scripts/resolve_pr_comment.sh \(.thread_id)"'
   echo ""
-  echo "View PR: https://github.com/coder/mux/pull/$PR_NUMBER"
+  echo "View PR: https://github.com/coder/cmux/pull/$PR_NUMBER"
   exit 1
 fi
 
