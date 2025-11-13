@@ -8,15 +8,15 @@
 import { BrowserWindow } from "electron";
 import * as path from "path";
 import { log } from "./log";
-import type { ConfigService } from "./config";
+import type { Config } from "@/config";
 
 export class TerminalWindowManager {
   private windows = new Map<string, Set<BrowserWindow>>(); // workspaceId -> Set of windows
   private windowCount = 0; // Counter for unique window IDs
-  private configService: ConfigService;
+  private config: Config;
 
-  constructor(configService: ConfigService) {
-    this.configService = configService;
+  constructor(config: Config) {
+    this.config = config;
   }
 
   /**
@@ -28,8 +28,8 @@ export class TerminalWindowManager {
     const windowId = this.windowCount;
 
     // Look up workspace metadata to get project and branch names
-    const allWorkspaces = await this.configService.getAllWorkspaceMetadata();
-    const workspace = allWorkspaces.find(ws => ws.id === workspaceId);
+    const allWorkspaces = await this.config.getAllWorkspaceMetadata();
+    const workspace = allWorkspaces.find((ws) => ws.id === workspaceId);
     
     let title: string;
     if (workspace) {
