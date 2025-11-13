@@ -75,7 +75,7 @@ const forceDistLoad = process.env.CMUX_E2E_LOAD_DIST === "1";
 
 if (isE2ETest) {
   // For e2e tests, use a test-specific userData directory
-  // Note: getCmuxHome() already respects CMUX_TEST_ROOT for test isolation
+  // Note: getCmuxHome() already respects CMUX_ROOT for test isolation
   const e2eUserData = path.join(getCmuxHome(), "user-data");
   try {
     fs.mkdirSync(e2eUserData, { recursive: true });

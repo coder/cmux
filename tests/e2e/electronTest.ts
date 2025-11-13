@@ -88,7 +88,7 @@ function buildTarget(target: string): void {
 
 export const electronTest = base.extend<ElectronFixtures>({
   workspace: async ({}, use, testInfo) => {
-    const envRoot = process.env.CMUX_TEST_ROOT ?? "";
+    const envRoot = process.env.CMUX_ROOT ?? "";
     const baseRoot = envRoot || defaultTestRoot;
     const uniqueTestId = testInfo.testId || testInfo.title || `test-${Date.now()}`;
     const testRoot = envRoot ? baseRoot : path.join(baseRoot, sanitizeForPath(uniqueTestId));
@@ -195,7 +195,7 @@ export const electronTest = base.extend<ElectronFixtures>({
       }
       electronEnv.ELECTRON_DISABLE_SECURITY_WARNINGS = "true";
       electronEnv.CMUX_MOCK_AI = electronEnv.CMUX_MOCK_AI ?? "1";
-      electronEnv.CMUX_TEST_ROOT = configRoot;
+      electronEnv.CMUX_ROOT = configRoot;
       electronEnv.CMUX_E2E = "1";
       electronEnv.CMUX_E2E_LOAD_DIST = shouldLoadDist ? "1" : "0";
       electronEnv.VITE_DISABLE_MERMAID = "1";
