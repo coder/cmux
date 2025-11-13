@@ -61,6 +61,19 @@ export function useTerminalSession(
               type: "attach",
               sessionId: createdSessionId,
             }));
+            
+            // Send a clear screen command to reset terminal position
+            // This prevents the prompt from appearing halfway down
+            setTimeout(() => {
+              if (mounted && ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({
+                  type: "input",
+                  sessionId: createdSessionId,
+                  data: "\x0c", // Ctrl+L (clear screen)
+                }));
+              }
+            }, 100);
+            
             setConnected(true);
             setError(null);
           }
