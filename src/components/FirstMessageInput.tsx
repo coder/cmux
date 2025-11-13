@@ -20,6 +20,7 @@ import type { UIMode } from "@/types/mode";
 import { cn } from "@/lib/utils";
 import { ThinkingSliderComponent } from "./ThinkingSlider";
 import { Context1MCheckbox } from "./Context1MCheckbox";
+import { matchesKeybind, KEYBINDS } from "@/utils/ui/keybinds";
 
 interface FirstMessageInputProps {
   projectPath: string;
@@ -203,8 +204,8 @@ export function FirstMessageInput({
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-      // Send on Cmd+Enter (Mac) or Ctrl+Enter (Windows/Linux)
-      if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+      // Handle send message (Shift+Enter for newline is default behavior)
+      if (matchesKeybind(e, KEYBINDS.SEND_MESSAGE)) {
         e.preventDefault();
         void handleSend();
       }

@@ -64,8 +64,9 @@ Both should be concise (2-5 words) and descriptive of the task.`,
 }
 
 /**
- * Get model for title generation using the same model as the message
- * Falls back to null if provider not configured
+ * Get model for title generation - prefers fast/cheap models
+ * Priority: Haiku (Anthropic) → GPT-4o-mini (OpenAI) → fallback to user's model
+ * Falls back to null if no provider configured
  */
 function getModelForTitleGeneration(modelString: string, config: Config): LanguageModel | null {
   const providersConfig = config.loadProvidersConfig();
@@ -74,15 +75,30 @@ function getModelForTitleGeneration(modelString: string, config: Config): Langua
     return null;
   }
 
-  // Parse model string (e.g., "anthropic:claude-3-5-sonnet-20241022")
-  const [providerName, modelId] = modelString.split(":", 2);
-
-  if (!providerName || !modelId) {
-    log.error("Invalid model string format:", modelString);
-    return null;
-  }
-
   try {
+    // Try Anthropic Haiku first (fastest/cheapest)
+    if (providersConfig.anthropic?.apiKey) {
+      const provider = createAnthropic({
+        apiKey: String(providersConfig.anthropic.apiKey),
+      });
+      return provider("claude-3-5-haiku-20241022");
+    }
+
+    // Try OpenAI GPT-4o-mini second
+    if (providersConfig.openai?.apiKey) {
+      const provider = createOpenAI({
+        apiKey: String(providersConfig.openai.apiKey),
+      });
+      return provider("gpt-4o-mini");
+    }
+
+    // Parse user's model as fallback
+    const [providerName, modelId] = modelString.split(":", 2);
+    if (!providerName || !modelId) {
+      log.error("Invalid model string format:", modelString);
+      return null;
+    }
+
     if (providerName === "anthropic" && providersConfig.anthropic?.apiKey) {
       const provider = createAnthropic({
         apiKey: String(providersConfig.anthropic.apiKey),
@@ -100,7 +116,7 @@ function getModelForTitleGeneration(modelString: string, config: Config): Langua
     log.error(`Provider ${providerName} not configured or not supported`);
     return null;
   } catch (error) {
-    log.error(`Failed to create model for title generation: ${modelString}`, error);
+    log.error(`Failed to create model for title generation`, error);
     return null;
   }
 }
