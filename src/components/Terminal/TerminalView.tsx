@@ -97,7 +97,7 @@ export function TerminalView({ workspaceId, visible }: TerminalViewProps) {
         });
         
         // User input → WebSocket (use ref to always get latest sendInput)
-        terminal.onData((data) => {
+        terminal.onData((data: string) => {
           sendInputRef.current(data);
         });
 

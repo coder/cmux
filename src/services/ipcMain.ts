@@ -24,6 +24,7 @@ import type { BashToolResult } from "@/types/tools";
 import { secretsToRecord } from "@/types/secrets";
 import { DisposableTempDir } from "@/services/tempDir";
 import { InitStateManager } from "@/services/initStateManager";
+import { ExtensionMetadataService } from "@/services/ExtensionMetadataService";
 import { createRuntime } from "@/runtime/runtimeFactory";
 import type { RuntimeConfig } from "@/types/runtime";
 import { validateProjectPath } from "@/utils/pathUtils";
@@ -49,6 +50,7 @@ export class IpcMain {
   private readonly partialService: PartialService;
   private readonly aiService: AIService;
   private readonly initStateManager: InitStateManager;
+  private readonly extensionMetadata: ExtensionMetadataService;
   private readonly ptyService: PTYService;
   private readonly terminalServer: TerminalServer;
   private readonly sessions = new Map<string, AgentSession>();
@@ -65,6 +67,9 @@ export class IpcMain {
     this.historyService = new HistoryService(config);
     this.partialService = new PartialService(config, this.historyService);
     this.initStateManager = new InitStateManager(config);
+    this.extensionMetadata = new ExtensionMetadataService(
+      path.join(config.rootDir, "extensionMetadata.json")
+    );
     this.aiService = new AIService(
       config,
       this.historyService,
@@ -74,6 +79,50 @@ export class IpcMain {
     this.ptyService = new PTYService();
     this.terminalServer = new TerminalServer(this.ptyService);
     this.ptyService.setTerminalServer(this.terminalServer);
+
+    // Listen to AIService events to update metadata
+    this.setupMetadataListeners();
+  }
+
+  /**
+   * Initialize the service. Call this after construction.
+   * This is separate from the constructor to support async initialization.
+   */
+  async initialize(): Promise<void> {
+    await this.extensionMetadata.initialize();
+  }
+
+  /**
+   * Setup listeners to update metadata store based on AIService events.
+   * This tracks workspace recency and streaming status for VS Code extension integration.
+   */
+  private setupMetadataListeners(): void {
+    const isObj = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null;
+    const isWorkspaceEvent = (v: unknown): v is { workspaceId: string } =>
+      isObj(v) && "workspaceId" in v && typeof v.workspaceId === "string";
+    const isStreamStartEvent = (v: unknown): v is { workspaceId: string; model: string } =>
+      isWorkspaceEvent(v) && "model" in v && typeof v.model === "string";
+
+    // Update streaming status and recency on stream start
+    this.aiService.on("stream-start", (data: unknown) => {
+      if (isStreamStartEvent(data)) {
+        // Fire and forget - don't block event handler
+        void this.extensionMetadata.setStreaming(data.workspaceId, true, data.model);
+      }
+    });
+
+    // Clear streaming status on stream end/abort
+    this.aiService.on("stream-end", (data: unknown) => {
+      if (isWorkspaceEvent(data)) {
+        void this.extensionMetadata.setStreaming(data.workspaceId, false);
+      }
+    });
+
+    this.aiService.on("stream-abort", (data: unknown) => {
+      if (isWorkspaceEvent(data)) {
+        void this.extensionMetadata.setStreaming(data.workspaceId, false);
+      }
+    });
   }
 
   private getOrCreateSession(workspaceId: string): AgentSession {
@@ -344,7 +393,7 @@ export class IpcMain {
         // No longer creating symlinks - directory name IS the workspace name
 
         // Get complete metadata from config (includes paths)
-        const allMetadata = this.config.getAllWorkspaceMetadata();
+        const allMetadata = await this.config.getAllWorkspaceMetadata();
         const completeMetadata = allMetadata.find((m) => m.id === workspaceId);
         if (!completeMetadata) {
           return { success: false, error: "Failed to retrieve workspace metadata" };
@@ -404,7 +453,7 @@ export class IpcMain {
           }
 
           // Get current metadata
-          const metadataResult = this.aiService.getWorkspaceMetadata(workspaceId);
+          const metadataResult = await this.aiService.getWorkspaceMetadata(workspaceId);
           if (!metadataResult.success) {
             return Err(`Failed to get workspace metadata: ${metadataResult.error}`);
           }
@@ -417,7 +466,7 @@ export class IpcMain {
           }
 
           // Check if new name collides with existing workspace name or ID
-          const allWorkspaces = this.config.getAllWorkspaceMetadata();
+          const allWorkspaces = await this.config.getAllWorkspaceMetadata();
           const collision = allWorkspaces.find(
             (ws) => (ws.name === newName || ws.id === newName) && ws.id !== workspaceId
           );
@@ -466,7 +515,7 @@ export class IpcMain {
           });
 
           // Get updated metadata from config (includes updated name and paths)
-          const allMetadata = this.config.getAllWorkspaceMetadata();
+          const allMetadata = await this.config.getAllWorkspaceMetadata();
           const updatedMetadata = allMetadata.find((m) => m.id === workspaceId);
           if (!updatedMetadata) {
             return Err("Failed to retrieve updated workspace metadata");
@@ -508,7 +557,7 @@ export class IpcMain {
           }
 
           // Get source workspace metadata
-          const sourceMetadataResult = this.aiService.getWorkspaceMetadata(sourceWorkspaceId);
+          const sourceMetadataResult = await this.aiService.getWorkspaceMetadata(sourceWorkspaceId);
           if (!sourceMetadataResult.success) {
             return {
               success: false,
@@ -614,6 +663,7 @@ export class IpcMain {
             projectName,
             projectPath: foundProjectPath,
             createdAt: new Date().toISOString(),
+            runtimeConfig: sourceRuntimeConfig,
           };
 
           // Write metadata to config.json
@@ -644,9 +694,9 @@ export class IpcMain {
       }
     });
 
-    ipcMain.handle(IPC_CHANNELS.WORKSPACE_GET_INFO, (_event, workspaceId: string) => {
+    ipcMain.handle(IPC_CHANNELS.WORKSPACE_GET_INFO, async (_event, workspaceId: string) => {
       // Get complete metadata from config (includes paths)
-      const allMetadata = this.config.getAllWorkspaceMetadata();
+      const allMetadata = await this.config.getAllWorkspaceMetadata();
       return allMetadata.find((m) => m.id === workspaceId) ?? null;
     });
 
@@ -854,7 +904,7 @@ export class IpcMain {
       ) => {
         try {
           // Get workspace metadata
-          const metadataResult = this.aiService.getWorkspaceMetadata(workspaceId);
+          const metadataResult = await this.aiService.getWorkspaceMetadata(workspaceId);
           if (!metadataResult.success) {
             return Err(`Failed to get workspace metadata: ${metadataResult.error}`);
           }
@@ -1022,7 +1072,7 @@ export class IpcMain {
   ): Promise<{ success: boolean; error?: string }> {
     try {
       // Get workspace metadata
-      const metadataResult = this.aiService.getWorkspaceMetadata(workspaceId);
+      const metadataResult = await this.aiService.getWorkspaceMetadata(workspaceId);
       if (!metadataResult.success) {
         // If metadata doesn't exist, workspace is already gone - consider it success
         log.info(`Workspace ${workspaceId} metadata not found, considering removal successful`);
