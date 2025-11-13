@@ -171,6 +171,14 @@ export class TerminalServer {
   sendOutput(sessionId: string, data: string): void {
     const ws = this.connections.get(sessionId);
     if (ws) {
+      // Debug: Check if data contains color codes and if it's malformed
+      if (data.includes("38;5;130")) {
+        const firstBytes = Array.from(data.substring(0, 20)).map(c => c.charCodeAt(0).toString(16).padStart(2, '0')).join(' ');
+        log.info(`[TerminalServer] Color code data first 20 bytes: ${firstBytes}`);
+        if (!/^\x1b\[/.test(data) && /^[0-9;]+m/.test(data)) {
+          log.error(`[TerminalServer] MALFORMED DATA from PTY - missing ESC[ prefix`);
+        }
+      }
       log.debug(`[TerminalServer] Sending ${data.length} bytes to session ${sessionId}`);
       this.sendMessage(ws, {
         type: "output",
