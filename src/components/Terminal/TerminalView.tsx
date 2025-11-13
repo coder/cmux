@@ -1,5 +1,6 @@
 import { useRef, useEffect, useState } from "react";
 import { Terminal, FitAddon } from "ghostty-web";
+import wasmUrl from "ghostty-web/ghostty-vt.wasm?url";
 import { useTerminalSession } from "@/hooks/useTerminalSession";
 
 interface TerminalViewProps {
@@ -41,7 +42,7 @@ export function TerminalView({ workspaceId, visible }: TerminalViewProps) {
     const initTerminal = async () => {
       try {
         terminal = new Terminal({
-          wasmPath: "/src/assets/ghostty-vt.wasm",
+          wasmPath: wasmUrl,
           fontSize: 13,
           fontFamily: "Monaco, Menlo, 'Courier New', monospace",
           cursorBlink: true,
