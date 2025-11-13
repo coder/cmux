@@ -19,7 +19,7 @@ import type { ToolPolicy } from "../../src/utils/tools/toolPolicy";
 // Test constants - centralized for consistency across all tests
 export const INIT_HOOK_WAIT_MS = 1500; // Wait for async init hook completion (local runtime)
 export const SSH_INIT_WAIT_MS = 7000; // SSH init includes sync + checkout + hook, takes longer
-export const HAIKU_MODEL = "anthropic:claude-haiku-4-5"; // Fast model for tests
+export const DEFAULT_TEST_MODEL = "anthropic:claude-haiku-4-5"; // Default fast model for tests
 export const GPT_5_MINI_MODEL = "openai:gpt-5-mini"; // Fastest model for performance-critical tests
 export const TEST_TIMEOUT_LOCAL_MS = 25000; // Recommended timeout for local runtime tests
 export const TEST_TIMEOUT_SSH_MS = 60000; // Recommended timeout for SSH runtime tests
@@ -43,8 +43,12 @@ export function modelString(provider: string, model: string): string {
   return `${provider}:${model}`;
 }
 
+// Track which IpcRenderer instances have been set up to avoid duplicate setup
+const setupProviderCache = new WeakSet<IpcRenderer>();
+
 /**
  * Send a message via IPC
+ * Automatically sets up Anthropic provider on first use (idempotent)
  */
 export async function sendMessage(
   mockIpcRenderer: IpcRenderer,
@@ -52,6 +56,17 @@ export async function sendMessage(
   message: string,
   options?: SendMessageOptions & { imageParts?: Array<{ url: string; mediaType: string }> }
 ): Promise<Result<void, SendMessageError>> {
+  // Setup provider on first use (idempotent across all sendMessage calls)
+  if (!setupProviderCache.has(mockIpcRenderer)) {
+    const { setupProviders, getApiKey } = await import("./setup");
+    await setupProviders(mockIpcRenderer, {
+      anthropic: {
+        apiKey: getApiKey("ANTHROPIC_API_KEY"),
+      },
+    });
+    setupProviderCache.add(mockIpcRenderer);
+  }
+
   return (await mockIpcRenderer.invoke(
     IPC_CHANNELS.WORKSPACE_SEND_MESSAGE,
     workspaceId,
@@ -193,22 +208,13 @@ export async function sendMessageAndWait(
   // Clear previous events
   env.sentEvents.length = 0;
 
-  // Send message
-  const result = await env.mockIpcRenderer.invoke(
-    IPC_CHANNELS.WORKSPACE_SEND_MESSAGE,
-    workspaceId,
-    message,
-    {
-      model,
-      toolPolicy,
-      thinkingLevel: "off", // Disable reasoning for fast test execution
-      mode: "exec", // Execute commands directly, don't propose plans
-    }
-  );
-
-  if (!result.success) {
-    throw new Error(`Failed to send message: ${JSON.stringify(result, null, 2)}`);
-  }
+  // Use sendMessage for provider setup, then send message
+  await sendMessage(env.mockIpcRenderer, workspaceId, message, {
+    model,
+    toolPolicy,
+    thinkingLevel: "off", // Disable reasoning for fast test execution
+    mode: "exec", // Execute commands directly, don't propose plans
+  });
 
   // Wait for stream completion
   const collector = createEventCollector(env.sentEvents, workspaceId);

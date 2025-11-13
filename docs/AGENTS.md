@@ -229,6 +229,7 @@ This project uses **Make** as the primary build orchestrator. See `Makefile` for
   - ❌ **Bad**: `expect(isValid("foo")).toBe(true)` for every valid value - Duplicates implementation
   - ✅ **Good**: `expect(isValid("invalid")).toBe(false)` - Tests boundary/error cases
   - **Rule of thumb**: If changing the implementation requires changing the test in the same way, the test is probably useless
+- **Avoid requiring manual setup in tests** - If every test needs the same initialization (provider setup, config, etc.), move that logic into the test helper functions. Tests should call one function and get a working environment, not repeat boilerplate setup steps.
 - Strive to decompose complex logic away from the components and into `.src/utils/`
   - utils should be either pure functions or easily isolated (e.g. if they operate on the FS they accept
     a path). Testing them should not require complex mocks or setup.
