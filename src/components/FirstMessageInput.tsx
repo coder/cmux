@@ -6,9 +6,13 @@ import { parseRuntimeString } from "@/utils/chatCommands";
 import { getModelKey } from "@/constants/storage";
 import { useModelLRU } from "@/hooks/useModelLRU";
 import { useNewWorkspaceOptions } from "@/hooks/useNewWorkspaceOptions";
+import { useMode } from "@/contexts/ModeContext";
 import { ModelSelector } from "./ModelSelector";
-import { TooltipWrapper, Tooltip } from "./Tooltip";
+import { TooltipWrapper, Tooltip, HelpIndicator } from "./Tooltip";
 import { VimTextArea } from "./VimTextArea";
+import { ToggleGroup, type ToggleOption } from "./ToggleGroup";
+import type { UIMode } from "@/types/mode";
+import { cn } from "@/lib/utils";
 
 interface FirstMessageInputProps {
   projectPath: string;
@@ -16,6 +20,22 @@ interface FirstMessageInputProps {
   onWorkspaceCreated: (metadata: FrontendWorkspaceMetadata) => void;
   onCancel?: () => void;
 }
+
+const MODE_OPTIONS: Array<ToggleOption<UIMode>> = [
+  { value: "exec", label: "Exec", activeClassName: "bg-exec-mode text-white" },
+  { value: "plan", label: "Plan", activeClassName: "bg-plan-mode text-white" },
+];
+
+const ModeHelpTooltip: React.FC = () => (
+  <TooltipWrapper inline>
+    <HelpIndicator>?</HelpIndicator>
+    <Tooltip className="tooltip" align="center" width="wide">
+      <strong>Exec Mode:</strong> AI edits files and executes commands
+      <br />
+      <strong>Plan Mode:</strong> AI proposes changes for your review
+    </Tooltip>
+  </TooltipWrapper>
+);
 
 /**
  * FirstMessageInput - Simplified input for sending first message without a workspace
@@ -37,6 +57,9 @@ export function FirstMessageInput({
   const [branches, setBranches] = useState<string[]>([]);
   const [trunkBranch, setTrunkBranch] = useState<string>("");
   const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  // Mode selection (Exec/Plan)
+  const [mode, setMode] = useMode();
 
   // Get most recent model from LRU (project-scoped preference)
   const { recentModels, addModel } = useModelLRU();
@@ -148,7 +171,7 @@ export function FirstMessageInput({
   );
 
   return (
-    <div className="flex flex-1 h-full flex-col">
+    <div className="flex h-full flex-1 flex-col">
       {/* Project title in center */}
       <div className="flex flex-1 items-center justify-center">
         <div className="text-center">
@@ -177,7 +200,7 @@ export function FirstMessageInput({
             ref={inputRef}
             value={input}
             isEditing={false}
-            mode="exec"
+            mode={mode}
             onChange={setInput}
             onKeyDown={handleKeyDown}
             onPaste={undefined}
@@ -190,9 +213,31 @@ export function FirstMessageInput({
           />
         </div>
 
-        {/* Options row - Model + Runtime */}
+        {/* Options row - Mode + Model + Runtime */}
         <div className="@container flex flex-col gap-1" data-component="FirstMessageOptions">
           <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+            {/* Mode Switch - full version for wider containers */}
+            <div className="flex items-center gap-1.5 [@container(max-width:550px)]:hidden">
+              <div
+                className={cn(
+                  "[&>button:first-of-type]:rounded-l [&>button:last-of-type]:rounded-r",
+                  mode === "exec" &&
+                    "[&>button:first-of-type]:bg-exec-mode [&>button:first-of-type]:text-white [&>button:first-of-type]:hover:bg-exec-mode-hover",
+                  mode === "plan" &&
+                    "[&>button:last-of-type]:bg-plan-mode [&>button:last-of-type]:text-white [&>button:last-of-type]:hover:bg-plan-mode-hover"
+                )}
+              >
+                <ToggleGroup<UIMode> options={MODE_OPTIONS} value={mode} onChange={setMode} />
+              </div>
+              <ModeHelpTooltip />
+            </div>
+
+            {/* Mode Switch - compact version for narrow containers */}
+            <div className="hidden items-center gap-1.5 [@container(max-width:550px)]:flex">
+              <ToggleGroup<UIMode> options={MODE_OPTIONS} value={mode} onChange={setMode} compact />
+              <ModeHelpTooltip />
+            </div>
+
             {/* Model Selector */}
             <div className="flex items-center" data-component="ModelSelectorGroup">
               <ModelSelector
