@@ -13,7 +13,7 @@ import type { Config } from "@/config";
 export class TerminalWindowManager {
   private windows = new Map<string, Set<BrowserWindow>>(); // workspaceId -> Set of windows
   private windowCount = 0; // Counter for unique window IDs
-  private readonly config: Config;
+  private config: Config;
 
   constructor(config: Config) {
     this.config = config;

@@ -14,7 +14,7 @@ import type { TerminalMessage, TerminalServerMessage } from "@/types/terminal";
 export class TerminalServer {
   private server: Server | undefined = undefined;
   private wss: WebSocketServer | null = null;
-  private port = 0;
+  private port: number = 0;
   private readonly ptyService: PTYService;
   private readonly connections = new Map<string, WebSocket>(); // sessionId -> WebSocket
 
