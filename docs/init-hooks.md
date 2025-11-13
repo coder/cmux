@@ -27,6 +27,29 @@ chmod +x .cmux/init
 
 The init script runs in the workspace directory with the workspace's environment.
 
+## Environment Variables
+
+Init hooks receive the following environment variables:
+
+- `PROJECT_PATH` - Absolute path to the project root directory
+
+Example usage:
+
+```bash
+#!/bin/bash
+set -e
+
+echo "Project root: $PROJECT_PATH"
+echo "Workspace directory: $PWD"
+
+# Reference files in project root
+if [ -f "$PROJECT_PATH/.env" ]; then
+  cp "$PROJECT_PATH/.env" "$PWD/.env"
+fi
+
+bun install
+```
+
 ## Use Cases
 
 - Install dependencies (`npm install`, `bun install`, etc.)
