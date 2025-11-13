@@ -12,11 +12,17 @@ export function useTerminalSession(
   const [connected, setConnected] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
+  const initialSizeRef = useRef<{ cols: number; rows: number } | null>(null);
 
   // Create terminal session and WebSocket connection
   useEffect(() => {
     if (!enabled || !terminalSize) {
       return;
+    }
+
+    // Store initial size, but don't recreate session if it changes
+    if (!initialSizeRef.current) {
+      initialSizeRef.current = terminalSize;
     }
 
     let mounted = true;
@@ -36,11 +42,11 @@ export function useTerminalSession(
         // Get WebSocket port from backend
         const port = await window.api.terminal.getPort();
 
-        // Create terminal session with actual terminal size
+        // Create terminal session with initial terminal size
         const session = await window.api.terminal.create({
           workspaceId,
-          cols: terminalSize.cols,
-          rows: terminalSize.rows,
+          cols: initialSizeRef.current!.cols,
+          rows: initialSizeRef.current!.rows,
         });
 
         if (!mounted) {
@@ -102,9 +108,12 @@ export function useTerminalSession(
       if (createdSessionId) {
         void window.api.terminal.close(createdSessionId);
       }
+      
+      // Reset initial size ref so a new session can be created
+      initialSizeRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [workspaceId, enabled]); // Don't include terminalSize - we only need it for initial session creation, not re-creation on resize
+  }, [workspaceId, enabled, terminalSize]); // Include terminalSize to trigger when available, but use ref to prevent re-creation on resize
 
   // Send input to terminal
   const sendInput = useCallback(
