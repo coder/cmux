@@ -41,7 +41,7 @@ endif
 # Include formatting rules
 include fmt.mk
 
-.PHONY: all build dev start clean clean-cache help
+.PHONY: all build dev start clean help
 .PHONY: build-renderer version build-icons build-static
 .PHONY: lint lint-fix typecheck static-check
 .PHONY: test test-unit test-integration test-watch test-coverage test-e2e
@@ -115,10 +115,6 @@ dev: node_modules/.installed build-main ## Start development server (Vite + tsgo
 		"bun x concurrently \"$(TSGO) -w -p tsconfig.main.json\" \"bun x tsc-alias -w -p tsconfig.main.json\"" \
 		"vite"
 endif
-
-clean-cache: ## Clean Vite cache (helps with EMFILE errors on Windows)
-	@echo "Cleaning Vite cache..."
-	@rm -rf node_modules/.vite
 
 ifeq ($(OS),Windows_NT)
 dev-server: node_modules/.installed build-main ## Start server mode with hot reload (backend :3000 + frontend :5173). Use VITE_HOST=0.0.0.0 BACKEND_HOST=0.0.0.0 for remote access
