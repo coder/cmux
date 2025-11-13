@@ -1525,10 +1525,10 @@ export class IpcMain {
       return await this.terminalServer.getPort();
     });
 
-    ipcMain.handle(IPC_CHANNELS.TERMINAL_WINDOW_OPEN, (_event, workspaceId: string) => {
+    ipcMain.handle(IPC_CHANNELS.TERMINAL_WINDOW_OPEN, async (_event, workspaceId: string) => {
       try {
         const devServerPort = process.env.CMUX_DEVSERVER_PORT ?? "5173";
-        void this.terminalWindowManager.openTerminalWindow(workspaceId, devServerPort);
+        await this.terminalWindowManager.openTerminalWindow(workspaceId, devServerPort);
       } catch (err) {
         log.error("Error opening terminal window:", err);
         throw err;
