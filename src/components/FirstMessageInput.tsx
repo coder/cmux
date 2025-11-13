@@ -228,8 +228,12 @@ export function FirstMessageInput({
             <p className="text-muted text-sm">Creating workspace...</p>
           </div>
         ) : (
-          <div className="text-center">
-            <h1 className="text-foreground text-2xl font-semibold">{projectName}</h1>
+          <div className="text-center max-w-2xl px-8">
+            <h1 className="text-foreground mb-4 text-2xl font-semibold">{projectName}</h1>
+            <p className="text-muted text-sm leading-relaxed">
+              Describe what you want to build. A new workspace will be created with an
+              automatically generated branch name. Configure runtime and model options below.
+            </p>
           </div>
         )}
       </div>
