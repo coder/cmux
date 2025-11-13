@@ -93,10 +93,6 @@ node_modules/.installed: package.json bun.lock
 # Legacy target for backwards compatibility
 ensure-deps: node_modules/.installed
 
-
-
-
-
 ## Help
 help: ## Show this help message
 	@echo 'Usage: make [target]'
@@ -166,7 +162,7 @@ build-main: node_modules/.installed dist/main.js ## Build main process
 dist/main.js: src/version.ts tsconfig.main.json tsconfig.json $(TS_SOURCES)
 	@echo "Building main process..."
 	@NODE_ENV=production $(TSGO) -p tsconfig.main.json
-	@NODE_ENV=production $(RUNNER) tsc-alias -p tsconfig.main.json
+	@NODE_ENV=production bun x tsc-alias -p tsconfig.main.json
 
 build-preload: node_modules/.installed dist/preload.js ## Build preload script
 
