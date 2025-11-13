@@ -147,10 +147,7 @@ export class MockScenarioPlayer {
     this.activeStreams.delete(workspaceId);
   }
 
-  async play(
-    messages: MuxMessage[],
-    workspaceId: string
-  ): Promise<Result<void, SendMessageError>> {
+  async play(messages: MuxMessage[], workspaceId: string): Promise<Result<void, SendMessageError>> {
     const latest = messages[messages.length - 1];
     if (!latest || latest.role !== "user") {
       return Err({ type: "unknown", raw: "Mock scenario expected a user message" });

@@ -5,7 +5,7 @@ import { join } from "path";
 /**
  * Migrate from .cmux to .mux directory structure.
  * Called on startup to ensure backward compatibility.
- * 
+ *
  * If .mux exists, nothing happens (already migrated).
  * If .cmux exists but .mux doesn't, moves .cmux → .mux and creates symlink.
  * This ensures old scripts/tools referencing ~/.cmux continue working.
@@ -13,18 +13,18 @@ import { join } from "path";
 export function ensureMuxMigration(): void {
   const oldPath = join(homedir(), ".cmux");
   const newPath = join(homedir(), ".mux");
-  
+
   // If .mux exists, we're done (already migrated or fresh install)
   if (existsSync(newPath)) {
     return;
   }
-  
+
   // If .cmux exists, move it and create symlink for backward compatibility
   if (existsSync(oldPath)) {
     renameSync(oldPath, newPath);
     symlinkSync(newPath, oldPath, "dir");
   }
-  
+
   // If neither exists, nothing to do (will be created on first use)
 }
 

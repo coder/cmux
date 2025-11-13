@@ -14,13 +14,13 @@ Optional environment overrides:
 | ---------------------- | --------------------------------------------------------- | -------------------------------------- |
 | `CMUX_AGENT_REPO_ROOT` | Path copied into each task container                      | repo root inferred from the agent file |
 | `CMUX_TRUNK`           | Branch checked out when preparing the project             | `main`                                 |
-| `CMUX_WORKSPACE_ID`    | Workspace identifier used inside mux                     | `mux-bench`                           |
+| `CMUX_WORKSPACE_ID`    | Workspace identifier used inside mux                      | `mux-bench`                            |
 | `CMUX_MODEL`           | Preferred model (supports `provider/model` syntax)        | `anthropic/claude-sonnet-4-5`          |
 | `CMUX_THINKING_LEVEL`  | Optional reasoning level (`off`, `low`, `medium`, `high`) | `high`                                 |
 | `CMUX_MODE`            | Starting mode (`plan` or `exec`)                          | `exec`                                 |
 | `CMUX_TIMEOUT_MS`      | Optional stream timeout in milliseconds                   | no timeout                             |
-| `CMUX_CONFIG_ROOT`     | Location for mux session data inside the container       | `/root/.mux`                          |
-| `CMUX_APP_ROOT`        | Path where the mux sources are staged                    | `/opt/mux-app`                        |
+| `CMUX_CONFIG_ROOT`     | Location for mux session data inside the container        | `/root/.mux`                           |
+| `CMUX_APP_ROOT`        | Path where the mux sources are staged                     | `/opt/mux-app`                         |
 | `CMUX_PROJECT_PATH`    | Explicit project directory inside the task container      | auto-detected from common paths        |
 
 ## Running Terminal-Bench

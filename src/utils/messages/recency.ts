@@ -10,10 +10,7 @@ import type { MuxMessage } from "@/types/message";
  *
  * This eliminates race conditions where workspaces appear at bottom before messages load.
  */
-export function computeRecencyTimestamp(
-  messages: MuxMessage[],
-  createdAt?: string
-): number | null {
+export function computeRecencyTimestamp(messages: MuxMessage[], createdAt?: string): number | null {
   if (messages.length === 0 && !createdAt) {
     return null;
   }

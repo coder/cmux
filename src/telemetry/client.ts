@@ -55,13 +55,13 @@ const LEGACY_TELEMETRY_KEY = "cmux_telemetry_enabled";
  */
 export function isTelemetryEnabled(): boolean {
   if (typeof window === "undefined") return true;
-  
+
   // Try new key first, then legacy key
   const stored = localStorage.getItem(TELEMETRY_ENABLED_KEY);
   if (stored !== null) {
     return stored === "true";
   }
-  
+
   // Migrate from legacy key if it exists
   const legacy = localStorage.getItem(LEGACY_TELEMETRY_KEY);
   if (legacy !== null) {
@@ -69,7 +69,7 @@ export function isTelemetryEnabled(): boolean {
     localStorage.removeItem(LEGACY_TELEMETRY_KEY);
     return legacy === "true";
   }
-  
+
   return true; // Default to enabled
 }
 

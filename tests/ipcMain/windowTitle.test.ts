@@ -20,9 +20,7 @@ describeIntegration("Window title IPC", () => {
         );
 
         // Verify setTitle was called on the window
-        expect(env.mockWindow.setTitle).toHaveBeenCalledWith(
-          "test-workspace - test-project - mux"
-        );
+        expect(env.mockWindow.setTitle).toHaveBeenCalledWith("test-workspace - test-project - mux");
       } finally {
         await cleanupTestEnvironment(env);
       }
