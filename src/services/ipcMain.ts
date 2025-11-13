@@ -1314,7 +1314,7 @@ export class IpcMain {
         }
       }
       if (configUpdated) {
-        void this.config.saveConfig(projectsConfig);
+        await this.config.saveConfig(projectsConfig);
       }
 
       // Emit metadata event for workspace removal (with null metadata to indicate deletion)
@@ -1413,7 +1413,7 @@ export class IpcMain {
 
         // Add to config with normalized path
         config.projects.set(normalizedPath, projectConfig);
-        void this.config.saveConfig(config);
+        await this.config.saveConfig(config);
 
         // Return both the config and the normalized path so frontend can use it
         return Ok({ projectConfig, normalizedPath });
@@ -1423,7 +1423,7 @@ export class IpcMain {
       }
     });
 
-    ipcMain.handle(IPC_CHANNELS.PROJECT_REMOVE, (_event, projectPath: string) => {
+    ipcMain.handle(IPC_CHANNELS.PROJECT_REMOVE, async (_event, projectPath: string) => {
       try {
         const config = this.config.loadConfigOrDefault();
         const projectConfig = config.projects.get(projectPath);
@@ -1441,11 +1441,11 @@ export class IpcMain {
 
         // Remove project from config
         config.projects.delete(projectPath);
-        void this.config.saveConfig(config);
+        await this.config.saveConfig(config);
 
         // Also remove project secrets if any
         try {
-          void this.config.updateProjectSecrets(projectPath, []);
+          await this.config.updateProjectSecrets(projectPath, []);
         } catch (error) {
           log.error(`Failed to clean up secrets for project ${projectPath}:`, error);
           // Continue - don't fail the whole operation if secrets cleanup fails
@@ -1502,9 +1502,9 @@ export class IpcMain {
 
     ipcMain.handle(
       IPC_CHANNELS.PROJECT_SECRETS_UPDATE,
-      (_event, projectPath: string, secrets: Array<{ key: string; value: string }>) => {
+      async (_event, projectPath: string, secrets: Array<{ key: string; value: string }>) => {
         try {
-          void this.config.updateProjectSecrets(projectPath, secrets);
+          await this.config.updateProjectSecrets(projectPath, secrets);
           return Ok(undefined);
         } catch (error) {
           const message = error instanceof Error ? error.message : String(error);
