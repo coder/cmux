@@ -1754,6 +1754,7 @@ export class IpcMain {
       }
     }
   }
+
   /**
    * Check if a command is available in the system PATH or known locations
    */
