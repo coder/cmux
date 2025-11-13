@@ -30,7 +30,7 @@ export function ensureMuxMigration(): void {
 
 /**
  * Get the root directory for all mux configuration and data.
- * Can be overridden with MUX_TEST_ROOT environment variable.
+ * Can be overridden with MUX_ROOT environment variable.
  * Appends '-dev' suffix when NODE_ENV=development (explicit dev mode).
  *
  * This is a getter function to support test mocking of os.homedir().
@@ -40,9 +40,9 @@ export function ensureMuxMigration(): void {
  */
 export function getMuxHome(): string {
   // eslint-disable-next-line no-restricted-syntax, no-restricted-globals
-  if (process.env.MUX_TEST_ROOT) {
+  if (process.env.MUX_ROOT) {
     // eslint-disable-next-line no-restricted-syntax, no-restricted-globals
-    return process.env.MUX_TEST_ROOT;
+    return process.env.MUX_ROOT;
   }
 
   const baseName = ".mux";

@@ -88,7 +88,7 @@ function buildTarget(target: string): void {
 
 export const electronTest = base.extend<ElectronFixtures>({
   workspace: async ({}, use, testInfo) => {
-    const envRoot = process.env.MUX_TEST_ROOT ?? "";
+    const envRoot = process.env.MUX_ROOT ?? "";
     const baseRoot = envRoot || defaultTestRoot;
     const uniqueTestId = testInfo.testId || testInfo.title || `test-${Date.now()}`;
     const testRoot = envRoot ? baseRoot : path.join(baseRoot, sanitizeForPath(uniqueTestId));
@@ -195,7 +195,7 @@ export const electronTest = base.extend<ElectronFixtures>({
       }
       electronEnv.ELECTRON_DISABLE_SECURITY_WARNINGS = "true";
       electronEnv.MUX_MOCK_AI = electronEnv.MUX_MOCK_AI ?? "1";
-      electronEnv.MUX_TEST_ROOT = configRoot;
+      electronEnv.MUX_ROOT = configRoot;
       electronEnv.MUX_E2E = "1";
       electronEnv.MUX_E2E_LOAD_DIST = shouldLoadDist ? "1" : "0";
       electronEnv.VITE_DISABLE_MERMAID = "1";

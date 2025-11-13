@@ -75,7 +75,7 @@ const forceDistLoad = process.env.MUX_E2E_LOAD_DIST === "1";
 
 if (isE2ETest) {
   // For e2e tests, use a test-specific userData directory
-  // Note: getMuxHome() already respects MUX_TEST_ROOT for test isolation
+  // Note: getMuxHome() already respects MUX_ROOT for test isolation
   const e2eUserData = path.join(getMuxHome(), "user-data");
   try {
     fs.mkdirSync(e2eUserData, { recursive: true });
