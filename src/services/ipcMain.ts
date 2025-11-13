@@ -907,6 +907,10 @@ export class IpcMain {
         });
         try {
           const session = this.getOrCreateSession(workspaceId);
+
+          // Update recency on user message (fire and forget)
+          void this.extensionMetadata.updateRecency(workspaceId);
+
           const result = await session.sendMessage(message, options);
           if (!result.success) {
             log.error("sendMessage handler: session returned error", {
