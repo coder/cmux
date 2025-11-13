@@ -1257,6 +1257,9 @@ export class IpcMain {
         return { success: false, error: aiResult.error };
       }
 
+      // Delete workspace metadata (fire and forget)
+      void this.extensionMetadata.deleteWorkspace(workspaceId);
+
       // Update config to remove the workspace from all projects
       const projectsConfig = this.config.loadConfigOrDefault();
       let configUpdated = false;
