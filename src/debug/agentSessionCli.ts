@@ -228,7 +228,7 @@ async function main(): Promise<void> {
     initStateManager,
   });
 
-  session.ensureMetadata({
+  await session.ensureMetadata({
     workspacePath,
     projectName,
   });

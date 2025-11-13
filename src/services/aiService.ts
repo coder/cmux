@@ -216,11 +216,11 @@ export class AIService extends EventEmitter {
     return this.mockModeEnabled;
   }
 
-  getWorkspaceMetadata(workspaceId: string): Result<WorkspaceMetadata> {
+  async getWorkspaceMetadata(workspaceId: string): Promise<Result<WorkspaceMetadata>> {
     try {
       // Read from config.json (single source of truth)
       // getAllWorkspaceMetadata() handles migration from legacy metadata.json files
-      const allMetadata = this.config.getAllWorkspaceMetadata();
+      const allMetadata = await this.config.getAllWorkspaceMetadata();
       const metadata = allMetadata.find((m) => m.id === workspaceId);
 
       if (!metadata) {
@@ -621,7 +621,7 @@ export class AIService extends EventEmitter {
       }
 
       // Get workspace metadata to retrieve workspace path
-      const metadataResult = this.getWorkspaceMetadata(workspaceId);
+      const metadataResult = await this.getWorkspaceMetadata(workspaceId);
       if (!metadataResult.success) {
         return Err({ type: "unknown", raw: metadataResult.error });
       }

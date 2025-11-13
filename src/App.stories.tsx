@@ -5,6 +5,7 @@ import type { ProjectConfig } from "./config";
 import type { FrontendWorkspaceMetadata } from "./types/workspace";
 import type { IPCApi } from "./types/ipc";
 import type { ChatStats } from "./types/chatStats";
+import { DEFAULT_RUNTIME_CONFIG } from "@/constants/workspace";
 
 // Stable timestamp for visual testing (Apple demo time: Jan 24, 2024, 9:41 AM PST)
 const STABLE_TIMESTAMP = new Date("2024-01-24T09:41:00-08:00").getTime();
@@ -47,6 +48,7 @@ function setupMockAPI(options: {
             projectPath,
             projectName: projectPath.split("/").pop() ?? "project",
             namedWorkspacePath: `/mock/workspace/${branchName}`,
+            runtimeConfig: DEFAULT_RUNTIME_CONFIG,
           },
         }),
       list: () => Promise.resolve(mockWorkspaces),
@@ -173,6 +175,7 @@ export const SingleProject: Story = {
         projectPath: "/home/user/projects/my-app",
         projectName: "my-app",
         namedWorkspacePath: "/home/user/.cmux/src/my-app/main",
+        runtimeConfig: DEFAULT_RUNTIME_CONFIG,
       },
       {
         id: "f6g7h8i9j0",
@@ -192,6 +195,7 @@ export const SingleProject: Story = {
         projectPath: "/home/user/projects/my-app",
         projectName: "my-app",
         namedWorkspacePath: "/home/user/.cmux/src/my-app/bugfix",
+        runtimeConfig: DEFAULT_RUNTIME_CONFIG,
       },
     ];
 
@@ -247,6 +251,7 @@ export const MultipleProjects: Story = {
         projectPath: "/home/user/projects/frontend",
         projectName: "frontend",
         namedWorkspacePath: "/home/user/.cmux/src/frontend/main",
+        runtimeConfig: DEFAULT_RUNTIME_CONFIG,
       },
       {
         id: "2b3c4d5e6f",
@@ -254,6 +259,7 @@ export const MultipleProjects: Story = {
         projectPath: "/home/user/projects/frontend",
         projectName: "frontend",
         namedWorkspacePath: "/home/user/.cmux/src/frontend/redesign",
+        runtimeConfig: DEFAULT_RUNTIME_CONFIG,
       },
       {
         id: "3c4d5e6f7a",
@@ -261,6 +267,7 @@ export const MultipleProjects: Story = {
         projectPath: "/home/user/projects/backend",
         projectName: "backend",
         namedWorkspacePath: "/home/user/.cmux/src/backend/main",
+        runtimeConfig: DEFAULT_RUNTIME_CONFIG,
       },
       {
         id: "4d5e6f7a8b",
@@ -292,6 +299,7 @@ export const MultipleProjects: Story = {
         projectPath: "/home/user/projects/mobile",
         projectName: "mobile",
         namedWorkspacePath: "/home/user/.cmux/src/mobile/main",
+        runtimeConfig: DEFAULT_RUNTIME_CONFIG,
       },
     ];
 
@@ -335,6 +343,7 @@ export const ManyWorkspaces: Story = {
       projectPath: "/home/user/projects/big-app",
       projectName: "big-app",
       namedWorkspacePath: `/home/user/.cmux/src/big-app/${name}`,
+      runtimeConfig: DEFAULT_RUNTIME_CONFIG,
     }));
 
     return <AppWithMocks projects={projects} workspaces={workspaces} />;
@@ -362,6 +371,7 @@ export const ActiveWorkspaceWithChat: Story = {
         projectPath: "/home/user/projects/my-app",
         projectName: "my-app",
         namedWorkspacePath: "/home/user/.cmux/src/my-app/feature",
+        runtimeConfig: DEFAULT_RUNTIME_CONFIG,
       },
     ];
 
@@ -388,6 +398,7 @@ export const ActiveWorkspaceWithChat: Story = {
                     projectPath,
                     projectName: projectPath.split("/").pop() ?? "project",
                     namedWorkspacePath: `/mock/workspace/${branchName}`,
+                    runtimeConfig: DEFAULT_RUNTIME_CONFIG,
                   },
                 }),
               list: () => Promise.resolve(workspaces),
@@ -696,6 +707,7 @@ export const MarkdownTables: Story = {
             projectPath: "/home/user/projects/my-app",
             projectName: "my-app",
             namedWorkspacePath: "/home/user/.cmux/src/my-app/feature",
+            runtimeConfig: DEFAULT_RUNTIME_CONFIG,
           },
         ];
 
@@ -723,6 +735,7 @@ export const MarkdownTables: Story = {
                     projectPath,
                     projectName: projectPath.split("/").pop() ?? "project",
                     namedWorkspacePath: `/mock/workspace/${branchName}`,
+                    runtimeConfig: DEFAULT_RUNTIME_CONFIG,
                   },
                 }),
               list: () => Promise.resolve(workspaces),

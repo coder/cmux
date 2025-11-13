@@ -18,6 +18,7 @@ import type { Config } from "./config";
 import type { IpcMain } from "./services/ipcMain";
 import { VERSION } from "./version";
 import { IPC_CHANNELS } from "./constants/ipc-constants";
+import { getCmuxHome } from "./constants/paths";
 import { log } from "./services/log";
 import { parseDebugUpdater } from "./utils/env";
 import assert from "./utils/assert";
@@ -74,10 +75,8 @@ const forceDistLoad = process.env.CMUX_E2E_LOAD_DIST === "1";
 
 if (isE2ETest) {
   // For e2e tests, use a test-specific userData directory
-  // Note: We can't use config.rootDir here because config isn't loaded yet
-  // However, we must respect CMUX_TEST_ROOT to maintain test isolation
-  const testRoot = process.env.CMUX_TEST_ROOT ?? path.join(process.env.HOME ?? "~", ".cmux");
-  const e2eUserData = path.join(testRoot, "user-data");
+  // Note: getCmuxHome() already respects CMUX_TEST_ROOT for test isolation
+  const e2eUserData = path.join(getCmuxHome(), "user-data");
   try {
     fs.mkdirSync(e2eUserData, { recursive: true });
     app.setPath("userData", e2eUserData);
@@ -316,6 +315,7 @@ async function loadServices(): Promise<void> {
   /* eslint-enable no-restricted-syntax */
   config = new ConfigClass();
   ipcMain = new IpcMainClass(config);
+  await ipcMain.initialize();
 
   loadTokenizerModules().catch((error) => {
     console.error("Failed to preload tokenizer modules:", error);

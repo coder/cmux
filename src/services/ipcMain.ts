@@ -15,6 +15,7 @@ import { countTokens, countTokensBatch } from "@/utils/main/tokenizer";
 import { calculateTokenStats } from "@/utils/tokens/tokenStatsCalculator";
 import { IPC_CHANNELS, getChatChannel } from "@/constants/ipc-constants";
 import { SUPPORTED_PROVIDERS } from "@/constants/providers";
+import { DEFAULT_RUNTIME_CONFIG } from "@/constants/workspace";
 import type { SendMessageError } from "@/types/errors";
 import type { SendMessageOptions, DeleteMessage } from "@/types/ipc";
 import { Ok, Err } from "@/types/result";
@@ -28,12 +29,13 @@ import { InitStateManager } from "@/services/initStateManager";
 import { createRuntime } from "@/runtime/runtimeFactory";
 import type { RuntimeConfig } from "@/types/runtime";
 import { validateProjectPath } from "@/utils/pathUtils";
+import { ExtensionMetadataService } from "@/services/ExtensionMetadataService";
 /**
  * IpcMain - Manages all IPC handlers and service coordination
  *
  * This class encapsulates:
  * - All ipcMain handler registration
- * - Service lifecycle management (AIService, HistoryService, PartialService, InitStateManager)
+ * - Service lifecycle management (AIService, HistoryService, PartialService, InitStateManager, ExtensionMetadataService)
  * - Event forwarding from services to renderer
  *
  * Design:
@@ -47,6 +49,7 @@ export class IpcMain {
   private readonly partialService: PartialService;
   private readonly aiService: AIService;
   private readonly initStateManager: InitStateManager;
+  private readonly extensionMetadata: ExtensionMetadataService;
   private readonly sessions = new Map<string, AgentSession>();
   private readonly sessionSubscriptions = new Map<
     string,
@@ -61,12 +64,56 @@ export class IpcMain {
     this.historyService = new HistoryService(config);
     this.partialService = new PartialService(config, this.historyService);
     this.initStateManager = new InitStateManager(config);
+    this.extensionMetadata = new ExtensionMetadataService(
+      path.join(config.rootDir, "extensionMetadata.json")
+    );
     this.aiService = new AIService(
       config,
       this.historyService,
       this.partialService,
       this.initStateManager
     );
+
+    // Listen to AIService events to update metadata
+    this.setupMetadataListeners();
+  }
+
+  /**
+   * Initialize the service. Call this after construction.
+   * This is separate from the constructor to support async initialization.
+   */
+  async initialize(): Promise<void> {
+    await this.extensionMetadata.initialize();
+  }
+
+  /**
+   * Setup listeners to update metadata store based on AIService events.
+   * This tracks workspace recency and streaming status for VS Code extension integration.
+   */
+  private setupMetadataListeners(): void {
+    const isObj = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null;
+    const isWorkspaceEvent = (v: unknown): v is { workspaceId: string } =>
+      isObj(v) && "workspaceId" in v && typeof v.workspaceId === "string";
+    const isStreamStartEvent = (v: unknown): v is { workspaceId: string; model: string } =>
+      isWorkspaceEvent(v) && "model" in v && typeof v.model === "string";
+
+    // Update streaming status and recency on stream start
+    this.aiService.on("stream-start", (data: unknown) => {
+      if (isStreamStartEvent(data)) {
+        // Fire and forget - don't block event handler
+        void this.extensionMetadata.setStreaming(data.workspaceId, true, data.model);
+      }
+    });
+
+    // Clear streaming status on stream end/abort
+    const handleStreamStop = (data: unknown) => {
+      if (isWorkspaceEvent(data)) {
+        // Fire and forget - don't block event handler
+        void this.extensionMetadata.setStreaming(data.workspaceId, false);
+      }
+    };
+    this.aiService.on("stream-end", handleStreamStop);
+    this.aiService.on("stream-abort", handleStreamStop);
   }
 
   private getOrCreateSession(workspaceId: string): AgentSession {
@@ -310,7 +357,7 @@ export class IpcMain {
         // Note: metadata.json no longer written - config is the only source of truth
 
         // Update config to include the new workspace (with full metadata)
-        this.config.editConfig((config) => {
+        await this.config.editConfig((config) => {
           let projectConfig = config.projects.get(projectPath);
           if (!projectConfig) {
             // Create project config if it doesn't exist
@@ -333,7 +380,7 @@ export class IpcMain {
         // No longer creating symlinks - directory name IS the workspace name
 
         // Get complete metadata from config (includes paths)
-        const allMetadata = this.config.getAllWorkspaceMetadata();
+        const allMetadata = await this.config.getAllWorkspaceMetadata();
         const completeMetadata = allMetadata.find((m) => m.id === workspaceId);
         if (!completeMetadata) {
           return { success: false, error: "Failed to retrieve workspace metadata" };
@@ -393,7 +440,7 @@ export class IpcMain {
           }
 
           // Get current metadata
-          const metadataResult = this.aiService.getWorkspaceMetadata(workspaceId);
+          const metadataResult = await this.aiService.getWorkspaceMetadata(workspaceId);
           if (!metadataResult.success) {
             return Err(`Failed to get workspace metadata: ${metadataResult.error}`);
           }
@@ -406,7 +453,7 @@ export class IpcMain {
           }
 
           // Check if new name collides with existing workspace name or ID
-          const allWorkspaces = this.config.getAllWorkspaceMetadata();
+          const allWorkspaces = await this.config.getAllWorkspaceMetadata();
           const collision = allWorkspaces.find(
             (ws) => (ws.name === newName || ws.id === newName) && ws.id !== workspaceId
           );
@@ -438,7 +485,7 @@ export class IpcMain {
           const { oldPath, newPath } = renameResult;
 
           // Update config with new name and path
-          this.config.editConfig((config) => {
+          await this.config.editConfig((config) => {
             const projectConfig = config.projects.get(projectPath);
             if (projectConfig) {
               const workspaceEntry = projectConfig.workspaces.find((w) => w.path === oldPath);
@@ -455,7 +502,7 @@ export class IpcMain {
           });
 
           // Get updated metadata from config (includes updated name and paths)
-          const allMetadata = this.config.getAllWorkspaceMetadata();
+          const allMetadata = await this.config.getAllWorkspaceMetadata();
           const updatedMetadata = allMetadata.find((m) => m.id === workspaceId);
           if (!updatedMetadata) {
             return Err("Failed to retrieve updated workspace metadata");
@@ -497,7 +544,7 @@ export class IpcMain {
           }
 
           // Get source workspace metadata
-          const sourceMetadataResult = this.aiService.getWorkspaceMetadata(sourceWorkspaceId);
+          const sourceMetadataResult = await this.aiService.getWorkspaceMetadata(sourceWorkspaceId);
           if (!sourceMetadataResult.success) {
             return {
               success: false,
@@ -603,10 +650,11 @@ export class IpcMain {
             projectName,
             projectPath: foundProjectPath,
             createdAt: new Date().toISOString(),
+            runtimeConfig: DEFAULT_RUNTIME_CONFIG,
           };
 
           // Write metadata to config.json
-          this.config.addWorkspace(foundProjectPath, metadata);
+          await this.config.addWorkspace(foundProjectPath, metadata);
 
           // Emit metadata event
           session.emitMetadata(metadata);
@@ -623,19 +671,19 @@ export class IpcMain {
       }
     );
 
-    ipcMain.handle(IPC_CHANNELS.WORKSPACE_LIST, () => {
+    ipcMain.handle(IPC_CHANNELS.WORKSPACE_LIST, async () => {
       try {
         // getAllWorkspaceMetadata now returns complete metadata with paths
-        return this.config.getAllWorkspaceMetadata();
+        return await this.config.getAllWorkspaceMetadata();
       } catch (error) {
         console.error("Failed to list workspaces:", error);
         return [];
       }
     });
 
-    ipcMain.handle(IPC_CHANNELS.WORKSPACE_GET_INFO, (_event, workspaceId: string) => {
+    ipcMain.handle(IPC_CHANNELS.WORKSPACE_GET_INFO, async (_event, workspaceId: string) => {
       // Get complete metadata from config (includes paths)
-      const allMetadata = this.config.getAllWorkspaceMetadata();
+      const allMetadata = await this.config.getAllWorkspaceMetadata();
       return allMetadata.find((m) => m.id === workspaceId) ?? null;
     });
 
@@ -655,6 +703,10 @@ export class IpcMain {
         });
         try {
           const session = this.getOrCreateSession(workspaceId);
+
+          // Update recency on user message (fire and forget)
+          void this.extensionMetadata.updateRecency(workspaceId);
+
           const result = await session.sendMessage(message, options);
           if (!result.success) {
             log.error("sendMessage handler: session returned error", {
@@ -843,7 +895,7 @@ export class IpcMain {
       ) => {
         try {
           // Get workspace metadata
-          const metadataResult = this.aiService.getWorkspaceMetadata(workspaceId);
+          const metadataResult = await this.aiService.getWorkspaceMetadata(workspaceId);
           if (!metadataResult.success) {
             return Err(`Failed to get workspace metadata: ${metadataResult.error}`);
           }
@@ -1011,7 +1063,7 @@ export class IpcMain {
   ): Promise<{ success: boolean; error?: string }> {
     try {
       // Get workspace metadata
-      const metadataResult = this.aiService.getWorkspaceMetadata(workspaceId);
+      const metadataResult = await this.aiService.getWorkspaceMetadata(workspaceId);
       if (!metadataResult.success) {
         // If metadata doesn't exist, workspace is already gone - consider it success
         log.info(`Workspace ${workspaceId} metadata not found, considering removal successful`);
@@ -1047,6 +1099,9 @@ export class IpcMain {
         return { success: false, error: aiResult.error };
       }
 
+      // Delete workspace metadata (fire and forget)
+      void this.extensionMetadata.deleteWorkspace(workspaceId);
+
       // Update config to remove the workspace from all projects
       const projectsConfig = this.config.loadConfigOrDefault();
       let configUpdated = false;
@@ -1058,7 +1113,7 @@ export class IpcMain {
         }
       }
       if (configUpdated) {
-        this.config.saveConfig(projectsConfig);
+        await this.config.saveConfig(projectsConfig);
       }
 
       // Emit metadata event for workspace removal (with null metadata to indicate deletion)
@@ -1157,7 +1212,7 @@ export class IpcMain {
 
         // Add to config with normalized path
         config.projects.set(normalizedPath, projectConfig);
-        this.config.saveConfig(config);
+        await this.config.saveConfig(config);
 
         // Return both the config and the normalized path so frontend can use it
         return Ok({ projectConfig, normalizedPath });
@@ -1167,7 +1222,7 @@ export class IpcMain {
       }
     });
 
-    ipcMain.handle(IPC_CHANNELS.PROJECT_REMOVE, (_event, projectPath: string) => {
+    ipcMain.handle(IPC_CHANNELS.PROJECT_REMOVE, async (_event, projectPath: string) => {
       try {
         const config = this.config.loadConfigOrDefault();
         const projectConfig = config.projects.get(projectPath);
@@ -1185,11 +1240,11 @@ export class IpcMain {
 
         // Remove project from config
         config.projects.delete(projectPath);
-        this.config.saveConfig(config);
+        await this.config.saveConfig(config);
 
         // Also remove project secrets if any
         try {
-          this.config.updateProjectSecrets(projectPath, []);
+          await this.config.updateProjectSecrets(projectPath, []);
         } catch (error) {
           log.error(`Failed to clean up secrets for project ${projectPath}:`, error);
           // Continue - don't fail the whole operation if secrets cleanup fails
@@ -1246,9 +1301,9 @@ export class IpcMain {
 
     ipcMain.handle(
       IPC_CHANNELS.PROJECT_SECRETS_UPDATE,
-      (_event, projectPath: string, secrets: Array<{ key: string; value: string }>) => {
+      async (_event, projectPath: string, secrets: Array<{ key: string; value: string }>) => {
         try {
-          this.config.updateProjectSecrets(projectPath, secrets);
+          await this.config.updateProjectSecrets(projectPath, secrets);
           return Ok(undefined);
         } catch (error) {
           const message = error instanceof Error ? error.message : String(error);
@@ -1276,19 +1331,21 @@ export class IpcMain {
 
     // Handle subscription events for metadata
     ipcMain.on(IPC_CHANNELS.WORKSPACE_METADATA_SUBSCRIBE, () => {
-      try {
-        const workspaceMetadata = this.config.getAllWorkspaceMetadata();
+      void (async () => {
+        try {
+          const workspaceMetadata = await this.config.getAllWorkspaceMetadata();
 
-        // Emit current metadata for each workspace
-        for (const metadata of workspaceMetadata) {
-          this.mainWindow?.webContents.send(IPC_CHANNELS.WORKSPACE_METADATA, {
-            workspaceId: metadata.id,
-            metadata,
-          });
+          // Emit current metadata for each workspace
+          for (const metadata of workspaceMetadata) {
+            this.mainWindow?.webContents.send(IPC_CHANNELS.WORKSPACE_METADATA, {
+              workspaceId: metadata.id,
+              metadata,
+            });
+          }
+        } catch (error) {
+          console.error("Failed to emit current metadata:", error);
         }
-      } catch (error) {
-        console.error("Failed to emit current metadata:", error);
-      }
+      })();
     });
   }
 

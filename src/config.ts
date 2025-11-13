@@ -1,12 +1,13 @@
 import * as fs from "fs";
 import * as path from "path";
-import * as os from "os";
 import * as crypto from "crypto";
 import * as jsonc from "jsonc-parser";
 import writeFileAtomic from "write-file-atomic";
 import type { WorkspaceMetadata, FrontendWorkspaceMetadata } from "./types/workspace";
 import type { Secret, SecretsConfig } from "./types/secrets";
 import type { Workspace, ProjectConfig, ProjectsConfig } from "./types/project";
+import { DEFAULT_RUNTIME_CONFIG } from "./constants/workspace";
+import { getCmuxHome } from "./constants/paths";
 
 // Re-export project types from dedicated types file (for preload usage)
 export type { Workspace, ProjectConfig, ProjectsConfig };
@@ -34,8 +35,7 @@ export class Config {
   private readonly secretsFile: string;
 
   constructor(rootDir?: string) {
-    const envRoot = process.env.CMUX_TEST_ROOT;
-    this.rootDir = rootDir ?? envRoot ?? path.join(os.homedir(), ".cmux");
+    this.rootDir = rootDir ?? getCmuxHome();
     this.sessionsDir = path.join(this.rootDir, "sessions");
     this.srcDir = path.join(this.rootDir, "src");
     this.configFile = path.join(this.rootDir, "config.json");
@@ -69,7 +69,7 @@ export class Config {
     };
   }
 
-  saveConfig(config: ProjectsConfig): void {
+  async saveConfig(config: ProjectsConfig): Promise<void> {
     try {
       if (!fs.existsSync(this.rootDir)) {
         fs.mkdirSync(this.rootDir, { recursive: true });
@@ -79,7 +79,7 @@ export class Config {
         projects: Array.from(config.projects.entries()),
       };
 
-      writeFileAtomic.sync(this.configFile, JSON.stringify(data, null, 2));
+      await writeFileAtomic(this.configFile, JSON.stringify(data, null, 2), "utf-8");
     } catch (error) {
       console.error("Error saving config:", error);
     }
@@ -89,10 +89,10 @@ export class Config {
    * Edit config atomically using a transformation function
    * @param fn Function that takes current config and returns modified config
    */
-  editConfig(fn: (config: ProjectsConfig) => ProjectsConfig): void {
+  async editConfig(fn: (config: ProjectsConfig) => ProjectsConfig): Promise<void> {
     const config = this.loadConfigOrDefault();
     const newConfig = fn(config);
-    this.saveConfig(newConfig);
+    await this.saveConfig(newConfig);
   }
 
   private getProjectName(projectPath: string): string {
@@ -233,7 +233,7 @@ export class Config {
    * If missing from config or legacy metadata, a new timestamp is assigned and
    * saved to config for subsequent loads.
    */
-  getAllWorkspaceMetadata(): FrontendWorkspaceMetadata[] {
+  async getAllWorkspaceMetadata(): Promise<FrontendWorkspaceMetadata[]> {
     const config = this.loadConfigOrDefault();
     const workspaceMetadata: FrontendWorkspaceMetadata[] = [];
     let configModified = false;
@@ -256,13 +256,19 @@ export class Config {
               projectPath,
               // GUARANTEE: All workspaces must have createdAt (assign now if missing)
               createdAt: workspace.createdAt ?? new Date().toISOString(),
-              // Include runtime config if present (for SSH workspaces)
-              runtimeConfig: workspace.runtimeConfig,
+              // GUARANTEE: All workspaces must have runtimeConfig (apply default if missing)
+              runtimeConfig: workspace.runtimeConfig ?? DEFAULT_RUNTIME_CONFIG,
             };
 
             // Migrate missing createdAt to config for next load
             if (!workspace.createdAt) {
               workspace.createdAt = metadata.createdAt;
+              configModified = true;
+            }
+
+            // Migrate missing runtimeConfig to config for next load
+            if (!workspace.runtimeConfig) {
+              workspace.runtimeConfig = metadata.runtimeConfig;
               configModified = true;
             }
 
@@ -278,25 +284,24 @@ export class Config {
 
           if (fs.existsSync(metadataPath)) {
             const data = fs.readFileSync(metadataPath, "utf-8");
-            let metadata = JSON.parse(data) as WorkspaceMetadata;
+            const metadata = JSON.parse(data) as WorkspaceMetadata;
 
             // Ensure required fields are present
-            if (!metadata.name || !metadata.projectPath) {
-              metadata = {
-                ...metadata,
-                name: metadata.name ?? workspaceBasename,
-                projectPath: metadata.projectPath ?? projectPath,
-                projectName: metadata.projectName ?? projectName,
-              };
-            }
+            if (!metadata.name) metadata.name = workspaceBasename;
+            if (!metadata.projectPath) metadata.projectPath = projectPath;
+            if (!metadata.projectName) metadata.projectName = projectName;
 
             // GUARANTEE: All workspaces must have createdAt
             metadata.createdAt ??= new Date().toISOString();
+
+            // GUARANTEE: All workspaces must have runtimeConfig
+            metadata.runtimeConfig ??= DEFAULT_RUNTIME_CONFIG;
 
             // Migrate to config for next load
             workspace.id = metadata.id;
             workspace.name = metadata.name;
             workspace.createdAt = metadata.createdAt;
+            workspace.runtimeConfig = metadata.runtimeConfig;
             configModified = true;
 
             workspaceMetadata.push(this.addPathsToMetadata(metadata, workspace.path, projectPath));
@@ -313,12 +318,15 @@ export class Config {
               projectPath,
               // GUARANTEE: All workspaces must have createdAt
               createdAt: new Date().toISOString(),
+              // GUARANTEE: All workspaces must have runtimeConfig
+              runtimeConfig: DEFAULT_RUNTIME_CONFIG,
             };
 
             // Save to config for next load
             workspace.id = metadata.id;
             workspace.name = metadata.name;
             workspace.createdAt = metadata.createdAt;
+            workspace.runtimeConfig = metadata.runtimeConfig;
             configModified = true;
 
             workspaceMetadata.push(this.addPathsToMetadata(metadata, workspace.path, projectPath));
@@ -334,6 +342,8 @@ export class Config {
             projectPath,
             // GUARANTEE: All workspaces must have createdAt (even in error cases)
             createdAt: new Date().toISOString(),
+            // GUARANTEE: All workspaces must have runtimeConfig (even in error cases)
+            runtimeConfig: DEFAULT_RUNTIME_CONFIG,
           };
           workspaceMetadata.push(this.addPathsToMetadata(metadata, workspace.path, projectPath));
         }
@@ -342,7 +352,7 @@ export class Config {
 
     // Save config if we migrated any workspaces
     if (configModified) {
-      this.saveConfig(config);
+      await this.saveConfig(config);
     }
 
     return workspaceMetadata;
@@ -355,8 +365,8 @@ export class Config {
    * @param projectPath Absolute path to the project
    * @param metadata Workspace metadata to save
    */
-  addWorkspace(projectPath: string, metadata: WorkspaceMetadata): void {
-    this.editConfig((config) => {
+  async addWorkspace(projectPath: string, metadata: WorkspaceMetadata): Promise<void> {
+    await this.editConfig((config) => {
       let project = config.projects.get(projectPath);
 
       if (!project) {
@@ -465,13 +475,13 @@ ${jsonString}`;
    * Save secrets configuration to JSON file
    * @param config The secrets configuration to save
    */
-  saveSecretsConfig(config: SecretsConfig): void {
+  async saveSecretsConfig(config: SecretsConfig): Promise<void> {
     try {
       if (!fs.existsSync(this.rootDir)) {
         fs.mkdirSync(this.rootDir, { recursive: true });
       }
 
-      writeFileAtomic.sync(this.secretsFile, JSON.stringify(config, null, 2));
+      await writeFileAtomic(this.secretsFile, JSON.stringify(config, null, 2), "utf-8");
     } catch (error) {
       console.error("Error saving secrets config:", error);
       throw error;
@@ -493,10 +503,10 @@ ${jsonString}`;
    * @param projectPath The path to the project
    * @param secrets The secrets to save for the project
    */
-  updateProjectSecrets(projectPath: string, secrets: Secret[]): void {
+  async updateProjectSecrets(projectPath: string, secrets: Secret[]): Promise<void> {
     const config = this.loadSecretsConfig();
     config[projectPath] = secrets;
-    this.saveSecretsConfig(config);
+    await this.saveSecretsConfig(config);
   }
 }
 

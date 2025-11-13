@@ -1,9 +1,8 @@
-import * as os from "os";
-import * as path from "path";
 import type { WorkspaceMetadata } from "@/types/workspace";
 import { readInstructionSet, readInstructionSetFromRuntime } from "@/utils/main/instructionFiles";
 import { extractModeSection } from "@/utils/main/markdown";
 import type { Runtime } from "@/runtime/Runtime";
+import { getCmuxHome } from "@/constants/paths";
 
 // NOTE: keep this in sync with the docs/models.md file
 
@@ -50,7 +49,7 @@ You are in a git worktree at ${workspacePath}
  * Users can place global AGENTS.md and .cmux/PLAN.md files here.
  */
 function getSystemDirectory(): string {
-  return path.join(os.homedir(), ".cmux");
+  return getCmuxHome();
 }
 
 /**

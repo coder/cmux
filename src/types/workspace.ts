@@ -52,8 +52,8 @@ export interface WorkspaceMetadata {
   /** ISO 8601 timestamp of when workspace was created (optional for backward compatibility) */
   createdAt?: string;
 
-  /** Runtime configuration for this workspace (optional, defaults to local) */
-  runtimeConfig?: RuntimeConfig;
+  /** Runtime configuration for this workspace (always set, defaults to local on load) */
+  runtimeConfig: RuntimeConfig;
 }
 
 /**
