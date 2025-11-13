@@ -1,6 +1,6 @@
 # SSH Workspaces
 
-cmux supports using remote hosts over SSH for workspaces. When configured, all tool operations will
+mux supports using remote hosts over SSH for workspaces. When configured, all tool operations will
 execute over SSH and the agent is securely isolated from your local machine.
 
 Our security architecture considers the remote machine potentially hostile. No keys or credentials are implicitly transferred there—just the git archive and [Project Secrets](./project-secrets.md).
@@ -73,9 +73,9 @@ Host my-server
 ## Coder Workspaces
 
 If you're using [Coder Workspaces](https://coder.com/docs), you can use an existing Workspace
-as a cmux agent host:
+as a mux agent host:
 
 1. Run `coder config-ssh`
-2. Use `coder.<workspace-name>` as your SSH host when creating a new cmux workspace
+2. Use `coder.<workspace-name>` as your SSH host when creating a new mux workspace
 
-Note that in this approach we're multiplexing cmux workspaces onto a single Coder workspace. This avoids the compute provisioning overhead to enable rapid creation and deletion of workspaces.
+Note that in this approach we're multiplexing mux workspaces onto a single Coder workspace. This avoids the compute provisioning overhead to enable rapid creation and deletion of workspaces.

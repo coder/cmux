@@ -18,7 +18,7 @@ import type { Config } from "./config";
 import type { IpcMain } from "./services/ipcMain";
 import { VERSION } from "./version";
 import { IPC_CHANNELS } from "./constants/ipc-constants";
-import { getCmuxHome } from "./constants/paths";
+import { getMuxHome, ensureMuxMigration } from "./constants/paths";
 import { log } from "./services/log";
 import { parseDebugUpdater } from "./utils/env";
 import assert from "./utils/assert";
@@ -70,13 +70,13 @@ let config: Config | null = null;
 let ipcMain: IpcMain | null = null;
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 let updaterService: typeof import("./services/updater").UpdaterService.prototype | null = null;
-const isE2ETest = process.env.CMUX_E2E === "1";
-const forceDistLoad = process.env.CMUX_E2E_LOAD_DIST === "1";
+const isE2ETest = process.env.MUX_E2E === "1";
+const forceDistLoad = process.env.MUX_E2E_LOAD_DIST === "1";
 
 if (isE2ETest) {
   // For e2e tests, use a test-specific userData directory
-  // Note: getCmuxHome() already respects CMUX_TEST_ROOT for test isolation
-  const e2eUserData = path.join(getCmuxHome(), "user-data");
+  // Note: getMuxHome() already respects MUX_TEST_ROOT for test isolation
+  const e2eUserData = path.join(getMuxHome(), "user-data");
   try {
     fs.mkdirSync(e2eUserData, { recursive: true });
     app.setPath("userData", e2eUserData);
@@ -86,17 +86,17 @@ if (isE2ETest) {
   }
 }
 
-const devServerPort = process.env.CMUX_DEVSERVER_PORT ?? "5173";
+const devServerPort = process.env.MUX_DEVSERVER_PORT ?? "5173";
 
 console.log(
-  `Cmux starting - version: ${(VERSION as { git?: string; buildTime?: string }).git ?? "(dev)"} (built: ${(VERSION as { git?: string; buildTime?: string }).buildTime ?? "dev-mode"})`
+  `Mux starting - version: ${(VERSION as { git?: string; buildTime?: string }).git ?? "(dev)"} (built: ${(VERSION as { git?: string; buildTime?: string }).buildTime ?? "dev-mode"})`
 );
 console.log("Main process starting...");
 
-// Debug: abort immediately if CMUX_DEBUG_START_TIME is set
+// Debug: abort immediately if MUX_DEBUG_START_TIME is set
 // This is used to measure baseline startup time without full initialization
-if (process.env.CMUX_DEBUG_START_TIME === "1") {
-  console.log("CMUX_DEBUG_START_TIME is set - aborting immediately");
+if (process.env.MUX_DEBUG_START_TIME === "1") {
+  console.log("MUX_DEBUG_START_TIME is set - aborting immediately");
   process.exit(0);
 }
 
@@ -447,7 +447,7 @@ function createWindow() {
   console.time("[window] Content load");
   if ((isE2ETest && !forceDistLoad) || (!app.isPackaged && !forceDistLoad)) {
     // Development mode: load from vite dev server
-    const devHost = process.env.CMUX_DEVSERVER_HOST ?? "127.0.0.1";
+    const devHost = process.env.MUX_DEVSERVER_HOST ?? "127.0.0.1";
     const url = `http://${devHost}:${devServerPort}`;
     console.log(`[${timestamp()}] [window] Loading from dev server: ${url}`);
     void mainWindow.loadURL(url);
@@ -484,6 +484,9 @@ if (gotTheLock) {
   void app.whenReady().then(async () => {
     try {
       console.log("App ready, creating window...");
+
+      // Migrate from .cmux to .mux directory structure if needed
+      ensureMuxMigration();
 
       // Install React DevTools in development
       if (!app.isPackaged && installExtension && REACT_DEVELOPER_TOOLS) {

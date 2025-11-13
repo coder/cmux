@@ -1,12 +1,12 @@
 # Terminal Benchmarking
 
-cmux ships with a headless adapter for [Terminal-Bench](https://www.tbench.ai/). The adapter runs the Electron backend without opening a window and exercises it through the same IPC paths we use in integration tests. This page documents how to launch benchmarks from the repository tree.
+mux ships with a headless adapter for [Terminal-Bench](https://www.tbench.ai/). The adapter runs the Electron backend without opening a window and exercises it through the same IPC paths we use in integration tests. This page documents how to launch benchmarks from the repository tree.
 
 ## Prerequisites
 
 - Docker must be installed and running. Terminal-Bench executes each task inside a dedicated Docker container.
 - `uv` is available in the nix `devShell` (provided via `flake.nix`), or install it manually from <https://docs.astral.sh/uv/>.
-- Standard provider API keys (e.g. `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`) should be exported so cmux can stream responses.
+- Standard provider API keys (e.g. `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`) should be exported so mux can stream responses.
 
 Optional environment overrides:
 
@@ -14,13 +14,13 @@ Optional environment overrides:
 | ---------------------- | --------------------------------------------------------- | -------------------------------------- |
 | `CMUX_AGENT_REPO_ROOT` | Path copied into each task container                      | repo root inferred from the agent file |
 | `CMUX_TRUNK`           | Branch checked out when preparing the project             | `main`                                 |
-| `CMUX_WORKSPACE_ID`    | Workspace identifier used inside cmux                     | `cmux-bench`                           |
+| `CMUX_WORKSPACE_ID`    | Workspace identifier used inside mux                     | `mux-bench`                           |
 | `CMUX_MODEL`           | Preferred model (supports `provider/model` syntax)        | `anthropic/claude-sonnet-4-5`          |
 | `CMUX_THINKING_LEVEL`  | Optional reasoning level (`off`, `low`, `medium`, `high`) | `high`                                 |
 | `CMUX_MODE`            | Starting mode (`plan` or `exec`)                          | `exec`                                 |
 | `CMUX_TIMEOUT_MS`      | Optional stream timeout in milliseconds                   | no timeout                             |
-| `CMUX_CONFIG_ROOT`     | Location for cmux session data inside the container       | `/root/.cmux`                          |
-| `CMUX_APP_ROOT`        | Path where the cmux sources are staged                    | `/opt/cmux-app`                        |
+| `CMUX_CONFIG_ROOT`     | Location for mux session data inside the container       | `/root/.mux`                          |
+| `CMUX_APP_ROOT`        | Path where the mux sources are staged                    | `/opt/mux-app`                        |
 | `CMUX_PROJECT_PATH`    | Explicit project directory inside the task container      | auto-detected from common paths        |
 
 ## Running Terminal-Bench
@@ -32,18 +32,18 @@ All commands below should be run from the repository root.
 ```bash
 uvx terminal-bench run \
   --dataset terminal-bench-core==0.1.1 \
-  --agent-import-path benchmarks.terminal_bench.cmux_agent:CmuxAgent \
+  --agent-import-path benchmarks.terminal_bench.mux_agent:MuxAgent \
   --n-tasks 1
 ```
 
-This downloads the Terminal-Bench runner, copies the cmux sources into the container, and validates the adapter against the first task only. Use this before attempting a full sweep.
+This downloads the Terminal-Bench runner, copies the mux sources into the container, and validates the adapter against the first task only. Use this before attempting a full sweep.
 
 ### Full dataset
 
 ```bash
 uvx terminal-bench run \
   --dataset terminal-bench-core==0.1.1 \
-  --agent-import-path benchmarks.terminal_bench.cmux_agent:CmuxAgent
+  --agent-import-path benchmarks.terminal_bench.mux_agent:MuxAgent
 ```
 
 Results (pass/fail, token usage, wall-clock) are printed at the end of the run. Terminal-Bench also writes per-task logs under the current working directory; review them when diagnosing failures.
@@ -61,13 +61,13 @@ Use `TB_CONCURRENCY=<n>` to control `--n-concurrent` (number of concurrently run
 
 ## How the Adapter Works
 
-The adapter lives in `benchmarks/terminal_bench/cmux_agent.py`. For each task it:
+The adapter lives in `benchmarks/terminal_bench/mux_agent.py`. For each task it:
 
-1. Copies the cmux repository (package manifests + `src/`) into `/tmp/cmux-app` inside the container.
+1. Copies the mux repository (package manifests + `src/`) into `/tmp/mux-app` inside the container.
 2. Ensures Bun exists, then runs `bun install --frozen-lockfile`.
-3. Launches `src/debug/agentSessionCli.ts` to prepare workspace metadata and stream the instruction, storing state under `CMUX_CONFIG_ROOT` (default `/root/.cmux`).
+3. Launches `src/debug/agentSessionCli.ts` to prepare workspace metadata and stream the instruction, storing state under `CMUX_CONFIG_ROOT` (default `/root/.mux`).
 
-`CMUX_MODEL` accepts either the cmux colon form (`anthropic:claude-sonnet-4-5`) or the Terminal-Bench slash form (`anthropic/claude-sonnet-4-5`); the adapter normalises whichever you provide.
+`CMUX_MODEL` accepts either the mux colon form (`anthropic:claude-sonnet-4-5`) or the Terminal-Bench slash form (`anthropic/claude-sonnet-4-5`); the adapter normalises whichever you provide.
 
 ## Troubleshooting
 

@@ -1,4 +1,4 @@
-import type { CmuxMessage } from "@/types/message";
+import type { MuxMessage } from "@/types/message";
 
 /**
  * Compute recency timestamp for workspace sorting.
@@ -11,7 +11,7 @@ import type { CmuxMessage } from "@/types/message";
  * This eliminates race conditions where workspaces appear at bottom before messages load.
  */
 export function computeRecencyTimestamp(
-  messages: CmuxMessage[],
+  messages: MuxMessage[],
   createdAt?: string
 ): number | null {
   if (messages.length === 0 && !createdAt) {

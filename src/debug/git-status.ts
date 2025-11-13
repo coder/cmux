@@ -13,11 +13,11 @@ import { execSync } from "child_process";
 // Import production code - script and parser stay in sync
 import { GIT_STATUS_SCRIPT, parseGitStatusScriptOutput } from "../utils/git/gitStatus";
 import { parseGitShowBranchForStatus } from "../utils/git/parseGitStatus";
-import { getCmuxSrcDir } from "../constants/paths";
+import { getMuxSrcDir } from "../constants/paths";
 
 function findWorkspaces(): Array<{ id: string; path: string }> {
   const workspaces: Array<{ id: string; path: string }> = [];
-  const cmuxSrcDir = getCmuxSrcDir();
+  const cmuxSrcDir = getMuxSrcDir();
 
   try {
     const projects = readdirSync(cmuxSrcDir);
@@ -122,7 +122,7 @@ function testGitStatus(workspaceId: string, workspacePath: string) {
 }
 
 export function gitStatusCommand(workspaceId?: string) {
-  const cmuxSrcDir = getCmuxSrcDir();
+  const cmuxSrcDir = getMuxSrcDir();
   console.log("🔍 Git Status Debug Tool");
   console.log("Finding workspaces in:", cmuxSrcDir);
   console.log();

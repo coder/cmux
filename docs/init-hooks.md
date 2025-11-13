@@ -1,6 +1,6 @@
 # Init Hooks
 
-Add a `.cmux/init` executable script to your project root to run commands when creating new workspaces.
+Add a `.mux/init` executable script to your project root to run commands when creating new workspaces.
 
 ## Example
 
@@ -15,7 +15,7 @@ bun run build
 Make it executable:
 
 ```bash
-chmod +x .cmux/init
+chmod +x .mux/init
 ```
 
 ## Behavior
@@ -39,7 +39,7 @@ The init script runs in the workspace directory with the workspace's environment
 
 Init output appears in a banner at the top of the workspace. Click to expand/collapse the log. The banner shows:
 
-- Script path (`.cmux/init`)
+- Script path (`.mux/init`)
 - Status (running, success, or exit code on failure)
 - Full stdout/stderr output
 

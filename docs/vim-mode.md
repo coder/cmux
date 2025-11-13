@@ -6,7 +6,7 @@
 
 # Vim Mode
 
-cmux includes a built-in Vim mode for the chat input, providing familiar Vim-style editing for power users.
+mux includes a built-in Vim mode for the chat input, providing familiar Vim-style editing for power users.
 
 ## Enabling Vim Mode
 

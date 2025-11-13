@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import React, { useState, useMemo } from "react";
-import type { CmuxMessage, DisplayedMessage } from "@/types/message";
+import type { MuxMessage, DisplayedMessage } from "@/types/message";
 import { HeaderButton } from "../tools/shared/ToolPrimitives";
 import { formatTimestamp } from "@/utils/ui/dateTime";
 import { TooltipWrapper, Tooltip } from "../Tooltip";
@@ -19,7 +19,7 @@ interface MessageWindowProps {
   label: ReactNode;
   borderColor: string;
   backgroundColor?: string;
-  message: CmuxMessage | DisplayedMessage;
+  message: MuxMessage | DisplayedMessage;
   buttons?: ButtonConfig[];
   kebabMenuItems?: KebabMenuItem[]; // Optional kebab menu items (provide empty array to use kebab with only Show JSON)
   children: ReactNode;

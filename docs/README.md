@@ -1,6 +1,6 @@
-# cmux Documentation
+# mux Documentation
 
-This directory contains the source for cmux documentation built with [mdbook](https://rust-lang.github.io/mdBook/).
+This directory contains the source for mux documentation built with [mdbook](https://rust-lang.github.io/mdBook/).
 
 ## Quick Start
 
@@ -19,7 +19,7 @@ bun docs:watch
 
 - ✅ **Mermaid diagrams** - Add diagrams with ` ```mermaid ` code blocks
 - ✅ **Link checking** - Automatically validates all links during build
-- ✅ **GitHub Pages** - Auto-deploys to https://cmux.io on push to main
+- ✅ **GitHub Pages** - Auto-deploys to https://mux.io on push to main
 
 ## Structure
 

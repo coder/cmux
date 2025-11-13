@@ -1,10 +1,10 @@
 # Workspaces
 
-Workspaces in cmux provide isolated development environments for parallel agent work. Each workspace maintains its own Git state, allowing you to explore different approaches, run multiple tasks simultaneously, or test changes without affecting your main repository.
+Workspaces in mux provide isolated development environments for parallel agent work. Each workspace maintains its own Git state, allowing you to explore different approaches, run multiple tasks simultaneously, or test changes without affecting your main repository.
 
 ## Workspace Types
 
-cmux supports two workspace backends:
+mux supports two workspace backends:
 
 - **[Local Workspaces](./local.md)**: Use [git worktrees](https://git-scm.com/docs/git-worktree) on your local machine. Worktrees share the `.git` directory with your main repository while maintaining independent working changes.
 
@@ -30,7 +30,7 @@ Here are a few practical approaches to reviewing changes from workspaces, depend
 
 - **Agent codes, commits, and pushes**: Ask agent to submit a PR and review changes in your git Web UI (GitHub, GitLab, etc.)
   - Also see: [Agentic Git Identity](./agentic-git-identity.md)
-  - This is the preferred approach for `cmux` development but requires additional care with repository security.
+  - This is the preferred approach for `mux` development but requires additional care with repository security.
 - **Agent codes and commits**: Review changes from the main repository via `git diff <workspace-branch>`, push changes when deemed acceptable.
 - **Agent codes**: Enter worktree (click Terminal icon in workspace top bar), run `git add -p` and progressively accept changes into a commit.
 

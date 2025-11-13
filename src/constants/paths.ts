@@ -1,9 +1,36 @@
+import { existsSync, renameSync, symlinkSync } from "fs";
 import { homedir } from "os";
 import { join } from "path";
 
 /**
- * Get the root directory for all cmux configuration and data.
- * Can be overridden with CMUX_TEST_ROOT environment variable.
+ * Migrate from .cmux to .mux directory structure.
+ * Called on startup to ensure backward compatibility.
+ * 
+ * If .mux exists, nothing happens (already migrated).
+ * If .cmux exists but .mux doesn't, moves .cmux → .mux and creates symlink.
+ * This ensures old scripts/tools referencing ~/.cmux continue working.
+ */
+export function ensureMuxMigration(): void {
+  const oldPath = join(homedir(), ".cmux");
+  const newPath = join(homedir(), ".mux");
+  
+  // If .mux exists, we're done (already migrated or fresh install)
+  if (existsSync(newPath)) {
+    return;
+  }
+  
+  // If .cmux exists, move it and create symlink for backward compatibility
+  if (existsSync(oldPath)) {
+    renameSync(oldPath, newPath);
+    symlinkSync(newPath, oldPath, "dir");
+  }
+  
+  // If neither exists, nothing to do (will be created on first use)
+}
+
+/**
+ * Get the root directory for all mux configuration and data.
+ * Can be overridden with MUX_TEST_ROOT environment variable.
  * Appends '-dev' suffix when NODE_ENV=development (explicit dev mode).
  *
  * This is a getter function to support test mocking of os.homedir().
@@ -11,14 +38,14 @@ import { join } from "path";
  * Note: This file is only used by main process code, but lives in constants/
  * for organizational purposes. The process.env access is safe.
  */
-export function getCmuxHome(): string {
+export function getMuxHome(): string {
   // eslint-disable-next-line no-restricted-syntax, no-restricted-globals
-  if (process.env.CMUX_TEST_ROOT) {
+  if (process.env.MUX_TEST_ROOT) {
     // eslint-disable-next-line no-restricted-syntax, no-restricted-globals
-    return process.env.CMUX_TEST_ROOT;
+    return process.env.MUX_TEST_ROOT;
   }
 
-  const baseName = ".cmux";
+  const baseName = ".mux";
   // Use -dev suffix only when explicitly in development mode
   // eslint-disable-next-line no-restricted-syntax, no-restricted-globals
   const suffix = process.env.NODE_ENV === "development" ? "-dev" : "";
@@ -27,62 +54,62 @@ export function getCmuxHome(): string {
 
 /**
  * Get the directory where workspace git worktrees are stored.
- * Example: ~/.cmux/src/my-project/feature-branch
+ * Example: ~/.mux/src/my-project/feature-branch
  *
- * @param rootDir - Optional root directory (defaults to getCmuxHome())
+ * @param rootDir - Optional root directory (defaults to getMuxHome())
  */
-export function getCmuxSrcDir(rootDir?: string): string {
-  const root = rootDir ?? getCmuxHome();
+export function getMuxSrcDir(rootDir?: string): string {
+  const root = rootDir ?? getMuxHome();
   return join(root, "src");
 }
 
 /**
  * Get the directory where session chat histories are stored.
- * Example: ~/.cmux/sessions/workspace-id/chat.jsonl
+ * Example: ~/.mux/sessions/workspace-id/chat.jsonl
  *
- * @param rootDir - Optional root directory (defaults to getCmuxHome())
+ * @param rootDir - Optional root directory (defaults to getMuxHome())
  */
-export function getCmuxSessionsDir(rootDir?: string): string {
-  const root = rootDir ?? getCmuxHome();
+export function getMuxSessionsDir(rootDir?: string): string {
+  const root = rootDir ?? getMuxHome();
   return join(root, "sessions");
 }
 
 /**
  * Get the main configuration file path.
  *
- * @param rootDir - Optional root directory (defaults to getCmuxHome())
+ * @param rootDir - Optional root directory (defaults to getMuxHome())
  */
-export function getCmuxConfigFile(rootDir?: string): string {
-  const root = rootDir ?? getCmuxHome();
+export function getMuxConfigFile(rootDir?: string): string {
+  const root = rootDir ?? getMuxHome();
   return join(root, "config.json");
 }
 
 /**
  * Get the providers configuration file path.
  *
- * @param rootDir - Optional root directory (defaults to getCmuxHome())
+ * @param rootDir - Optional root directory (defaults to getMuxHome())
  */
-export function getCmuxProvidersFile(rootDir?: string): string {
-  const root = rootDir ?? getCmuxHome();
+export function getMuxProvidersFile(rootDir?: string): string {
+  const root = rootDir ?? getMuxHome();
   return join(root, "providers.jsonc");
 }
 
 /**
  * Get the secrets file path.
  *
- * @param rootDir - Optional root directory (defaults to getCmuxHome())
+ * @param rootDir - Optional root directory (defaults to getMuxHome())
  */
-export function getCmuxSecretsFile(rootDir?: string): string {
-  const root = rootDir ?? getCmuxHome();
+export function getMuxSecretsFile(rootDir?: string): string {
+  const root = rootDir ?? getMuxHome();
   return join(root, "secrets.json");
 }
 
 /**
  * Get the extension metadata file path (shared with VS Code extension).
  *
- * @param rootDir - Optional root directory (defaults to getCmuxHome())
+ * @param rootDir - Optional root directory (defaults to getMuxHome())
  */
-export function getCmuxExtensionMetadataPath(rootDir?: string): string {
-  const root = rootDir ?? getCmuxHome();
+export function getMuxExtensionMetadataPath(rootDir?: string): string {
+  const root = rootDir ?? getMuxHome();
   return join(root, "extensionMetadata.json");
 }

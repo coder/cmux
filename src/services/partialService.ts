@@ -2,7 +2,7 @@ import * as fs from "fs/promises";
 import * as path from "path";
 import type { Result } from "@/types/result";
 import { Ok, Err } from "@/types/result";
-import type { CmuxMessage } from "@/types/message";
+import type { MuxMessage } from "@/types/message";
 import type { Config } from "@/config";
 import type { HistoryService } from "./historyService";
 import { workspaceFileLocks } from "@/utils/concurrency/workspaceFileLocks";
@@ -44,11 +44,11 @@ export class PartialService {
   /**
    * Read the partial message for a workspace, if it exists
    */
-  async readPartial(workspaceId: string): Promise<CmuxMessage | null> {
+  async readPartial(workspaceId: string): Promise<MuxMessage | null> {
     try {
       const partialPath = this.getPartialPath(workspaceId);
       const data = await fs.readFile(partialPath, "utf-8");
-      return JSON.parse(data) as CmuxMessage;
+      return JSON.parse(data) as MuxMessage;
     } catch (error) {
       if (error && typeof error === "object" && "code" in error && error.code === "ENOENT") {
         return null; // No partial exists
@@ -62,7 +62,7 @@ export class PartialService {
   /**
    * Write a partial message to disk (with file locking per workspace)
    */
-  async writePartial(workspaceId: string, message: CmuxMessage): Promise<Result<void>> {
+  async writePartial(workspaceId: string, message: MuxMessage): Promise<Result<void>> {
     return this.fileLocks.withLock(workspaceId, async () => {
       try {
         const workspaceDir = this.config.getSessionDir(workspaceId);

@@ -2,7 +2,7 @@ import { useState } from "react";
 import React from "react";
 import { COMPACTED_EMOJI } from "@/constants/ui";
 import { StartHereModal } from "@/components/StartHereModal";
-import { createCmuxMessage } from "@/types/message";
+import { createMuxMessage } from "@/types/message";
 
 /**
  * Replace chat history with a specific message.
@@ -13,7 +13,7 @@ async function startHereWithMessage(
   content: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const summaryMessage = createCmuxMessage(
+    const summaryMessage = createMuxMessage(
       `start-here-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`,
       "assistant",
       content,

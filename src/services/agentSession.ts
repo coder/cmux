@@ -1,7 +1,7 @@
 import assert from "@/utils/assert";
 import { EventEmitter } from "events";
 import * as path from "path";
-import { createCmuxMessage } from "@/types/message";
+import { createMuxMessage } from "@/types/message";
 import type { Config } from "@/config";
 import type { AIService } from "@/services/aiService";
 import type { HistoryService } from "@/services/historyService";
@@ -292,7 +292,7 @@ export class AgentSession {
           })
         : undefined;
 
-    const userMessage = createCmuxMessage(
+    const userMessage = createMuxMessage(
       messageId,
       "user",
       message,

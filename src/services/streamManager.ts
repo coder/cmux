@@ -23,7 +23,7 @@ import type {
 } from "@/types/stream";
 
 import type { SendMessageError, StreamErrorType } from "@/types/errors";
-import type { CmuxMetadata, CmuxMessage } from "@/types/message";
+import type { MuxMetadata, MuxMessage } from "@/types/message";
 import type { PartialService } from "./partialService";
 import type { HistoryService } from "./historyService";
 import { AsyncMutex } from "@/utils/concurrency/asyncMutex";
@@ -94,7 +94,7 @@ interface WorkspaceStreamInfo {
   token: StreamToken;
   startTime: number;
   model: string;
-  initialMetadata?: Partial<CmuxMetadata>;
+  initialMetadata?: Partial<MuxMetadata>;
   historySequence: number;
   // Track accumulated parts for partial message (includes reasoning, text, and tools)
   parts: CompletedMessagePart[];
@@ -185,7 +185,7 @@ export class StreamManager extends EventEmitter {
     // Start new write and track the promise
     streamInfo.partialWritePromise = (async () => {
       try {
-        const partialMessage: CmuxMessage = {
+        const partialMessage: MuxMessage = {
           id: streamInfo.messageId,
           role: "assistant",
           metadata: {
@@ -454,7 +454,7 @@ export class StreamManager extends EventEmitter {
     system: string,
     historySequence: number,
     tools?: Record<string, Tool>,
-    initialMetadata?: Partial<CmuxMetadata>,
+    initialMetadata?: Partial<MuxMetadata>,
     providerOptions?: Record<string, unknown>,
     maxOutputTokens?: number,
     toolPolicy?: ToolPolicy
@@ -863,7 +863,7 @@ export class StreamManager extends EventEmitter {
 
         // Update history with final message (only if there are parts)
         if (streamInfo.parts && streamInfo.parts.length > 0) {
-          const finalAssistantMessage: CmuxMessage = {
+          const finalAssistantMessage: MuxMessage = {
             id: streamInfo.messageId,
             role: "assistant",
             metadata: {
@@ -915,7 +915,7 @@ export class StreamManager extends EventEmitter {
       }
 
       // Write error metadata to partial.json for persistence across reloads
-      const errorPartialMessage: CmuxMessage = {
+      const errorPartialMessage: MuxMessage = {
         id: streamInfo.messageId,
         role: "assistant",
         metadata: {
@@ -1121,7 +1121,7 @@ export class StreamManager extends EventEmitter {
     runtime: Runtime,
     abortSignal?: AbortSignal,
     tools?: Record<string, Tool>,
-    initialMetadata?: Partial<CmuxMetadata>,
+    initialMetadata?: Partial<MuxMetadata>,
     providerOptions?: Record<string, unknown>,
     maxOutputTokens?: number,
     toolPolicy?: ToolPolicy,
@@ -1331,7 +1331,7 @@ export class StreamManager extends EventEmitter {
     };
 
     // Write error state to partial.json (same as real error handling)
-    const errorPartialMessage: CmuxMessage = {
+    const errorPartialMessage: MuxMessage = {
       id: streamInfo.messageId,
       role: "assistant",
       metadata: {

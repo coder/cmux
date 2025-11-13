@@ -18,7 +18,7 @@ import {
   type TokenCountJob,
 } from "./tokenStatsCalculator";
 import type { LanguageModelV2Usage } from "@ai-sdk/provider";
-import type { CmuxMessage } from "@/types/message";
+import type { MuxMessage } from "@/types/message";
 
 describe("createDisplayUsage", () => {
   test("uses usage.reasoningTokens when available", () => {
@@ -200,7 +200,7 @@ describe("countEncryptedWebSearchTokens", () => {
 
 describe("collectUniqueToolNames", () => {
   test("collects tool names from assistant messages", () => {
-    const messages: CmuxMessage[] = [
+    const messages: MuxMessage[] = [
       {
         id: "1",
         role: "assistant",
@@ -230,7 +230,7 @@ describe("collectUniqueToolNames", () => {
   });
 
   test("deduplicates tool names", () => {
-    const messages: CmuxMessage[] = [
+    const messages: MuxMessage[] = [
       {
         id: "1",
         role: "assistant",
@@ -259,7 +259,7 @@ describe("collectUniqueToolNames", () => {
   });
 
   test("ignores user messages", () => {
-    const messages: CmuxMessage[] = [
+    const messages: MuxMessage[] = [
       {
         id: "1",
         role: "user",
@@ -279,7 +279,7 @@ describe("collectUniqueToolNames", () => {
 
 describe("extractSyncMetadata", () => {
   test("accumulates system message tokens", () => {
-    const messages: CmuxMessage[] = [
+    const messages: MuxMessage[] = [
       {
         id: "1",
         role: "assistant",
@@ -299,7 +299,7 @@ describe("extractSyncMetadata", () => {
   });
 
   test("extracts usage history", () => {
-    const messages: CmuxMessage[] = [
+    const messages: MuxMessage[] = [
       {
         id: "1",
         role: "assistant",
@@ -322,7 +322,7 @@ describe("extractSyncMetadata", () => {
   });
 
   test("ignores user messages", () => {
-    const messages: CmuxMessage[] = [
+    const messages: MuxMessage[] = [
       {
         id: "1",
         role: "user",

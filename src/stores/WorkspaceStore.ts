@@ -1,6 +1,6 @@
 import assert from "@/utils/assert";
-import type { CmuxMessage, DisplayedMessage } from "@/types/message";
-import { createCmuxMessage } from "@/types/message";
+import type { MuxMessage, DisplayedMessage } from "@/types/message";
+import { createMuxMessage } from "@/types/message";
 import type { FrontendWorkspaceMetadata } from "@/types/workspace";
 import type { WorkspaceChatMessage } from "@/types/ipc";
 import type { TodoItem } from "@/types/tools";
@@ -9,7 +9,7 @@ import { updatePersistedState } from "@/hooks/usePersistedState";
 import { getRetryStateKey } from "@/constants/storage";
 import { CUSTOM_EVENTS, createCustomEvent } from "@/constants/events";
 import { useSyncExternalStore } from "react";
-import { isCaughtUpMessage, isStreamError, isDeleteMessage, isCmuxMessage } from "@/types/ipc";
+import { isCaughtUpMessage, isStreamError, isDeleteMessage, isMuxMessage } from "@/types/ipc";
 import { MapStore } from "./MapStore";
 import { createDisplayUsage } from "@/utils/tokens/displayUsage";
 import { WorkspaceConsumerManager } from "./WorkspaceConsumerManager";
@@ -26,7 +26,7 @@ export interface WorkspaceState {
   canInterrupt: boolean;
   isCompacting: boolean;
   loading: boolean;
-  cmuxMessages: CmuxMessage[];
+  cmuxMessages: MuxMessage[];
   currentModel: string | null;
   recencyTimestamp: number | null;
   todos: TodoItem[];
@@ -99,7 +99,7 @@ export class WorkspaceStore {
   private aggregators = new Map<string, StreamingMessageAggregator>();
   private ipcUnsubscribers = new Map<string, () => void>();
   private caughtUp = new Map<string, boolean>();
-  private historicalMessages = new Map<string, CmuxMessage[]>();
+  private historicalMessages = new Map<string, MuxMessage[]>();
   private pendingStreamEvents = new Map<string, WorkspaceChatMessage[]>();
   private workspaceMetadata = new Map<string, FrontendWorkspaceMetadata>(); // Store metadata for name lookup
 
@@ -612,7 +612,7 @@ export class WorkspaceStore {
     const continueMessage =
       cmuxMeta?.type === "compaction-request" ? cmuxMeta.parsed.continueMessage : undefined;
 
-    const summaryMessage = createCmuxMessage(
+    const summaryMessage = createMuxMessage(
       `summary-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`,
       "assistant",
       summary,
@@ -958,11 +958,11 @@ export class WorkspaceStore {
       return;
     }
 
-    // Regular messages (CmuxMessage without type field)
-    if (isCmuxMessage(data)) {
+    // Regular messages (MuxMessage without type field)
+    if (isMuxMessage(data)) {
       const isCaughtUp = this.caughtUp.get(workspaceId) ?? false;
       if (!isCaughtUp) {
-        // Buffer historical CmuxMessages
+        // Buffer historical MuxMessages
         const historicalMsgs = this.historicalMessages.get(workspaceId) ?? [];
         historicalMsgs.push(data);
         this.historicalMessages.set(workspaceId, historicalMsgs);

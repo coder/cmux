@@ -37,7 +37,7 @@ if (shouldRunIntegrationTests()) {
 }
 
 /**
- * Create a temp git repo with a .cmux/init hook that writes to stdout/stderr and exits with a given code
+ * Create a temp git repo with a .mux/init hook that writes to stdout/stderr and exits with a given code
  */
 async function createTempGitRepoWithInitHook(options: {
   exitCode: number;
@@ -52,7 +52,7 @@ async function createTempGitRepoWithInitHook(options: {
   const execAsync = promisify(exec);
 
   // Use mkdtemp to avoid race conditions
-  const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "cmux-test-init-hook-"));
+  const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "mux-test-init-hook-"));
 
   // Initialize git repo
   await execAsync(`git init`, { cwd: tempDir });
@@ -63,12 +63,12 @@ async function createTempGitRepoWithInitHook(options: {
     cwd: tempDir,
   });
 
-  // Create .cmux directory
-  const cmuxDir = path.join(tempDir, ".cmux");
-  await fs.mkdir(cmuxDir, { recursive: true });
+  // Create .mux directory
+  const muxDir = path.join(tempDir, ".mux");
+  await fs.mkdir(muxDir, { recursive: true });
 
   // Create init hook script
-  const hookPath = path.join(cmuxDir, "init");
+  const hookPath = path.join(muxDir, "init");
 
   let scriptContent: string;
   if (options.customScript) {
@@ -152,7 +152,7 @@ describeIntegration("IpcMain workspace init hook integration tests", () => {
         const startEvent = initEvents.find((e) => isInitStart(e));
         expect(startEvent).toBeDefined();
         if (startEvent && isInitStart(startEvent)) {
-          // Hook path should be the project path (where .cmux/init exists)
+          // Hook path should be the project path (where .mux/init exists)
           expect(startEvent.hookPath).toBeTruthy();
         }
 
@@ -258,13 +258,13 @@ describeIntegration("IpcMain workspace init hook integration tests", () => {
     "should not emit meta events when no init hook exists",
     async () => {
       const env = await createTestEnvironment();
-      // Create repo without .cmux/init hook
+      // Create repo without .mux/init hook
       const fs = await import("fs/promises");
       const { exec } = await import("child_process");
       const { promisify } = await import("util");
       const execAsync = promisify(exec);
 
-      const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "cmux-test-no-hook-"));
+      const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "mux-test-no-hook-"));
 
       try {
         // Initialize git repo without hook

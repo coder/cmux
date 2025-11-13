@@ -2,7 +2,7 @@ import * as fs from "fs/promises";
 import * as path from "path";
 import type { Result } from "@/types/result";
 import { Ok, Err } from "@/types/result";
-import type { CmuxMessage } from "@/types/message";
+import type { MuxMessage } from "@/types/message";
 import type { Config } from "@/config";
 import { workspaceFileLocks } from "@/utils/concurrency/workspaceFileLocks";
 import { log } from "./log";
@@ -38,16 +38,16 @@ export class HistoryService {
    * Returns empty array if file doesn't exist
    * Skips malformed JSON lines to prevent data loss from corruption
    */
-  private async readChatHistory(workspaceId: string): Promise<CmuxMessage[]> {
+  private async readChatHistory(workspaceId: string): Promise<MuxMessage[]> {
     try {
       const chatHistoryPath = this.getChatHistoryPath(workspaceId);
       const data = await fs.readFile(chatHistoryPath, "utf-8");
       const lines = data.split("\n").filter((line) => line.trim());
-      const messages: CmuxMessage[] = [];
+      const messages: MuxMessage[] = [];
 
       for (let i = 0; i < lines.length; i++) {
         try {
-          const message = JSON.parse(lines[i]) as CmuxMessage;
+          const message = JSON.parse(lines[i]) as MuxMessage;
           messages.push(message);
         } catch (parseError) {
           // Skip malformed lines but log error for debugging
@@ -69,7 +69,7 @@ export class HistoryService {
     }
   }
 
-  async getHistory(workspaceId: string): Promise<Result<CmuxMessage[]>> {
+  async getHistory(workspaceId: string): Promise<Result<MuxMessage[]>> {
     try {
       // Read chat history from disk
       // Note: partial.json is NOT merged here - it's managed by PartialService
@@ -118,7 +118,7 @@ export class HistoryService {
    */
   private async _appendToHistoryUnlocked(
     workspaceId: string,
-    message: CmuxMessage
+    message: MuxMessage
   ): Promise<Result<void>> {
     try {
       const workspaceDir = this.config.getSessionDir(workspaceId);
@@ -179,7 +179,7 @@ export class HistoryService {
     }
   }
 
-  async appendToHistory(workspaceId: string, message: CmuxMessage): Promise<Result<void>> {
+  async appendToHistory(workspaceId: string, message: MuxMessage): Promise<Result<void>> {
     return this.fileLocks.withLock(workspaceId, async () => {
       return this._appendToHistoryUnlocked(workspaceId, message);
     });
@@ -189,7 +189,7 @@ export class HistoryService {
    * Update an existing message in history by historySequence
    * Reads entire history, replaces the matching message, and rewrites the file
    */
-  async updateHistory(workspaceId: string, message: CmuxMessage): Promise<Result<void>> {
+  async updateHistory(workspaceId: string, message: MuxMessage): Promise<Result<void>> {
     return this.fileLocks.withLock(workspaceId, async () => {
       try {
         const historyPath = this.getChatHistoryPath(workspaceId);
@@ -344,7 +344,7 @@ export class HistoryService {
 
         // Count tokens for each message
         // We stringify the entire message for simplicity - only relative weights matter
-        const messageTokens: Array<{ message: CmuxMessage; tokens: number }> = await Promise.all(
+        const messageTokens: Array<{ message: MuxMessage; tokens: number }> = await Promise.all(
           messages.map(async (msg) => {
             const tokens = await tokenizer.countTokens(JSON.stringify(msg));
             return { message: msg, tokens };

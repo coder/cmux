@@ -28,13 +28,13 @@ if (typeof globalThis.File === "undefined") {
 // This eliminates ~10s initialization delay on first use
 if (process.env.TEST_INTEGRATION === "1") {
   // Store promise globally to ensure it blocks subsequent test execution
-  (globalThis as any).__cmuxPreloadPromise = (async () => {
+  (globalThis as any).__muxPreloadPromise = (async () => {
     const { preloadTestModules } = await import("./ipcMain/setup");
     await preloadTestModules();
   })();
 
   // Add a global beforeAll to block until preload completes
   beforeAll(async () => {
-    await (globalThis as any).__cmuxPreloadPromise;
+    await (globalThis as any).__muxPreloadPromise;
   }, 30000); // 30s timeout for preload
 }

@@ -7,7 +7,7 @@ import {
   injectModeTransition,
   filterEmptyAssistantMessages,
 } from "./modelMessageTransform";
-import type { CmuxMessage } from "@/types/message";
+import type { MuxMessage } from "@/types/message";
 
 describe("modelMessageTransform", () => {
   describe("transformModelMessages", () => {
@@ -405,7 +405,7 @@ describe("modelMessageTransform", () => {
 
   describe("addInterruptedSentinel", () => {
     it("should insert user message after partial assistant message", () => {
-      const messages: CmuxMessage[] = [
+      const messages: MuxMessage[] = [
         {
           id: "user-1",
           role: "user",
@@ -434,7 +434,7 @@ describe("modelMessageTransform", () => {
     });
 
     it("should not insert sentinel for non-partial assistant messages", () => {
-      const messages: CmuxMessage[] = [
+      const messages: MuxMessage[] = [
         {
           id: "user-1",
           role: "user",
@@ -457,7 +457,7 @@ describe("modelMessageTransform", () => {
     });
 
     it("should insert sentinel for reasoning-only partial messages", () => {
-      const messages: CmuxMessage[] = [
+      const messages: MuxMessage[] = [
         {
           id: "user-1",
           role: "user",
@@ -481,7 +481,7 @@ describe("modelMessageTransform", () => {
     });
 
     it("should handle multiple partial messages", () => {
-      const messages: CmuxMessage[] = [
+      const messages: MuxMessage[] = [
         {
           id: "user-1",
           role: "user",
@@ -522,7 +522,7 @@ describe("modelMessageTransform", () => {
     });
 
     it("should skip sentinel when user message follows partial", () => {
-      const messages: CmuxMessage[] = [
+      const messages: MuxMessage[] = [
         {
           id: "user-1",
           role: "user",
@@ -719,7 +719,7 @@ describe("modelMessageTransform", () => {
 
 describe("injectModeTransition", () => {
   it("should inject transition message when mode changes", () => {
-    const messages: CmuxMessage[] = [
+    const messages: MuxMessage[] = [
       {
         id: "user-1",
         role: "user",
@@ -760,7 +760,7 @@ describe("injectModeTransition", () => {
   });
 
   it("should not inject transition when mode is the same", () => {
-    const messages: CmuxMessage[] = [
+    const messages: MuxMessage[] = [
       {
         id: "user-1",
         role: "user",
@@ -789,7 +789,7 @@ describe("injectModeTransition", () => {
   });
 
   it("should not inject transition when no previous mode exists", () => {
-    const messages: CmuxMessage[] = [
+    const messages: MuxMessage[] = [
       {
         id: "user-1",
         role: "user",
@@ -806,7 +806,7 @@ describe("injectModeTransition", () => {
   });
 
   it("should not inject transition when no mode specified", () => {
-    const messages: CmuxMessage[] = [
+    const messages: MuxMessage[] = [
       {
         id: "user-1",
         role: "user",
@@ -835,7 +835,7 @@ describe("injectModeTransition", () => {
   });
 
   it("should handle conversation with no user messages", () => {
-    const messages: CmuxMessage[] = [
+    const messages: MuxMessage[] = [
       {
         id: "assistant-1",
         role: "assistant",
@@ -852,7 +852,7 @@ describe("injectModeTransition", () => {
   });
 
   it("should include tool names in transition message when provided", () => {
-    const messages: CmuxMessage[] = [
+    const messages: MuxMessage[] = [
       {
         id: "user-1",
         role: "user",
@@ -889,7 +889,7 @@ describe("injectModeTransition", () => {
   });
 
   it("should handle mode transition without tools parameter (backward compatibility)", () => {
-    const messages: CmuxMessage[] = [
+    const messages: MuxMessage[] = [
       {
         id: "user-1",
         role: "user",
@@ -921,7 +921,7 @@ describe("injectModeTransition", () => {
   });
 
   it("should handle mode transition with empty tool list", () => {
-    const messages: CmuxMessage[] = [
+    const messages: MuxMessage[] = [
       {
         id: "user-1",
         role: "user",
@@ -955,7 +955,7 @@ describe("injectModeTransition", () => {
 
 describe("filterEmptyAssistantMessages", () => {
   it("should filter out assistant messages with only reasoning when preserveReasoningOnly=false", () => {
-    const messages: CmuxMessage[] = [
+    const messages: MuxMessage[] = [
       {
         id: "user-1",
         role: "user",
@@ -978,7 +978,7 @@ describe("filterEmptyAssistantMessages", () => {
   });
 
   it("should filter out assistant messages with empty parts array (placeholder messages)", () => {
-    const messages: CmuxMessage[] = [
+    const messages: MuxMessage[] = [
       {
         id: "user-1",
         role: "user",
@@ -1010,7 +1010,7 @@ describe("filterEmptyAssistantMessages", () => {
   });
 
   it("should preserve assistant messages with only reasoning when preserveReasoningOnly=true", () => {
-    const messages: CmuxMessage[] = [
+    const messages: MuxMessage[] = [
       {
         id: "user-1",
         role: "user",
@@ -1034,7 +1034,7 @@ describe("filterEmptyAssistantMessages", () => {
   });
 
   it("should preserve assistant messages with text content regardless of preserveReasoningOnly", () => {
-    const messages: CmuxMessage[] = [
+    const messages: MuxMessage[] = [
       {
         id: "assistant-1",
         role: "assistant",
@@ -1058,7 +1058,7 @@ describe("filterEmptyAssistantMessages", () => {
   });
 
   it("should filter out assistant messages with only empty text regardless of preserveReasoningOnly", () => {
-    const messages: CmuxMessage[] = [
+    const messages: MuxMessage[] = [
       {
         id: "assistant-1",
         role: "assistant",
@@ -1078,7 +1078,7 @@ describe("filterEmptyAssistantMessages", () => {
 
   it("should preserve messages interrupted during thinking phase when preserveReasoningOnly=true", () => {
     // Simulates an interrupted stream during Extended Thinking
-    const messages: CmuxMessage[] = [
+    const messages: MuxMessage[] = [
       {
         id: "user-1",
         role: "user",

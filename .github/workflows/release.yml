@@ -17,7 +17,7 @@ jobs:
         with:
           fetch-depth: 0 # Required for git describe to find tags
 
-      - uses: ./.github/actions/setup-cmux
+      - uses: ./.github/actions/setup-mux
         with:
           install-imagemagick: true
 
@@ -47,7 +47,7 @@ jobs:
         with:
           fetch-depth: 0 # Required for git describe to find tags
 
-      - uses: ./.github/actions/setup-cmux
+      - uses: ./.github/actions/setup-mux
         with:
           install-imagemagick: true
 
@@ -68,7 +68,7 @@ jobs:
         with:
           fetch-depth: 0 # Required for git describe to find tags
 
-      - uses: ./.github/actions/setup-cmux
+      - uses: ./.github/actions/setup-mux
 
       - uses: ./.github/actions/build-vscode-extension
 
@@ -77,5 +77,5 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           gh release upload ${{ github.event.release.tag_name }} \
-            vscode/cmux-*.vsix \
+            vscode/mux-*.vsix \
             --clobber

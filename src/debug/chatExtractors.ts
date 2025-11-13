@@ -1,13 +1,13 @@
 import assert from "@/utils/assert";
-import type { CmuxReasoningPart, CmuxTextPart, CmuxToolPart } from "@/types/message";
+import type { MuxReasoningPart, MuxTextPart, MuxToolPart } from "@/types/message";
 
 export function extractAssistantText(parts: unknown): string {
   if (!Array.isArray(parts)) {
     return "";
   }
 
-  const textParts = (parts as CmuxTextPart[]).filter(
-    (part): part is CmuxTextPart => part.type === "text"
+  const textParts = (parts as MuxTextPart[]).filter(
+    (part): part is MuxTextPart => part.type === "text"
   );
   return textParts
     .map((part) => {
@@ -22,8 +22,8 @@ export function extractReasoning(parts: unknown): string[] {
     return [];
   }
 
-  const reasoningParts = (parts as CmuxReasoningPart[]).filter(
-    (part): part is CmuxReasoningPart => part.type === "reasoning"
+  const reasoningParts = (parts as MuxReasoningPart[]).filter(
+    (part): part is MuxReasoningPart => part.type === "reasoning"
   );
   return reasoningParts.map((part) => {
     assert(typeof part.text === "string", "Reasoning part must include text");
@@ -31,12 +31,12 @@ export function extractReasoning(parts: unknown): string[] {
   });
 }
 
-export function extractToolCalls(parts: unknown): CmuxToolPart[] {
+export function extractToolCalls(parts: unknown): MuxToolPart[] {
   if (!Array.isArray(parts)) {
     return [];
   }
 
-  return (parts as CmuxToolPart[]).filter(
-    (part): part is CmuxToolPart => part.type === "dynamic-tool"
+  return (parts as MuxToolPart[]).filter(
+    (part): part is MuxToolPart => part.type === "dynamic-tool"
   );
 }

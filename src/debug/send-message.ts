@@ -1,10 +1,10 @@
 import * as fs from "fs";
 import * as path from "path";
 import { defaultConfig } from "@/config";
-import type { CmuxMessage } from "@/types/message";
+import type { MuxMessage } from "@/types/message";
 import type { SendMessageOptions } from "@/types/ipc";
 import { getDefaultModelFromLRU } from "@/hooks/useModelLRU";
-import { getCmuxSessionsDir } from "@/constants/paths";
+import { getMuxSessionsDir } from "@/constants/paths";
 
 /**
  * Debug command to send a message to a workspace, optionally editing an existing message
@@ -29,7 +29,7 @@ export function sendMessageCommand(
   if (!fs.existsSync(chatHistoryPath)) {
     console.error(`❌ No chat history found at: ${chatHistoryPath}`);
     console.log("\nAvailable workspaces:");
-    const sessionsDir = getCmuxSessionsDir();
+    const sessionsDir = getMuxSessionsDir();
     if (fs.existsSync(sessionsDir)) {
       const sessions = fs.readdirSync(sessionsDir);
       sessions.forEach((session) => console.log(`  - ${session}`));
@@ -39,12 +39,12 @@ export function sendMessageCommand(
 
   // Read and parse messages
   // Note: We use a more flexible type here because the on-disk format includes workspaceId
-  // which is not part of the CmuxMessage type (it's metadata that gets stripped)
+  // which is not part of the MuxMessage type (it's metadata that gets stripped)
   const data = fs.readFileSync(chatHistoryPath, "utf-8");
-  const messages: Array<CmuxMessage & { workspaceId?: string }> = data
+  const messages: Array<MuxMessage & { workspaceId?: string }> = data
     .split("\n")
     .filter((line) => line.trim())
-    .map((line) => JSON.parse(line) as CmuxMessage & { workspaceId?: string });
+    .map((line) => JSON.parse(line) as MuxMessage & { workspaceId?: string });
 
   if (messages.length === 0) {
     console.log("❌ No messages in chat history");

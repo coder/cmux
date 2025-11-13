@@ -1,6 +1,6 @@
 import assert from "@/utils/assert";
-import type { CmuxMessage } from "@/types/message";
-import { createCmuxMessage } from "@/types/message";
+import type { MuxMessage } from "@/types/message";
+import { createMuxMessage } from "@/types/message";
 import type { HistoryService } from "@/services/historyService";
 import type { Result } from "@/types/result";
 import { Ok, Err } from "@/types/result";
@@ -148,7 +148,7 @@ export class MockScenarioPlayer {
   }
 
   async play(
-    messages: CmuxMessage[],
+    messages: MuxMessage[],
     workspaceId: string
   ): Promise<Result<void, SendMessageError>> {
     const latest = messages[messages.length - 1];
@@ -185,7 +185,7 @@ export class MockScenarioPlayer {
 
     let historySequence = this.computeNextHistorySequence(messages);
 
-    const assistantMessage = createCmuxMessage(turn.assistant.messageId, "assistant", "", {
+    const assistantMessage = createMuxMessage(turn.assistant.messageId, "assistant", "", {
       timestamp: Date.now(),
       model: streamStart.model,
     });
@@ -371,7 +371,7 @@ export class MockScenarioPlayer {
         if (historyResult.success) {
           const existingMessage = historyResult.data.find((msg) => msg.id === messageId);
           if (existingMessage?.metadata?.historySequence !== undefined) {
-            const completedMessage: CmuxMessage = {
+            const completedMessage: MuxMessage = {
               id: messageId,
               role: "assistant",
               parts: event.parts,
@@ -414,14 +414,14 @@ export class MockScenarioPlayer {
     this.activeStreams.delete(workspaceId);
   }
 
-  private extractText(message: CmuxMessage): string {
+  private extractText(message: MuxMessage): string {
     return message.parts
       .filter((part) => "text" in part)
       .map((part) => (part as { text: string }).text)
       .join("");
   }
 
-  private computeNextHistorySequence(messages: CmuxMessage[]): number {
+  private computeNextHistorySequence(messages: MuxMessage[]): number {
     let maxSequence = 0;
     for (const message of messages) {
       const seq = message.metadata?.historySequence;

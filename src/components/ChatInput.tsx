@@ -45,7 +45,7 @@ import {
 } from "@/utils/imageHandling";
 
 import type { ThinkingLevel } from "@/types/thinking";
-import type { CmuxFrontendMetadata } from "@/types/message";
+import type { MuxFrontendMetadata } from "@/types/message";
 import { useTelemetry } from "@/hooks/useTelemetry";
 import { setTelemetryEnabled } from "@/telemetry";
 import { getTokenCountPromise } from "@/utils/tokenizer/rendererClient";
@@ -624,7 +624,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 
         // When editing a /compact command, regenerate the actual summarization request
         let actualMessageText = messageText;
-        let cmuxMetadata: CmuxFrontendMetadata | undefined;
+        let cmuxMetadata: MuxFrontendMetadata | undefined;
         let compactionOptions = {};
 
         if (editingMessage && messageText.startsWith("/")) {
