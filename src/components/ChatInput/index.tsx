@@ -8,15 +8,15 @@ import React, {
   useMemo,
   useDeferredValue,
 } from "react";
-import { CommandSuggestions, COMMAND_SUGGESTION_KEYS } from "./CommandSuggestions";
-import type { Toast } from "./ChatInputToast";
-import { ChatInputToast } from "./ChatInputToast";
-import { createCommandToast, createErrorToast } from "./ChatInputToasts";
+import { CommandSuggestions, COMMAND_SUGGESTION_KEYS } from "../CommandSuggestions";
+import type { Toast } from "../ChatInputToast";
+import { ChatInputToast } from "../ChatInputToast";
+import { createCommandToast, createErrorToast } from "../ChatInputToasts";
 import { parseCommand } from "@/utils/slashCommands/parser";
 import { usePersistedState, updatePersistedState } from "@/hooks/usePersistedState";
 import { useMode } from "@/contexts/ModeContext";
-import { ThinkingSliderComponent } from "./ThinkingSlider";
-import { Context1MCheckbox } from "./Context1MCheckbox";
+import { ThinkingSliderComponent } from "../ThinkingSlider";
+import { Context1MCheckbox } from "../Context1MCheckbox";
 import { useSendMessageOptions } from "@/hooks/useSendMessageOptions";
 import { getModelKey, getInputKey, VIM_ENABLED_KEY } from "@/constants/storage";
 import {
@@ -31,13 +31,13 @@ import {
   getSlashCommandSuggestions,
   type SlashSuggestion,
 } from "@/utils/slashCommands/suggestions";
-import { TooltipWrapper, Tooltip, HelpIndicator } from "./Tooltip";
-import { ModeSelector } from "./ModeSelector";
+import { TooltipWrapper, Tooltip, HelpIndicator } from "../Tooltip";
+import { ModeSelector } from "../ModeSelector";
 import { matchesKeybind, formatKeybind, KEYBINDS, isEditableElement } from "@/utils/ui/keybinds";
-import { ModelSelector, type ModelSelectorRef } from "./ModelSelector";
+import { ModelSelector, type ModelSelectorRef } from "../ModelSelector";
 import { useModelLRU } from "@/hooks/useModelLRU";
-import { VimTextArea } from "./VimTextArea";
-import { ImageAttachments, type ImageAttachment } from "./ImageAttachments";
+import { VimTextArea } from "../VimTextArea";
+import { ImageAttachments, type ImageAttachment } from "../ImageAttachments";
 import {
   extractImagesFromClipboard,
   extractImagesFromDrop,
@@ -49,6 +49,9 @@ import type { MuxFrontendMetadata } from "@/types/message";
 import { useTelemetry } from "@/hooks/useTelemetry";
 import { setTelemetryEnabled } from "@/telemetry";
 import { getTokenCountPromise } from "@/utils/tokenizer/rendererClient";
+import { CreationCenterContent } from "./CreationCenterContent";
+import { CreationControls } from "./CreationControls";
+import { useCreationWorkspace } from "./useCreationWorkspace";
 
 type TokenCountReader = () => number;
 
@@ -80,44 +83,34 @@ function createTokenCountResource(promise: Promise<number>): TokenCountReader {
   };
 }
 
-export interface ChatInputAPI {
-  focus: () => void;
-  restoreText: (text: string) => void;
-  appendText: (text: string) => void;
-}
+// Import types from local types file
+import type { ChatInputProps, ChatInputAPI } from "./types";
+export type { ChatInputProps, ChatInputAPI };
 
-export interface ChatInputProps {
-  workspaceId: string;
-  onMessageSent?: () => void; // Optional callback after successful send
-  onTruncateHistory: (percentage?: number) => Promise<void>;
-  onProviderConfig?: (provider: string, keyPath: string[], value: string) => Promise<void>;
-  onModelChange?: (model: string) => void;
-  disabled?: boolean;
-  isCompacting?: boolean;
-  editingMessage?: { id: string; content: string };
-  onCancelEdit?: () => void;
-  onEditLastUserMessage?: () => void;
-  canInterrupt?: boolean; // Whether Esc can be used to interrupt streaming
-  onReady?: (api: ChatInputAPI) => void; // Callback with focus method
-}
+export const ChatInput: React.FC<ChatInputProps> = (props) => {
+  const { variant } = props;
 
-// Helper function to convert parsed command to display toast
+  // Extract workspace-specific props with defaults
+  const disabled = props.disabled ?? false;
+  const editingMessage = variant === "workspace" ? props.editingMessage : undefined;
+  const isCompacting = variant === "workspace" ? (props.isCompacting ?? false) : false;
+  const canInterrupt = variant === "workspace" ? (props.canInterrupt ?? false) : false;
 
-export const ChatInput: React.FC<ChatInputProps> = ({
-  workspaceId,
-  onMessageSent,
-  onTruncateHistory,
-  onProviderConfig,
-  onModelChange,
-  disabled = false,
-  isCompacting = false,
-  editingMessage,
-  onCancelEdit,
-  onEditLastUserMessage,
-  canInterrupt = false,
-  onReady,
-}) => {
-  const [input, setInput] = usePersistedState(getInputKey(workspaceId), "", { listener: true });
+  // Storage keys differ by variant
+  const storageKeys = (() => {
+    if (variant === "creation") {
+      return {
+        inputKey: getInputKey(`__pending__${props.projectPath}`),
+        modelKey: getModelKey(`__project__${props.projectPath}`),
+      };
+    }
+    return {
+      inputKey: getInputKey(props.workspaceId),
+      modelKey: getModelKey(props.workspaceId),
+    };
+  })();
+
+  const [input, setInput] = usePersistedState(storageKeys.inputKey, "", { listener: true });
   const [isSending, setIsSending] = useState(false);
   const [showCommandSuggestions, setShowCommandSuggestions] = useState(false);
   const [commandSuggestions, setCommandSuggestions] = useState<SlashSuggestion[]>([]);
@@ -138,7 +131,10 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   });
 
   // Get current send message options from shared hook (must be at component top level)
-  const sendMessageOptions = useSendMessageOptions(workspaceId);
+  // For creation variant, use project-scoped key; for workspace, use workspace ID
+  const sendMessageOptions = useSendMessageOptions(
+    variant === "workspace" ? props.workspaceId : `__project__${props.projectPath}`
+  );
   // Extract model for convenience (don't create separate state - use hook as single source of truth)
   const preferredModel = sendMessageOptions.model;
   const deferredModel = useDeferredValue(preferredModel);
@@ -158,9 +154,25 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   const setPreferredModel = useCallback(
     (model: string) => {
       addModel(model); // Update LRU
-      updatePersistedState(getModelKey(workspaceId), model); // Update workspace-specific
+      updatePersistedState(storageKeys.modelKey, model); // Update workspace or project-specific
     },
-    [workspaceId, addModel]
+    [storageKeys.modelKey, addModel]
+  );
+
+  // Creation-specific state (hook always called, but only used when variant === "creation")
+  // This avoids conditional hook calls which violate React rules
+  const creationState = useCreationWorkspace(
+    variant === "creation"
+      ? {
+          projectPath: props.projectPath,
+          onWorkspaceCreated: props.onWorkspaceCreated,
+        }
+      : {
+          // Dummy values for workspace variant (never used)
+          projectPath: "",
+          // eslint-disable-next-line @typescript-eslint/no-empty-function
+          onWorkspaceCreated: () => {},
+        }
   );
 
   const focusMessageInput = useCallback(() => {
@@ -204,14 +216,14 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 
   // Provide API to parent via callback
   useEffect(() => {
-    if (onReady) {
-      onReady({
+    if (props.onReady) {
+      props.onReady({
         focus: focusMessageInput,
         restoreText,
         appendText,
       });
     }
-  }, [onReady, focusMessageInput, restoreText, appendText]);
+  }, [props.onReady, focusMessageInput, restoreText, appendText, props]);
 
   useEffect(() => {
     const handleGlobalKeyDown = (event: KeyboardEvent) => {
@@ -306,8 +318,11 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       window.removeEventListener(CUSTOM_EVENTS.OPEN_MODEL_SELECTOR, handler as EventListener);
   }, []);
 
-  // Show toast when thinking level is changed via command palette
+  // Show toast when thinking level is changed via command palette (workspace only)
   useEffect(() => {
+    if (variant !== "workspace") return;
+    
+    const workspaceId = props.workspaceId;
     const handler = (event: Event) => {
       const detail = (event as CustomEvent<{ workspaceId: string; level: ThinkingLevel }>).detail;
       if (detail?.workspaceId !== workspaceId || !detail.level) {
@@ -332,16 +347,18 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     window.addEventListener(CUSTOM_EVENTS.THINKING_LEVEL_TOAST, handler as EventListener);
     return () =>
       window.removeEventListener(CUSTOM_EVENTS.THINKING_LEVEL_TOAST, handler as EventListener);
-  }, [workspaceId, setToast]);
+  }, [variant, props, setToast]);
 
-  // Auto-focus chat input when workspace changes (e.g., new workspace created or switched)
+  // Auto-focus chat input when workspace changes (workspace only)
   useEffect(() => {
+    if (variant !== "workspace") return;
+    
     // Small delay to ensure DOM is ready and other components have settled
     const timer = setTimeout(() => {
       focusMessageInput();
     }, 100);
     return () => clearTimeout(timer);
-  }, [workspaceId, focusMessageInput]);
+  }, [variant, props, focusMessageInput]);
 
   // Handle paste events to extract images
   const handlePaste = useCallback((e: React.ClipboardEvent<HTMLTextAreaElement>) => {
@@ -401,6 +418,29 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     }
 
     const messageText = input.trim();
+
+    // Route to creation handler for creation variant
+    if (variant === "creation") {
+      // Creation variant: simple message send + workspace creation
+      setIsSending(true);
+      setInput(""); // Clear input immediately (will be restored by parent if creation fails)
+      await creationState.handleSend(messageText);
+      setIsSending(false);
+      return;
+    }
+
+    // Workspace variant: full command handling + message send
+    if (variant !== "workspace") return; // Type guard
+
+    // Destructure workspace-specific props
+    const {
+      workspaceId,
+      onTruncateHistory,
+      onProviderConfig,
+      onModelChange,
+      onMessageSent,
+      onCancelEdit,
+    } = props;
 
     try {
       // Parse command
@@ -705,6 +745,13 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    // Handle Escape for creation variant cancel
+    if (variant === "creation" && e.key === "Escape" && props.onCancel) {
+      e.preventDefault();
+      props.onCancel();
+      return;
+    }
+
     // Handle open model selector
     if (matchesKeybind(e, KEYBINDS.OPEN_MODEL_SELECTOR)) {
       e.preventDefault();
@@ -712,11 +759,11 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       return;
     }
 
-    // Handle cancel edit (Ctrl+Q)
+    // Handle cancel edit (Ctrl+Q) - workspace only
     if (matchesKeybind(e, KEYBINDS.CANCEL_EDIT)) {
-      if (editingMessage && onCancelEdit) {
+      if (variant === "workspace" && editingMessage && props.onCancelEdit) {
         e.preventDefault();
-        onCancelEdit();
+        props.onCancelEdit();
         const isFocused = document.activeElement === inputRef.current;
         if (isFocused) {
           inputRef.current?.blur();
@@ -725,10 +772,10 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       }
     }
 
-    // Handle up arrow on empty input - edit last user message
-    if (e.key === "ArrowUp" && !editingMessage && input.trim() === "" && onEditLastUserMessage) {
+    // Handle up arrow on empty input - edit last user message (workspace only)
+    if (variant === "workspace" && e.key === "ArrowUp" && !editingMessage && input.trim() === "" && props.onEditLastUserMessage) {
       e.preventDefault();
-      onEditLastUserMessage();
+      props.onEditLastUserMessage();
       return;
     }
 
@@ -753,6 +800,12 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 
   // Build placeholder text based on current state
   const placeholder = (() => {
+    // Creation variant has simple placeholder
+    if (variant === "creation") {
+      return `Type your first message to create a workspace... (${formatKeybind(KEYBINDS.SEND_MESSAGE)} to send, Esc to cancel)`;
+    }
+
+    // Workspace variant placeholders
     if (editingMessage) {
       return `Edit your message... (${formatKeybind(KEYBINDS.CANCEL_EDIT)} to cancel, ${formatKeybind(KEYBINDS.SEND_MESSAGE)} to send)`;
     }
@@ -779,30 +832,53 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   })();
 
   return (
-    <div
-      className="bg-separator border-border-light relative flex flex-col gap-1 border-t px-[15px] pt-[5px] pb-[15px]"
-      data-component="ChatInputSection"
-    >
-      <ChatInputToast toast={toast} onDismiss={handleToastDismiss} />
-      <CommandSuggestions
-        suggestions={commandSuggestions}
-        onSelectSuggestion={handleCommandSelect}
-        onDismiss={() => setShowCommandSuggestions(false)}
-        isVisible={showCommandSuggestions}
-        ariaLabel="Slash command suggestions"
-        listId={commandListId}
-      />
-      <div className="flex items-end gap-2.5" data-component="ChatInputControls">
-        <VimTextArea
-          ref={inputRef}
-          value={input}
-          isEditing={!!editingMessage}
-          mode={mode}
-          onChange={setInput}
-          onKeyDown={handleKeyDown}
-          onPaste={handlePaste}
-          onDragOver={handleDragOver}
-          onDrop={handleDrop}
+    <>
+      {/* Creation center content (shows while loading or idle) */}
+      {variant === "creation" && (
+        <CreationCenterContent
+          projectName={props.projectName}
+          isSending={creationState.isSending || isSending}
+        />
+      )}
+
+      {/* Input section */}
+      <div
+        className="bg-separator border-border-light relative flex flex-col gap-1 border-t px-[15px] pt-[5px] pb-[15px]"
+        data-component="ChatInputSection"
+      >
+        {/* Creation error toast */}
+        {variant === "creation" && creationState?.error && (
+          <div className="mb-2 rounded border border-red-700 bg-red-900/20 px-3 py-2 text-sm text-red-400">
+            {creationState.error}
+          </div>
+        )}
+
+        {/* Workspace toast */}
+        {variant === "workspace" && <ChatInputToast toast={toast} onDismiss={handleToastDismiss} />}
+
+        {/* Command suggestions - workspace only */}
+        {variant === "workspace" && (
+          <CommandSuggestions
+            suggestions={commandSuggestions}
+            onSelectSuggestion={handleCommandSelect}
+            onDismiss={() => setShowCommandSuggestions(false)}
+            isVisible={showCommandSuggestions}
+            ariaLabel="Slash command suggestions"
+            listId={commandListId}
+          />
+        )}
+
+        <div className="flex items-end gap-2.5" data-component="ChatInputControls">
+          <VimTextArea
+            ref={inputRef}
+            value={input}
+            isEditing={!!editingMessage}
+            mode={mode}
+            onChange={setInput}
+            onKeyDown={handleKeyDown}
+            onPaste={variant === "workspace" ? handlePaste : undefined}
+            onDragOver={variant === "workspace" ? handleDragOver : undefined}
+            onDrop={variant === "workspace" ? handleDrop : undefined}
           suppressKeys={showCommandSuggestions ? COMMAND_SUGGESTION_KEYS : undefined}
           placeholder={placeholder}
           disabled={!editingMessage && (disabled || isSending || isCompacting)}
@@ -812,16 +888,21 @@ export const ChatInput: React.FC<ChatInputProps> = ({
             showCommandSuggestions && commandSuggestions.length > 0 ? commandListId : undefined
           }
           aria-expanded={showCommandSuggestions && commandSuggestions.length > 0}
-        />
-      </div>
-      <ImageAttachments images={imageAttachments} onRemove={handleRemoveImage} />
-      <div className="flex flex-col gap-1" data-component="ChatModeToggles">
-        {editingMessage && (
-          <div className="text-edit-mode text-[11px] font-medium">
-            Editing message ({formatKeybind(KEYBINDS.CANCEL_EDIT)} to cancel)
-          </div>
-        )}
-        <div className="@container flex flex-wrap items-center gap-x-3 gap-y-2">
+          />
+        </div>
+
+        {/* Image attachments - workspace only */}
+        {variant === "workspace" && <ImageAttachments images={imageAttachments} onRemove={handleRemoveImage} />}
+
+        <div className="flex flex-col gap-1" data-component="ChatModeToggles">
+          {/* Editing indicator - workspace only */}
+          {variant === "workspace" && editingMessage && (
+            <div className="text-edit-mode text-[11px] font-medium">
+              Editing message ({formatKeybind(KEYBINDS.CANCEL_EDIT)} to cancel)
+            </div>
+          )}
+
+          <div className="@container flex flex-wrap items-center gap-x-3 gap-y-2">
           {/* Model Selector - always visible */}
           <div className="flex items-center" data-component="ModelSelectorGroup">
             <ModelSelector
@@ -881,10 +962,24 @@ export const ChatInput: React.FC<ChatInputProps> = ({
             </div>
           )}
 
-          <ModeSelector mode={mode} onChange={setMode} className="ml-auto" />
+            <ModeSelector mode={mode} onChange={setMode} className="ml-auto" />
+          </div>
+
+          {/* Creation controls - second row for creation variant */}
+          {variant === "creation" && (
+            <CreationControls
+              branches={creationState.branches}
+              trunkBranch={creationState.trunkBranch}
+              onTrunkBranchChange={creationState.setTrunkBranch}
+              runtimeMode={creationState.runtimeMode}
+              sshHost={creationState.sshHost}
+              onRuntimeChange={creationState.setRuntimeOptions}
+              disabled={creationState.isSending || isSending}
+            />
+          )}
         </div>
       </div>
-    </div>
+    </>
   );
 };
 

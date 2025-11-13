@@ -14,7 +14,7 @@ import { useResumeManager } from "./hooks/useResumeManager";
 import { useUnreadTracking } from "./hooks/useUnreadTracking";
 import { useAutoCompactContinue } from "./hooks/useAutoCompactContinue";
 import { useWorkspaceStoreRaw, useWorkspaceRecency } from "./stores/WorkspaceStore";
-import { FirstMessageInput } from "./components/FirstMessageInput";
+import { ChatInput } from "./components/ChatInput/index";
 
 import { useStableReference, compareMaps } from "./hooks/useStableReference";
 import { CommandRegistryProvider, useCommandRegistry } from "./contexts/CommandRegistryContext";
@@ -630,7 +630,8 @@ function AppInner() {
                 return (
                   <ModeProvider projectPath={projectPath}>
                     <ThinkingProvider projectPath={projectPath}>
-                      <FirstMessageInput
+                      <ChatInput
+                        variant="creation"
                         projectPath={projectPath}
                         projectName={projectName}
                         onWorkspaceCreated={(metadata) => {
