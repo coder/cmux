@@ -1,6 +1,7 @@
 import React from "react";
 import { cn } from "@/lib/utils";
 import type { RuntimeConfig } from "@/types/runtime";
+import { isSSHRuntime } from "@/types/runtime";
 import { extractSshHostname } from "@/utils/ui/runtimeBadge";
 import { TooltipWrapper, Tooltip } from "./Tooltip";
 
@@ -48,7 +49,7 @@ export function RuntimeBadge({ runtimeConfig, className }: RuntimeBadgeProps) {
         </svg>
       </span>
       <Tooltip align="right">
-        SSH: {runtimeConfig?.type === "ssh" ? runtimeConfig.host : hostname}
+        SSH: {isSSHRuntime(runtimeConfig) ? runtimeConfig.host : hostname}
       </Tooltip>
     </TooltipWrapper>
   );

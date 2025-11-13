@@ -155,16 +155,9 @@ function AppInner() {
     }
   }, [selectedWorkspace, workspaceMetadata, setSelectedWorkspace]);
 
-  const openWorkspaceInTerminal = useCallback(
-    (workspaceId: string) => {
-      // Look up workspace metadata to get the workspace path (directory uses workspace name)
-      const metadata = workspaceMetadata.get(workspaceId);
-      if (metadata) {
-        void window.api.workspace.openTerminal(metadata.namedWorkspacePath);
-      }
-    },
-    [workspaceMetadata]
-  );
+  const openWorkspaceInTerminal = useCallback((workspaceId: string) => {
+    void window.api.workspace.openTerminal(workspaceId);
+  }, []);
 
   const handleRemoveProject = useCallback(
     async (path: string) => {

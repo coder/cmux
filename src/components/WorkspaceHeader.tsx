@@ -24,8 +24,8 @@ export const WorkspaceHeader: React.FC<WorkspaceHeaderProps> = ({
 }) => {
   const gitStatus = useGitStatus(workspaceId);
   const handleOpenTerminal = useCallback(() => {
-    void window.api.workspace.openTerminal(namedWorkspacePath);
-  }, [namedWorkspacePath]);
+    void window.api.workspace.openTerminal(workspaceId);
+  }, [workspaceId]);
 
   return (
     <div className="bg-separator border-border-light flex items-center justify-between border-b px-[15px] py-1 [@media(max-width:768px)]:flex-wrap [@media(max-width:768px)]:gap-2 [@media(max-width:768px)]:py-2 [@media(max-width:768px)]:pl-[60px]">

@@ -7,6 +7,7 @@ import {
 } from "@/utils/git/gitStatus";
 import { useSyncExternalStore } from "react";
 import { MapStore } from "./MapStore";
+import { isSSHRuntime } from "@/types/runtime";
 
 /**
  * External store for git status of all workspaces.
@@ -258,7 +259,7 @@ export class GitStatusStore {
    * For SSH workspaces: workspace ID (each has its own git repo)
    */
   private getFetchKey(metadata: FrontendWorkspaceMetadata): string {
-    const isSSH = metadata.runtimeConfig?.type === "ssh";
+    const isSSH = isSSHRuntime(metadata.runtimeConfig);
     return isSSH ? metadata.id : metadata.projectName;
   }
 

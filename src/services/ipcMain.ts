@@ -28,6 +28,7 @@ import { DisposableTempDir } from "@/services/tempDir";
 import { InitStateManager } from "@/services/initStateManager";
 import { createRuntime } from "@/runtime/runtimeFactory";
 import type { RuntimeConfig } from "@/types/runtime";
+import { isSSHRuntime } from "@/types/runtime";
 import { validateProjectPath } from "@/utils/pathUtils";
 import { ExtensionMetadataService } from "@/services/ExtensionMetadataService";
 /**
@@ -957,76 +958,29 @@ export class IpcMain {
       }
     );
 
-    ipcMain.handle(IPC_CHANNELS.WORKSPACE_OPEN_TERMINAL, async (_event, workspacePath: string) => {
+    ipcMain.handle(IPC_CHANNELS.WORKSPACE_OPEN_TERMINAL, async (_event, workspaceId: string) => {
       try {
-        if (process.platform === "darwin") {
-          // macOS - try Ghostty first, fallback to Terminal.app
-          const terminal = await this.findAvailableCommand(["ghostty", "terminal"]);
-          if (terminal === "ghostty") {
-            // Match main: pass workspacePath to 'open -a Ghostty' to avoid regressions
-            const cmd = "open";
-            const args = ["-a", "Ghostty", workspacePath];
-            log.info(`Opening terminal: ${cmd} ${args.join(" ")}`);
-            const child = spawn(cmd, args, {
-              detached: true,
-              stdio: "ignore",
-            });
-            child.unref();
-          } else {
-            // Terminal.app opens in the directory when passed as argument
-            const cmd = "open";
-            const args = ["-a", "Terminal", workspacePath];
-            log.info(`Opening terminal: ${cmd} ${args.join(" ")}`);
-            const child = spawn(cmd, args, {
-              detached: true,
-              stdio: "ignore",
-            });
-            child.unref();
-          }
-        } else if (process.platform === "win32") {
-          // Windows
-          const cmd = "cmd";
-          const args = ["/c", "start", "cmd", "/K", "cd", "/D", workspacePath];
-          log.info(`Opening terminal: ${cmd} ${args.join(" ")}`);
-          const child = spawn(cmd, args, {
-            detached: true,
-            shell: true,
-            stdio: "ignore",
+        // Look up workspace metadata to get runtime config
+        const allMetadata = await this.config.getAllWorkspaceMetadata();
+        const workspace = allMetadata.find((w) => w.id === workspaceId);
+
+        if (!workspace) {
+          log.error(`Workspace not found: ${workspaceId}`);
+          return;
+        }
+
+        const runtimeConfig = workspace.runtimeConfig;
+
+        if (isSSHRuntime(runtimeConfig)) {
+          // SSH workspace - spawn local terminal that SSHs into remote host
+          await this.openTerminal({
+            type: "ssh",
+            sshConfig: runtimeConfig,
+            remotePath: workspace.namedWorkspacePath,
           });
-          child.unref();
         } else {
-          // Linux - try terminal emulators in order of preference
-          // x-terminal-emulator is checked first as it respects user's system-wide preference
-          const terminals = [
-            { cmd: "x-terminal-emulator", args: [], cwd: workspacePath },
-            { cmd: "ghostty", args: ["--working-directory=" + workspacePath] },
-            { cmd: "alacritty", args: ["--working-directory", workspacePath] },
-            { cmd: "kitty", args: ["--directory", workspacePath] },
-            { cmd: "wezterm", args: ["start", "--cwd", workspacePath] },
-            { cmd: "gnome-terminal", args: ["--working-directory", workspacePath] },
-            { cmd: "konsole", args: ["--workdir", workspacePath] },
-            { cmd: "xfce4-terminal", args: ["--working-directory", workspacePath] },
-            { cmd: "xterm", args: [], cwd: workspacePath },
-          ];
-
-          const availableTerminal = await this.findAvailableTerminal(terminals);
-
-          if (availableTerminal) {
-            const cwdInfo = availableTerminal.cwd ? ` (cwd: ${availableTerminal.cwd})` : "";
-            log.info(
-              `Opening terminal: ${availableTerminal.cmd} ${availableTerminal.args.join(" ")}${cwdInfo}`
-            );
-            const child = spawn(availableTerminal.cmd, availableTerminal.args, {
-              cwd: availableTerminal.cwd ?? workspacePath,
-              detached: true,
-              stdio: "ignore",
-            });
-            child.unref();
-          } else {
-            log.error(
-              "No terminal emulator found. Tried: " + terminals.map((t) => t.cmd).join(", ")
-            );
-          }
+          // Local workspace - spawn terminal with cwd set
+          await this.openTerminal({ type: "local", workspacePath: workspace.namedWorkspacePath });
         }
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
@@ -1380,6 +1334,168 @@ export class IpcMain {
       return result.status === 0;
     } catch {
       return false;
+    }
+  }
+
+  /**
+   * Open a terminal (local or SSH) with platform-specific handling
+   */
+  private async openTerminal(
+    config:
+      | { type: "local"; workspacePath: string }
+      | {
+          type: "ssh";
+          sshConfig: Extract<RuntimeConfig, { type: "ssh" }>;
+          remotePath: string;
+        }
+  ): Promise<void> {
+    const isSSH = config.type === "ssh";
+
+    // Build SSH args if needed
+    let sshArgs: string[] | null = null;
+    if (isSSH) {
+      sshArgs = [];
+      // Add port if specified
+      if (config.sshConfig.port) {
+        sshArgs.push("-p", String(config.sshConfig.port));
+      }
+      // Add identity file if specified
+      if (config.sshConfig.identityFile) {
+        sshArgs.push("-i", config.sshConfig.identityFile);
+      }
+      // Force pseudo-terminal allocation
+      sshArgs.push("-t");
+      // Add host
+      sshArgs.push(config.sshConfig.host);
+      // Add remote command to cd into directory and start shell
+      // Use single quotes to prevent local shell expansion
+      // exec $SHELL replaces the SSH process with the shell, avoiding nested processes
+      sshArgs.push(`cd '${config.remotePath.replace(/'/g, "'\\''")}' && exec $SHELL`);
+    }
+
+    const logPrefix = isSSH ? "SSH terminal" : "terminal";
+
+    if (process.platform === "darwin") {
+      // macOS - try Ghostty first, fallback to Terminal.app
+      const terminal = await this.findAvailableCommand(["ghostty", "terminal"]);
+      if (terminal === "ghostty") {
+        const cmd = "open";
+        let args: string[];
+        if (isSSH && sshArgs) {
+          // Ghostty: Use --command flag to run SSH
+          // Build the full SSH command as a single string
+          const sshCommand = ["ssh", ...sshArgs].join(" ");
+          args = ["-n", "-a", "Ghostty", "--args", `--command=${sshCommand}`];
+        } else {
+          // Ghostty: Pass workspacePath to 'open -a Ghostty' to avoid regressions
+          if (config.type !== "local") throw new Error("Expected local config");
+          args = ["-a", "Ghostty", config.workspacePath];
+        }
+        log.info(`Opening ${logPrefix}: ${cmd} ${args.join(" ")}`);
+        const child = spawn(cmd, args, {
+          detached: true,
+          stdio: "ignore",
+        });
+        child.unref();
+      } else {
+        // Terminal.app
+        const cmd = isSSH ? "osascript" : "open";
+        let args: string[];
+        if (isSSH && sshArgs) {
+          // Terminal.app: Use osascript with proper AppleScript structure
+          // Properly escape single quotes in args before wrapping in quotes
+          const sshCommand = `ssh ${sshArgs
+            .map((arg) => {
+              if (arg.includes(" ") || arg.includes("'")) {
+                // Escape single quotes by ending quote, adding escaped quote, starting quote again
+                return `'${arg.replace(/'/g, "'\\''")}'`;
+              }
+              return arg;
+            })
+            .join(" ")}`;
+          // Escape double quotes for AppleScript string
+          const escapedCommand = sshCommand.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+          const script = `tell application "Terminal"\nactivate\ndo script "${escapedCommand}"\nend tell`;
+          args = ["-e", script];
+        } else {
+          // Terminal.app opens in the directory when passed as argument
+          if (config.type !== "local") throw new Error("Expected local config");
+          args = ["-a", "Terminal", config.workspacePath];
+        }
+        log.info(`Opening ${logPrefix}: ${cmd} ${args.join(" ")}`);
+        const child = spawn(cmd, args, {
+          detached: true,
+          stdio: "ignore",
+        });
+        child.unref();
+      }
+    } else if (process.platform === "win32") {
+      // Windows
+      const cmd = "cmd";
+      let args: string[];
+      if (isSSH && sshArgs) {
+        // Windows - use cmd to start ssh
+        args = ["/c", "start", "cmd", "/K", "ssh", ...sshArgs];
+      } else {
+        if (config.type !== "local") throw new Error("Expected local config");
+        args = ["/c", "start", "cmd", "/K", "cd", "/D", config.workspacePath];
+      }
+      log.info(`Opening ${logPrefix}: ${cmd} ${args.join(" ")}`);
+      const child = spawn(cmd, args, {
+        detached: true,
+        shell: true,
+        stdio: "ignore",
+      });
+      child.unref();
+    } else {
+      // Linux - try terminal emulators in order of preference
+      let terminals: Array<{ cmd: string; args: string[]; cwd?: string }>;
+
+      if (isSSH && sshArgs) {
+        // x-terminal-emulator is checked first as it respects user's system-wide preference
+        terminals = [
+          { cmd: "x-terminal-emulator", args: ["-e", "ssh", ...sshArgs] },
+          { cmd: "ghostty", args: ["ssh", ...sshArgs] },
+          { cmd: "alacritty", args: ["-e", "ssh", ...sshArgs] },
+          { cmd: "kitty", args: ["ssh", ...sshArgs] },
+          { cmd: "wezterm", args: ["start", "--", "ssh", ...sshArgs] },
+          { cmd: "gnome-terminal", args: ["--", "ssh", ...sshArgs] },
+          { cmd: "konsole", args: ["-e", "ssh", ...sshArgs] },
+          { cmd: "xfce4-terminal", args: ["-e", `ssh ${sshArgs.join(" ")}`] },
+          { cmd: "xterm", args: ["-e", "ssh", ...sshArgs] },
+        ];
+      } else {
+        if (config.type !== "local") throw new Error("Expected local config");
+        const workspacePath = config.workspacePath;
+        terminals = [
+          { cmd: "x-terminal-emulator", args: [], cwd: workspacePath },
+          { cmd: "ghostty", args: ["--working-directory=" + workspacePath] },
+          { cmd: "alacritty", args: ["--working-directory", workspacePath] },
+          { cmd: "kitty", args: ["--directory", workspacePath] },
+          { cmd: "wezterm", args: ["start", "--cwd", workspacePath] },
+          { cmd: "gnome-terminal", args: ["--working-directory", workspacePath] },
+          { cmd: "konsole", args: ["--workdir", workspacePath] },
+          { cmd: "xfce4-terminal", args: ["--working-directory", workspacePath] },
+          { cmd: "xterm", args: [], cwd: workspacePath },
+        ];
+      }
+
+      const availableTerminal = await this.findAvailableTerminal(terminals);
+
+      if (availableTerminal) {
+        const cwdInfo = availableTerminal.cwd ? ` (cwd: ${availableTerminal.cwd})` : "";
+        log.info(
+          `Opening ${logPrefix}: ${availableTerminal.cmd} ${availableTerminal.args.join(" ")}${cwdInfo}`
+        );
+        const child = spawn(availableTerminal.cmd, availableTerminal.args, {
+          cwd: availableTerminal.cwd,
+          detached: true,
+          stdio: "ignore",
+        });
+        child.unref();
+      } else {
+        log.error("No terminal emulator found. Tried: " + terminals.map((t) => t.cmd).join(", "));
+      }
     }
   }
 
