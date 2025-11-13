@@ -94,16 +94,36 @@ export class PTYService {
       }
 
       // Forward PTY data to terminal server
-      let chunkCount = 0;
+      // Buffer to handle escape sequences split across chunks
+      let buffer = '';
+      
       ptyProcess.onData((data) => {
-        chunkCount++;
-        // Debug: Log every chunk from PTY
-        const firstTenBytes = Array.from(data.substring(0, Math.min(10, data.length)))
-          .map(c => c.charCodeAt(0).toString(16).padStart(2, '0'))
-          .join(' ');
-        log.info(`[PTY] Chunk ${chunkCount}: ${data.length} bytes, first 10: ${firstTenBytes}`);
+        // Append new data to buffer
+        buffer += data;
         
-        this.terminalServer?.sendOutput(sessionId, data);
+        // Check if buffer ends with an incomplete escape sequence
+        // Look for ESC at the end without its complete sequence
+        let sendUpTo = buffer.length;
+        
+        // If buffer ends with ESC or ESC[, hold it back for next chunk
+        if (buffer.endsWith('\x1b')) {
+          sendUpTo = buffer.length - 1;
+        } else if (buffer.endsWith('\x1b[')) {
+          sendUpTo = buffer.length - 2;
+        } else {
+          // Check if it ends with ESC[ followed by incomplete CSI sequence
+          const match = buffer.match(/\x1b\[[0-9;]*$/);
+          if (match) {
+            sendUpTo = buffer.length - match[0].length;
+          }
+        }
+        
+        // Send complete data
+        if (sendUpTo > 0) {
+          const toSend = buffer.substring(0, sendUpTo);
+          this.terminalServer?.sendOutput(sessionId, toSend);
+          buffer = buffer.substring(sendUpTo);
+        }
       });
 
       // Handle exit
