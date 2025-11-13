@@ -369,6 +369,25 @@ If IPC is hard to test, fix the test infrastructure or IPC layer, don't work aro
 
 **Always use persistedState helpers (`usePersistedState`, `readPersistedState`, `updatePersistedState`) instead of direct `localStorage` calls** - provides cross-component sync and consistent error handling.
 
+**Avoid destructuring props in function signatures** - Use `props.fieldName` instead of destructuring in the parameter list. Destructuring duplicates field names and makes refactoring more cumbersome.
+
+```typescript
+// ❌ BAD - Duplicates field names, harder to refactor
+export function MyComponent({
+  field1,
+  field2,
+  field3,
+  onAction,
+}: MyComponentProps) {
+  return <div onClick={onAction}>{field1}</div>;
+}
+
+// ✅ GOOD - Single source of truth, easier to refactor
+export function MyComponent(props: MyComponentProps) {
+  return <div onClick={props.onAction}>{props.field1}</div>;
+}
+```
+
 ## Module Imports
 
 - **NEVER use dynamic imports** - Always use static `import` statements at the top of files. Dynamic imports (`await import()`) are a code smell that indicates improper module structure.

@@ -21,29 +21,21 @@ interface CreationControlsProps {
  * - Trunk branch selector (which branch to fork from)
  * - Runtime mode (local vs SSH)
  */
-export function CreationControls({
-  branches,
-  trunkBranch,
-  onTrunkBranchChange,
-  runtimeMode,
-  sshHost,
-  onRuntimeChange,
-  disabled,
-}: CreationControlsProps) {
+export function CreationControls(props: CreationControlsProps) {
   return (
     <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
       {/* Trunk Branch Selector */}
-      {branches.length > 0 && (
+      {props.branches.length > 0 && (
         <div className="flex items-center gap-1" data-component="TrunkBranchGroup">
           <label htmlFor="trunk-branch" className="text-muted text-xs">
             From:
           </label>
           <Select
             id="trunk-branch"
-            value={trunkBranch}
-            options={branches}
-            onChange={onTrunkBranchChange}
-            disabled={disabled}
+            value={props.trunkBranch}
+            options={props.branches}
+            onChange={props.onTrunkBranchChange}
+            disabled={props.disabled}
             className="max-w-[120px]"
           />
         </div>
@@ -53,25 +45,25 @@ export function CreationControls({
       <div className="flex items-center gap-1" data-component="RuntimeSelectorGroup">
         <label className="text-muted text-xs">Runtime:</label>
         <Select
-          value={runtimeMode}
+          value={props.runtimeMode}
           options={[
             { value: RUNTIME_MODE.LOCAL, label: "Local" },
             { value: RUNTIME_MODE.SSH, label: "SSH Remote" },
           ]}
           onChange={(newMode) => {
             const mode = newMode as typeof RUNTIME_MODE.LOCAL | typeof RUNTIME_MODE.SSH;
-            onRuntimeChange(mode, mode === RUNTIME_MODE.LOCAL ? "" : sshHost);
+            props.onRuntimeChange(mode, mode === RUNTIME_MODE.LOCAL ? "" : props.sshHost);
           }}
-          disabled={disabled}
+          disabled={props.disabled}
           aria-label="Runtime mode"
         />
-        {runtimeMode === RUNTIME_MODE.SSH && (
+        {props.runtimeMode === RUNTIME_MODE.SSH && (
           <input
             type="text"
-            value={sshHost}
-            onChange={(e) => onRuntimeChange(RUNTIME_MODE.SSH, e.target.value)}
+            value={props.sshHost}
+            onChange={(e) => props.onRuntimeChange(RUNTIME_MODE.SSH, e.target.value)}
             placeholder="user@host"
-            disabled={disabled}
+            disabled={props.disabled}
             className="bg-separator text-foreground border-border-medium focus:border-accent w-32 rounded border px-2 py-1 text-xs focus:outline-none disabled:opacity-50"
           />
         )}
