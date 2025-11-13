@@ -739,7 +739,7 @@ export class SSHRuntime implements Runtime {
       cwd: workspacePath, // Run in the workspace directory
       timeout: 3600, // 1 hour - generous timeout for init hooks
       abortSignal,
-      env: getInitHookEnv(remoteProjectPath),
+      env: getInitHookEnv(remoteProjectPath, "ssh"),
     });
 
     // Create line-buffered loggers

@@ -422,7 +422,7 @@ export class LocalRuntime implements Runtime {
         stdio: ["ignore", "pipe", "pipe"],
         env: {
           ...process.env,
-          ...getInitHookEnv(projectPath),
+          ...getInitHookEnv(projectPath, "local"),
         },
       });
 

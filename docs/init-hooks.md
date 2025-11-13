@@ -31,7 +31,10 @@ The init script runs in the workspace directory with the workspace's environment
 
 Init hooks receive the following environment variables:
 
-- `PROJECT_PATH` - Absolute path to the project root directory
+- `MUX_PROJECT_PATH` - Absolute path to the project root directory
+  - **Local workspaces**: Path on your local machine
+  - **SSH workspaces**: Path on the remote machine
+- `MUX_RUNTIME` - Runtime type: `"local"` or `"ssh"`
 
 Example usage:
 
@@ -39,12 +42,20 @@ Example usage:
 #!/bin/bash
 set -e
 
-echo "Project root: $PROJECT_PATH"
+echo "Runtime: $MUX_RUNTIME"
+echo "Project root: $MUX_PROJECT_PATH"
 echo "Workspace directory: $PWD"
 
 # Reference files in project root
-if [ -f "$PROJECT_PATH/.env" ]; then
-  cp "$PROJECT_PATH/.env" "$PWD/.env"
+if [ -f "$MUX_PROJECT_PATH/.env" ]; then
+  cp "$MUX_PROJECT_PATH/.env" "$PWD/.env"
+fi
+
+# Runtime-specific behavior
+if [ "$MUX_RUNTIME" = "local" ]; then
+  echo "Running on local machine"
+else
+  echo "Running on SSH remote"
 fi
 
 bun install

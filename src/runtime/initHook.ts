@@ -29,10 +29,16 @@ export function getInitHookPath(projectPath: string): string {
 /**
  * Get environment variables for init hook execution
  * Centralizes env var injection to avoid duplication across runtimes
+ * @param projectPath - Path to project root (local path for LocalRuntime, remote path for SSHRuntime)
+ * @param runtime - Runtime type: "local" or "ssh"
  */
-export function getInitHookEnv(projectPath: string): Record<string, string> {
+export function getInitHookEnv(
+  projectPath: string,
+  runtime: "local" | "ssh"
+): Record<string, string> {
   return {
-    PROJECT_PATH: projectPath,
+    MUX_PROJECT_PATH: projectPath,
+    MUX_RUNTIME: runtime,
   };
 }
 
