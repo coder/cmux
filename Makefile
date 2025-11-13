@@ -105,16 +105,26 @@ help: ## Show this help message
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-20s\033[0m %s\n", $$1, $$2}'
 
 ## Development
+ifeq ($(OS),Windows_NT)
 dev: node_modules/.installed build-main clean-cache ## Start development server (Vite + nodemon watcher for Windows compatibility)
 	@echo "Starting dev mode (2 watchers: nodemon for main process, vite for renderer)..."
-	@NODE_OPTIONS="--max-old-space-size=4096" npx concurrently -k --raw \
-		"npx nodemon --exec node scripts/build-main-watch.js" \
+	# On Windows, use npm run because bunx doesn't correctly pass arguments to concurrently
+	# https://github.com/oven-sh/bun/issues/18275
+	@NODE_OPTIONS="--max-old-space-size=4096" npm x concurrently -k --raw \
+		"bun x nodemon --exec node scripts/build-main-watch.js" \
 		"vite"
+else
+dev: node_modules/.installed build-main ## Start development server (Vite + tsgo watcher for 10x faster type checking)
+	@bun x concurrently -k \
+		"bun x concurrently \"$(TSGO) -w -p tsconfig.main.json\" \"bun x tsc-alias -w -p tsconfig.main.json\"" \
+		"vite"
+endif
 
 clean-cache: ## Clean Vite cache (helps with EMFILE errors on Windows)
 	@echo "Cleaning Vite cache..."
 	@rm -rf node_modules/.vite
 
+ifeq ($(OS),Windows_NT)
 dev-server: node_modules/.installed build-main ## Start server mode with hot reload (backend :3000 + frontend :5173). Use VITE_HOST=0.0.0.0 BACKEND_HOST=0.0.0.0 for remote access
 	@echo "Starting dev-server..."
 	@echo "  Backend (IPC/WebSocket): http://$(or $(BACKEND_HOST),localhost):$(or $(BACKEND_PORT),3000)"
@@ -125,6 +135,23 @@ dev-server: node_modules/.installed build-main ## Start server mode with hot rel
 		"bun x concurrently \"$(TSGO) -w -p tsconfig.main.json\" \"bun x tsc-alias -w -p tsconfig.main.json\"" \
 		"bun x nodemon --watch dist/main.js --watch dist/main-server.js --delay 500ms --exec 'NODE_ENV=development node dist/main.js server --host $(or $(BACKEND_HOST),localhost) --port $(or $(BACKEND_PORT),3000)'" \
 		"MUX_VITE_HOST=$(or $(VITE_HOST),127.0.0.1) MUX_VITE_PORT=$(or $(VITE_PORT),5173) VITE_BACKEND_URL=http://$(or $(BACKEND_HOST),localhost):$(or $(BACKEND_PORT),3000) vite"
+	@# On Windows, use npm run because bunx doesn't correctly pass arguments
+	@npmx concurrently -k \
+		"npmx nodemon --exec node scripts/build-main-watch.js" \
+		"npmx nodemon --watch dist/main.js --watch dist/main-server.js --delay 500ms --exec \"node dist/main.js server --host $(or $(BACKEND_HOST),localhost) --port $(or $(BACKEND_PORT),3000)\"" \
+		"$(SHELL) -lc \"MUX_VITE_HOST=$(or $(VITE_HOST),127.0.0.1) MUX_VITE_PORT=$(or $(VITE_PORT),5173) VITE_BACKEND_URL=http://$(or $(BACKEND_HOST),localhost):$(or $(BACKEND_PORT),3000) vite\""
+else
+dev-server: node_modules/.installed build-main ## Start server mode with hot reload (backend :3000 + frontend :5173). Use VITE_HOST=0.0.0.0 BACKEND_HOST=0.0.0.0 for remote access
+	@echo "Starting dev-server..."
+	@echo "  Backend (IPC/WebSocket): http://$(or $(BACKEND_HOST),localhost):$(or $(BACKEND_PORT),3000)"
+	@echo "  Frontend (with HMR):     http://$(or $(VITE_HOST),localhost):$(or $(VITE_PORT),5173)"
+	@echo ""
+	@echo "For remote access: make dev-server VITE_HOST=0.0.0.0 BACKEND_HOST=0.0.0.0"
+	@bun x concurrently -k \
+		"bun x concurrently \"$(TSGO) -w -p tsconfig.main.json\" \"bun x tsc-alias -w -p tsconfig.main.json\"" \
+		"bun x nodemon --watch dist/main.js --watch dist/main-server.js --delay 500ms --exec 'node dist/main.js server --host $(or $(BACKEND_HOST),localhost) --port $(or $(BACKEND_PORT),3000)'" \
+		"MUX_VITE_HOST=$(or $(VITE_HOST),127.0.0.1) MUX_VITE_PORT=$(or $(VITE_PORT),5173) VITE_BACKEND_URL=http://$(or $(BACKEND_HOST),localhost):$(or $(BACKEND_PORT),3000) vite"
+endif
 
 
 
@@ -139,7 +166,7 @@ build-main: node_modules/.installed dist/main.js ## Build main process
 dist/main.js: src/version.ts tsconfig.main.json tsconfig.json $(TS_SOURCES)
 	@echo "Building main process..."
 	@NODE_ENV=production $(TSGO) -p tsconfig.main.json
-	@NODE_ENV=production bun x tsc-alias -p tsconfig.main.json
+	@NODE_ENV=production $(RUNNER) tsc-alias -p tsconfig.main.json
 
 build-preload: node_modules/.installed dist/preload.js ## Build preload script
 
@@ -205,10 +232,18 @@ lint: node_modules/.installed ## Run ESLint (typecheck runs in separate target)
 lint-fix: node_modules/.installed ## Run linter with --fix
 	@./scripts/lint.sh --fix
 
+ifeq ($(OS),Windows_NT) 
 typecheck: node_modules/.installed src/version.ts ## Run TypeScript type checking (uses tsgo for 10x speedup)
-	@npx concurrently -g \
+	@# On Windows, use npm run because bun x doesn't correctly pass arguments
+	@npmx concurrently -g \
 		"$(TSGO) --noEmit" \
 		"$(TSGO) --noEmit -p tsconfig.main.json"
+else
+typecheck: node_modules/.installed src/version.ts
+	@bun x concurrently -g \
+		"$(TSGO) --noEmit" \
+		"$(TSGO) --noEmit -p tsconfig.main.json"
+endif
 
 check-deadcode: node_modules/.installed ## Check for potential dead code (manual only, not in static-check)
 	@echo "Checking for potential dead code with ts-prune..."

@@ -22,9 +22,9 @@ function findWindowsBash(): string | null {
     "C:\\Program Files\\Git\\bin\\bash.exe",
     "C:\\Program Files (x86)\\Git\\bin\\bash.exe",
     // User-local Git installation
-    path.join(process.env.LOCALAPPDATA || "", "Programs", "Git", "bin", "bash.exe"),
+    path.join(process.env.LOCALAPPDATA ?? "", "Programs", "Git", "bin", "bash.exe"),
     // Portable Git
-    path.join(process.env.USERPROFILE || "", "scoop", "apps", "git", "current", "bin", "bash.exe"),
+    path.join(process.env.USERPROFILE ?? "", "scoop", "apps", "git", "current", "bin", "bash.exe"),
     // Chocolatey installation
     "C:\\tools\\git\\bin\\bash.exe",
   ];

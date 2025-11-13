@@ -18,7 +18,7 @@ import type {
 } from "./Runtime";
 import { RuntimeError as RuntimeErrorClass } from "./Runtime";
 import { NON_INTERACTIVE_ENV_VARS } from "../constants/env";
-import { getBashPath } from "../utils/bashPath";
+import { getBashPath } from "../utils/main/bashPath";
 import { EXIT_CODE_ABORTED, EXIT_CODE_TIMEOUT } from "../constants/exitCodes";
 import { listLocalBranches } from "../git";
 import {
