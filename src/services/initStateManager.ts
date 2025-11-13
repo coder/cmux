@@ -206,6 +206,11 @@ export class InitStateManager extends EventEmitter {
       return;
     }
 
+    // Guard against multiple calls - if already ended, ignore subsequent calls
+    if (state.status === "success" || state.status === "error") {
+      return;
+    }
+
     const endTime = Date.now();
     state.status = exitCode === 0 ? "success" : "error";
     state.exitCode = exitCode;
