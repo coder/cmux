@@ -184,6 +184,13 @@ export function TerminalView({ workspaceId, visible }: TerminalViewProps) {
           const timeSinceLastResize = now - lastResizeTime;
           lastResizeTime = now;
           
+          // Calculate size delta BEFORE updating lastCols/lastRows
+          const prevSize = lastCols * lastRows;
+          const newSize = cols * rows;
+          const sizeDelta = Math.abs(newSize - prevSize);
+          const sizeChangePercent = prevSize > 0 ? (sizeDelta / prevSize) * 100 : 100;
+          
+          // Now update lastCols/lastRows for next comparison
           lastCols = cols;
           lastRows = rows;
           
@@ -198,13 +205,14 @@ export function TerminalView({ workspaceId, visible }: TerminalViewProps) {
           // Store pending resize
           pendingResize = { cols, rows };
           
-          // Detect if this is a maximize/minimize (large jump after pause) vs drag (rapid events)
-          // If more than 500ms since last resize, treat as maximize/minimize
-          const isMaximizeOrMinimize = timeSinceLastResize > 500;
+          // Detect maximize/minimize: large size change (>20%) OR long pause (>500ms)
+          const isLargeSizeJump = sizeChangePercent > 20;
+          const isAfterPause = timeSinceLastResize > 500;
+          const isMaximizeOrMinimize = isLargeSizeJump || isAfterPause;
           
           if (isMaximizeOrMinimize) {
             // Maximize/minimize: send resize immediately
-            console.log(`[TerminalView] Immediate resize (maximize/minimize): ${cols}x${rows}`);
+            console.log(`[TerminalView] Immediate resize (${sizeChangePercent.toFixed(0)}% change): ${cols}x${rows}`);
             requestAnimationFrame(() => {
               resizeRef.current(cols, rows);
             });
@@ -215,13 +223,14 @@ export function TerminalView({ workspaceId, visible }: TerminalViewProps) {
             }
           } else {
             // Drag resize: debounce to avoid spamming vim with SIGWINCH
+            console.log(`[TerminalView] Debounced resize (${sizeChangePercent.toFixed(0)}% change): ${cols}x${rows}`);
             if (resizeTimeoutId !== null) {
               clearTimeout(resizeTimeoutId);
             }
             
             resizeTimeoutId = setTimeout(() => {
               if (pendingResize) {
-                console.log(`[TerminalView] Debounced resize (drag): ${pendingResize.cols}x${pendingResize.rows}`);
+                console.log(`[TerminalView] Sending debounced resize: ${pendingResize.cols}x${pendingResize.rows}`);
                 requestAnimationFrame(() => {
                   if (pendingResize) {
                     resizeRef.current(pendingResize.cols, pendingResize.rows);
