@@ -831,8 +831,13 @@ export const ChatInput: React.FC<ChatInputProps> = (props) => {
     return `Type a message... (${hints.join(", ")})`;
   })();
 
+  // Wrapper for creation variant to enable full-height flex layout
+  const Wrapper = variant === "creation" ? "div" : React.Fragment;
+  const wrapperProps =
+    variant === "creation" ? { className: "flex h-full flex-1 flex-col" } : {};
+
   return (
-    <>
+    <Wrapper {...wrapperProps}>
       {/* Creation center content (shows while loading or idle) */}
       {variant === "creation" && (
         <CreationCenterContent
@@ -979,7 +984,7 @@ export const ChatInput: React.FC<ChatInputProps> = (props) => {
           )}
         </div>
       </div>
-    </>
+    </Wrapper>
   );
 };
 
