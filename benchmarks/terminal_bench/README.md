@@ -4,12 +4,17 @@ This directory contains the cmux agent adapter for [Terminal-Bench](https://gith
 
 ## Quick Start
 
+Terminal-bench now runs with **adaptive concurrency by default**, automatically scaling from 1-16 concurrent tasks based on system load.
+
 ```bash
-# Run full benchmark suite (80 tasks, ~2.5 hours)
+# Run full benchmark suite (80 tasks, ~2.5 hours) with adaptive concurrency
 make benchmark-terminal
 
 # Run with sample of 5 tasks
 TB_SAMPLE_SIZE=5 make benchmark-terminal
+
+# Adjust load threshold (default: 1.0)
+TB_LOAD_THRESHOLD=2.0 make benchmark-terminal
 
 # Run specific tasks
 make benchmark-terminal TB_ARGS="--task-id hello-world --task-id chess-best-move"
@@ -24,7 +29,8 @@ make benchmark-terminal TB_ARGS="--agent-kwarg model_name=anthropic:claude-opus-
 
 - `TB_DATASET`: Dataset to use (default: `terminal-bench-core==0.1.1`)
 - `TB_SAMPLE_SIZE`: Number of random tasks to run (default: all 80 tasks)
-- `TB_CONCURRENCY`: Number of concurrent tasks (default: 4)
+- `TB_LOAD_THRESHOLD`: Load average threshold for concurrency adjustments (default: 1.0)
+- `TB_CHECK_INTERVAL`: Seconds between bursts (default: 60)
 - `TB_LIVESTREAM`: Enable livestream mode (set to `1` to enable)
 - `TB_TIMEOUT`: Global timeout in seconds (default: 1800 = 30 minutes)
 - `TB_ARGS`: Additional arguments passed to terminal-bench
@@ -99,6 +105,49 @@ Based on analysis of the Oct 30 nightly run (15-minute timeout):
 
 **Impact of 30-minute timeout**: Expected to reduce false timeout failures by ~50% and improve pass rates by 10-15 percentage points (from ~42% to ~52-57%).
 
+## Adaptive Concurrency
+
+Terminal-bench uses **adaptive concurrency** that automatically scales from 1-16 concurrent tasks based on system load using a **burst-and-resume pattern**:
+
+### How It Works
+
+1. **Starts with concurrency=1** and runs a burst
+2. **Monitors system load** (1-minute average) after each burst completes
+3. **Adjusts concurrency** using hysteresis:
+   - **Double** when load < threshold (default: 1.0)
+   - **Halve** when load > threshold
+   - **Bounded to [1, 16]** for optimal performance
+4. **Resumes** the run with updated concurrency (skips completed tasks)
+
+The burst-and-resume pattern leverages terminal-bench's native resume capability. Each burst runs to completion with no mid-task interruption, ensuring clean Docker container lifecycle.
+
+### Configuration
+
+```bash
+# Adjust load threshold (default: 1.0)
+TB_LOAD_THRESHOLD=2.0 make benchmark-terminal
+
+# Faster adjustments (default: 60s between bursts)
+TB_CHECK_INTERVAL=30 make benchmark-terminal
+
+# Sample 5 tasks with adaptive concurrency
+TB_SAMPLE_SIZE=5 make benchmark-terminal
+```
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `TB_LOAD_THRESHOLD` | 1.0 | Load average threshold for adjusting concurrency |
+| `TB_CHECK_INTERVAL` | 60 | Seconds to wait between bursts |
+
+### Tradeoffs
+
+- ✅ Automatically finds optimal concurrency for hardware
+- ✅ Prevents system overload
+- ✅ Clean container lifecycle (no mid-task kills)
+- ✅ Bounded to [1, 16] for safety
+- ⚠️ Burst overhead (~2-5s, negligible for 6+ min avg tasks)
+- ⚠️ Adjustment latency = burst duration + check interval
+
 ## Files
 
 - `cmux_agent.py`: Main agent adapter implementing Terminal-Bench's agent interface
@@ -106,3 +155,5 @@ Based on analysis of the Oct 30 nightly run (15-minute timeout):
 - `cmux_payload.py`: Helper to package cmux app for containerized execution
 - `cmux_setup.sh.j2`: Jinja2 template for agent installation script
 - `sample_tasks.py`: Utility to randomly sample tasks from dataset
+- `adaptive_bench.py`: Adaptive concurrency wrapper using burst-and-resume pattern
+- `adaptive_bench_test.py`: Unit tests for adaptive_bench.py

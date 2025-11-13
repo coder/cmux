@@ -40,7 +40,7 @@ include fmt.mk
 .PHONY: vscode-ext vscode-ext-install
 .PHONY: docs docs-build docs-watch
 .PHONY: storybook storybook-build test-storybook chromatic
-.PHONY: benchmark-terminal
+.PHONY: benchmark-terminal benchmark-terminal-adaptive
 .PHONY: ensure-deps
 .PHONY: check-eager-imports check-bundle-size check-startup
 
@@ -308,10 +308,14 @@ chromatic: node_modules/.installed ## Run Chromatic for visual regression testin
 	@bun x chromatic --exit-zero-on-changes
 
 ## Benchmarks
-benchmark-terminal: ## Run Terminal-Bench with the cmux agent (use TB_DATASET/TB_SAMPLE_SIZE/TB_TIMEOUT/TB_ARGS to customize)
+benchmark-terminal: benchmark-terminal-adaptive ## Run Terminal-Bench with adaptive concurrency (alias)
+
+.PHONY: benchmark-terminal-adaptive
+benchmark-terminal-adaptive: ## Run Terminal-Bench with adaptive concurrency (auto-scales 1-16, use TB_LOAD_THRESHOLD/TB_CHECK_INTERVAL)
 	@TB_DATASET=$${TB_DATASET:-terminal-bench-core==0.1.1}; \
 	TB_TIMEOUT=$${TB_TIMEOUT:-1800}; \
-	CONCURRENCY_FLAG=$${TB_CONCURRENCY:+--n-concurrent $$TB_CONCURRENCY}; \
+	TB_LOAD_THRESHOLD=$${TB_LOAD_THRESHOLD:-1.0}; \
+	TB_CHECK_INTERVAL=$${TB_CHECK_INTERVAL:-60}; \
 	LIVESTREAM_FLAG=$${TB_LIVESTREAM:+--livestream}; \
 	TASK_ID_FLAGS=""; \
 	if [ -n "$$TB_SAMPLE_SIZE" ]; then \
@@ -331,14 +335,14 @@ benchmark-terminal: ## Run Terminal-Bench with the cmux agent (use TB_DATASET/TB
 		done; \
 		echo "Selected task IDs: $$TASK_IDS"; \
 	fi; \
-	echo "Using timeout: $$TB_TIMEOUT seconds"; \
-	echo "Running Terminal-Bench with dataset $$TB_DATASET"; \
-	export CMUX_TIMEOUT_MS=$$((TB_TIMEOUT * 1000)); \
-	uvx terminal-bench run \
+	echo "Running adaptive terminal-bench (auto-scaling 1-16, load threshold: $$TB_LOAD_THRESHOLD)"; \
+	python3 benchmarks/terminal_bench/adaptive_bench.py \
+		--load-threshold $$TB_LOAD_THRESHOLD \
+		--check-interval $$TB_CHECK_INTERVAL \
+		-- \
 		--dataset "$$TB_DATASET" \
 		--agent-import-path benchmarks.terminal_bench.cmux_agent:CmuxAgent \
 		--global-agent-timeout-sec $$TB_TIMEOUT \
-		$$CONCURRENCY_FLAG \
 		$$LIVESTREAM_FLAG \
 		$$TASK_ID_FLAGS \
 		$${TB_ARGS}
