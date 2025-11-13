@@ -159,7 +159,8 @@ export function TerminalView({ workspaceId, visible }: TerminalViewProps) {
       return;
     }
     
-    let resizeTimeoutId: ReturnType<typeof setTimeout> | null = null;
+    let lastCols = 0;
+    let lastRows = 0;
     
     // Use both ResizeObserver (for container changes) and window resize (as backup)
     const handleResize = () => {
@@ -171,6 +172,14 @@ export function TerminalView({ workspaceId, visible }: TerminalViewProps) {
           // Get new dimensions
           const { cols, rows } = termRef.current;
           
+          // Only process if dimensions actually changed
+          if (cols === lastCols && rows === lastRows) {
+            return;
+          }
+          
+          lastCols = cols;
+          lastRows = rows;
+          
           // Update state (with stable reference to prevent unnecessary re-renders)
           setTerminalSize(prev => {
             if (prev && prev.cols === cols && prev.rows === rows) {
@@ -179,16 +188,10 @@ export function TerminalView({ workspaceId, visible }: TerminalViewProps) {
             return { cols, rows };
           });
           
-          // Debounce PTY resize to avoid sending too many resize events during drag
-          // This prevents vim cursor position issues from rapid resize signals
-          if (resizeTimeoutId !== null) {
-            clearTimeout(resizeTimeoutId);
-          }
-          
-          resizeTimeoutId = setTimeout(() => {
-            // Send final resize to PTY after user stops resizing
-            resizeRef.current(cols, rows);
-          }, 100); // 100ms debounce - waits for resize drag to finish before notifying PTY
+          // Send resize to PTY immediately so vim/apps get correct dimensions
+          // No debounce - we filter duplicates above instead
+          console.log(`[TerminalView] Sending resize to PTY: ${cols}x${rows}`);
+          resizeRef.current(cols, rows);
         } catch (err) {
           console.error("[TerminalView] Error fitting terminal:", err);
         }
@@ -202,9 +205,6 @@ export function TerminalView({ workspaceId, visible }: TerminalViewProps) {
     window.addEventListener('resize', handleResize);
 
     return () => {
-      if (resizeTimeoutId !== null) {
-        clearTimeout(resizeTimeoutId);
-      }
       resizeObserver.disconnect();
       window.removeEventListener('resize', handleResize);
     };
