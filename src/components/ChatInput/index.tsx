@@ -350,6 +350,7 @@ export const ChatInput: React.FC<ChatInputProps> = (props) => {
   }, [variant, props, setToast]);
 
   // Auto-focus chat input when workspace changes (workspace only)
+  const workspaceIdForFocus = variant === "workspace" ? props.workspaceId : null;
   useEffect(() => {
     if (variant !== "workspace") return;
     
@@ -358,7 +359,7 @@ export const ChatInput: React.FC<ChatInputProps> = (props) => {
       focusMessageInput();
     }, 100);
     return () => clearTimeout(timer);
-  }, [variant, props, focusMessageInput]);
+  }, [variant, workspaceIdForFocus, focusMessageInput]);
 
   // Handle paste events to extract images
   const handlePaste = useCallback((e: React.ClipboardEvent<HTMLTextAreaElement>) => {
