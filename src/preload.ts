@@ -82,8 +82,11 @@ const api: IPCApi = {
     executeBash: (workspaceId, script, options) =>
       ipcRenderer.invoke(IPC_CHANNELS.WORKSPACE_EXECUTE_BASH, workspaceId, script, options),
     openTerminal: (workspaceId) => {
-      console.log(`[Preload] workspace.openTerminal called (OLD API) with workspaceId: ${workspaceId}`);
+      console.error(`[Preload] ⚠️ workspace.openTerminal called (OLD API) - this should not be used!`);
+      console.error(`[Preload] workspaceId: ${workspaceId}`);
       console.trace('[Preload] Call stack:');
+      // Also log to backend
+      console.log('[Preload] Sending to WORKSPACE_OPEN_TERMINAL channel');
       return ipcRenderer.invoke(IPC_CHANNELS.WORKSPACE_OPEN_TERMINAL, workspaceId);
     },
 
