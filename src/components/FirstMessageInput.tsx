@@ -14,7 +14,6 @@ import { enforceThinkingPolicy } from "@/utils/thinking/policy";
 import type { SendMessageOptions } from "@/types/ipc";
 import { ModelSelector } from "./ModelSelector";
 import { VimTextArea } from "./VimTextArea";
-import { cn } from "@/lib/utils";
 import { ThinkingSliderComponent } from "./ThinkingSlider";
 import { Context1MCheckbox } from "./Context1MCheckbox";
 import { matchesKeybind, KEYBINDS } from "@/utils/ui/keybinds";

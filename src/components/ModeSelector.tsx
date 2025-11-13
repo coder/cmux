@@ -40,10 +40,7 @@ export const ModeSelector: React.FC<ModeSelectorProps> = ({ mode, onChange, clas
     <>
       {/* Full mode selector with labels - visible on wider containers */}
       <div
-        className={cn(
-          "flex items-center gap-1.5 [@container(max-width:550px)]:hidden",
-          className
-        )}
+        className={cn("flex items-center gap-1.5 [@container(max-width:550px)]:hidden", className)}
       >
         <div
           className={cn(

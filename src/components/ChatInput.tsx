@@ -8,7 +8,6 @@ import React, {
   useMemo,
   useDeferredValue,
 } from "react";
-import { cn } from "@/lib/utils";
 import { CommandSuggestions, COMMAND_SUGGESTION_KEYS } from "./CommandSuggestions";
 import type { Toast } from "./ChatInputToast";
 import { ChatInputToast } from "./ChatInputToast";
@@ -28,7 +27,6 @@ import {
   type CommandHandlerContext,
 } from "@/utils/chatCommands";
 import { CUSTOM_EVENTS } from "@/constants/events";
-import type { UIMode } from "@/types/mode";
 import {
   getSlashCommandSuggestions,
   type SlashSuggestion,
