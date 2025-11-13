@@ -343,7 +343,7 @@ async function loadServices(): Promise<void> {
   console.log(`[${timestamp()}] Services loaded in ${loadTime}ms`);
 }
 
-async function createWindow() {
+function createWindow() {
   assert(ipcMain, "Services must be loaded before creating window");
 
   // Calculate window size based on screen dimensions (80% of available space)
@@ -514,7 +514,7 @@ if (gotTheLock) {
         await showSplashScreen(); // Wait for splash to actually load
       }
       await loadServices();
-      await createWindow();
+      createWindow();
       // Note: splash closes in ready-to-show event handler
 
       // Tokenizer modules load in background after did-finish-load event (see createWindow())
@@ -550,7 +550,7 @@ if (gotTheLock) {
       void (async () => {
         await showSplashScreen();
         await loadServices();
-        await createWindow();
+        createWindow();
       })();
     }
   });

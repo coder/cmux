@@ -345,15 +345,17 @@ const httpIpcMain = new HttpIpcMainAdapter(app);
     }
   }
 
-  // Initialize project from --add-project flag if provided
-  if (ADD_PROJECT_PATH) {
-    await initializeProject(ADD_PROJECT_PATH, httpIpcMain);
-  }
-
+  // Start server after initialization
   server.listen(PORT, HOST, () => {
     console.log(`Server is running on http://${HOST}:${PORT}`);
+
+    // Handle --add-project flag if present
+    if (ADD_PROJECT_PATH) {
+      console.log(`Initializing project at: ${ADD_PROJECT_PATH}`);
+      void initializeProject(ADD_PROJECT_PATH, httpIpcMain);
+    }
   });
-})().catch((err) => {
-  console.error("Failed to start server:", err);
+})().catch((error) => {
+  console.error("Failed to initialize server:", error);
   process.exit(1);
 });
