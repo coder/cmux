@@ -222,10 +222,7 @@ export function FirstMessageInput({
       {/* Project title in center */}
       <div className="flex flex-1 items-center justify-center">
         <div className="text-center">
-          <h1 className="text-foreground mb-2 text-2xl font-semibold">{projectName}</h1>
-          <p className="text-muted text-sm">
-            {branches.length > 0 && trunkBranch && <>Based on {trunkBranch}</>}
-          </p>
+          <h1 className="text-foreground text-2xl font-semibold">{projectName}</h1>
         </div>
       </div>
 
@@ -284,7 +281,7 @@ export function FirstMessageInput({
                   value={trunkBranch}
                   onChange={(e) => setTrunkBranch(e.target.value)}
                   disabled={isSending}
-                  className="bg-separator text-foreground border-border-medium focus:border-accent rounded border px-2 py-1 text-xs focus:outline-none disabled:opacity-50"
+                  className="bg-separator text-foreground border-border-medium focus:border-accent max-w-[120px] rounded border px-2 py-1 text-xs focus:outline-none disabled:opacity-50"
                 >
                   {branches.map((branch) => (
                     <option key={branch} value={branch}>
