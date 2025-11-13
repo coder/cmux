@@ -81,7 +81,7 @@ function getModelForTitleGeneration(modelString: string, config: Config): Langua
       const provider = createAnthropic({
         apiKey: String(providersConfig.anthropic.apiKey),
       });
-      return provider("claude-3-5-haiku-20241022");
+      return provider("claude-haiku-4-5");
     }
 
     // Try OpenAI GPT-4o-mini second
