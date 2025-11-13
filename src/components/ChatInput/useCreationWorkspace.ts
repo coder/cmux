@@ -50,6 +50,11 @@ export function useCreationWorkspace({
 
   // Load branches on mount
   useEffect(() => {
+    // Skip if no project path (happens when ChatInput variant !== "creation")
+    if (!projectPath || projectPath.trim().length === 0) {
+      return;
+    }
+
     const loadBranches = async () => {
       try {
         const result = await window.api.projects.listBranches(projectPath);
