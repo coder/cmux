@@ -81,7 +81,7 @@ export class IpcMain {
     this.ptyService = new PTYService();
     this.terminalServer = new TerminalServer(this.ptyService);
     this.ptyService.setTerminalServer(this.terminalServer);
-    this.terminalWindowManager = new TerminalWindowManager();
+    this.terminalWindowManager = new TerminalWindowManager(config);
 
     // Listen to AIService events to update metadata
     this.setupMetadataListeners();

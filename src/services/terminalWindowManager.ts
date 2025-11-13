@@ -8,10 +8,16 @@
 import { BrowserWindow } from "electron";
 import * as path from "path";
 import { log } from "./log";
+import type { ConfigService } from "./config";
 
 export class TerminalWindowManager {
   private windows = new Map<string, Set<BrowserWindow>>(); // workspaceId -> Set of windows
   private windowCount = 0; // Counter for unique window IDs
+  private configService: ConfigService;
+
+  constructor(configService: ConfigService) {
+    this.configService = configService;
+  }
 
   /**
    * Open a new terminal window for a workspace
@@ -21,16 +27,15 @@ export class TerminalWindowManager {
     this.windowCount++;
     const windowId = this.windowCount;
 
-    // Parse workspaceId to get project and branch names
-    // Format: projectName-branchName (e.g., "cmux-main" or "cmux-local-pty")
-    const parts = workspaceId.split('-');
+    // Look up workspace metadata to get project and branch names
+    const allWorkspaces = await this.configService.getAllWorkspaceMetadata();
+    const workspace = allWorkspaces.find(ws => ws.id === workspaceId);
+    
     let title: string;
-    if (parts.length >= 2) {
-      const projectName = parts[0];
-      const branchName = parts.slice(1).join('-'); // Handle branch names with dashes
-      title = `Terminal ${windowId} — ${projectName} (${branchName})`;
+    if (workspace) {
+      title = `Terminal ${windowId} — ${workspace.projectName} (${workspace.name})`;
     } else {
-      // Fallback if format doesn't match
+      // Fallback if workspace not found
       title = `Terminal ${windowId} — ${workspaceId}`;
     }
     
