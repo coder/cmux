@@ -13,7 +13,7 @@ import {
   OPENROUTER_REASONING_EFFORT,
 } from "@/types/thinking";
 import { log } from "@/services/log";
-import type { CmuxMessage } from "@/types/message";
+import type { MuxMessage } from "@/types/message";
 import { enforceThinkingPolicy } from "@/utils/thinking/policy";
 
 /**
@@ -71,7 +71,7 @@ type ProviderOptions =
 export function buildProviderOptions(
   modelString: string,
   thinkingLevel: ThinkingLevel,
-  messages?: CmuxMessage[]
+  messages?: MuxMessage[]
 ): ProviderOptions {
   // Always clamp to the model's supported thinking policy (e.g., gpt-5-pro = HIGH only)
   const effectiveThinking = enforceThinkingPolicy(modelString, thinkingLevel);

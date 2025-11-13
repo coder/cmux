@@ -3,7 +3,7 @@ import { describe, test, expect, beforeEach, mock } from "bun:test";
 import { PartialService } from "./partialService";
 import type { HistoryService } from "./historyService";
 import type { Config } from "@/config";
-import type { CmuxMessage } from "@/types/message";
+import type { MuxMessage } from "@/types/message";
 import { Ok } from "@/types/result";
 
 // Mock Config
@@ -37,7 +37,7 @@ describe("PartialService - Error Recovery", () => {
 
   test("commitToHistory should strip error metadata and commit parts from errored partial", async () => {
     const workspaceId = "test-workspace";
-    const erroredPartial: CmuxMessage = {
+    const erroredPartial: MuxMessage = {
       id: "msg-1",
       role: "assistant",
       metadata: {
@@ -72,7 +72,7 @@ describe("PartialService - Error Recovery", () => {
     // Should have called appendToHistory with cleaned metadata (no error/errorType)
     const appendToHistory = mockHistoryService.appendToHistory as ReturnType<typeof mock>;
     expect(appendToHistory).toHaveBeenCalledTimes(1);
-    const appendedMessage = appendToHistory.mock.calls[0][1] as CmuxMessage;
+    const appendedMessage = appendToHistory.mock.calls[0][1] as MuxMessage;
 
     expect(appendedMessage.id).toBe("msg-1");
     expect(appendedMessage.parts).toEqual(erroredPartial.parts);
@@ -87,7 +87,7 @@ describe("PartialService - Error Recovery", () => {
 
   test("commitToHistory should update existing placeholder when errored partial has more parts", async () => {
     const workspaceId = "test-workspace";
-    const erroredPartial: CmuxMessage = {
+    const erroredPartial: MuxMessage = {
       id: "msg-1",
       role: "assistant",
       metadata: {
@@ -110,7 +110,7 @@ describe("PartialService - Error Recovery", () => {
       ],
     };
 
-    const existingPlaceholder: CmuxMessage = {
+    const existingPlaceholder: MuxMessage = {
       id: "msg-1",
       role: "assistant",
       metadata: {
@@ -143,7 +143,7 @@ describe("PartialService - Error Recovery", () => {
     expect(updateHistory).toHaveBeenCalledTimes(1);
     expect(appendToHistory).not.toHaveBeenCalled();
 
-    const updatedMessage = updateHistory.mock.calls[0][1] as CmuxMessage;
+    const updatedMessage = updateHistory.mock.calls[0][1] as MuxMessage;
 
     expect(updatedMessage.parts).toEqual(erroredPartial.parts);
     expect(updatedMessage.metadata?.error).toBeUndefined();
@@ -156,7 +156,7 @@ describe("PartialService - Error Recovery", () => {
 
   test("commitToHistory should skip empty errored partial", async () => {
     const workspaceId = "test-workspace";
-    const emptyErrorPartial: CmuxMessage = {
+    const emptyErrorPartial: MuxMessage = {
       id: "msg-1",
       role: "assistant",
       metadata: {

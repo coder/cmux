@@ -34,7 +34,7 @@ export function abbreviatePath(path: string): string {
 
 /**
  * Split an abbreviated path into directory path and basename
- * Example: /U/a/P/c/cmux -> { dirPath: "/U/a/P/c/", basename: "cmux" }
+ * Example: /U/a/P/c/cmux -> { dirPath: "/U/a/P/c/", basename: "mux" }
  */
 export function splitAbbreviatedPath(path: string): { dirPath: string; basename: string } {
   if (!path || typeof path !== "string") {

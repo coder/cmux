@@ -9,7 +9,7 @@ import { AIService } from "@/services/aiService";
 import { HistoryService } from "@/services/historyService";
 import { PartialService } from "@/services/partialService";
 import { AgentSession } from "@/services/agentSession";
-import type { CmuxMessage } from "@/types/message";
+import type { MuxMessage } from "@/types/message";
 import { log } from "@/services/log";
 import { countTokens, countTokensBatch } from "@/utils/main/tokenizer";
 import { calculateTokenStats } from "@/utils/tokens/tokenStatsCalculator";
@@ -402,7 +402,7 @@ export class IpcMain {
 
     ipcMain.handle(
       IPC_CHANNELS.TOKENIZER_CALCULATE_STATS,
-      async (_event, messages: CmuxMessage[], model: string) => {
+      async (_event, messages: MuxMessage[], model: string) => {
         assert(Array.isArray(messages), "Tokenizer IPC requires an array of messages");
         assert(typeof model === "string" && model.length > 0, "Tokenizer IPC requires model name");
 
@@ -833,7 +833,7 @@ export class IpcMain {
             return metadata;
           }
 
-          const firstUserMessage = historyResult.data.find((m: CmuxMessage) => m.role === "user");
+          const firstUserMessage = historyResult.data.find((m: MuxMessage) => m.role === "user");
 
           if (firstUserMessage) {
             // Extract text content from message parts
@@ -1025,7 +1025,7 @@ export class IpcMain {
 
     ipcMain.handle(
       IPC_CHANNELS.WORKSPACE_REPLACE_HISTORY,
-      async (_event, workspaceId: string, summaryMessage: CmuxMessage) => {
+      async (_event, workspaceId: string, summaryMessage: MuxMessage) => {
         // Block replace if there's an active stream, UNLESS this is a compacted message
         // (which is called from stream-end handler before stream cleanup completes)
         const isCompaction = summaryMessage.metadata?.compacted === true;

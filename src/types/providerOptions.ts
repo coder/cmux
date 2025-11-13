@@ -1,5 +1,5 @@
 /**
- * Cmux provider-specific options that get passed through the stack.
+ * Mux provider-specific options that get passed through the stack.
  * Used by both frontend and backend to configure provider-specific features
  * without polluting function signatures with individual flags.
  *
@@ -46,9 +46,9 @@ export interface OllamaProviderOptions {}
 export interface OpenRouterProviderOptions {}
 
 /**
- * Cmux provider options - used by both frontend and backend
+ * Mux provider options - used by both frontend and backend
  */
-export interface CmuxProviderOptions {
+export interface MuxProviderOptions {
   /** Provider-specific options */
   anthropic?: AnthropicProviderOptions;
   openai?: OpenAIProviderOptions;

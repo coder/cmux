@@ -12,7 +12,7 @@ export interface CompactionRequestData {
 
 // Frontend-specific metadata stored in cmuxMetadata field
 // Backend stores this as-is without interpretation (black-box)
-export type CmuxFrontendMetadata =
+export type MuxFrontendMetadata =
   | {
       type: "compaction-request";
       rawCommand: string; // The original /compact command as typed by user (for display)
@@ -28,7 +28,7 @@ export type CmuxFrontendMetadata =
     };
 
 // Our custom metadata type
-export interface CmuxMetadata {
+export interface MuxMetadata {
   historySequence?: number; // Assigned by backend for global message ordering (required when writing to history)
   duration?: number;
   timestamp?: number;
@@ -43,12 +43,12 @@ export interface CmuxMetadata {
   compacted?: boolean; // Whether this message is a compacted summary of previous history
   toolPolicy?: ToolPolicy; // Tool policy active when this message was sent (user messages only)
   mode?: string; // The mode (plan/exec/etc) active when this message was sent (assistant messages only)
-  cmuxMetadata?: CmuxFrontendMetadata; // Frontend-defined metadata, backend treats as black-box
+  cmuxMetadata?: MuxFrontendMetadata; // Frontend-defined metadata, backend treats as black-box
 }
 
 // Extended tool part type that supports interrupted tool calls (input-available state)
 // Standard AI SDK ToolUIPart only supports output-available (completed tools)
-export interface CmuxToolPart {
+export interface MuxToolPart {
   type: "dynamic-tool";
   toolCallId: string;
   toolName: string;
@@ -59,14 +59,14 @@ export interface CmuxToolPart {
 }
 
 // Text part type
-export interface CmuxTextPart {
+export interface MuxTextPart {
   type: "text";
   text: string;
   timestamp?: number;
 }
 
 // Reasoning part type for extended thinking content
-export interface CmuxReasoningPart {
+export interface MuxReasoningPart {
   type: "reasoning";
   text: string;
   timestamp?: number;
@@ -74,17 +74,17 @@ export interface CmuxReasoningPart {
 
 // File/Image part type for multimodal messages (matches AI SDK FileUIPart)
 // Images are represented as files with image/* mediaType
-export interface CmuxImagePart {
+export interface MuxImagePart {
   type: "file";
   mediaType: string; // IANA media type, e.g., "image/png", "image/jpeg"
   url: string; // Data URL (e.g., "data:image/png;base64,...") or hosted URL
   filename?: string; // Optional filename
 }
 
-// CmuxMessage extends UIMessage with our metadata and custom parts
+// MuxMessage extends UIMessage with our metadata and custom parts
 // Supports text, reasoning, image, and tool parts (including interrupted tool calls)
-export type CmuxMessage = Omit<UIMessage<CmuxMetadata, never, never>, "parts"> & {
-  parts: Array<CmuxTextPart | CmuxReasoningPart | CmuxImagePart | CmuxToolPart>;
+export type MuxMessage = Omit<UIMessage<MuxMetadata, never, never>, "parts"> & {
+  parts: Array<MuxTextPart | MuxReasoningPart | MuxImagePart | MuxToolPart>;
 };
 
 // DisplayedMessage represents a single UI message block
@@ -93,7 +93,7 @@ export type DisplayedMessage =
   | {
       type: "user";
       id: string; // Display ID for UI/React keys
-      historyId: string; // Original CmuxMessage ID for history operations
+      historyId: string; // Original MuxMessage ID for history operations
       content: string;
       imageParts?: Array<{ url: string; mediaType?: string }>; // Optional image attachments
       historySequence: number; // Global ordering across all messages
@@ -110,7 +110,7 @@ export type DisplayedMessage =
   | {
       type: "assistant";
       id: string; // Display ID for UI/React keys
-      historyId: string; // Original CmuxMessage ID for history operations
+      historyId: string; // Original MuxMessage ID for history operations
       content: string;
       historySequence: number; // Global ordering across all messages
       streamSequence?: number; // Local ordering within this assistant message
@@ -125,7 +125,7 @@ export type DisplayedMessage =
   | {
       type: "tool";
       id: string; // Display ID for UI/React keys
-      historyId: string; // Original CmuxMessage ID for history operations
+      historyId: string; // Original MuxMessage ID for history operations
       toolCallId: string;
       toolName: string;
       args: unknown;
@@ -140,7 +140,7 @@ export type DisplayedMessage =
   | {
       type: "reasoning";
       id: string; // Display ID for UI/React keys
-      historyId: string; // Original CmuxMessage ID for history operations
+      historyId: string; // Original MuxMessage ID for history operations
       content: string;
       historySequence: number; // Global ordering across all messages
       streamSequence?: number; // Local ordering within this assistant message
@@ -153,7 +153,7 @@ export type DisplayedMessage =
   | {
       type: "stream-error";
       id: string; // Display ID for UI/React keys
-      historyId: string; // Original CmuxMessage ID for history operations
+      historyId: string; // Original MuxMessage ID for history operations
       error: string; // Error message
       errorType: StreamErrorType; // Error type/category
       historySequence: number; // Global ordering across all messages
@@ -179,13 +179,13 @@ export type DisplayedMessage =
     };
 
 // Helper to create a simple text message
-export function createCmuxMessage(
+export function createMuxMessage(
   id: string,
   role: "user" | "assistant",
   content: string,
-  metadata?: CmuxMetadata,
-  additionalParts?: CmuxMessage["parts"]
-): CmuxMessage {
+  metadata?: MuxMetadata,
+  additionalParts?: MuxMessage["parts"]
+): MuxMessage {
   const textPart = content
     ? [{ type: "text" as const, text: content, state: "done" as const }]
     : [];

@@ -4,12 +4,12 @@ import * as path from "path";
 import type { InitLogger } from "./Runtime";
 
 /**
- * Check if .cmux/init hook exists and is executable
+ * Check if .mux/init hook exists and is executable
  * @param projectPath - Path to the project root
  * @returns true if hook exists and is executable, false otherwise
  */
 export async function checkInitHookExists(projectPath: string): Promise<boolean> {
-  const hookPath = path.join(projectPath, ".cmux", "init");
+  const hookPath = path.join(projectPath, ".mux", "init");
 
   try {
     await fsPromises.access(hookPath, fs.constants.X_OK);
@@ -23,7 +23,7 @@ export async function checkInitHookExists(projectPath: string): Promise<boolean>
  * Get the init hook path for a project
  */
 export function getInitHookPath(projectPath: string): string {
-  return path.join(projectPath, ".cmux", "init");
+  return path.join(projectPath, ".mux", "init");
 }
 
 /**

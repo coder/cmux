@@ -14,7 +14,7 @@ describe("Init display after cleanup changes", () => {
     // Simulate init start
     aggregator.handleMessage({
       type: "init-start",
-      hookPath: "/test/.cmux/init",
+      hookPath: "/test/.mux/init",
       timestamp: Date.now(),
     });
 

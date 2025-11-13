@@ -1,11 +1,11 @@
 import { describe, it, expect } from "@jest/globals";
-import type { CmuxMessage } from "@/types/message";
+import type { MuxMessage } from "@/types/message";
 import { sanitizeToolInputs } from "./sanitizeToolInput";
 
 describe("sanitizeToolInputs", () => {
   it("should handle the actual malformed message from httpjail-coder workspace", () => {
     // This is the actual problematic message that caused the bug
-    const problematicMessage: CmuxMessage = {
+    const problematicMessage: MuxMessage = {
       id: "assistant-1761527027508-karjrpf3g",
       role: "assistant",
       metadata: {
@@ -42,7 +42,7 @@ describe("sanitizeToolInputs", () => {
   });
 
   it("should convert string inputs to empty objects", () => {
-    const messages: CmuxMessage[] = [
+    const messages: MuxMessage[] = [
       {
         id: "test-1",
         role: "assistant",
@@ -68,7 +68,7 @@ describe("sanitizeToolInputs", () => {
   });
 
   it("should keep valid object inputs unchanged", () => {
-    const messages: CmuxMessage[] = [
+    const messages: MuxMessage[] = [
       {
         id: "test-2",
         role: "assistant",
@@ -94,7 +94,7 @@ describe("sanitizeToolInputs", () => {
   });
 
   it("should not modify non-assistant messages", () => {
-    const messages: CmuxMessage[] = [
+    const messages: MuxMessage[] = [
       {
         id: "test-3",
         role: "user",
@@ -108,7 +108,7 @@ describe("sanitizeToolInputs", () => {
   });
 
   it("should handle messages with multiple parts", () => {
-    const messages: CmuxMessage[] = [
+    const messages: MuxMessage[] = [
       {
         id: "test-4",
         role: "assistant",
@@ -139,7 +139,7 @@ describe("sanitizeToolInputs", () => {
   });
 
   it("should handle null input", () => {
-    const messages: CmuxMessage[] = [
+    const messages: MuxMessage[] = [
       {
         id: "test-null",
         role: "assistant",
@@ -166,7 +166,7 @@ describe("sanitizeToolInputs", () => {
   });
 
   it("should handle array input", () => {
-    const messages: CmuxMessage[] = [
+    const messages: MuxMessage[] = [
       {
         id: "test-array",
         role: "assistant",

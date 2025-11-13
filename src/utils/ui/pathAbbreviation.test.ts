@@ -35,16 +35,16 @@ describe("abbreviatePath", () => {
 
 describe("splitAbbreviatedPath", () => {
   it("should split abbreviated path into directory and basename", () => {
-    expect(splitAbbreviatedPath("/U/a/P/c/cmux")).toEqual({
+    expect(splitAbbreviatedPath("/U/a/P/c/mux")).toEqual({
       dirPath: "/U/a/P/c/",
-      basename: "cmux",
+      basename: "mux",
     });
   });
 
   it("should handle paths without leading slash", () => {
-    expect(splitAbbreviatedPath("U/a/P/c/cmux")).toEqual({
+    expect(splitAbbreviatedPath("U/a/P/c/mux")).toEqual({
       dirPath: "U/a/P/c/",
-      basename: "cmux",
+      basename: "mux",
     });
   });
 

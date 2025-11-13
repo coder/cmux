@@ -10,13 +10,13 @@ It's important to note that a **worktree is not locked to a branch**. The agent 
 
 ## Filesystem Layout
 
-Local workspaces are stored in `~/.cmux/src/<project-name>/<workspace-name>`.
+Local workspaces are stored in `~/.mux/src/<project-name>/<workspace-name>`.
 
 Example layout:
 
 ```
-~/.cmux/src/
-  cmux-main/
+~/.mux/src/
+  mux-main/
     improved-auth-ux/
     fix-ci-flakes/
 ```

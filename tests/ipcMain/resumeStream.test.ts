@@ -4,7 +4,7 @@ import { IPC_CHANNELS } from "../../src/constants/ipc-constants";
 import type { Result } from "../../src/types/result";
 import type { SendMessageError } from "../../src/types/errors";
 import { HistoryService } from "../../src/services/historyService";
-import { createCmuxMessage } from "../../src/types/message";
+import { createMuxMessage } from "../../src/types/message";
 
 // Skip all tests if TEST_INTEGRATION is not set
 const describeIntegration = shouldRunIntegrationTests() ? describe : describe.skip;
@@ -148,7 +148,7 @@ describeIntegration("IpcMain resumeStream integration tests", () => {
         // Simulate post-compaction state: single assistant message with summary
         // The message promises to say a specific word next, allowing deterministic verification
         const verificationWord = "ELEPHANT";
-        const summaryMessage = createCmuxMessage(
+        const summaryMessage = createMuxMessage(
           "compaction-summary-msg",
           "assistant",
           `I previously helped with a task. The conversation has been compacted for token efficiency. My next message will contain the word ${verificationWord} to confirm continuation works correctly.`,

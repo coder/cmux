@@ -16,7 +16,7 @@ import {
 } from "./helpers";
 import { detectDefaultTrunkBranch } from "../../src/git";
 import { HistoryService } from "../../src/services/historyService";
-import { createCmuxMessage } from "../../src/types/message";
+import { createMuxMessage } from "../../src/types/message";
 
 // Skip all tests if TEST_INTEGRATION is not set
 const describeIntegration = shouldRunIntegrationTests() ? describe : describe.skip;
@@ -129,8 +129,8 @@ describeIntegration("IpcMain fork workspace integration tests", () => {
         const historyService = new HistoryService(env.config);
         const uniqueWord = `testword-${Date.now()}`;
         const historyMessages = [
-          createCmuxMessage("msg-1", "user", `Remember this word: ${uniqueWord}`, {}),
-          createCmuxMessage("msg-2", "assistant", `I will remember the word "${uniqueWord}".`, {}),
+          createMuxMessage("msg-1", "user", `Remember this word: ${uniqueWord}`, {}),
+          createMuxMessage("msg-2", "assistant", `I will remember the word "${uniqueWord}".`, {}),
         ];
 
         for (const msg of historyMessages) {

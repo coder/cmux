@@ -1,5 +1,5 @@
 import { readFileSync, existsSync } from "fs";
-import { getCmuxExtensionMetadataPath } from "../constants/paths";
+import { getMuxExtensionMetadataPath } from "../constants/paths";
 
 /**
  * Extension metadata for a single workspace.
@@ -21,10 +21,10 @@ export interface ExtensionMetadataFile {
 
 /**
  * Get the path to the extension metadata file.
- * @param rootDir - Optional root directory (defaults to getCmuxHome())
+ * @param rootDir - Optional root directory (defaults to getMuxHome())
  */
 export function getExtensionMetadataPath(rootDir?: string): string {
-  return getCmuxExtensionMetadataPath(rootDir);
+  return getMuxExtensionMetadataPath(rootDir);
 }
 
 /**

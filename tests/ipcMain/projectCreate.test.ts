@@ -19,9 +19,9 @@ const describeIntegration = shouldRunIntegrationTests() ? describe : describe.sk
 describeIntegration("PROJECT_CREATE IPC Handler", () => {
   test.concurrent("should expand tilde in project path and create project", async () => {
     const env = await createTestEnvironment();
-    const tempProjectDir = await fs.mkdtemp(path.join(os.tmpdir(), "cmux-project-test-"));
+    const tempProjectDir = await fs.mkdtemp(path.join(os.tmpdir(), "mux-project-test-"));
     // Create a test directory in home directory
-    const testDirName = `cmux-test-tilde-${Date.now()}`;
+    const testDirName = `mux-test-tilde-${Date.now()}`;
     const homeProjectPath = path.join(os.homedir(), testDirName);
     await fs.mkdir(homeProjectPath, { recursive: true });
     // Create .git directory to make it a valid git repo
@@ -57,8 +57,8 @@ describeIntegration("PROJECT_CREATE IPC Handler", () => {
 
   test.concurrent("should reject non-existent project path", async () => {
     const env = await createTestEnvironment();
-    const tempProjectDir = await fs.mkdtemp(path.join(os.tmpdir(), "cmux-project-test-"));
-    const nonExistentPath = "/this/path/definitely/does/not/exist/cmux-test-12345";
+    const tempProjectDir = await fs.mkdtemp(path.join(os.tmpdir(), "mux-project-test-"));
+    const nonExistentPath = "/this/path/definitely/does/not/exist/mux-test-12345";
     const result = await env.mockIpcRenderer.invoke(IPC_CHANNELS.PROJECT_CREATE, nonExistentPath);
 
     expect(result.success).toBe(false);
@@ -70,8 +70,8 @@ describeIntegration("PROJECT_CREATE IPC Handler", () => {
 
   test.concurrent("should reject non-existent tilde path", async () => {
     const env = await createTestEnvironment();
-    const tempProjectDir = await fs.mkdtemp(path.join(os.tmpdir(), "cmux-project-test-"));
-    const nonExistentTildePath = "~/this-directory-should-not-exist-cmux-test-12345";
+    const tempProjectDir = await fs.mkdtemp(path.join(os.tmpdir(), "mux-project-test-"));
+    const nonExistentTildePath = "~/this-directory-should-not-exist-mux-test-12345";
     const result = await env.mockIpcRenderer.invoke(
       IPC_CHANNELS.PROJECT_CREATE,
       nonExistentTildePath
@@ -86,7 +86,7 @@ describeIntegration("PROJECT_CREATE IPC Handler", () => {
 
   test.concurrent("should reject file path (not a directory)", async () => {
     const env = await createTestEnvironment();
-    const tempProjectDir = await fs.mkdtemp(path.join(os.tmpdir(), "cmux-project-test-"));
+    const tempProjectDir = await fs.mkdtemp(path.join(os.tmpdir(), "mux-project-test-"));
     const testFile = path.join(tempProjectDir, "test-file.txt");
     await fs.writeFile(testFile, "test content");
 
@@ -101,7 +101,7 @@ describeIntegration("PROJECT_CREATE IPC Handler", () => {
 
   test.concurrent("should reject directory without .git", async () => {
     const env = await createTestEnvironment();
-    const tempProjectDir = await fs.mkdtemp(path.join(os.tmpdir(), "cmux-project-test-"));
+    const tempProjectDir = await fs.mkdtemp(path.join(os.tmpdir(), "mux-project-test-"));
 
     const result = await env.mockIpcRenderer.invoke(IPC_CHANNELS.PROJECT_CREATE, tempProjectDir);
 
@@ -114,7 +114,7 @@ describeIntegration("PROJECT_CREATE IPC Handler", () => {
 
   test.concurrent("should accept valid absolute path", async () => {
     const env = await createTestEnvironment();
-    const tempProjectDir = await fs.mkdtemp(path.join(os.tmpdir(), "cmux-project-test-"));
+    const tempProjectDir = await fs.mkdtemp(path.join(os.tmpdir(), "mux-project-test-"));
     // Create .git directory to make it a valid git repo
     await fs.mkdir(path.join(tempProjectDir, ".git"));
 
@@ -134,7 +134,7 @@ describeIntegration("PROJECT_CREATE IPC Handler", () => {
 
   test.concurrent("should normalize paths with .. in them", async () => {
     const env = await createTestEnvironment();
-    const tempProjectDir = await fs.mkdtemp(path.join(os.tmpdir(), "cmux-project-test-"));
+    const tempProjectDir = await fs.mkdtemp(path.join(os.tmpdir(), "mux-project-test-"));
     // Create .git directory to make it a valid git repo
     await fs.mkdir(path.join(tempProjectDir, ".git"));
 
@@ -156,7 +156,7 @@ describeIntegration("PROJECT_CREATE IPC Handler", () => {
 
   test.concurrent("should reject duplicate projects (same expanded path)", async () => {
     const env = await createTestEnvironment();
-    const tempProjectDir = await fs.mkdtemp(path.join(os.tmpdir(), "cmux-project-test-"));
+    const tempProjectDir = await fs.mkdtemp(path.join(os.tmpdir(), "mux-project-test-"));
     // Create .git directory to make it a valid git repo
     await fs.mkdir(path.join(tempProjectDir, ".git"));
 

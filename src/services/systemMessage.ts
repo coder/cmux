@@ -2,12 +2,12 @@ import type { WorkspaceMetadata } from "@/types/workspace";
 import { readInstructionSet, readInstructionSetFromRuntime } from "@/utils/main/instructionFiles";
 import { extractModeSection } from "@/utils/main/markdown";
 import type { Runtime } from "@/runtime/Runtime";
-import { getCmuxHome } from "@/constants/paths";
+import { getMuxHome } from "@/constants/paths";
 
 // NOTE: keep this in sync with the docs/models.md file
 
 // The PRELUDE is intentionally minimal to not conflict with the user's instructions.
-// cmux is designed to be model agnostic, and models have shown large inconsistency in how they
+// mux is designed to be model agnostic, and models have shown large inconsistency in how they
 // follow instructions.
 const PRELUDE = ` 
 <prelude>
@@ -45,18 +45,18 @@ You are in a git worktree at ${workspacePath}
 }
 
 /**
- * Get the system directory where global cmux configuration lives.
- * Users can place global AGENTS.md and .cmux/PLAN.md files here.
+ * Get the system directory where global mux configuration lives.
+ * Users can place global AGENTS.md and .mux/PLAN.md files here.
  */
 function getSystemDirectory(): string {
-  return getCmuxHome();
+  return getMuxHome();
 }
 
 /**
  * Builds a system message for the AI model by combining instruction sources.
  *
  * Instruction layers:
- * 1. Global: ~/.cmux/AGENTS.md (always included)
+ * 1. Global: ~/.mux/AGENTS.md (always included)
  * 2. Context: workspace/AGENTS.md OR project/AGENTS.md (workspace takes precedence)
  * 3. Mode: Extracts "Mode: <mode>" section from context then global (if mode provided)
  *

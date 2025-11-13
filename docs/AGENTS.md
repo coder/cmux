@@ -2,7 +2,7 @@
 
 ## Project Context
 
-- Project is named `cmux`
+- Project is named `mux`
 - Electron + React desktop application for parallel agentic development
 - UX should be fast, responsive, and intuitive
 
@@ -10,7 +10,7 @@
 
 The project is in early development phase. Breaking changes of minor features are expected. Strive
 for backwards and forwards compatibility whenever possible on critical features. Users should be
-able to upgrade, downgrade, upgrade between any two versions of cmux.
+able to upgrade, downgrade, upgrade between any two versions of mux.
 Do not worry about migrations for breakage confined to the scope of the PR.
 
 ## AI-Generated Content Attribution
@@ -18,7 +18,7 @@ Do not worry about migrations for breakage confined to the scope of the PR.
 When creating public operations (commits, PRs, issues), always include:
 
 - 🤖 emoji in the title
-- "_Generated with `cmux`_" in the body (if applicable)
+- "_Generated with `mux`_" in the body (if applicable)
 
 This ensures transparency about AI-generated contributions.
 
@@ -124,9 +124,9 @@ Examples:
 - `src/preload.ts` - Preload script for IPC
 - `src/App.tsx` - Main React component
 - `src/config.ts` - Configuration management
-- `~/.cmux/config.json` - User configuration file
-- `~/.cmux/src/<project_name>/<branch>` - Local workspace directories (git worktrees)
-- `~/.cmux/sessions/<workspace_id>/chat.jsonl` - Session chat histories
+- `~/.mux/config.json` - User configuration file
+- `~/.mux/src/<project_name>/<branch>` - Local workspace directories (git worktrees)
+- `~/.mux/sessions/<workspace_id>/chat.jsonl` - Session chat histories
 
 ## Documentation Guidelines
 
@@ -134,7 +134,7 @@ Examples:
 
 - **User-facing docs** → `./docs/` directory
   - **IMPORTANT**: Read `docs/README.md` first before writing user-facing documentation
-  - User docs are built with mdbook and deployed to https://cmux.io
+  - User docs are built with mdbook and deployed to https://mux.io
   - Must be added to `docs/SUMMARY.md` to appear in the docs
   - Use standard markdown + mermaid diagrams
 - **Developer docs** → inline with the code its documenting as comments. Consider them notes as notes to future Assistants to understand the logic more quickly.
@@ -158,7 +158,7 @@ in `/tmp/ai-sdk-docs/**.mdx`.
 
 - Projects sidebar (left panel)
 - Workspaces (local uses git worktrees, SSH uses remote git clones)
-- Configuration persisted to `~/.cmux/config.json`
+- Configuration persisted to `~/.mux/config.json`
 
 ## Performance Patterns
 
@@ -199,7 +199,7 @@ This project uses **Make** as the primary build orchestrator. See `Makefile` for
 
 - When refactoring, use `git mv` to preserve file history instead of rewriting files from scratch
 
-**⚠️ NEVER kill the running cmux process** - The main cmux instance is used for active development. Use `make test` or `make typecheck` to verify changes instead of starting the app in test workspaces.
+**⚠️ NEVER kill the running mux process** - The main mux instance is used for active development. Use `make test` or `make typecheck` to verify changes instead of starting the app in test workspaces.
 
 ## Testing
 
@@ -490,7 +490,7 @@ The IPC layer is the boundary between backend and frontend. Follow these rules t
 
 - `bun run debug ui-messages --workspace <workspace-name>` - Show UI messages for a workspace
 - `bun run debug ui-messages --workspace <workspace-name> --drop <n>` - Show messages with last n dropped
-- Workspace names can be found in `~/.cmux/sessions/`
+- Workspace names can be found in `~/.mux/sessions/`
 
 ## UX Guidelines
 

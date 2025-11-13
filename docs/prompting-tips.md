@@ -1,6 +1,6 @@
 # Prompting Tips
 
-> Some tips and tricks from the cmux developers on getting the most out of your agents.
+> Some tips and tricks from the mux developers on getting the most out of your agents.
 
 ## Persist lessons
 
@@ -21,7 +21,7 @@ source comments in such files vs. expanding the global `AGENTS.md`.
 Agents thrive on TDD. Try to define their task in terms of what checks need to pass before they
 can claim success.
 
-For cmux development, we have a [`wait_pr_checks.sh`](https://github.com/coder/cmux/blob/main/scripts/wait_pr_checks.sh) script
+For mux development, we have a [`wait_pr_checks.sh`](https://github.com/coder/mux/blob/main/scripts/wait_pr_checks.sh) script
 that polls GitHub and ensures that:
 
 - There are no dirty changes

@@ -1,7 +1,7 @@
 import type { WorkspaceConsumersState } from "./WorkspaceStore";
 import type { StreamingMessageAggregator } from "@/utils/messages/StreamingMessageAggregator";
 import type { ChatStats } from "@/types/chatStats";
-import type { CmuxMessage } from "@/types/message";
+import type { MuxMessage } from "@/types/message";
 import assert from "@/utils/assert";
 
 const TOKENIZER_CANCELLED_MESSAGE = "Cancelled by newer request";
@@ -18,7 +18,7 @@ function getTokenizerApi() {
 
 async function calculateTokenStatsLatest(
   workspaceId: string,
-  messages: CmuxMessage[],
+  messages: MuxMessage[],
   model: string
 ): Promise<ChatStats> {
   const tokenizer = getTokenizerApi();

@@ -186,12 +186,12 @@ export function createWorkspaceUI(page: Page, context: DemoProjectConfig): Works
 
         const win = window as unknown as {
           api: typeof window.api;
-          __cmuxStreamCapture?: Record<string, StreamCapture>;
+          __muxStreamCapture?: Record<string, StreamCapture>;
         };
 
         const store =
-          win.__cmuxStreamCapture ??
-          (win.__cmuxStreamCapture = Object.create(null) as Record<string, StreamCapture>);
+          win.__muxStreamCapture ??
+          (win.__muxStreamCapture = Object.create(null) as Record<string, StreamCapture>);
         const existing = store[id];
         if (existing) {
           existing.unsubscribe();
@@ -263,9 +263,9 @@ export function createWorkspaceUI(page: Page, context: DemoProjectConfig): Works
             type StreamCaptureEvent = { type: string };
             type StreamCapture = { events: StreamCaptureEvent[] };
             const win = window as unknown as {
-              __cmuxStreamCapture?: Record<string, StreamCapture>;
+              __muxStreamCapture?: Record<string, StreamCapture>;
             };
-            const capture = win.__cmuxStreamCapture?.[id];
+            const capture = win.__muxStreamCapture?.[id];
             if (!capture) {
               return false;
             }
@@ -295,9 +295,9 @@ export function createWorkspaceUI(page: Page, context: DemoProjectConfig): Works
           unsubscribe: () => void;
         };
         const win = window as unknown as {
-          __cmuxStreamCapture?: Record<string, StreamCapture>;
+          __muxStreamCapture?: Record<string, StreamCapture>;
         };
-        const store = win.__cmuxStreamCapture;
+        const store = win.__muxStreamCapture;
         const capture = store?.[id];
         if (!capture) {
           return [] as StreamCaptureEvent[];

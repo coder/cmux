@@ -27,7 +27,7 @@ jobs:
         with:
           fetch-depth: 0 # Required for git describe to find tags
 
-      - uses: ./.github/actions/setup-cmux
+      - uses: ./.github/actions/setup-mux
 
       - name: Generate version file
         run: ./scripts/generate-version.sh
@@ -76,7 +76,7 @@ jobs:
         with:
           fetch-depth: 0 # Required for git describe to find tags
 
-      - uses: ./.github/actions/setup-cmux
+      - uses: ./.github/actions/setup-mux
 
       - name: Build worker files
         run: make build-main
@@ -101,7 +101,7 @@ jobs:
         with:
           fetch-depth: 0 # Required for git describe to find tags
 
-      - uses: ./.github/actions/setup-cmux
+      - uses: ./.github/actions/setup-mux
 
       - name: Check if Ollama is pre-installed
         id: check-ollama
@@ -157,7 +157,7 @@ jobs:
         with:
           fetch-depth: 0 # Required for git describe to find tags
 
-      - uses: ./.github/actions/setup-cmux
+      - uses: ./.github/actions/setup-mux
 
       - name: Install Playwright browsers
         run: bun x playwright install --with-deps
@@ -183,7 +183,7 @@ jobs:
         with:
           fetch-depth: 0 # Required for git describe to find tags
 
-      - uses: ./.github/actions/setup-cmux
+      - uses: ./.github/actions/setup-mux
 
       - name: Install system dependencies
         run: |

@@ -1,6 +1,6 @@
 # Project Secrets
 
-Securely manage environment variables for your projects in cmux. Project secrets are automatically injected when the agent executes bash commands, making it easy to provide API keys, tokens, and other sensitive configuration.
+Securely manage environment variables for your projects in mux. Project secrets are automatically injected when the agent executes bash commands, making it easy to provide API keys, tokens, and other sensitive configuration.
 
 ![Project Secrets Modal](./img/project-secrets.webp)
 
@@ -9,7 +9,7 @@ Securely manage environment variables for your projects in cmux. Project secrets
 Project secrets are key-value pairs stored per project that are:
 
 - **Automatically injected** as environment variables when running bash commands
-- **Stored outside repo** in `~/.cmux/secrets.json`
+- **Stored outside repo** in `~/.mux/secrets.json`
 - **Project-scoped** - each project has its own set of secrets
 - **Workspace-inherited** - all workspaces in a project use the same secrets
 
@@ -45,7 +45,7 @@ The agent doesn't need to explicitly reference secrets - they're available as re
 
 ### Storage
 
-- Secrets are stored in `~/.cmux/config.json`
+- Secrets are stored in `~/.mux/config.json`
 - **Stored in plaintext** - the config file is not encrypted
 - The config file has standard user-only file permissions
 

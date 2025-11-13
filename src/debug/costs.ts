@@ -1,7 +1,7 @@
 import * as fs from "fs";
 import * as path from "path";
 import { defaultConfig } from "@/config";
-import type { CmuxMessage } from "@/types/message";
+import type { MuxMessage } from "@/types/message";
 import { calculateTokenStats } from "@/utils/tokens/tokenStatsCalculator";
 import { getDefaultModelFromLRU } from "@/hooks/useModelLRU";
 
@@ -23,10 +23,10 @@ export async function costsCommand(workspaceId: string) {
 
   // Read and parse messages
   const data = fs.readFileSync(chatHistoryPath, "utf-8");
-  const messages: CmuxMessage[] = data
+  const messages: MuxMessage[] = data
     .split("\n")
     .filter((line) => line.trim())
-    .map((line) => JSON.parse(line) as CmuxMessage);
+    .map((line) => JSON.parse(line) as MuxMessage);
 
   if (messages.length === 0) {
     console.log("No messages in chat history");

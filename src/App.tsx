@@ -131,7 +131,7 @@ function AppInner() {
       if (window.location.hash) {
         window.history.replaceState(null, "", window.location.pathname);
       }
-      void window.api.window.setTitle("cmux");
+      void window.api.window.setTitle("mux");
     }
   }, [selectedWorkspace, workspaceMetadata]);
 
@@ -673,7 +673,7 @@ function AppInner() {
                 }}
               >
                 <h2 style={{ fontSize: "clamp(24px, 5vw, 36px)", letterSpacing: "-1px" }}>
-                  Welcome to Cmux
+                  Welcome to Mux
                 </h2>
                 <p>Select a workspace from the sidebar or add a new one to get started.</p>
               </div>
