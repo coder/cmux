@@ -7,12 +7,19 @@ import { getModelKey } from "@/constants/storage";
 import { useModelLRU } from "@/hooks/useModelLRU";
 import { useNewWorkspaceOptions } from "@/hooks/useNewWorkspaceOptions";
 import { useMode } from "@/contexts/ModeContext";
+import { useThinkingLevel } from "@/hooks/useThinkingLevel";
+import { use1MContext } from "@/hooks/use1MContext";
+import { modeToToolPolicy, PLAN_MODE_INSTRUCTION } from "@/utils/ui/modeUtils";
+import { enforceThinkingPolicy } from "@/utils/thinking/policy";
+import type { SendMessageOptions } from "@/types/ipc";
 import { ModelSelector } from "./ModelSelector";
 import { TooltipWrapper, Tooltip, HelpIndicator } from "./Tooltip";
 import { VimTextArea } from "./VimTextArea";
 import { ToggleGroup, type ToggleOption } from "./ToggleGroup";
 import type { UIMode } from "@/types/mode";
 import { cn } from "@/lib/utils";
+import { ThinkingSliderComponent } from "./ThinkingSlider";
+import { Context1MCheckbox } from "./Context1MCheckbox";
 
 interface FirstMessageInputProps {
   projectPath: string;
@@ -60,6 +67,10 @@ export function FirstMessageInput({
 
   // Mode selection (Exec/Plan)
   const [mode, setMode] = useMode();
+
+  // Thinking level and 1M context
+  const [thinkingLevel] = useThinkingLevel();
+  const [use1M] = use1MContext();
 
   // Get most recent model from LRU (project-scoped preference)
   const { recentModels, addModel } = useModelLRU();
@@ -117,8 +128,29 @@ export function FirstMessageInput({
         ? parseRuntimeString(runtimeString, "")
         : undefined;
 
+      // Build SendMessageOptions (same logic as useSendMessageOptions)
+      const additionalSystemInstructions = mode === "plan" ? PLAN_MODE_INSTRUCTION : undefined;
+      const model =
+        typeof preferredModel === "string" && preferredModel
+          ? preferredModel
+          : recentModels[0];
+      const uiThinking = enforceThinkingPolicy(model, thinkingLevel);
+
+      const sendMessageOptions: SendMessageOptions = {
+        thinkingLevel: uiThinking,
+        model,
+        mode: mode === "exec" || mode === "plan" ? mode : "exec",
+        toolPolicy: modeToToolPolicy(mode),
+        additionalSystemInstructions,
+        providerOptions: {
+          anthropic: {
+            use1MContext: use1M,
+          },
+        },
+      };
+
       const result = await window.api.workspace.sendMessage(null, input, {
-        model: preferredModel,
+        ...sendMessageOptions,
         runtimeConfig,
         projectPath, // Pass projectPath when workspaceId is null
       });
@@ -152,7 +184,18 @@ export function FirstMessageInput({
       setError(`Failed to create workspace: ${errorMessage}`);
       setIsSending(false);
     }
-  }, [input, isSending, projectPath, preferredModel, onWorkspaceCreated, getRuntimeString]);
+  }, [
+    input,
+    isSending,
+    projectPath,
+    preferredModel,
+    onWorkspaceCreated,
+    getRuntimeString,
+    mode,
+    thinkingLevel,
+    use1M,
+    recentModels,
+  ]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -213,11 +256,34 @@ export function FirstMessageInput({
           />
         </div>
 
-        {/* Options row - Mode + Model + Runtime */}
+        {/* Options row - Model + Thinking + Context + Mode + Runtime */}
         <div className="@container flex flex-col gap-1" data-component="FirstMessageOptions">
           <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+            {/* Model Selector */}
+            <div className="flex items-center" data-component="ModelSelectorGroup">
+              <ModelSelector
+                value={preferredModel}
+                onChange={setPreferredModel}
+                recentModels={recentModels}
+                onComplete={() => inputRef.current?.focus()}
+              />
+            </div>
+
+            {/* Thinking Slider - slider hidden on narrow containers, label always clickable */}
+            <div
+              className="flex items-center [&_.thinking-slider]:[@container(max-width:550px)]:hidden"
+              data-component="ThinkingSliderGroup"
+            >
+              <ThinkingSliderComponent modelString={preferredModel} />
+            </div>
+
+            {/* Context 1M Checkbox - always visible */}
+            <div className="flex items-center" data-component="Context1MGroup">
+              <Context1MCheckbox modelString={preferredModel} />
+            </div>
+
             {/* Mode Switch - full version for wider containers */}
-            <div className="flex items-center gap-1.5 [@container(max-width:550px)]:hidden">
+            <div className="ml-auto flex items-center gap-1.5 [@container(max-width:550px)]:hidden">
               <div
                 className={cn(
                   "[&>button:first-of-type]:rounded-l [&>button:last-of-type]:rounded-r",
@@ -233,19 +299,9 @@ export function FirstMessageInput({
             </div>
 
             {/* Mode Switch - compact version for narrow containers */}
-            <div className="hidden items-center gap-1.5 [@container(max-width:550px)]:flex">
+            <div className="ml-auto hidden items-center gap-1.5 [@container(max-width:550px)]:flex">
               <ToggleGroup<UIMode> options={MODE_OPTIONS} value={mode} onChange={setMode} compact />
               <ModeHelpTooltip />
-            </div>
-
-            {/* Model Selector */}
-            <div className="flex items-center" data-component="ModelSelectorGroup">
-              <ModelSelector
-                value={preferredModel}
-                onChange={setPreferredModel}
-                recentModels={recentModels}
-                onComplete={() => inputRef.current?.focus()}
-              />
             </div>
 
             {/* Runtime Selector */}
