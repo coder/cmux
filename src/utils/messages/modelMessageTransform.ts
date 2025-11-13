@@ -4,7 +4,7 @@
  */
 
 import type { ModelMessage, AssistantModelMessage, ToolModelMessage } from "ai";
-import type { CmuxMessage } from "@/types/message";
+import type { MuxMessage } from "@/types/message";
 
 /**
  * Filter out assistant messages that are empty or only contain reasoning parts.
@@ -27,9 +27,9 @@ import type { CmuxMessage } from "@/types/message";
  * @param preserveReasoningOnly - If true, keep reasoning-only messages (for Extended Thinking)
  */
 export function filterEmptyAssistantMessages(
-  messages: CmuxMessage[],
+  messages: MuxMessage[],
   preserveReasoningOnly = false
-): CmuxMessage[] {
+): MuxMessage[] {
   return messages.filter((msg) => {
     // Keep all non-assistant messages
     if (msg.role !== "assistant") {
@@ -75,8 +75,8 @@ export function filterEmptyAssistantMessages(
  * filtered out, and we'd lose the interruption context. A user message always
  * survives filtering.
  */
-export function addInterruptedSentinel(messages: CmuxMessage[]): CmuxMessage[] {
-  const result: CmuxMessage[] = [];
+export function addInterruptedSentinel(messages: MuxMessage[]): MuxMessage[] {
+  const result: MuxMessage[] = [];
 
   for (let i = 0; i < messages.length; i++) {
     const msg = messages[i];
@@ -117,10 +117,10 @@ export function addInterruptedSentinel(messages: CmuxMessage[]): CmuxMessage[] {
  * @returns Messages with mode transition context injected if needed
  */
 export function injectModeTransition(
-  messages: CmuxMessage[],
+  messages: MuxMessage[],
   currentMode?: string,
   toolNames?: string[]
-): CmuxMessage[] {
+): MuxMessage[] {
   // No mode specified, nothing to do
   if (!currentMode) {
     return messages;
@@ -157,7 +157,7 @@ export function injectModeTransition(
     return messages;
   }
 
-  const result: CmuxMessage[] = [];
+  const result: MuxMessage[] = [];
 
   // Add all messages up to (but not including) the last user message
   for (let i = 0; i < lastUserIndex; i++) {
@@ -174,7 +174,7 @@ export function injectModeTransition(
     transitionText += "]";
   }
 
-  const transitionMessage: CmuxMessage = {
+  const transitionMessage: MuxMessage = {
     id: `mode-transition-${Date.now()}`,
     role: "user",
     parts: [

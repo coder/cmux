@@ -6,7 +6,7 @@ import { StreamingBarrier } from "./Messages/ChatBarrier/StreamingBarrier";
 import { RetryBarrier } from "./Messages/ChatBarrier/RetryBarrier";
 import { PinnedTodoList } from "./PinnedTodoList";
 import { getAutoRetryKey, VIM_ENABLED_KEY } from "@/constants/storage";
-import { ChatInput, type ChatInputAPI } from "./ChatInput";
+import { ChatInput, type ChatInputAPI } from "./ChatInput/index";
 import { RightSidebar, type TabType } from "./RightSidebar";
 import { useResizableSidebar } from "@/hooks/useResizableSidebar";
 import {
@@ -464,6 +464,7 @@ const AIViewInner: React.FC<AIViewProps> = ({
         </div>
 
         <ChatInput
+          variant="workspace"
           workspaceId={workspaceId}
           onMessageSent={handleMessageSent}
           onTruncateHistory={handleClearHistory}

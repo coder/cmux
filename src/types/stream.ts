@@ -3,14 +3,14 @@
  */
 
 import type { LanguageModelV2Usage } from "@ai-sdk/provider";
-import type { CmuxReasoningPart, CmuxTextPart, CmuxToolPart } from "./message";
+import type { MuxReasoningPart, MuxTextPart, MuxToolPart } from "./message";
 import type { StreamErrorType } from "./errors";
 
 /**
  * Completed message part (reasoning, text, or tool) suitable for serialization
  * Used in StreamEndEvent and partial message storage
  */
-export type CompletedMessagePart = CmuxReasoningPart | CmuxTextPart | CmuxToolPart;
+export type CompletedMessagePart = MuxReasoningPart | MuxTextPart | MuxToolPart;
 
 export interface StreamStartEvent {
   type: "stream-start";
@@ -33,7 +33,7 @@ export interface StreamEndEvent {
   type: "stream-end";
   workspaceId: string;
   messageId: string;
-  // Structured metadata from backend - directly mergeable with CmuxMetadata
+  // Structured metadata from backend - directly mergeable with MuxMetadata
   metadata: {
     model: string;
     usage?: LanguageModelV2Usage;

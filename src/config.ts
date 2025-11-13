@@ -7,7 +7,7 @@ import type { WorkspaceMetadata, FrontendWorkspaceMetadata } from "./types/works
 import type { Secret, SecretsConfig } from "./types/secrets";
 import type { Workspace, ProjectConfig, ProjectsConfig } from "./types/project";
 import { DEFAULT_RUNTIME_CONFIG } from "./constants/workspace";
-import { getCmuxHome } from "./constants/paths";
+import { getMuxHome } from "./constants/paths";
 
 // Re-export project types from dedicated types file (for preload usage)
 export type { Workspace, ProjectConfig, ProjectsConfig };
@@ -24,7 +24,7 @@ export type ProvidersConfig = Record<string, ProviderConfig>;
  * Config - Centralized configuration management
  *
  * Encapsulates all config paths and operations, making them dependency-injectable
- * and testable. Pass a custom rootDir for tests to avoid polluting ~/.cmux
+ * and testable. Pass a custom rootDir for tests to avoid polluting ~/.mux
  */
 export class Config {
   readonly rootDir: string;
@@ -35,7 +35,7 @@ export class Config {
   private readonly secretsFile: string;
 
   constructor(rootDir?: string) {
-    this.rootDir = rootDir ?? getCmuxHome();
+    this.rootDir = rootDir ?? getMuxHome();
     this.sessionsDir = path.join(this.rootDir, "sessions");
     this.srcDir = path.join(this.rootDir, "src");
     this.configFile = path.join(this.rootDir, "config.json");
@@ -397,6 +397,26 @@ export class Config {
       }
 
       return config;
+    });
+  }
+
+  /**
+   * Update workspace metadata fields (e.g., regenerate missing title/branch)
+   * Used to fix incomplete metadata after errors or restarts
+   */
+  async updateWorkspaceMetadata(
+    workspaceId: string,
+    updates: Partial<Pick<WorkspaceMetadata, "name">>
+  ): Promise<void> {
+    await this.editConfig((config) => {
+      for (const [_projectPath, projectConfig] of config.projects) {
+        const workspace = projectConfig.workspaces.find((w) => w.id === workspaceId);
+        if (workspace) {
+          if (updates.name !== undefined) workspace.name = updates.name;
+          return config;
+        }
+      }
+      throw new Error(`Workspace ${workspaceId} not found in config`);
     });
   }
 

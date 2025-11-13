@@ -1,6 +1,6 @@
 # Init Hooks
 
-Add a `.cmux/init` executable script to your project root to run commands when creating new workspaces.
+Add a `.mux/init` executable script to your project root to run commands when creating new workspaces.
 
 ## Example
 
@@ -15,7 +15,7 @@ bun run build
 Make it executable:
 
 ```bash
-chmod +x .cmux/init
+chmod +x .mux/init
 ```
 
 ## Behavior
@@ -26,6 +26,42 @@ chmod +x .cmux/init
 - **Exit codes preserved** - failures are logged but don't prevent workspace usage
 
 The init script runs in the workspace directory with the workspace's environment.
+
+## Environment Variables
+
+Init hooks receive the following environment variables:
+
+- `MUX_PROJECT_PATH` - Absolute path to the project root on the **local machine**
+  - Always refers to your local project path, even on SSH workspaces
+  - Useful for logging, debugging, or runtime-specific logic
+- `MUX_RUNTIME` - Runtime type: `"local"` or `"ssh"`
+  - Use this to detect whether the hook is running locally or remotely
+
+**Note for SSH workspaces:** Since the project is synced to the remote machine, files exist in both locations. The init hook runs in the workspace directory (`$PWD`), so use relative paths to reference project files:
+
+```bash
+#!/bin/bash
+set -e
+
+echo "Runtime: $MUX_RUNTIME"
+echo "Local project path: $MUX_PROJECT_PATH"
+echo "Workspace directory: $PWD"
+
+# Copy .env from project root (works for both local and SSH)
+# The hook runs with cwd = workspace, and project root is the parent directory
+if [ -f "../.env" ]; then
+  cp "../.env" "$PWD/.env"
+fi
+
+# Runtime-specific behavior
+if [ "$MUX_RUNTIME" = "local" ]; then
+  echo "Running on local machine"
+else
+  echo "Running on SSH remote"
+fi
+
+bun install
+```
 
 ## Use Cases
 
@@ -39,7 +75,7 @@ The init script runs in the workspace directory with the workspace's environment
 
 Init output appears in a banner at the top of the workspace. Click to expand/collapse the log. The banner shows:
 
-- Script path (`.cmux/init`)
+- Script path (`.mux/init`)
 - Status (running, success, or exit code on failure)
 - Full stdout/stderr output
 

@@ -1,5 +1,5 @@
-import type { CmuxMessage, CmuxMetadata, CmuxImagePart, DisplayedMessage } from "@/types/message";
-import { createCmuxMessage } from "@/types/message";
+import type { MuxMessage, MuxMetadata, MuxImagePart, DisplayedMessage } from "@/types/message";
+import { createMuxMessage } from "@/types/message";
 import type {
   StreamStartEvent,
   StreamDeltaEvent,
@@ -14,7 +14,7 @@ import type {
 import type { TodoItem, StatusSetToolResult } from "@/types/tools";
 
 import type { WorkspaceChatMessage, StreamErrorMessage, DeleteMessage } from "@/types/ipc";
-import { isInitStart, isInitOutput, isInitEnd, isCmuxMessage } from "@/types/ipc";
+import { isInitStart, isInitOutput, isInitEnd, isMuxMessage } from "@/types/ipc";
 import type {
   DynamicToolPart,
   DynamicToolPartPending,
@@ -54,12 +54,12 @@ function hasFailureResult(result: unknown): boolean {
 }
 
 export class StreamingMessageAggregator {
-  private messages = new Map<string, CmuxMessage>();
+  private messages = new Map<string, MuxMessage>();
   private activeStreams = new Map<string, StreamingContext>();
   private streamSequenceCounter = 0; // For ordering parts within a streaming message
 
   // Simple cache for derived values (invalidated on every mutation)
-  private cachedAllMessages: CmuxMessage[] | null = null;
+  private cachedAllMessages: MuxMessage[] | null = null;
   private cachedDisplayedMessages: DisplayedMessage[] | null = null;
   private recencyTimestamp: number | null = null;
 
@@ -188,7 +188,7 @@ export class StreamingMessageAggregator {
     this.currentTodos = [];
   }
 
-  addMessage(message: CmuxMessage): void {
+  addMessage(message: MuxMessage): void {
     const existing = this.messages.get(message.id);
     if (existing) {
       const existingParts = Array.isArray(existing.parts) ? existing.parts.length : 0;
@@ -212,7 +212,7 @@ export class StreamingMessageAggregator {
    * @param messages - Historical messages to load
    * @param hasActiveStream - Whether there's an active stream in buffered events (for reconnection scenario)
    */
-  loadHistoricalMessages(messages: CmuxMessage[], hasActiveStream = false): void {
+  loadHistoricalMessages(messages: MuxMessage[], hasActiveStream = false): void {
     // First, add all messages to the map
     for (const message of messages) {
       this.messages.set(message.id, message);
@@ -242,7 +242,7 @@ export class StreamingMessageAggregator {
     this.invalidateCache();
   }
 
-  getAllMessages(): CmuxMessage[] {
+  getAllMessages(): MuxMessage[] {
     this.cachedAllMessages ??= Array.from(this.messages.values()).sort(
       (a, b) => (a.metadata?.historySequence ?? 0) - (b.metadata?.historySequence ?? 0)
     );
@@ -360,7 +360,7 @@ export class StreamingMessageAggregator {
     this.activeStreams.set(data.messageId, context);
 
     // Create initial streaming message with empty parts (deltas will append)
-    const streamingMessage = createCmuxMessage(data.messageId, "assistant", "", {
+    const streamingMessage = createMuxMessage(data.messageId, "assistant", "", {
       historySequence: data.historySequence,
       timestamp: Date.now(),
       model: data.model,
@@ -396,7 +396,7 @@ export class StreamingMessageAggregator {
       const message = this.messages.get(data.messageId);
       if (message?.metadata) {
         // Transparent metadata merge - backend fields flow through automatically
-        const updatedMetadata: CmuxMetadata = {
+        const updatedMetadata: MuxMetadata = {
           ...message.metadata,
           ...data.metadata,
           duration: Date.now() - activeStream.startTime,
@@ -433,7 +433,7 @@ export class StreamingMessageAggregator {
       // Backend MUST provide historySequence in metadata
 
       // Create the complete message
-      const message: CmuxMessage = {
+      const message: MuxMessage = {
         id: data.messageId,
         role: "assistant",
         metadata: {
@@ -668,8 +668,8 @@ export class StreamingMessageAggregator {
     }
 
     // Handle regular messages (user messages, historical messages)
-    // Check if it's a CmuxMessage (has role property but no type)
-    if (isCmuxMessage(data)) {
+    // Check if it's a MuxMessage (has role property but no type)
+    if (isMuxMessage(data)) {
       const incomingMessage = data;
 
       // Smart replacement logic for edits:
@@ -715,7 +715,7 @@ export class StreamingMessageAggregator {
   }
 
   /**
-   * Transform CmuxMessages into DisplayedMessages for UI consumption
+   * Transform MuxMessages into DisplayedMessages for UI consumption
    * This splits complex messages with multiple parts into separate UI blocks
    * while preserving temporal ordering through sequence numbers
    *
@@ -739,7 +739,7 @@ export class StreamingMessageAggregator {
             .join("");
 
           const imageParts = message.parts
-            .filter((p): p is CmuxImagePart => {
+            .filter((p): p is MuxImagePart => {
               // Accept both new "file" type and legacy "image" type (from before PR #308)
               // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access
               return p.type === "file" || (p as any).type === "image";

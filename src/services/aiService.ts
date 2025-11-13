@@ -9,8 +9,8 @@ import { Ok, Err } from "@/types/result";
 import type { WorkspaceMetadata } from "@/types/workspace";
 import { PROVIDER_REGISTRY } from "@/constants/providers";
 
-import type { CmuxMessage, CmuxTextPart } from "@/types/message";
-import { createCmuxMessage } from "@/types/message";
+import type { MuxMessage, MuxTextPart } from "@/types/message";
+import { createMuxMessage } from "@/types/message";
 import type { Config, ProviderConfig } from "@/config";
 import { StreamManager } from "./streamManager";
 import type { InitStateManager } from "./initStateManager";
@@ -18,7 +18,7 @@ import type { SendMessageError } from "@/types/errors";
 import { getToolsForModel } from "@/utils/tools/tools";
 import { createRuntime } from "@/runtime/runtimeFactory";
 import { secretsToRecord } from "@/types/secrets";
-import type { CmuxProviderOptions } from "@/types/providerOptions";
+import type { MuxProviderOptions } from "@/types/providerOptions";
 import { log } from "./log";
 import {
   transformModelMessages,
@@ -158,9 +158,9 @@ export class AIService extends EventEmitter {
     this.streamManager = new StreamManager(historyService, partialService);
     void this.ensureSessionsDir();
     this.setupStreamEventForwarding();
-    this.mockModeEnabled = process.env.CMUX_MOCK_AI === "1";
+    this.mockModeEnabled = process.env.MUX_MOCK_AI === "1";
     if (this.mockModeEnabled) {
-      log.info("AIService running in CMUX_MOCK_AI mode");
+      log.info("AIService running in MUX_MOCK_AI mode");
       this.mockScenarioPlayer = new MockScenarioPlayer({
         aiService: this,
         historyService,
@@ -252,7 +252,7 @@ export class AIService extends EventEmitter {
    */
   private async createModel(
     modelString: string,
-    cmuxProviderOptions?: CmuxProviderOptions
+    cmuxProviderOptions?: MuxProviderOptions
   ): Promise<Result<LanguageModel, SendMessageError>> {
     try {
       // Parse model string (format: "provider:model-id")
@@ -506,7 +506,7 @@ export class AIService extends EventEmitter {
    * @returns Promise that resolves when streaming completes or fails
    */
   async streamMessage(
-    messages: CmuxMessage[],
+    messages: MuxMessage[],
     workspaceId: string,
     modelString: string,
     thinkingLevel?: ThinkingLevel,
@@ -514,7 +514,7 @@ export class AIService extends EventEmitter {
     abortSignal?: AbortSignal,
     additionalSystemInstructions?: string,
     maxOutputTokens?: number,
-    cmuxProviderOptions?: CmuxProviderOptions,
+    cmuxProviderOptions?: MuxProviderOptions,
     mode?: string
   ): Promise<Result<void, SendMessageError>> {
     try {
@@ -596,8 +596,8 @@ export class AIService extends EventEmitter {
       const sanitizedMessages = sanitizeToolInputs(redactedForProvider);
       log.debug_obj(`${workspaceId}/2b_sanitized_messages.json`, sanitizedMessages);
 
-      // Convert CmuxMessage to ModelMessage format using Vercel AI SDK utility
-      // Type assertion needed because CmuxMessage has custom tool parts for interrupted tools
+      // Convert MuxMessage to ModelMessage format using Vercel AI SDK utility
+      // Type assertion needed because MuxMessage has custom tool parts for interrupted tools
       // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-argument
       const modelMessages = convertToModelMessages(sanitizedMessages as any);
       log.debug_obj(`${workspaceId}/2_model_messages.json`, modelMessages);
@@ -689,7 +689,7 @@ export class AIService extends EventEmitter {
 
       // Create assistant message placeholder with historySequence from backend
       const assistantMessageId = `assistant-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
-      const assistantMessage = createCmuxMessage(assistantMessageId, "assistant", "", {
+      const assistantMessage = createMuxMessage(assistantMessageId, "assistant", "", {
         timestamp: Date.now(),
         model: modelString,
         systemMessageTokens,
@@ -716,7 +716,7 @@ export class AIService extends EventEmitter {
         const errorMessage =
           "Context length exceeded: the conversation is too long to send to this OpenAI model. Please shorten the history and try again.";
 
-        const errorPartialMessage: CmuxMessage = {
+        const errorPartialMessage: MuxMessage = {
           id: assistantMessageId,
           role: "assistant",
           metadata: {
@@ -754,7 +754,7 @@ export class AIService extends EventEmitter {
       }
 
       if (simulateToolPolicyNoop) {
-        const noopMessage = createCmuxMessage(assistantMessageId, "assistant", "", {
+        const noopMessage = createMuxMessage(assistantMessageId, "assistant", "", {
           timestamp: Date.now(),
           model: modelString,
           systemMessageTokens,
@@ -777,7 +777,7 @@ export class AIService extends EventEmitter {
         };
         this.emit("stream-start", streamStartEvent);
 
-        const textParts = parts.filter((part): part is CmuxTextPart => part.type === "text");
+        const textParts = parts.filter((part): part is MuxTextPart => part.type === "text");
         if (textParts.length === 0) {
           throw new Error("simulateToolPolicyNoop requires at least one text part");
         }
@@ -810,7 +810,7 @@ export class AIService extends EventEmitter {
         };
         this.emit("stream-end", streamEndEvent);
 
-        const finalAssistantMessage: CmuxMessage = {
+        const finalAssistantMessage: MuxMessage = {
           ...noopMessage,
           metadata: {
             ...noopMessage.metadata,

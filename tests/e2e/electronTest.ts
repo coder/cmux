@@ -21,9 +21,9 @@ interface ElectronFixtures {
 }
 
 const appRoot = path.resolve(__dirname, "..", "..");
-const defaultTestRoot = path.join(appRoot, "tests", "e2e", "tmp", "cmux-root");
-const BASE_DEV_SERVER_PORT = Number(process.env.CMUX_E2E_DEVSERVER_PORT_BASE ?? "5173");
-const shouldLoadDist = process.env.CMUX_E2E_LOAD_DIST === "1";
+const defaultTestRoot = path.join(appRoot, "tests", "e2e", "tmp", "mux-root");
+const BASE_DEV_SERVER_PORT = Number(process.env.MUX_E2E_DEVSERVER_PORT_BASE ?? "5173");
+const shouldLoadDist = process.env.MUX_E2E_LOAD_DIST === "1";
 
 const REQUIRED_DIST_FILES = [
   path.join(appRoot, "dist", "index.html"),
@@ -69,7 +69,7 @@ function sanitizeForPath(value: string): string {
 }
 
 function shouldSkipBuild(): boolean {
-  return process.env.CMUX_E2E_SKIP_BUILD === "1";
+  return process.env.MUX_E2E_SKIP_BUILD === "1";
 }
 
 function buildTarget(target: string): void {
@@ -88,7 +88,7 @@ function buildTarget(target: string): void {
 
 export const electronTest = base.extend<ElectronFixtures>({
   workspace: async ({}, use, testInfo) => {
-    const envRoot = process.env.CMUX_TEST_ROOT ?? "";
+    const envRoot = process.env.MUX_ROOT ?? "";
     const baseRoot = envRoot || defaultTestRoot;
     const uniqueTestId = testInfo.testId || testInfo.title || `test-${Date.now()}`;
     const testRoot = envRoot ? baseRoot : path.join(baseRoot, sanitizeForPath(uniqueTestId));
@@ -136,7 +136,7 @@ export const electronTest = base.extend<ElectronFixtures>({
           ...process.env,
           NODE_ENV: "development",
           VITE_DISABLE_MERMAID: "1",
-          CMUX_VITE_PORT: String(devServerPort),
+          MUX_VITE_PORT: String(devServerPort),
         },
       });
 
@@ -176,7 +176,7 @@ export const electronTest = base.extend<ElectronFixtures>({
     try {
       let devHost = "127.0.0.1";
       if (shouldStartDevServer) {
-        devHost = process.env.CMUX_DEVSERVER_HOST ?? "127.0.0.1";
+        devHost = process.env.MUX_DEVSERVER_HOST ?? "127.0.0.1";
         await waitForServerReady(`http://${devHost}:${devServerPort}`);
         const exitCode = devServer?.exitCode;
         if (exitCode !== null && exitCode !== undefined) {
@@ -194,15 +194,15 @@ export const electronTest = base.extend<ElectronFixtures>({
         }
       }
       electronEnv.ELECTRON_DISABLE_SECURITY_WARNINGS = "true";
-      electronEnv.CMUX_MOCK_AI = electronEnv.CMUX_MOCK_AI ?? "1";
-      electronEnv.CMUX_TEST_ROOT = configRoot;
-      electronEnv.CMUX_E2E = "1";
-      electronEnv.CMUX_E2E_LOAD_DIST = shouldLoadDist ? "1" : "0";
+      electronEnv.MUX_MOCK_AI = electronEnv.MUX_MOCK_AI ?? "1";
+      electronEnv.MUX_ROOT = configRoot;
+      electronEnv.MUX_E2E = "1";
+      electronEnv.MUX_E2E_LOAD_DIST = shouldLoadDist ? "1" : "0";
       electronEnv.VITE_DISABLE_MERMAID = "1";
 
       if (shouldStartDevServer) {
-        electronEnv.CMUX_DEVSERVER_PORT = String(devServerPort);
-        electronEnv.CMUX_DEVSERVER_HOST = devHost;
+        electronEnv.MUX_DEVSERVER_PORT = String(devServerPort);
+        electronEnv.MUX_DEVSERVER_HOST = devHost;
         electronEnv.NODE_ENV = electronEnv.NODE_ENV ?? "development";
       } else {
         electronEnv.NODE_ENV = electronEnv.NODE_ENV ?? "production";
@@ -234,7 +234,7 @@ export const electronTest = base.extend<ElectronFixtures>({
               await fsPromises.mkdir(videosDir, { recursive: true });
               const orderedFiles = [...videoFiles].sort();
               const baseName = sanitizeForPath(
-                testInfo.testId || testInfo.title || "cmux-e2e-video"
+                testInfo.testId || testInfo.title || "mux-e2e-video"
               );
               for (const [index, file] of orderedFiles.entries()) {
                 const ext = path.extname(file) || ".webm";

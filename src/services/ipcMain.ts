@@ -9,7 +9,7 @@ import { AIService } from "@/services/aiService";
 import { HistoryService } from "@/services/historyService";
 import { PartialService } from "@/services/partialService";
 import { AgentSession } from "@/services/agentSession";
-import type { CmuxMessage } from "@/types/message";
+import type { MuxMessage } from "@/types/message";
 import { log } from "@/services/log";
 import { countTokens, countTokensBatch } from "@/utils/main/tokenizer";
 import { calculateTokenStats } from "@/utils/tokens/tokenStatsCalculator";
@@ -18,13 +18,12 @@ import type { SendMessageError } from "@/types/errors";
 import type { SendMessageOptions, DeleteMessage } from "@/types/ipc";
 import { Ok, Err } from "@/types/result";
 import { validateWorkspaceName } from "@/utils/validation/workspaceValidation";
-import type { WorkspaceMetadata } from "@/types/workspace";
+import type { WorkspaceMetadata, FrontendWorkspaceMetadata } from "@/types/workspace";
 import { createBashTool } from "@/services/tools/bash";
 import type { BashToolResult } from "@/types/tools";
 import { secretsToRecord } from "@/types/secrets";
 import { DisposableTempDir } from "@/services/tempDir";
 import { InitStateManager } from "@/services/initStateManager";
-import { ExtensionMetadataService } from "@/services/ExtensionMetadataService";
 import { createRuntime } from "@/runtime/runtimeFactory";
 import type { RuntimeConfig } from "@/types/runtime";
 import { validateProjectPath } from "@/utils/pathUtils";
@@ -32,6 +31,8 @@ import { PTYService } from "@/services/ptyService";
 import { TerminalServer } from "@/services/terminalServer";
 import { TerminalWindowManager } from "@/services/terminalWindowManager";
 import type { TerminalCreateParams, TerminalResizeParams } from "@/types/terminal";
+import { ExtensionMetadataService } from "@/services/ExtensionMetadataService";
+import { generateWorkspaceName } from "./workspaceTitleGenerator";
 /**
  * IpcMain - Manages all IPC handlers and service coordination
  *
@@ -126,6 +127,163 @@ export class IpcMain {
         void this.extensionMetadata.setStreaming(data.workspaceId, false);
       }
     });
+  }
+
+  /**
+   * Create InitLogger that bridges to InitStateManager
+   * Extracted helper to avoid duplication across workspace creation paths
+   */
+  private createInitLogger(workspaceId: string) {
+    return {
+      logStep: (message: string) => {
+        this.initStateManager.appendOutput(workspaceId, message, false);
+      },
+      logStdout: (line: string) => {
+        this.initStateManager.appendOutput(workspaceId, line, false);
+      },
+      logStderr: (line: string) => {
+        this.initStateManager.appendOutput(workspaceId, line, true);
+      },
+      logComplete: (exitCode: number) => {
+        void this.initStateManager.endInit(workspaceId, exitCode);
+      },
+    };
+  }
+
+  /**
+   * Create a new workspace with AI-generated title and branch name
+   * Extracted from sendMessage handler to reduce complexity
+   */
+  private async createWorkspaceForFirstMessage(
+    message: string,
+    projectPath: string,
+    options: SendMessageOptions & {
+      imageParts?: Array<{ url: string; mediaType: string }>;
+      runtimeConfig?: RuntimeConfig;
+      trunkBranch?: string;
+    }
+  ): Promise<
+    | { success: true; workspaceId: string; metadata: FrontendWorkspaceMetadata }
+    | { success: false; error: string }
+  > {
+    try {
+      // 1. Generate workspace branch name using AI (use same model as message)
+      const branchName = await generateWorkspaceName(message, options.model, this.config);
+
+      log.debug("Generated workspace name", { branchName });
+
+      // 2. Get trunk branch (use provided trunkBranch or auto-detect)
+      const branches = await listLocalBranches(projectPath);
+      const recommendedTrunk =
+        options.trunkBranch ?? (await detectDefaultTrunkBranch(projectPath, branches)) ?? "main";
+
+      // 3. Create workspace
+      const finalRuntimeConfig: RuntimeConfig = options.runtimeConfig ?? {
+        type: "local",
+        srcBaseDir: this.config.srcDir,
+      };
+
+      const workspaceId = this.config.generateStableId();
+
+      let runtime;
+      let resolvedSrcBaseDir: string;
+      try {
+        runtime = createRuntime(finalRuntimeConfig);
+        resolvedSrcBaseDir = await runtime.resolvePath(finalRuntimeConfig.srcBaseDir);
+
+        if (resolvedSrcBaseDir !== finalRuntimeConfig.srcBaseDir) {
+          const resolvedRuntimeConfig: RuntimeConfig = {
+            ...finalRuntimeConfig,
+            srcBaseDir: resolvedSrcBaseDir,
+          };
+          runtime = createRuntime(resolvedRuntimeConfig);
+          finalRuntimeConfig.srcBaseDir = resolvedSrcBaseDir;
+        }
+      } catch (error) {
+        const errorMsg = error instanceof Error ? error.message : String(error);
+        return { success: false, error: errorMsg };
+      }
+
+      const session = this.getOrCreateSession(workspaceId);
+      this.initStateManager.startInit(workspaceId, projectPath);
+
+      const initLogger = this.createInitLogger(workspaceId);
+
+      const createResult = await runtime.createWorkspace({
+        projectPath,
+        branchName,
+        trunkBranch: recommendedTrunk,
+        directoryName: branchName,
+        initLogger,
+      });
+
+      if (!createResult.success || !createResult.workspacePath) {
+        return { success: false, error: createResult.error ?? "Failed to create workspace" };
+      }
+
+      const projectName =
+        projectPath.split("/").pop() ?? projectPath.split("\\").pop() ?? "unknown";
+
+      const metadata = {
+        id: workspaceId,
+        name: branchName,
+        projectName,
+        projectPath,
+        createdAt: new Date().toISOString(),
+      };
+
+      await this.config.editConfig((config) => {
+        let projectConfig = config.projects.get(projectPath);
+        if (!projectConfig) {
+          projectConfig = { workspaces: [] };
+          config.projects.set(projectPath, projectConfig);
+        }
+        projectConfig.workspaces.push({
+          path: createResult.workspacePath!,
+          id: workspaceId,
+          name: branchName,
+          createdAt: metadata.createdAt,
+          runtimeConfig: finalRuntimeConfig,
+        });
+        return config;
+      });
+
+      const allMetadata = await this.config.getAllWorkspaceMetadata();
+      const completeMetadata = allMetadata.find((m) => m.id === workspaceId);
+      if (!completeMetadata) {
+        return { success: false, error: "Failed to retrieve workspace metadata" };
+      }
+
+      session.emitMetadata(completeMetadata);
+
+      void runtime
+        .initWorkspace({
+          projectPath,
+          branchName,
+          trunkBranch: recommendedTrunk,
+          workspacePath: createResult.workspacePath,
+          initLogger,
+        })
+        .catch((error: unknown) => {
+          const errorMsg = error instanceof Error ? error.message : String(error);
+          log.error(`initWorkspace failed for ${workspaceId}:`, error);
+          initLogger.logStderr(`Initialization failed: ${errorMsg}`);
+          initLogger.logComplete(-1);
+        });
+
+      // Send message to new workspace
+      void session.sendMessage(message, options);
+
+      return {
+        success: true,
+        workspaceId,
+        metadata: completeMetadata,
+      };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      log.error("Unexpected error in createWorkspaceForFirstMessage:", error);
+      return { success: false, error: `Failed to create workspace: ${errorMessage}` };
+    }
   }
 
   private getOrCreateSession(workspaceId: string): AgentSession {
@@ -253,7 +411,7 @@ export class IpcMain {
 
     ipcMain.handle(
       IPC_CHANNELS.TOKENIZER_CALCULATE_STATS,
-      async (_event, messages: CmuxMessage[], model: string) => {
+      async (_event, messages: MuxMessage[], model: string) => {
         assert(Array.isArray(messages), "Tokenizer IPC requires an array of messages");
         assert(typeof model === "string" && model.length > 0, "Tokenizer IPC requires model name");
 
@@ -330,21 +488,7 @@ export class IpcMain {
         // This MUST complete before workspace creation returns so replayInit() finds state
         this.initStateManager.startInit(workspaceId, projectPath);
 
-        // Create InitLogger that bridges to InitStateManager
-        const initLogger = {
-          logStep: (message: string) => {
-            this.initStateManager.appendOutput(workspaceId, message, false);
-          },
-          logStdout: (line: string) => {
-            this.initStateManager.appendOutput(workspaceId, line, false);
-          },
-          logStderr: (line: string) => {
-            this.initStateManager.appendOutput(workspaceId, line, true);
-          },
-          logComplete: (exitCode: number) => {
-            void this.initStateManager.endInit(workspaceId, exitCode);
-          },
-        };
+        const initLogger = this.createInitLogger(workspaceId);
 
         // Phase 1: Create workspace structure (FAST - returns immediately)
         const createResult = await runtime.createWorkspace({
@@ -587,21 +731,7 @@ export class IpcMain {
           // Start init tracking
           this.initStateManager.startInit(newWorkspaceId, foundProjectPath);
 
-          // Create InitLogger
-          const initLogger = {
-            logStep: (message: string) => {
-              this.initStateManager.appendOutput(newWorkspaceId, message, false);
-            },
-            logStdout: (line: string) => {
-              this.initStateManager.appendOutput(newWorkspaceId, line, false);
-            },
-            logStderr: (line: string) => {
-              this.initStateManager.appendOutput(newWorkspaceId, line, true);
-            },
-            logComplete: (exitCode: number) => {
-              void this.initStateManager.endInit(newWorkspaceId, exitCode);
-            },
-          };
+          const initLogger = this.createInitLogger(newWorkspaceId);
 
           // Delegate fork operation to runtime
           const forkResult = await runtime.forkWorkspace({
@@ -700,17 +830,78 @@ export class IpcMain {
     ipcMain.handle(IPC_CHANNELS.WORKSPACE_GET_INFO, async (_event, workspaceId: string) => {
       // Get complete metadata from config (includes paths)
       const allMetadata = await this.config.getAllWorkspaceMetadata();
-      return allMetadata.find((m) => m.id === workspaceId) ?? null;
+      const metadata = allMetadata.find((m) => m.id === workspaceId);
+
+      // Regenerate title/branch if missing (robust to errors/restarts)
+      if (metadata && !metadata.name) {
+        log.info(`Workspace ${workspaceId} missing title or branch name, regenerating...`);
+        try {
+          const historyResult = await this.historyService.getHistory(workspaceId);
+          if (!historyResult.success) {
+            log.error(`Failed to load history for workspace ${workspaceId}:`, historyResult.error);
+            return metadata;
+          }
+
+          const firstUserMessage = historyResult.data.find((m: MuxMessage) => m.role === "user");
+
+          if (firstUserMessage) {
+            // Extract text content from message parts
+            const textParts = firstUserMessage.parts.filter((p) => p.type === "text");
+            const messageText = textParts.map((p) => p.text).join(" ");
+
+            if (messageText.trim()) {
+              const branchName = await generateWorkspaceName(
+                messageText,
+                "anthropic:claude-sonnet-4-5", // Use reasonable default model
+                this.config
+              );
+
+              // Update config with regenerated name
+              await this.config.updateWorkspaceMetadata(workspaceId, {
+                name: branchName,
+              });
+
+              // Return updated metadata
+              metadata.name = branchName;
+              log.info(`Regenerated workspace name: ${branchName}`);
+            }
+          }
+        } catch (error) {
+          log.error(`Failed to regenerate workspace names for ${workspaceId}:`, error);
+        }
+      }
+
+      return metadata ?? null;
     });
 
     ipcMain.handle(
       IPC_CHANNELS.WORKSPACE_SEND_MESSAGE,
       async (
         _event,
-        workspaceId: string,
+        workspaceId: string | null,
         message: string,
-        options?: SendMessageOptions & { imageParts?: Array<{ url: string; mediaType: string }> }
+        options?: SendMessageOptions & {
+          imageParts?: Array<{ url: string; mediaType: string }>;
+          runtimeConfig?: RuntimeConfig;
+          projectPath?: string;
+          trunkBranch?: string;
+        }
       ) => {
+        // If workspaceId is null, create a new workspace first (lazy creation)
+        if (workspaceId === null) {
+          if (!options?.projectPath) {
+            return { success: false, error: "projectPath is required when workspaceId is null" };
+          }
+
+          log.debug("sendMessage handler: Creating workspace for first message", {
+            projectPath: options.projectPath,
+            messagePreview: message.substring(0, 50),
+          });
+
+          return await this.createWorkspaceForFirstMessage(message, options.projectPath, options);
+        }
+
+        // Normal path: workspace already exists
         log.debug("sendMessage handler: Received", {
           workspaceId,
           messagePreview: message.substring(0, 50),
@@ -837,7 +1028,7 @@ export class IpcMain {
 
     ipcMain.handle(
       IPC_CHANNELS.WORKSPACE_REPLACE_HISTORY,
-      async (_event, workspaceId: string, summaryMessage: CmuxMessage) => {
+      async (_event, workspaceId: string, summaryMessage: MuxMessage) => {
         // Block replace if there's an active stream, UNLESS this is a compacted message
         // (which is called from stream-end handler before stream cleanup completes)
         const isCompaction = summaryMessage.metadata?.compacted === true;

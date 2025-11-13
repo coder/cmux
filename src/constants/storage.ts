@@ -4,6 +4,33 @@
  */
 
 /**
+ * Scope ID Helpers
+ * These create consistent scope identifiers for storage keys
+ */
+
+/**
+ * Get project-scoped ID for storage keys (e.g., model preference before workspace creation)
+ * Format: "__project__/{projectPath}"
+ * Uses "/" delimiter to safely handle projectPath values containing special characters
+ */
+export function getProjectScopeId(projectPath: string): string {
+  return `__project__/${projectPath}`;
+}
+
+/**
+ * Get pending workspace scope ID for storage keys (e.g., input text during workspace creation)
+ * Format: "__pending__{projectPath}"
+ */
+export function getPendingScopeId(projectPath: string): string {
+  return `__pending__${projectPath}`;
+}
+
+/**
+ * Global scope ID for workspace-independent preferences
+ */
+export const GLOBAL_SCOPE_ID = "__global__";
+
+/**
  * Helper to create a thinking level storage key for a workspace
  * Format: "thinkingLevel:{workspaceId}"
  */
@@ -70,6 +97,15 @@ export function getModeKey(workspaceId: string): string {
  */
 export function getRuntimeKey(projectPath: string): string {
   return `runtime:${projectPath}`;
+}
+
+/**
+ * Get the localStorage key for trunk branch preference for a project
+ * Stores the last used trunk branch when creating a workspace
+ * Format: "trunkBranch:{projectPath}"
+ */
+export function getTrunkBranchKey(projectPath: string): string {
+  return `trunkBranch:${projectPath}`;
 }
 
 /**

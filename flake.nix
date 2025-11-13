@@ -1,5 +1,5 @@
 {
-  description = "cmux - coder multiplexer";
+  description = "mux - coder multiplexer";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
@@ -19,8 +19,8 @@
           inherit system;
         };
 
-        cmux = pkgs.stdenv.mkDerivation rec {
-          pname = "cmux";
+        mux = pkgs.stdenv.mkDerivation rec {
+          pname = "mux";
           version = self.rev or self.dirtyRev or "dev";
 
           src = ./.;
@@ -39,7 +39,7 @@
 
           # Fetch dependencies in a separate fixed-output derivation
           offlineCache = pkgs.stdenvNoCC.mkDerivation {
-            name = "cmux-deps-${version}";
+            name = "mux-deps-${version}";
 
             inherit src;
 
@@ -79,22 +79,22 @@
           '';
 
           buildPhase = ''
-            echo "Building cmux with make..."
+            echo "Building mux with make..."
             make build
           '';
 
           installPhase = ''
-            mkdir -p $out/lib/cmux
+            mkdir -p $out/lib/mux
             mkdir -p $out/bin
 
             # Copy built files and runtime dependencies
-            cp -r dist $out/lib/cmux/
-            cp -r node_modules $out/lib/cmux/
-            cp package.json $out/lib/cmux/
+            cp -r dist $out/lib/mux/
+            cp -r node_modules $out/lib/mux/
+            cp package.json $out/lib/mux/
 
             # Create wrapper script
-            makeWrapper ${pkgs.electron}/bin/electron $out/bin/cmux \
-              --add-flags "$out/lib/cmux/dist/main.js" \
+            makeWrapper ${pkgs.electron}/bin/electron $out/bin/mux \
+              --add-flags "$out/lib/mux/dist/main.js" \
               --prefix PATH : ${
                 pkgs.lib.makeBinPath [
                   pkgs.git
@@ -104,23 +104,23 @@
           '';
 
           meta = with pkgs.lib; {
-            description = "cmux - coder multiplexer";
-            homepage = "https://github.com/coder/cmux";
+            description = "mux - coder multiplexer";
+            homepage = "https://github.com/coder/mux";
             license = licenses.agpl3Only;
             platforms = platforms.linux ++ platforms.darwin;
-            mainProgram = "cmux";
+            mainProgram = "mux";
           };
         };
       in
       {
-        packages.default = cmux;
-        packages.cmux = cmux;
+        packages.default = mux;
+        packages.mux = mux;
 
         formatter = pkgs.nixfmt-rfc-style;
 
         apps.default = {
           type = "app";
-          program = "${cmux}/bin/cmux";
+          program = "${mux}/bin/mux";
         };
 
         devShells.default = pkgs.mkShell {

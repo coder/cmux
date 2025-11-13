@@ -6,7 +6,7 @@
  * For renderer-safe usage utilities, use displayUsage.ts instead.
  */
 
-import type { CmuxMessage } from "@/types/message";
+import type { MuxMessage } from "@/types/message";
 import type { ChatStats, TokenConsumer } from "@/types/chatStats";
 import {
   getTokenizerForModel,
@@ -110,7 +110,7 @@ export interface TokenCountJob {
  * Creates all token counting jobs from messages
  * Jobs are executed immediately (promises start running)
  */
-function createTokenCountingJobs(messages: CmuxMessage[], tokenizer: Tokenizer): TokenCountJob[] {
+function createTokenCountingJobs(messages: MuxMessage[], tokenizer: Tokenizer): TokenCountJob[] {
   const jobs: TokenCountJob[] = [];
 
   for (const message of messages) {
@@ -170,7 +170,7 @@ function createTokenCountingJobs(messages: CmuxMessage[], tokenizer: Tokenizer):
 /**
  * Collects all unique tool names from messages
  */
-export function collectUniqueToolNames(messages: CmuxMessage[]): Set<string> {
+export function collectUniqueToolNames(messages: MuxMessage[]): Set<string> {
   const toolNames = new Set<string>();
 
   for (const message of messages) {
@@ -215,7 +215,7 @@ interface SyncMetadata {
 /**
  * Extracts synchronous metadata from messages (no token counting needed)
  */
-export function extractSyncMetadata(messages: CmuxMessage[], model: string): SyncMetadata {
+export function extractSyncMetadata(messages: MuxMessage[], model: string): SyncMetadata {
   let systemMessageTokens = 0;
   const usageHistory: ChatUsageDisplay[] = [];
 
@@ -289,15 +289,15 @@ export function mergeResults(
 }
 
 /**
- * Calculate token statistics from raw CmuxMessages
+ * Calculate token statistics from raw MuxMessages
  * This is the single source of truth for token counting
  *
- * @param messages - Array of CmuxMessages from chat history
+ * @param messages - Array of MuxMessages from chat history
  * @param model - Model string (e.g., "anthropic:claude-opus-4-1")
  * @returns ChatStats with token breakdown by consumer and usage history
  */
 export async function calculateTokenStats(
-  messages: CmuxMessage[],
+  messages: MuxMessage[],
   model: string
 ): Promise<ChatStats> {
   if (messages.length === 0) {

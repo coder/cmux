@@ -45,16 +45,32 @@ function getPosthogConfig(): { key: string; host: string } {
 let isInitialized = false;
 
 // Storage key for telemetry enabled preference
-const TELEMETRY_ENABLED_KEY = "cmux_telemetry_enabled";
+const TELEMETRY_ENABLED_KEY = "mux_telemetry_enabled";
+const LEGACY_TELEMETRY_KEY = "cmux_telemetry_enabled";
 
 /**
  * Check if telemetry is enabled by user preference
  * Default is true (opt-out model)
+ * Checks legacy key for backward compatibility
  */
 export function isTelemetryEnabled(): boolean {
   if (typeof window === "undefined") return true;
+
+  // Try new key first, then legacy key
   const stored = localStorage.getItem(TELEMETRY_ENABLED_KEY);
-  return stored === null ? true : stored === "true";
+  if (stored !== null) {
+    return stored === "true";
+  }
+
+  // Migrate from legacy key if it exists
+  const legacy = localStorage.getItem(LEGACY_TELEMETRY_KEY);
+  if (legacy !== null) {
+    localStorage.setItem(TELEMETRY_ENABLED_KEY, legacy);
+    localStorage.removeItem(LEGACY_TELEMETRY_KEY);
+    return legacy === "true";
+  }
+
+  return true; // Default to enabled
 }
 
 /**

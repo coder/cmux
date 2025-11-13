@@ -48,7 +48,7 @@ export async function isDockerAvailable(): Promise<boolean> {
  */
 export async function startSSHServer(): Promise<SSHServerConfig> {
   // Create temp directory for SSH keys
-  const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "cmux-ssh-test-"));
+  const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "mux-ssh-test-"));
 
   try {
     // Generate ephemeral SSH key pair
@@ -65,7 +65,7 @@ export async function startSSHServer(): Promise<SSHServerConfig> {
       "-N",
       "", // No passphrase
       "-C",
-      "cmux-test",
+      "mux-test",
     ]);
 
     // Read public key
@@ -73,10 +73,10 @@ export async function startSSHServer(): Promise<SSHServerConfig> {
 
     // Build Docker image (use context directory for COPY commands)
     const dockerfilePath = path.join(__dirname, "ssh-server");
-    await execCommand("docker", ["build", "-t", "cmux-ssh-test", dockerfilePath]);
+    await execCommand("docker", ["build", "-t", "mux-ssh-test", dockerfilePath]);
 
     // Generate unique container name to avoid conflicts
-    const containerName = `cmux-ssh-test-${crypto.randomBytes(8).toString("hex")}`;
+    const containerName = `mux-ssh-test-${crypto.randomBytes(8).toString("hex")}`;
 
     // Start container with dynamic port mapping
     // -p 0:22 tells Docker to assign a random available host port
@@ -90,7 +90,7 @@ export async function startSSHServer(): Promise<SSHServerConfig> {
       "-e",
       `SSH_PUBLIC_KEY=${publicKey}`,
       "--rm", // Auto-remove on stop
-      "cmux-ssh-test",
+      "mux-ssh-test",
     ]);
 
     const containerId = runResult.stdout.trim();

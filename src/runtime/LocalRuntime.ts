@@ -20,7 +20,12 @@ import { RuntimeError as RuntimeErrorClass } from "./Runtime";
 import { NON_INTERACTIVE_ENV_VARS } from "../constants/env";
 import { EXIT_CODE_ABORTED, EXIT_CODE_TIMEOUT } from "../constants/exitCodes";
 import { listLocalBranches } from "../git";
-import { checkInitHookExists, getInitHookPath, createLineBufferedLoggers } from "./initHook";
+import {
+  checkInitHookExists,
+  getInitHookPath,
+  createLineBufferedLoggers,
+  getInitHookEnv,
+} from "./initHook";
 import { execAsync, DisposableProcess } from "../utils/disposableExec";
 import { getProjectName } from "../utils/runtime/helpers";
 import { getErrorMessage } from "../utils/errors";
@@ -370,7 +375,7 @@ export class LocalRuntime implements Runtime {
     const { projectPath, workspacePath, initLogger } = params;
 
     try {
-      // Run .cmux/init hook if it exists
+      // Run .mux/init hook if it exists
       // Note: runInitHook calls logComplete() internally if hook exists
       const hookExists = await checkInitHookExists(projectPath);
       if (hookExists) {
@@ -392,7 +397,7 @@ export class LocalRuntime implements Runtime {
   }
 
   /**
-   * Run .cmux/init hook if it exists and is executable
+   * Run .mux/init hook if it exists and is executable
    */
   private async runInitHook(
     projectPath: string,
@@ -415,6 +420,10 @@ export class LocalRuntime implements Runtime {
       const proc = spawn("bash", ["-c", `"${hookPath}"`], {
         cwd: workspacePath,
         stdio: ["ignore", "pipe", "pipe"],
+        env: {
+          ...process.env,
+          ...getInitHookEnv(projectPath, "local"),
+        },
       });
 
       proc.stdout.on("data", (data: Buffer) => {

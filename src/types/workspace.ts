@@ -40,7 +40,7 @@ export interface WorkspaceMetadata {
   /** Stable unique identifier (10 hex chars for new workspaces, legacy format for old) */
   id: string;
 
-  /** User-facing workspace name (e.g., "feature-branch") */
+  /** Git branch / directory name (e.g., "feature-branch") - used for path computation */
   name: string;
 
   /** Project name extracted from project path (for display) */

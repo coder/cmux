@@ -18,7 +18,7 @@ import type {
 import { RuntimeError as RuntimeErrorClass } from "./Runtime";
 import { EXIT_CODE_ABORTED, EXIT_CODE_TIMEOUT } from "../constants/exitCodes";
 import { log } from "../services/log";
-import { checkInitHookExists, createLineBufferedLoggers } from "./initHook";
+import { checkInitHookExists, createLineBufferedLoggers, getInitHookEnv } from "./initHook";
 import { streamProcessToLogger } from "./streamProcess";
 import { expandTildeForSSH, cdCommandForSSH } from "./tildeExpansion";
 import { getProjectName } from "../utils/runtime/helpers";
@@ -708,7 +708,7 @@ export class SSHRuntime implements Runtime {
   }
 
   /**
-   * Run .cmux/init hook on remote machine if it exists
+   * Run .mux/init hook on remote machine if it exists
    */
   private async runInitHook(
     projectPath: string,
@@ -723,7 +723,7 @@ export class SSHRuntime implements Runtime {
     }
 
     // Construct hook path - expand tilde if present
-    const remoteHookPath = `${workspacePath}/.cmux/init`;
+    const remoteHookPath = `${workspacePath}/.mux/init`;
     initLogger.logStep(`Running init hook: ${remoteHookPath}`);
 
     // Expand tilde in hook path for execution
@@ -736,6 +736,7 @@ export class SSHRuntime implements Runtime {
       cwd: workspacePath, // Run in the workspace directory
       timeout: 3600, // 1 hour - generous timeout for init hooks
       abortSignal,
+      env: getInitHookEnv(projectPath, "ssh"),
     });
 
     // Create line-buffered loggers
@@ -890,7 +891,7 @@ export class SSHRuntime implements Runtime {
       }
       initLogger.logStep("Branch checked out successfully");
 
-      // 3. Run .cmux/init hook if it exists
+      // 3. Run .mux/init hook if it exists
       // Note: runInitHook calls logComplete() internally if hook exists
       const hookExists = await checkInitHookExists(projectPath);
       if (hookExists) {

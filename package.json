@@ -1,7 +1,7 @@
 {
   "name": "mux",
   "version": "0.5.1",
-  "description": "cmux - coder multiplexer",
+  "description": "mux - coder multiplexer",
   "author": "Coder",
   "main": "dist/main.js",
   "bin": {
@@ -170,8 +170,8 @@
     "LICENSE"
   ],
   "build": {
-    "appId": "com.cmux.app",
-    "productName": "cmux",
+    "appId": "com.mux.app",
+    "productName": "mux",
     "publish": {
       "provider": "github",
       "releaseType": "release"

@@ -7,7 +7,7 @@
  */
 
 import type { SendMessageOptions } from "@/types/ipc";
-import type { CmuxFrontendMetadata, CompactionRequestData } from "@/types/message";
+import type { MuxFrontendMetadata, CompactionRequestData } from "@/types/message";
 import type { FrontendWorkspaceMetadata } from "@/types/workspace";
 import type { RuntimeConfig } from "@/types/runtime";
 import { RUNTIME_MODE, SSH_RUNTIME_PREFIX } from "@/types/runtime";
@@ -194,7 +194,7 @@ export interface CompactionResult {
  */
 export function prepareCompactionMessage(options: CompactionOptions): {
   messageText: string;
-  metadata: CmuxFrontendMetadata;
+  metadata: MuxFrontendMetadata;
   sendOptions: SendMessageOptions;
 } {
   const targetWords = options.maxOutputTokens ? Math.round(options.maxOutputTokens / 1.3) : 2000;
@@ -216,7 +216,7 @@ export function prepareCompactionMessage(options: CompactionOptions): {
     continueMessage: options.continueMessage,
   };
 
-  const metadata: CmuxFrontendMetadata = {
+  const metadata: MuxFrontendMetadata = {
     type: "compaction-request",
     rawCommand: formatCompactionCommand(options),
     parsed: compactData,

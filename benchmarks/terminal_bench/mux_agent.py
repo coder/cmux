@@ -12,10 +12,10 @@ from terminal_bench.agents.installed_agents.abstract_installed_agent import (
 from terminal_bench.terminal.models import TerminalCommand
 from terminal_bench.terminal.tmux_session import TmuxSession
 
-from .cmux_payload import build_app_archive, stage_payload
+from .mux_payload import build_app_archive, stage_payload
 
 
-class CmuxAgent(AbstractInstalledAgent):
+class MuxAgent(AbstractInstalledAgent):
     """
     Minimal Terminal-Bench adapter that installs cmux into the task container and
     forwards the benchmark instruction to the cmux headless runner.

@@ -1,6 +1,6 @@
 # Telemetry
 
-cmux collects anonymous usage telemetry to help us understand how the product is being used and improve it over time.
+mux collects anonymous usage telemetry to help us understand how the product is being used and improve it over time.
 
 ## Privacy Policy
 
@@ -8,7 +8,7 @@ cmux collects anonymous usage telemetry to help us understand how the product is
 - **No personal information**: We never collect usernames, project names, file paths, or code content
 - **Random IDs only**: Only randomly-generated workspace IDs are sent (impossible to trace back to you)
 - **No hashing**: We don't hash sensitive data because hashing is vulnerable to rainbow table attacks
-- **Transparent data**: See exactly what data structures we send in [`src/telemetry/payload.ts`](https://github.com/coder/cmux/blob/main/src/telemetry/payload.ts)
+- **Transparent data**: See exactly what data structures we send in [`src/telemetry/payload.ts`](https://github.com/coder/mux/blob/main/src/telemetry/payload.ts)
 
 ## What We Track
 
@@ -54,8 +54,8 @@ Your preference is saved and persists across app restarts.
 
 For complete transparency, you can review the telemetry implementation:
 
-- **Payload definitions**: [`src/telemetry/payload.ts`](https://github.com/coder/cmux/blob/main/src/telemetry/payload.ts) - All data structures we send
-- **Client code**: [`src/telemetry/client.ts`](https://github.com/coder/cmux/blob/main/src/telemetry/client.ts) - How telemetry is sent
-- **Privacy utilities**: [`src/telemetry/utils.ts`](https://github.com/coder/cmux/blob/main/src/telemetry/utils.ts) - Base-2 rounding and helpers
+- **Payload definitions**: [`src/telemetry/payload.ts`](https://github.com/coder/mux/blob/main/src/telemetry/payload.ts) - All data structures we send
+- **Client code**: [`src/telemetry/client.ts`](https://github.com/coder/mux/blob/main/src/telemetry/client.ts) - How telemetry is sent
+- **Privacy utilities**: [`src/telemetry/utils.ts`](https://github.com/coder/mux/blob/main/src/telemetry/utils.ts) - Base-2 rounding and helpers
 
 The telemetry system includes debug logging that you can see in the developer console (View → Toggle Developer Tools).

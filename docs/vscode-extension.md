@@ -1,6 +1,6 @@
 # VS Code Extension
 
-The cmux VS Code extension allows you to easily pair with cmux during development. Our extension works with VS Code and Cursor.
+The mux VS Code extension allows you to easily pair with mux during development. Our extension works with VS Code and Cursor.
 
 It's especially useful for completing the "last mile" of a task or establishing the initial architecture.
 
@@ -8,10 +8,10 @@ It's especially useful for completing the "last mile" of a task or establishing 
 
 The extension has a small initial surface area: a command to open a workspace.
 
-![cmux VS Code extension screenshot](./img/vscode-ext.webp)
+![mux VS Code extension screenshot](./img/vscode-ext.webp)
 
 1. Press `Cmd+Shift+P` (or `Ctrl+Shift+P` on Windows/Linux)
-2. Type "cmux: Open Workspace"
+2. Type "mux: Open Workspace"
    - Optional: Set a custom keybinding in the Command Palette settings
 3. Select your workspace
 4. It opens in a new editor window
@@ -22,7 +22,7 @@ The extension works with both local and SSH workspaces.
 
 ### Download
 
-Download the latest `.vsix` file from the [GitHub releases page](https://github.com/coder/cmux/releases).
+Download the latest `.vsix` file from the [GitHub releases page](https://github.com/coder/mux/releases).
 
 ### Install
 
@@ -30,10 +30,10 @@ Download the latest `.vsix` file from the [GitHub releases page](https://github.
 
 ```bash
 # For VS Code
-code --install-extension cmux-*.vsix
+code --install-extension mux-*.vsix
 
 # For Cursor
-cursor --install-extension cmux-*.vsix
+cursor --install-extension mux-*.vsix
 ```
 
 **From editor UI:**

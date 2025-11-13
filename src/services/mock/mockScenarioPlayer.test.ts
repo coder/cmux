@@ -1,17 +1,17 @@
 import { describe, expect, test } from "bun:test";
 import { EventEmitter } from "events";
 import { MockScenarioPlayer } from "./mockScenarioPlayer";
-import { createCmuxMessage, type CmuxMessage } from "@/types/message";
+import { createMuxMessage, type MuxMessage } from "@/types/message";
 import { allScenarios } from "./scenarios";
 import { Ok } from "@/types/result";
 import type { HistoryService } from "@/services/historyService";
 import type { AIService } from "@/services/aiService";
 
 class InMemoryHistoryService {
-  public appended: Array<{ workspaceId: string; message: CmuxMessage }> = [];
+  public appended: Array<{ workspaceId: string; message: MuxMessage }> = [];
   private nextSequence = 0;
 
-  appendToHistory(workspaceId: string, message: CmuxMessage) {
+  appendToHistory(workspaceId: string, message: MuxMessage) {
     message.metadata ??= {};
 
     if (message.metadata.historySequence === undefined) {
@@ -46,7 +46,7 @@ describe("MockScenarioPlayer", () => {
       throw new Error("Required mock scenario turns not defined");
     }
 
-    const firstTurnUser = createCmuxMessage("user-1", "user", listLanguagesTurn.user.text, {
+    const firstTurnUser = createMuxMessage("user-1", "user", listLanguagesTurn.user.text, {
       timestamp: Date.now(),
     });
 
@@ -55,7 +55,7 @@ describe("MockScenarioPlayer", () => {
     player.stop(workspaceId);
 
     const historyBeforeSecondTurn = historyStub.appended.map((entry) => entry.message);
-    const secondTurnUser = createCmuxMessage("user-2", "user", openDocTurn.user.text, {
+    const secondTurnUser = createMuxMessage("user-2", "user", openDocTurn.user.text, {
       timestamp: Date.now(),
     });
 

@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from .cmux_agent import CmuxAgent
+from .mux_agent import MuxAgent
 
 
 @pytest.fixture(autouse=True)
@@ -33,7 +33,7 @@ def _repo_root() -> Path:
 
 def test_env_defaults_are_normalized(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("CMUX_AGENT_REPO_ROOT", str(_repo_root()))
-    agent = CmuxAgent(model_name="anthropic/claude-sonnet-4-5")
+    agent = MuxAgent(model_name="anthropic/claude-sonnet-4-5")
 
     env = agent._env
 
@@ -47,6 +47,6 @@ def test_timeout_must_be_numeric(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("CMUX_AGENT_REPO_ROOT", str(_repo_root()))
     monkeypatch.setenv("CMUX_TIMEOUT_MS", "not-a-number")
 
-    agent = CmuxAgent()
+    agent = MuxAgent()
     with pytest.raises(ValueError):
         _ = agent._env
