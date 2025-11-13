@@ -20,7 +20,11 @@ interface FirstMessageInputProps {
  * 2. Sends the message to the new workspace
  * 3. Switches to the new workspace (via callback)
  */
-export function FirstMessageInput({ projectPath, onWorkspaceCreated, onCancel }: FirstMessageInputProps) {
+export function FirstMessageInput({
+  projectPath,
+  onWorkspaceCreated,
+  onCancel,
+}: FirstMessageInputProps) {
   const [input, setInput] = useState("");
   const [isSending, setIsSending] = useState(false);
   const [error, setError] = useState<string | null>(null);

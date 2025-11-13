@@ -174,12 +174,15 @@ function AppInner() {
     [removeProject, selectedWorkspace, setSelectedWorkspace]
   );
 
-  const handleAddWorkspace = useCallback((projectPath: string) => {
-    // Show FirstMessageInput for this project
-    setPendingNewWorkspaceProject(projectPath);
-    // Clear any selected workspace so FirstMessageInput is shown
-    setSelectedWorkspace(null);
-  }, [setSelectedWorkspace]);
+  const handleAddWorkspace = useCallback(
+    (projectPath: string) => {
+      // Show FirstMessageInput for this project
+      setPendingNewWorkspaceProject(projectPath);
+      // Clear any selected workspace so FirstMessageInput is shown
+      setSelectedWorkspace(null);
+    },
+    [setSelectedWorkspace]
+  );
 
   // Memoize callbacks to prevent LeftSidebar/ProjectSidebar re-renders
   const handleAddProjectCallback = useCallback(() => {
