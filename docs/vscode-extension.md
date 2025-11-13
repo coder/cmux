@@ -1,7 +1,8 @@
 # VS Code Extension
 
-The cmux VS Code extension allows you to quickly jump into your cmux workspaces directly from Visual Studio Code or Cursor. This enables a more seamless back and forth between a purely agentic workflow and traditional editing. It's
-especially useful for completing the "last mile" of a task or establishing the initial architecture.
+The cmux VS Code extension allows you to easily pair with cmux during development. Our extension works with VS Code and Cursor.
+
+It's especially useful for completing the "last mile" of a task or establishing the initial architecture.
 
 ## Overview
 
@@ -15,7 +16,7 @@ The extension has a small initial surface area: a command to open a workspace.
 3. Select your workspace
 4. It opens in a new editor window
 
-The extension works seamlessly with both local and SSH workspaces.
+The extension works with both local and SSH workspaces.
 
 ## Installation
 
