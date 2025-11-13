@@ -4,20 +4,10 @@ Open [cmux](https://cmux.io) workspaces from VS Code or Cursor.
 
 ## Installation
 
-**From VS Code Marketplace:**
+Download the latest `.vsix` from [cmux releases](https://github.com/coder/cmux/releases) and install:
 
 ```bash
-code --install-extension coder.cmux
-```
-
-Or search "cmux" in VS Code Extensions panel.
-
-**From .vsix file:**
-
-Download the latest `.vsix` from [cmux releases](https://github.com/coder/cmux/releases):
-
-```bash
-code --install-extension cmux-<version>.vsix
+code --install-extension cmux-0.1.0.vsix
 ```
 
 ## Usage
