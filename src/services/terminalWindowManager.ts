@@ -30,7 +30,8 @@ export class TerminalWindowManager {
       webPreferences: {
         nodeIntegration: false,
         contextIsolation: true,
-        preload: path.join(__dirname, "preload.js"),
+        // __dirname is dist/services/ but preload.js is in dist/
+        preload: path.join(__dirname, "../preload.js"),
       },
       backgroundColor: "#1e1e1e",
     });
