@@ -4,7 +4,6 @@
 /* eslint-disable @typescript-eslint/restrict-template-expressions */
 /* eslint-disable @typescript-eslint/prefer-optional-chain */
 /* eslint-disable @typescript-eslint/prefer-nullish-coalescing */
-/* eslint-disable @typescript-eslint/no-floating-promises */
 
 import { useRef, useEffect, useState } from "react";
 import { Terminal, FitAddon } from "ghostty-web";
@@ -121,7 +120,6 @@ export function TerminalView({ workspaceId, visible }: TerminalViewProps) {
     };
     // Note: sendInput and resize are intentionally not in deps
     // They're used in callbacks, not during effect execution
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible, workspaceId]);
 
   // WebSocket output → Terminal
@@ -254,7 +252,7 @@ export function TerminalView({ workspaceId, visible }: TerminalViewProps) {
       backgroundColor: "#1e1e1e"
     }}>
       {errorMessage && (
-        <div className="p-2 bg-red-900/20 text-red-400 text-sm border-b border-red-900/30">
+        <div className="border-b border-red-900/30 bg-red-900/20 p-2 text-sm text-red-400">
           Terminal Error: {errorMessage}
         </div>
       )}

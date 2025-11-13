@@ -517,7 +517,7 @@ export class IpcMain {
         // Note: metadata.json no longer written - config is the only source of truth
 
         // Update config to include the new workspace (with full metadata)
-        this.config.editConfig((config) => {
+        void this.config.editConfig((config) => {
           let projectConfig = config.projects.get(projectPath);
           if (!projectConfig) {
             // Create project config if it doesn't exist
@@ -645,7 +645,7 @@ export class IpcMain {
           const { oldPath, newPath } = renameResult;
 
           // Update config with new name and path
-          this.config.editConfig((config) => {
+          void this.config.editConfig((config) => {
             const projectConfig = config.projects.get(projectPath);
             if (projectConfig) {
               const workspaceEntry = projectConfig.workspaces.find((w) => w.path === oldPath);
@@ -1313,7 +1313,7 @@ export class IpcMain {
         }
       }
       if (configUpdated) {
-        this.config.saveConfig(projectsConfig);
+        void this.config.saveConfig(projectsConfig);
       }
 
       // Emit metadata event for workspace removal (with null metadata to indicate deletion)
@@ -1412,7 +1412,7 @@ export class IpcMain {
 
         // Add to config with normalized path
         config.projects.set(normalizedPath, projectConfig);
-        this.config.saveConfig(config);
+        void this.config.saveConfig(config);
 
         // Return both the config and the normalized path so frontend can use it
         return Ok({ projectConfig, normalizedPath });
@@ -1440,11 +1440,11 @@ export class IpcMain {
 
         // Remove project from config
         config.projects.delete(projectPath);
-        this.config.saveConfig(config);
+        void this.config.saveConfig(config);
 
         // Also remove project secrets if any
         try {
-          this.config.updateProjectSecrets(projectPath, []);
+          void this.config.updateProjectSecrets(projectPath, []);
         } catch (error) {
           log.error(`Failed to clean up secrets for project ${projectPath}:`, error);
           // Continue - don't fail the whole operation if secrets cleanup fails
@@ -1503,7 +1503,7 @@ export class IpcMain {
       IPC_CHANNELS.PROJECT_SECRETS_UPDATE,
       (_event, projectPath: string, secrets: Array<{ key: string; value: string }>) => {
         try {
-          this.config.updateProjectSecrets(projectPath, secrets);
+          void this.config.updateProjectSecrets(projectPath, secrets);
           return Ok(undefined);
         } catch (error) {
           const message = error instanceof Error ? error.message : String(error);
@@ -1581,7 +1581,7 @@ export class IpcMain {
     ipcMain.handle(IPC_CHANNELS.TERMINAL_WINDOW_OPEN, async (_event, workspaceId: string) => {
       try {
         const devServerPort = process.env.CMUX_DEVSERVER_PORT ?? "5173";
-        await void this.terminalWindowManager.openTerminalWindow(workspaceId, devServerPort);
+        void this.terminalWindowManager.openTerminalWindow(workspaceId, devServerPort);
       } catch (err) {
         log.error("Error opening terminal window:", err);
         throw err;

@@ -93,6 +93,7 @@ export class TerminalServer {
 
     ws.on("message", (data: Buffer) => {
       try {
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
         const message: TerminalMessage = JSON.parse(data.toString());
         this.handleMessage(ws, message);
       } catch (err) {

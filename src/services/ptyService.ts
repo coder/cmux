@@ -119,7 +119,6 @@ export class PTYService {
       // Buffer to handle escape sequences split across chunks
       let buffer = '';
       
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
       ptyProcess.onData((data) => {
         // Append new data to buffer
         buffer += data;
@@ -145,7 +144,6 @@ export class PTYService {
         // Send complete data
         if (sendUpTo > 0) {
           const toSend = buffer.substring(0, sendUpTo);
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
           this.terminalServer?.sendOutput(sessionId, toSend);
           buffer = buffer.substring(sendUpTo);
         }
