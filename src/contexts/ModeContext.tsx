@@ -21,7 +21,8 @@ export const ModeProvider: React.FC<ModeProviderProps> = ({
   children,
 }) => {
   // Priority: workspace-scoped > project-scoped
-  const scopeId = workspaceId ?? (projectPath ? `__project__${projectPath}` : "__global__");
+  // Use "/" delimiter so projectPath like "/home/user/project" becomes "__project__/home/user/project"
+  const scopeId = workspaceId ?? (projectPath ? `__project__/${projectPath}` : "__global__");
   const modeKey = getModeKey(scopeId);
   const [mode, setMode] = usePersistedState<UIMode>(modeKey, "exec", {
     listener: true, // Listen for changes from command palette and other sources

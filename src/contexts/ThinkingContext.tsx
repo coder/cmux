@@ -23,7 +23,8 @@ export const ThinkingProvider: React.FC<ThinkingProviderProps> = ({
   children,
 }) => {
   // Priority: workspace-scoped > project-scoped
-  const scopeId = workspaceId ?? (projectPath ? `__project__${projectPath}` : "__global__");
+  // Use "/" delimiter so projectPath like "/home/user/project" becomes "__project__/home/user/project"
+  const scopeId = workspaceId ?? (projectPath ? `__project__/${projectPath}` : "__global__");
   const key = getThinkingLevelKey(scopeId);
   const [thinkingLevel, setThinkingLevel] = usePersistedState<ThinkingLevel>(
     key,

@@ -64,8 +64,8 @@ Both should be concise (2-5 words) and descriptive of the task.`,
 }
 
 /**
- * Get model for title generation - prefers fast/cheap models
- * Priority: Haiku (Anthropic) → GPT-4o-mini (OpenAI) → fallback to user's model
+ * Get model for title generation - uses the user's selected model
+ * This ensures we don't need to manually update when providers release new models
  * Falls back to null if no provider configured
  */
 function getModelForTitleGeneration(modelString: string, config: Config): LanguageModel | null {
@@ -76,23 +76,7 @@ function getModelForTitleGeneration(modelString: string, config: Config): Langua
   }
 
   try {
-    // Try Anthropic Haiku first (fastest/cheapest)
-    if (providersConfig.anthropic?.apiKey) {
-      const provider = createAnthropic({
-        apiKey: String(providersConfig.anthropic.apiKey),
-      });
-      return provider("claude-haiku-4-5");
-    }
-
-    // Try OpenAI GPT-4o-mini second
-    if (providersConfig.openai?.apiKey) {
-      const provider = createOpenAI({
-        apiKey: String(providersConfig.openai.apiKey),
-      });
-      return provider("gpt-4o-mini");
-    }
-
-    // Parse user's model as fallback
+    // Parse user's model string
     const [providerName, modelId] = modelString.split(":", 2);
     if (!providerName || !modelId) {
       log.error("Invalid model string format:", modelString);

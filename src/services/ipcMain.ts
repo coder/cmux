@@ -118,6 +118,27 @@ export class IpcMain {
     this.aiService.on("stream-abort", handleStreamStop);
   }
 
+  /**
+   * Create InitLogger that bridges to InitStateManager
+   * Extracted helper to avoid duplication across workspace creation paths
+   */
+  private createInitLogger(workspaceId: string) {
+    return {
+      logStep: (message: string) => {
+        this.initStateManager.appendOutput(workspaceId, message, false);
+      },
+      logStdout: (line: string) => {
+        this.initStateManager.appendOutput(workspaceId, line, false);
+      },
+      logStderr: (line: string) => {
+        this.initStateManager.appendOutput(workspaceId, line, true);
+      },
+      logComplete: (exitCode: number) => {
+        void this.initStateManager.endInit(workspaceId, exitCode);
+      },
+    };
+  }
+
   private getOrCreateSession(workspaceId: string): AgentSession {
     assert(typeof workspaceId === "string", "workspaceId must be a string");
     const trimmed = workspaceId.trim();
@@ -316,21 +337,7 @@ export class IpcMain {
         // This MUST complete before workspace creation returns so replayInit() finds state
         this.initStateManager.startInit(workspaceId, projectPath);
 
-        // Create InitLogger that bridges to InitStateManager
-        const initLogger = {
-          logStep: (message: string) => {
-            this.initStateManager.appendOutput(workspaceId, message, false);
-          },
-          logStdout: (line: string) => {
-            this.initStateManager.appendOutput(workspaceId, line, false);
-          },
-          logStderr: (line: string) => {
-            this.initStateManager.appendOutput(workspaceId, line, true);
-          },
-          logComplete: (exitCode: number) => {
-            void this.initStateManager.endInit(workspaceId, exitCode);
-          },
-        };
+        const initLogger = this.createInitLogger(workspaceId);
 
         // Phase 1: Create workspace structure (FAST - returns immediately)
         const createResult = await runtime.createWorkspace({
@@ -573,21 +580,7 @@ export class IpcMain {
           // Start init tracking
           this.initStateManager.startInit(newWorkspaceId, foundProjectPath);
 
-          // Create InitLogger
-          const initLogger = {
-            logStep: (message: string) => {
-              this.initStateManager.appendOutput(newWorkspaceId, message, false);
-            },
-            logStdout: (line: string) => {
-              this.initStateManager.appendOutput(newWorkspaceId, line, false);
-            },
-            logStderr: (line: string) => {
-              this.initStateManager.appendOutput(newWorkspaceId, line, true);
-            },
-            logComplete: (exitCode: number) => {
-              void this.initStateManager.endInit(newWorkspaceId, exitCode);
-            },
-          };
+          const initLogger = this.createInitLogger(newWorkspaceId);
 
           // Delegate fork operation to runtime
           const forkResult = await runtime.forkWorkspace({
@@ -760,20 +753,7 @@ export class IpcMain {
             const session = this.getOrCreateSession(workspaceId);
             this.initStateManager.startInit(workspaceId, options.projectPath);
 
-            const initLogger = {
-              logStep: (message: string) => {
-                this.initStateManager.appendOutput(workspaceId, message, false);
-              },
-              logStdout: (line: string) => {
-                this.initStateManager.appendOutput(workspaceId, line, false);
-              },
-              logStderr: (line: string) => {
-                this.initStateManager.appendOutput(workspaceId, line, true);
-              },
-              logComplete: (exitCode: number) => {
-                void this.initStateManager.endInit(workspaceId, exitCode);
-              },
-            };
+            const initLogger = this.createInitLogger(workspaceId);
 
             const createResult = await runtime.createWorkspace({
               projectPath: options.projectPath,
