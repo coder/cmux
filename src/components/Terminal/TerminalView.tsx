@@ -137,6 +137,10 @@ export function TerminalView({ workspaceId, visible }: TerminalViewProps) {
         }
         
         if (msg.type === "output") {
+          // Debug: log output to check for corruption
+          if (msg.data.includes("38;5;130")) {
+            console.log("[TerminalView] DETECTED COLOR CODE IN OUTPUT:", JSON.stringify(msg.data.substring(0, 200)));
+          }
           currentTerm.write(msg.data);
         } else if (msg.type === "exit") {
           currentTerm.write(`\r\n[Process exited with code ${msg.exitCode}]\r\n`);
