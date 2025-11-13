@@ -40,6 +40,7 @@ export function TerminalView({ workspaceId, visible }: TerminalViewProps) {
 
     const initTerminal = async () => {
       try {
+        console.log("[TerminalView] Initializing terminal...");
         terminal = new Terminal({
           fontSize: 13,
           fontFamily: "Monaco, Menlo, 'Courier New', monospace",
@@ -88,6 +89,7 @@ export function TerminalView({ workspaceId, visible }: TerminalViewProps) {
         
         // User input → WebSocket (use ref to always get latest sendInput)
         terminal.onData((data: string) => {
+          console.log("[TerminalView] onData:", JSON.stringify(data));
           sendInputRef.current(data);
         });
 
