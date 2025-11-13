@@ -7,12 +7,12 @@ import { getModelKey } from "@/constants/storage";
 import { useModelLRU } from "@/hooks/useModelLRU";
 import { useNewWorkspaceOptions } from "@/hooks/useNewWorkspaceOptions";
 import { usePersistedState } from "@/hooks/usePersistedState";
-import { useThinkingLevel } from "@/hooks/useThinkingLevel";
 import { use1MContext } from "@/hooks/use1MContext";
 import { modeToToolPolicy, PLAN_MODE_INSTRUCTION } from "@/utils/ui/modeUtils";
 import { enforceThinkingPolicy } from "@/utils/thinking/policy";
 import type { SendMessageOptions } from "@/types/ipc";
-import { getModeKey } from "@/constants/storage";
+import type { ThinkingLevel } from "@/types/thinking";
+import { getModeKey, getThinkingLevelKey } from "@/constants/storage";
 import { ModelSelector } from "./ModelSelector";
 import { TooltipWrapper, Tooltip, HelpIndicator } from "./Tooltip";
 import { VimTextArea } from "./VimTextArea";
@@ -72,8 +72,13 @@ export function FirstMessageInput({
     listener: true,
   });
 
-  // Thinking level and 1M context
-  const [thinkingLevel] = useThinkingLevel();
+  // Thinking level - use project-scoped key since no workspace exists yet
+  const projectThinkingKey = getThinkingLevelKey(`__project__${projectPath}`);
+  const [thinkingLevel] = usePersistedState<ThinkingLevel>(projectThinkingKey, "off", {
+    listener: true,
+  });
+
+  // 1M context (global setting)
   const [use1M] = use1MContext();
 
   // Get most recent model from LRU (project-scoped preference)
