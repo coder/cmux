@@ -1592,6 +1592,65 @@ export class IpcMain {
     });
   }
 
+  /**
+   * Check if a command is available in the system PATH or known locations
+   */
+  private async isCommandAvailable(command: string): Promise<boolean> {
+    // Special handling for ghostty on macOS - check common installation paths
+    if (command === "ghostty" && process.platform === "darwin") {
+      const ghosttyPaths = [
+        "/opt/homebrew/bin/ghostty",
+        "/Applications/Ghostty.app/Contents/MacOS/ghostty",
+        "/usr/local/bin/ghostty",
+      ];
+
+      for (const ghosttyPath of ghosttyPaths) {
+        try {
+          const stats = await fsPromises.stat(ghosttyPath);
+          // Check if it's a file and any executable bit is set (owner, group, or other)
+          if (stats.isFile() && (stats.mode & 0o111) !== 0) {
+            return true;
+          }
+        } catch {
+          // Try next path
+        }
+      }
+      // If none of the known paths work, fall through to which check
+    }
+
+    try {
+      const result = spawnSync("which", [command], { encoding: "utf8" });
+      return result.status === 0;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Find the first available command from a list of commands
+   */
+  private async findAvailableCommand(commands: string[]): Promise<string | null> {
+    for (const cmd of commands) {
+      if (await this.isCommandAvailable(cmd)) {
+        return cmd;
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Find the first available terminal emulator from a list
+   */
+  private async findAvailableTerminal(
+    terminals: Array<{ cmd: string; args: string[]; cwd?: string }>
+  ): Promise<{ cmd: string; args: string[]; cwd?: string } | null> {
+    for (const terminal of terminals) {
+      if (await this.isCommandAvailable(terminal.cmd)) {
+        return terminal;
+      }
+    }
+    return null;
+  }
 
   /**
    * Open a terminal (local or SSH) with platform-specific handling
@@ -1626,7 +1685,7 @@ export class IpcMain {
       // Add remote command to cd into directory and start shell
       // Use single quotes to prevent local shell expansion
       // exec $SHELL replaces the SSH process with the shell, avoiding nested processes
-      sshArgs.push(`cd '${config.remotePath.replace(/'/g, "'\\\\''")}' && exec $SHELL`);
+      sshArgs.push(`cd '${config.remotePath.replace(/'/g, "'\\''")}'  && exec $SHELL`);
     }
 
     const logPrefix = isSSH ? "SSH terminal" : "terminal";
@@ -1664,7 +1723,7 @@ export class IpcMain {
             .map((arg) => {
               if (arg.includes(" ") || arg.includes("'")) {
                 // Escape single quotes by ending quote, adding escaped quote, starting quote again
-                return `'${arg.replace(/'/g, "'\\\\'")}'`;
+                return `'${arg.replace(/'/g, "'\\'")}'`;
               }
               return arg;
             })
@@ -1753,65 +1812,5 @@ export class IpcMain {
         log.error("No terminal emulator found. Tried: " + terminals.map((t) => t.cmd).join(", "));
       }
     }
-  }
-
-  /**
-   * Check if a command is available in the system PATH or known locations
-   */
-  private async isCommandAvailable(command: string): Promise<boolean> {
-    // Special handling for ghostty on macOS - check common installation paths
-    if (command === "ghostty" && process.platform === "darwin") {
-      const ghosttyPaths = [
-        "/opt/homebrew/bin/ghostty",
-        "/Applications/Ghostty.app/Contents/MacOS/ghostty",
-        "/usr/local/bin/ghostty",
-      ];
-
-      for (const ghosttyPath of ghosttyPaths) {
-        try {
-          const stats = await fsPromises.stat(ghosttyPath);
-          // Check if it's a file and any executable bit is set (owner, group, or other)
-          if (stats.isFile() && (stats.mode & 0o111) !== 0) {
-            return true;
-          }
-        } catch {
-          // Try next path
-        }
-      }
-      // If none of the known paths work, fall through to which check
-    }
-
-    try {
-      const result = spawnSync("which", [command], { encoding: "utf8" });
-      return result.status === 0;
-    } catch {
-      return false;
-    }
-  }
-
-  /**
-   * Find the first available command from a list of commands
-   */
-  private async findAvailableCommand(commands: string[]): Promise<string | null> {
-    for (const cmd of commands) {
-      if (await this.isCommandAvailable(cmd)) {
-        return cmd;
-      }
-    }
-    return null;
-  }
-
-  /**
-   * Find the first available terminal from a list of terminal configurations
-   */
-  private async findAvailableTerminal(
-    terminals: Array<{ cmd: string; args: string[]; cwd?: string }>
-  ): Promise<{ cmd: string; args: string[]; cwd?: string } | null> {
-    for (const terminal of terminals) {
-      if (await this.isCommandAvailable(terminal.cmd)) {
-        return terminal;
-      }
-    }
-    return null;
   }
 }
