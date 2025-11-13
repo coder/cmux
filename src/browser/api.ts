@@ -254,6 +254,8 @@ const webApi: IPCApi = {
     close: (sessionId) => invokeIPC(IPC_CHANNELS.TERMINAL_CLOSE, sessionId),
     resize: (params) => invokeIPC(IPC_CHANNELS.TERMINAL_RESIZE, params),
     getPort: () => invokeIPC(IPC_CHANNELS.TERMINAL_GET_PORT),
+    openWindow: (workspaceId) => invokeIPC(IPC_CHANNELS.TERMINAL_WINDOW_OPEN, workspaceId),
+    closeWindow: (workspaceId) => invokeIPC(IPC_CHANNELS.TERMINAL_WINDOW_CLOSE, workspaceId),
   },
   update: {
     check: () => invokeIPC(IPC_CHANNELS.UPDATE_CHECK),

@@ -186,9 +186,8 @@ export function TerminalView({ workspaceId, visible }: TerminalViewProps) {
   return (
     <div className="terminal-view" style={{ 
       width: "100%", 
-      height: "300px",
-      backgroundColor: "#1e1e1e",
-      borderTop: "1px solid #333"
+      height: "100%",
+      backgroundColor: "#1e1e1e"
     }}>
       {errorMessage && (
         <div className="p-2 bg-red-900/20 text-red-400 text-sm border-b border-red-900/30">

@@ -26,7 +26,7 @@ import { getModelName } from "@/utils/ai/models";
 import type { DisplayedMessage } from "@/types/message";
 import type { RuntimeConfig } from "@/types/runtime";
 import { useAIViewKeybinds } from "@/hooks/useAIViewKeybinds";
-import { TerminalView } from "./Terminal/TerminalView";
+
 
 interface AIViewProps {
   workspaceId: string;
@@ -51,11 +51,6 @@ const AIViewInner: React.FC<AIViewProps> = ({
   // RightSidebar notifies us of tab changes via onTabChange callback
   const [activeTab, setActiveTab] = useState<TabType>("costs");
 
-  // Terminal visibility state (persisted per workspace)
-  const [terminalVisible, setTerminalVisible] = usePersistedState(
-    `terminal-visible-${workspaceId}`,
-    false
-  );
   const isReviewTabActive = activeTab === "review";
 
   // Resizable sidebar for Review tab only
@@ -175,9 +170,8 @@ const AIViewInner: React.FC<AIViewProps> = ({
   );
 
   const handleOpenTerminal = useCallback(() => {
-    // Toggle embedded terminal instead of opening external
-    setTerminalVisible((prev) => !prev);
-  }, [setTerminalVisible]);
+    void window.api.terminal.openWindow(workspaceId);
+  }, [workspaceId]);
 
   // Auto-scroll when messages or todos update (during streaming)
   useEffect(() => {
@@ -482,8 +476,6 @@ const AIViewInner: React.FC<AIViewProps> = ({
           canInterrupt={canInterrupt}
           onReady={handleChatInputReady}
         />
-
-        <TerminalView workspaceId={workspaceId} visible={terminalVisible} />
       </div>
 
       <RightSidebar

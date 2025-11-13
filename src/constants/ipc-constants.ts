@@ -37,6 +37,8 @@ export const IPC_CHANNELS = {
   TERMINAL_CLOSE: "terminal:close",
   TERMINAL_RESIZE: "terminal:resize",
   TERMINAL_GET_PORT: "terminal:getPort",
+  TERMINAL_WINDOW_OPEN: "terminal:window:open",
+  TERMINAL_WINDOW_CLOSE: "terminal:window:close",
 
   // Window channels
   WINDOW_SET_TITLE: "window:setTitle",

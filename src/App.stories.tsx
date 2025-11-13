@@ -106,6 +106,8 @@ function setupMockAPI(options: {
       close: () => Promise.resolve(undefined),
       resize: () => Promise.resolve(undefined),
       getPort: () => Promise.resolve(3000),
+      openWindow: () => Promise.resolve(undefined),
+      closeWindow: () => Promise.resolve(undefined),
     },
     update: {
       check: () => Promise.resolve(undefined),

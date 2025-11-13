@@ -299,6 +299,8 @@ export interface IPCApi {
     close(sessionId: string): Promise<void>;
     resize(params: TerminalResizeParams): Promise<void>;
     getPort(): Promise<number>;
+    openWindow(workspaceId: string): Promise<void>;
+    closeWindow(workspaceId: string): Promise<void>;
   };
   update: {
     check(): Promise<void>;

@@ -30,6 +30,7 @@ import type { RuntimeConfig } from "@/types/runtime";
 import { validateProjectPath } from "@/utils/pathUtils";
 import { PTYService } from "@/services/ptyService";
 import { TerminalServer } from "@/services/terminalServer";
+import { TerminalWindowManager } from "@/services/terminalWindowManager";
 import type { TerminalCreateParams, TerminalResizeParams } from "@/types/terminal";
 /**
  * IpcMain - Manages all IPC handlers and service coordination
@@ -53,6 +54,7 @@ export class IpcMain {
   private readonly extensionMetadata: ExtensionMetadataService;
   private readonly ptyService: PTYService;
   private readonly terminalServer: TerminalServer;
+  private readonly terminalWindowManager: TerminalWindowManager;
   private readonly sessions = new Map<string, AgentSession>();
   private readonly sessionSubscriptions = new Map<
     string,
@@ -79,6 +81,7 @@ export class IpcMain {
     this.ptyService = new PTYService();
     this.terminalServer = new TerminalServer(this.ptyService);
     this.ptyService.setTerminalServer(this.terminalServer);
+    this.terminalWindowManager = new TerminalWindowManager();
 
     // Listen to AIService events to update metadata
     this.setupMetadataListeners();
@@ -1382,6 +1385,25 @@ export class IpcMain {
 
     ipcMain.handle(IPC_CHANNELS.TERMINAL_GET_PORT, async () => {
       return this.terminalServer.getPort();
+    });
+
+    ipcMain.handle(IPC_CHANNELS.TERMINAL_WINDOW_OPEN, async (_event, workspaceId: string) => {
+      try {
+        const devServerPort = process.env.CMUX_DEVSERVER_PORT ?? "5173";
+        await this.terminalWindowManager.openTerminalWindow(workspaceId, devServerPort);
+      } catch (err) {
+        log.error("Error opening terminal window:", err);
+        throw err;
+      }
+    });
+
+    ipcMain.handle(IPC_CHANNELS.TERMINAL_WINDOW_CLOSE, async (_event, workspaceId: string) => {
+      try {
+        this.terminalWindowManager.closeTerminalWindow(workspaceId);
+      } catch (err) {
+        log.error("Error closing terminal window:", err);
+        throw err;
+      }
     });
   }
 

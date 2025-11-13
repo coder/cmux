@@ -152,6 +152,8 @@ const api: IPCApi = {
     close: (sessionId) => ipcRenderer.invoke(IPC_CHANNELS.TERMINAL_CLOSE, sessionId),
     resize: (params) => ipcRenderer.invoke(IPC_CHANNELS.TERMINAL_RESIZE, params),
     getPort: () => ipcRenderer.invoke(IPC_CHANNELS.TERMINAL_GET_PORT),
+    openWindow: (workspaceId: string) => ipcRenderer.invoke(IPC_CHANNELS.TERMINAL_WINDOW_OPEN, workspaceId),
+    closeWindow: (workspaceId: string) => ipcRenderer.invoke(IPC_CHANNELS.TERMINAL_WINDOW_CLOSE, workspaceId),
   },
 };
 

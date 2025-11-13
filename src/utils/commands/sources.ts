@@ -122,7 +122,7 @@ export function buildCoreSources(p: BuildSourcesParams): Array<() => CommandActi
       const workspaceDisplayName = `${selected.projectName}/${selected.namedWorkspacePath.split("/").pop() ?? selected.namedWorkspacePath}`;
       list.push({
         id: CommandIds.workspaceOpenTerminalCurrent(),
-        title: "Open Current Workspace in Terminal",
+        title: "Open Terminal Window",
         subtitle: workspaceDisplayName,
         section: section.workspaces,
         shortcutHint: formatKeybind(KEYBINDS.OPEN_TERMINAL),
