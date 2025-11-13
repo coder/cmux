@@ -102,12 +102,12 @@ help: ## Show this help message
 
 ## Development
 ifeq ($(OS),Windows_NT)
-dev: node_modules/.installed build-main clean-cache ## Start development server (Vite + nodemon watcher for Windows compatibility)
+dev: node_modules/.installed build-main ## Start development server (Vite + nodemon watcher for Windows compatibility)
 	@echo "Starting dev mode (2 watchers: nodemon for main process, vite for renderer)..."
 	# On Windows, use npm run because bunx doesn't correctly pass arguments to concurrently
 	# https://github.com/oven-sh/bun/issues/18275
 	@NODE_OPTIONS="--max-old-space-size=4096" npm x concurrently -k --raw \
-		"bun x nodemon --exec node scripts/build-main-watch.js" \
+		"bun x nodemon --watch src --watch tsconfig.main.json --watch tsconfig.json --ext ts,tsx,json --ignore dist --ignore node_modules --exec node scripts/build-main-watch.js" \
 		"vite"
 else
 dev: node_modules/.installed build-main ## Start development server (Vite + tsgo watcher for 10x faster type checking)
@@ -125,7 +125,7 @@ dev-server: node_modules/.installed build-main ## Start server mode with hot rel
 	@echo "For remote access: make dev-server VITE_HOST=0.0.0.0 BACKEND_HOST=0.0.0.0"
 	@# On Windows, use npm run because bunx doesn't correctly pass arguments
 	@npmx concurrently -k \
-		"npmx nodemon --exec node scripts/build-main-watch.js" \
+		"npmx nodemon --watch src --watch tsconfig.main.json --watch tsconfig.json --ext ts,tsx,json --ignore dist --ignore node_modules --exec node scripts/build-main-watch.js" \
 		"npmx nodemon --watch dist/main.js --watch dist/main-server.js --delay 500ms --exec \"node dist/main.js server --host $(or $(BACKEND_HOST),localhost) --port $(or $(BACKEND_PORT),3000)\"" \
 		"$(SHELL) -lc \"MUX_VITE_HOST=$(or $(VITE_HOST),127.0.0.1) MUX_VITE_PORT=$(or $(VITE_PORT),5173) VITE_BACKEND_URL=http://$(or $(BACKEND_HOST),localhost):$(or $(BACKEND_PORT),3000) vite\""
 else
