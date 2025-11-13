@@ -31,24 +31,26 @@ The init script runs in the workspace directory with the workspace's environment
 
 Init hooks receive the following environment variables:
 
-- `MUX_PROJECT_PATH` - Absolute path to the project root directory
-  - **Local workspaces**: Path on your local machine
-  - **SSH workspaces**: Path on the remote machine
+- `MUX_PROJECT_PATH` - Absolute path to the project root on the **local machine**
+  - Always refers to your local project path, even on SSH workspaces
+  - Useful for logging, debugging, or runtime-specific logic
 - `MUX_RUNTIME` - Runtime type: `"local"` or `"ssh"`
+  - Use this to detect whether the hook is running locally or remotely
 
-Example usage:
+**Note for SSH workspaces:** Since the project is synced to the remote machine, files exist in both locations. The init hook runs in the workspace directory (`$PWD`), so use relative paths to reference project files:
 
 ```bash
 #!/bin/bash
 set -e
 
 echo "Runtime: $MUX_RUNTIME"
-echo "Project root: $MUX_PROJECT_PATH"
+echo "Local project path: $MUX_PROJECT_PATH"
 echo "Workspace directory: $PWD"
 
-# Reference files in project root
-if [ -f "$MUX_PROJECT_PATH/.env" ]; then
-  cp "$MUX_PROJECT_PATH/.env" "$PWD/.env"
+# Copy .env from project root (works for both local and SSH)
+# The hook runs with cwd = workspace, and project root is the parent directory
+if [ -f "../.env" ]; then
+  cp "../.env" "$PWD/.env"
 fi
 
 # Runtime-specific behavior

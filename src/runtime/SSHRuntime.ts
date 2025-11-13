@@ -728,18 +728,13 @@ export class SSHRuntime implements Runtime {
     // Tilde won't be expanded when the path is quoted, so we need to expand it ourselves
     const hookCommand = expandTildeForSSH(remoteHookPath);
 
-    // Compute remote project path for PROJECT_PATH env var
-    // workspacePath is srcBaseDir/projectName/branchName, so parent is the remote project root
-    const projectName = getProjectName(projectPath);
-    const remoteProjectPath = path.posix.join(this.config.srcBaseDir, projectName);
-
     // Run hook remotely and stream output
     // No timeout - user init hooks can be arbitrarily long
     const hookStream = await this.exec(hookCommand, {
       cwd: workspacePath, // Run in the workspace directory
       timeout: 3600, // 1 hour - generous timeout for init hooks
       abortSignal,
-      env: getInitHookEnv(remoteProjectPath, "ssh"),
+      env: getInitHookEnv(projectPath, "ssh"),
     });
 
     // Create line-buffered loggers
