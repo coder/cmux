@@ -66,6 +66,8 @@ export class TerminalServer {
         resolve(this.port);
       });
     });
+
+    return this.startPromise;
   }
 
   /**
