@@ -322,10 +322,9 @@ export const ChatInput: React.FC<ChatInputProps> = (props) => {
   useEffect(() => {
     if (variant !== "workspace") return;
     
-    const workspaceId = props.workspaceId;
     const handler = (event: Event) => {
       const detail = (event as CustomEvent<{ workspaceId: string; level: ThinkingLevel }>).detail;
-      if (detail?.workspaceId !== workspaceId || !detail.level) {
+      if (detail?.workspaceId !== props.workspaceId || !detail.level) {
         return;
       }
 
@@ -433,16 +432,6 @@ export const ChatInput: React.FC<ChatInputProps> = (props) => {
     // Workspace variant: full command handling + message send
     if (variant !== "workspace") return; // Type guard
 
-    // Destructure workspace-specific props
-    const {
-      workspaceId,
-      onTruncateHistory,
-      onProviderConfig,
-      onModelChange,
-      onMessageSent,
-      onCancelEdit,
-    } = props;
-
     try {
       // Parse command
       const parsed = parseCommand(messageText);
@@ -454,7 +443,7 @@ export const ChatInput: React.FC<ChatInputProps> = (props) => {
           if (inputRef.current) {
             inputRef.current.style.height = "36px";
           }
-          await onTruncateHistory(1.0);
+          await props.onTruncateHistory(1.0);
           setToast({
             id: Date.now().toString(),
             type: "success",
@@ -469,7 +458,7 @@ export const ChatInput: React.FC<ChatInputProps> = (props) => {
           if (inputRef.current) {
             inputRef.current.style.height = "36px";
           }
-          await onTruncateHistory(parsed.percentage);
+          await props.onTruncateHistory(parsed.percentage);
           setToast({
             id: Date.now().toString(),
             type: "success",
@@ -479,12 +468,12 @@ export const ChatInput: React.FC<ChatInputProps> = (props) => {
         }
 
         // Handle /providers set command
-        if (parsed.type === "providers-set" && onProviderConfig) {
+        if (parsed.type === "providers-set" && props.onProviderConfig) {
           setIsSending(true);
           setInput(""); // Clear input immediately
 
           try {
-            await onProviderConfig(parsed.provider, parsed.keyPath, parsed.value);
+            await props.onProviderConfig(parsed.provider, parsed.keyPath, parsed.value);
             // Success - show toast
             setToast({
               id: Date.now().toString(),
@@ -509,7 +498,7 @@ export const ChatInput: React.FC<ChatInputProps> = (props) => {
         if (parsed.type === "model-set") {
           setInput(""); // Clear input immediately
           setPreferredModel(parsed.modelString);
-          onModelChange?.(parsed.modelString);
+          props.onModelChange?.(parsed.modelString);
           setToast({
             id: Date.now().toString(),
             type: "success",
@@ -540,13 +529,13 @@ export const ChatInput: React.FC<ChatInputProps> = (props) => {
         // Handle /compact command
         if (parsed.type === "compact") {
           const context: CommandHandlerContext = {
-            workspaceId,
+            workspaceId: props.workspaceId,
             sendMessageOptions,
             editMessageId: editingMessage?.id,
             setInput,
             setIsSending,
             setToast,
-            onCancelEdit,
+            onCancelEdit: props.onCancelEdit,
           };
 
           const result = await handleCompactCommand(parsed, context);
@@ -563,7 +552,7 @@ export const ChatInput: React.FC<ChatInputProps> = (props) => {
 
           try {
             const forkResult = await forkWorkspace({
-              sourceWorkspaceId: workspaceId,
+              sourceWorkspaceId: props.workspaceId,
               newName: parsed.newName,
               startMessage: parsed.startMessage,
               sendMessageOptions,
@@ -605,7 +594,7 @@ export const ChatInput: React.FC<ChatInputProps> = (props) => {
         // Handle /new command
         if (parsed.type === "new") {
           const context: CommandHandlerContext = {
-            workspaceId,
+            workspaceId: props.workspaceId,
             sendMessageOptions,
             setInput,
             setIsSending,
@@ -676,7 +665,7 @@ export const ChatInput: React.FC<ChatInputProps> = (props) => {
               metadata,
               sendOptions,
             } = prepareCompactionMessage({
-              workspaceId,
+              workspaceId: props.workspaceId,
               maxOutputTokens: parsed.maxOutputTokens,
               continueMessage: parsed.continueMessage,
               model: parsed.model,
@@ -697,7 +686,7 @@ export const ChatInput: React.FC<ChatInputProps> = (props) => {
           inputRef.current.style.height = "36px";
         }
 
-        const result = await window.api.workspace.sendMessage(workspaceId, actualMessageText, {
+        const result = await window.api.workspace.sendMessage(props.workspaceId, actualMessageText, {
           ...sendMessageOptions,
           ...compactionOptions,
           editMessageId: editingMessage?.id,
@@ -718,10 +707,10 @@ export const ChatInput: React.FC<ChatInputProps> = (props) => {
           telemetry.messageSent(sendMessageOptions.model, mode, actualMessageText.length);
 
           // Exit editing mode if we were editing
-          if (editingMessage && onCancelEdit) {
-            onCancelEdit();
+          if (editingMessage && props.onCancelEdit) {
+            props.onCancelEdit();
           }
-          onMessageSent?.();
+          props.onMessageSent?.();
         }
       } catch (error) {
         // Handle unexpected errors
@@ -746,8 +735,8 @@ export const ChatInput: React.FC<ChatInputProps> = (props) => {
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    // Handle Escape for creation variant cancel
-    if (variant === "creation" && e.key === "Escape" && props.onCancel) {
+    // Handle cancel for creation variant
+    if (variant === "creation" && matchesKeybind(e, KEYBINDS.CANCEL) && props.onCancel) {
       e.preventDefault();
       props.onCancel();
       return;

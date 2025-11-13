@@ -1,5 +1,5 @@
 import React from "react";
-import { RUNTIME_MODE } from "@/types/runtime";
+import { RUNTIME_MODE, type RuntimeMode } from "@/types/runtime";
 import { TooltipWrapper, Tooltip } from "../Tooltip";
 import { Select } from "../Select";
 
@@ -7,12 +7,9 @@ interface CreationControlsProps {
   branches: string[];
   trunkBranch: string;
   onTrunkBranchChange: (branch: string) => void;
-  runtimeMode: typeof RUNTIME_MODE.LOCAL | typeof RUNTIME_MODE.SSH;
+  runtimeMode: RuntimeMode;
   sshHost: string;
-  onRuntimeChange: (
-    mode: typeof RUNTIME_MODE.LOCAL | typeof RUNTIME_MODE.SSH,
-    host: string
-  ) => void;
+  onRuntimeChange: (mode: RuntimeMode, host: string) => void;
   disabled: boolean;
 }
 
@@ -51,7 +48,7 @@ export function CreationControls(props: CreationControlsProps) {
             { value: RUNTIME_MODE.SSH, label: "SSH Remote" },
           ]}
           onChange={(newMode) => {
-            const mode = newMode as typeof RUNTIME_MODE.LOCAL | typeof RUNTIME_MODE.SSH;
+            const mode = newMode as RuntimeMode;
             props.onRuntimeChange(mode, mode === RUNTIME_MODE.LOCAL ? "" : props.sshHost);
           }}
           disabled={props.disabled}

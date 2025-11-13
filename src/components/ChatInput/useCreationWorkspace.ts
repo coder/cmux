@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import type { FrontendWorkspaceMetadata } from "@/types/workspace";
-import type { RuntimeConfig } from "@/types/runtime";
-import type { RUNTIME_MODE } from "@/types/runtime";
+import type { RuntimeConfig, RuntimeMode } from "@/types/runtime";
 import { parseRuntimeString } from "@/utils/chatCommands";
 import { useDraftWorkspaceSettings } from "@/hooks/useDraftWorkspaceSettings";
 import { useSendMessageOptions } from "@/hooks/useSendMessageOptions";
@@ -16,12 +15,9 @@ interface UseCreationWorkspaceReturn {
   branches: string[];
   trunkBranch: string;
   setTrunkBranch: (branch: string) => void;
-  runtimeMode: typeof RUNTIME_MODE.LOCAL | typeof RUNTIME_MODE.SSH;
+  runtimeMode: RuntimeMode;
   sshHost: string;
-  setRuntimeOptions: (
-    mode: typeof RUNTIME_MODE.LOCAL | typeof RUNTIME_MODE.SSH,
-    host: string
-  ) => void;
+  setRuntimeOptions: (mode: RuntimeMode, host: string) => void;
   error: string | null;
   setError: (error: string | null) => void;
   isSending: boolean;
