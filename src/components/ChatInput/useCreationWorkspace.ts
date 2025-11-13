@@ -50,6 +50,11 @@ export function useCreationWorkspace({
 
   // Load branches on mount
   useEffect(() => {
+    // This can be created with an empty project path when the user is
+    // creating a new workspace.
+    if (!projectPath.length) {
+      return;
+    }
     const loadBranches = async () => {
       try {
         const result = await window.api.projects.listBranches(projectPath);
