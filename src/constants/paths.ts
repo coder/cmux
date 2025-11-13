@@ -10,7 +10,7 @@ import { join } from "path";
  * If .cmux exists but .mux doesn't, moves .cmux → .mux and creates symlink.
  * This ensures old scripts/tools referencing ~/.cmux continue working.
  */
-export function ensureMuxMigration(): void {
+export function migrateCmuxToMux(): void {
   const oldPath = join(homedir(), ".cmux");
   const newPath = join(homedir(), ".mux");
 

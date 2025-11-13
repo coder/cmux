@@ -1,10 +1,11 @@
 /**
- * HTTP/WebSocket Server for cmux
- * Allows accessing cmux backend from mobile devices
+ * HTTP/WebSocket Server for mux
+ * Allows accessing mux backend from mobile devices
  */
 import { Config } from "./config";
 import { IPC_CHANNELS } from "@/constants/ipc-constants";
 import { IpcMain } from "./services/ipcMain";
+import { migrateCmuxToMux } from "./constants/paths";
 import cors from "cors";
 import type { BrowserWindow, IpcMain as ElectronIpcMain } from "electron";
 import express from "express";
@@ -19,8 +20,8 @@ import { validateProjectPath } from "./utils/pathUtils";
 const program = new Command();
 
 program
-  .name("cmux-server")
-  .description("HTTP/WebSocket server for cmux - allows accessing cmux backend from mobile devices")
+  .name("mux-server")
+  .description("HTTP/WebSocket server for mux - allows accessing mux backend from mobile devices")
   .option("-h, --host <host>", "bind to specific host", "localhost")
   .option("-p, --port <port>", "bind to specific port", "3000")
   .option("--add-project <path>", "add and open project at the specified path (idempotent)")
@@ -143,6 +144,9 @@ const httpIpcMain = new HttpIpcMainAdapter(app);
 
 // Initialize async services and register handlers
 (async () => {
+  // Migrate from .cmux to .mux directory structure if needed
+  migrateCmuxToMux();
+
   // Initialize config and IPC service
   const config = new Config();
   const ipcMainService = new IpcMain(config);

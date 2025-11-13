@@ -18,7 +18,7 @@ import type { Config } from "./config";
 import type { IpcMain } from "./services/ipcMain";
 import { VERSION } from "./version";
 import { IPC_CHANNELS } from "./constants/ipc-constants";
-import { getMuxHome, ensureMuxMigration } from "./constants/paths";
+import { getMuxHome, migrateCmuxToMux } from "./constants/paths";
 import { log } from "./services/log";
 import { parseDebugUpdater } from "./utils/env";
 import assert from "./utils/assert";
@@ -486,7 +486,7 @@ if (gotTheLock) {
       console.log("App ready, creating window...");
 
       // Migrate from .cmux to .mux directory structure if needed
-      ensureMuxMigration();
+      migrateCmuxToMux();
 
       // Install React DevTools in development
       if (!app.isPackaged && installExtension && REACT_DEVELOPER_TOOLS) {
