@@ -1627,32 +1627,6 @@ export class IpcMain {
   }
 
   /**
-   * Find the first available command from a list of commands
-   */
-  private async findAvailableCommand(commands: string[]): Promise<string | null> {
-    for (const cmd of commands) {
-      if (await this.isCommandAvailable(cmd)) {
-        return cmd;
-      }
-    }
-    return null;
-  }
-
-  /**
-   * Find the first available terminal emulator from a list
-   */
-  private async findAvailableTerminal(
-    terminals: Array<{ cmd: string; args: string[]; cwd?: string }>
-  ): Promise<{ cmd: string; args: string[]; cwd?: string } | null> {
-    for (const terminal of terminals) {
-      if (await this.isCommandAvailable(terminal.cmd)) {
-        return terminal;
-      }
-    }
-    return null;
-  }
-
-  /**
    * Open a terminal (local or SSH) with platform-specific handling
    */
   private async openTerminal(
@@ -1685,7 +1659,7 @@ export class IpcMain {
       // Add remote command to cd into directory and start shell
       // Use single quotes to prevent local shell expansion
       // exec $SHELL replaces the SSH process with the shell, avoiding nested processes
-      sshArgs.push(`cd '${config.remotePath.replace(/'/g, "'\\''")}'  && exec $SHELL`);
+      sshArgs.push(`cd '${config.remotePath.replace(/'/g, "'\\''")}' && exec $SHELL`);
     }
 
     const logPrefix = isSSH ? "SSH terminal" : "terminal";
@@ -1723,14 +1697,14 @@ export class IpcMain {
             .map((arg) => {
               if (arg.includes(" ") || arg.includes("'")) {
                 // Escape single quotes by ending quote, adding escaped quote, starting quote again
-                return `'${arg.replace(/'/g, "'\\'")}'`;
+                return `'${arg.replace(/'/g, "'\\''")}'`;
               }
               return arg;
             })
             .join(" ")}`;
           // Escape double quotes for AppleScript string
           const escapedCommand = sshCommand.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
-          const script = `tell application "Terminal"\\nactivate\\ndo script "${escapedCommand}"\\nend tell`;
+          const script = `tell application "Terminal"\nactivate\ndo script "${escapedCommand}"\nend tell`;
           args = ["-e", script];
         } else {
           // Terminal.app opens in the directory when passed as argument
@@ -1813,4 +1787,32 @@ export class IpcMain {
       }
     }
   }
+
+  /**
+   * Find the first available command from a list of commands
+   */
+  private async findAvailableCommand(commands: string[]): Promise<string | null> {
+    for (const cmd of commands) {
+      if (await this.isCommandAvailable(cmd)) {
+        return cmd;
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Find the first available terminal emulator from a list
+   */
+  private async findAvailableTerminal(
+    terminals: Array<{ cmd: string; args: string[]; cwd?: string }>
+  ): Promise<{ cmd: string; args: string[]; cwd?: string } | null> {
+    for (const terminal of terminals) {
+      if (await this.isCommandAvailable(terminal.cmd)) {
+        return terminal;
+      }
+    }
+    return null;
+  }
 }
+
+
