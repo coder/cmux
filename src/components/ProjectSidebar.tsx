@@ -9,7 +9,7 @@ import { HTML5Backend, getEmptyImage } from "react-dnd-html5-backend";
 import { useDrag, useDrop, useDragLayer } from "react-dnd";
 import { sortProjectsByOrder, reorderProjects, normalizeOrder } from "@/utils/projectOrdering";
 import { matchesKeybind, formatKeybind, KEYBINDS } from "@/utils/ui/keybinds";
-import { abbreviatePath, splitAbbreviatedPath } from "@/utils/ui/pathAbbreviation";
+import { PlatformPaths } from "@/utils/paths";
 import {
   partitionWorkspacesByAge,
   formatOldWorkspaceThreshold,
@@ -131,8 +131,8 @@ const ProjectDragLayer: React.FC = () => {
 
   if (!isDragging || !currentOffset || !item?.projectPath) return null;
 
-  const abbrevPath = abbreviatePath(item.projectPath);
-  const { dirPath, basename } = splitAbbreviatedPath(abbrevPath);
+  const abbrevPath = PlatformPaths.abbreviate(item.projectPath);
+  const { dirPath, basename } = PlatformPaths.splitAbbreviated(abbrevPath);
 
   return (
     <div className="pointer-events-none fixed inset-0 z-[9999] cursor-grabbing">
@@ -238,7 +238,7 @@ const ProjectSidebarInner: React.FC<ProjectSidebarProps> = ({
     if (!path || typeof path !== "string") {
       return "Unknown";
     }
-    return path.split("/").pop() ?? path.split("\\").pop() ?? path;
+    return PlatformPaths.getProjectName(path);
   };
 
   const toggleProject = (projectPath: string) => {
@@ -498,8 +498,9 @@ const ProjectSidebarInner: React.FC<ProjectSidebarProps> = ({
                             <TooltipWrapper inline>
                               <div className="text-muted-dark font-monospace truncate text-sm leading-tight">
                                 {(() => {
-                                  const abbrevPath = abbreviatePath(projectPath);
-                                  const { dirPath, basename } = splitAbbreviatedPath(abbrevPath);
+                                  const abbrevPath = PlatformPaths.abbreviate(projectPath);
+                                  const { dirPath, basename } =
+                                    PlatformPaths.splitAbbreviated(abbrevPath);
                                   return (
                                     <>
                                       <span>{dirPath}</span>

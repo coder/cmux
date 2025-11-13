@@ -1,6 +1,6 @@
 import * as fs from "fs/promises";
-import * as os from "os";
 import * as path from "path";
+import { PlatformPaths } from "./paths";
 
 /**
  * Result of path validation
@@ -23,19 +23,7 @@ export interface PathValidationResult {
  * expandTilde("/absolute/path") // => "/absolute/path"
  */
 export function expandTilde(inputPath: string): string {
-  if (!inputPath) {
-    return inputPath;
-  }
-
-  if (inputPath === "~") {
-    return os.homedir();
-  }
-
-  if (inputPath.startsWith("~/") || inputPath.startsWith("~\\")) {
-    return path.join(os.homedir(), inputPath.slice(2));
-  }
-
-  return inputPath;
+  return PlatformPaths.expandHome(inputPath);
 }
 
 /**

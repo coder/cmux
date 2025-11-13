@@ -1,5 +1,6 @@
 import { defaultConfig } from "@/config";
 import * as path from "path";
+import { PlatformPaths } from "../utils/paths";
 import * as fs from "fs";
 import { getMuxSessionsDir } from "@/constants/paths";
 
@@ -10,13 +11,13 @@ export function listWorkspacesCommand() {
   console.log("Projects in config:", config.projects.size);
 
   for (const [projectPath, project] of config.projects) {
-    const projectName = path.basename(projectPath);
+    const projectName = PlatformPaths.basename(projectPath);
     console.log(`\nProject: ${projectName}`);
     console.log(`  Path: ${projectPath}`);
     console.log(`  Workspaces: ${project.workspaces.length}`);
 
     for (const workspace of project.workspaces) {
-      const dirName = path.basename(workspace.path);
+      const dirName = PlatformPaths.basename(workspace.path);
       console.log(`    - Directory: ${dirName}`);
       if (workspace.id) {
         console.log(`      ID: ${workspace.id}`);

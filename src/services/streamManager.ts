@@ -1,5 +1,6 @@
 import { EventEmitter } from "events";
 import * as path from "path";
+import { PlatformPaths } from "@/utils/paths";
 import {
   streamText,
   stepCountIs,
@@ -954,7 +955,7 @@ export class StreamManager extends EventEmitter {
       if (streamInfo.runtimeTempDir) {
         // Use parent directory as cwd for safety - if runtimeTempDir is malformed,
         // we won't accidentally run rm -rf from root
-        const tempDirBasename = path.basename(streamInfo.runtimeTempDir);
+        const tempDirBasename = PlatformPaths.basename(streamInfo.runtimeTempDir);
         const tempDirParent = path.dirname(streamInfo.runtimeTempDir);
         void streamInfo.runtime
           .exec(`rm -rf "${tempDirBasename}"`, {

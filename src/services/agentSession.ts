@@ -1,6 +1,7 @@
 import assert from "@/utils/assert";
 import { EventEmitter } from "events";
 import * as path from "path";
+import { PlatformPaths } from "@/utils/paths";
 import { createMuxMessage } from "@/types/message";
 import type { Config } from "@/config";
 import type { AIService } from "@/services/aiService";
@@ -211,11 +212,11 @@ export class AgentSession {
     if (isUnderSrcBaseDir) {
       // Standard worktree mode: workspace is under ~/.cmux/src/project/branch
       derivedProjectPath = path.dirname(normalizedWorkspacePath);
-      workspaceName = path.basename(normalizedWorkspacePath);
+      workspaceName = PlatformPaths.basename(normalizedWorkspacePath);
       derivedProjectName =
         projectName && projectName.trim().length > 0
           ? projectName.trim()
-          : path.basename(derivedProjectPath) || "unknown";
+          : PlatformPaths.basename(derivedProjectPath) || "unknown";
     } else {
       // In-place mode: workspace is a standalone directory
       // Store the workspace path directly by setting projectPath === name
@@ -224,7 +225,7 @@ export class AgentSession {
       derivedProjectName =
         projectName && projectName.trim().length > 0
           ? projectName.trim()
-          : path.basename(normalizedWorkspacePath) || "unknown";
+          : PlatformPaths.basename(normalizedWorkspacePath) || "unknown";
     }
 
     const metadata: WorkspaceMetadata = {

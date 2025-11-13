@@ -3,6 +3,7 @@
 import assert from "@/utils/assert";
 import * as fs from "fs/promises";
 import * as path from "path";
+import { PlatformPaths } from "../utils/paths";
 import { parseArgs } from "util";
 import { Config } from "@/config";
 import { HistoryService } from "@/services/historyService";
@@ -168,8 +169,8 @@ async function main(): Promise<void> {
   const projectPathRaw = values["project-path"];
   const projectName =
     typeof projectPathRaw === "string" && projectPathRaw.trim().length > 0
-      ? path.basename(path.resolve(projectPathRaw.trim()))
-      : path.basename(path.dirname(workspacePath)) || "unknown";
+      ? PlatformPaths.basename(path.resolve(projectPathRaw.trim()))
+      : PlatformPaths.basename(path.dirname(workspacePath)) || "unknown";
 
   const messageArg =
     values.message && values.message.trim().length > 0 ? values.message : undefined;
