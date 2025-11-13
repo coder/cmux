@@ -6,12 +6,13 @@ import { parseRuntimeString } from "@/utils/chatCommands";
 import { getModelKey } from "@/constants/storage";
 import { useModelLRU } from "@/hooks/useModelLRU";
 import { useNewWorkspaceOptions } from "@/hooks/useNewWorkspaceOptions";
-import { useMode } from "@/contexts/ModeContext";
+import { usePersistedState } from "@/hooks/usePersistedState";
 import { useThinkingLevel } from "@/hooks/useThinkingLevel";
 import { use1MContext } from "@/hooks/use1MContext";
 import { modeToToolPolicy, PLAN_MODE_INSTRUCTION } from "@/utils/ui/modeUtils";
 import { enforceThinkingPolicy } from "@/utils/thinking/policy";
 import type { SendMessageOptions } from "@/types/ipc";
+import { getModeKey } from "@/constants/storage";
 import { ModelSelector } from "./ModelSelector";
 import { TooltipWrapper, Tooltip, HelpIndicator } from "./Tooltip";
 import { VimTextArea } from "./VimTextArea";
@@ -65,8 +66,11 @@ export function FirstMessageInput({
   const [trunkBranch, setTrunkBranch] = useState<string>("");
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
-  // Mode selection (Exec/Plan)
-  const [mode, setMode] = useMode();
+  // Mode selection (Exec/Plan) - use project-scoped key since no workspace exists yet
+  const projectModeKey = getModeKey(`__project__${projectPath}`);
+  const [mode, setMode] = usePersistedState<UIMode>(projectModeKey, "exec", {
+    listener: true,
+  });
 
   // Thinking level and 1M context
   const [thinkingLevel] = useThinkingLevel();
