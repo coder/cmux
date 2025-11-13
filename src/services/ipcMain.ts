@@ -1276,7 +1276,7 @@ export class IpcMain {
       async (_event, params: TerminalCreateParams) => {
         try {
           // Get workspace metadata
-          const allMetadata = this.config.getAllWorkspaceMetadata();
+          const allMetadata = await this.config.getAllWorkspaceMetadata();
           const workspaceMetadata = allMetadata.find((ws) => ws.id === params.workspaceId);
 
           if (!workspaceMetadata) {
@@ -1352,9 +1352,9 @@ export class IpcMain {
     });
 
     // Handle subscription events for metadata
-    ipcMain.on(IPC_CHANNELS.WORKSPACE_METADATA_SUBSCRIBE, () => {
+    ipcMain.on(IPC_CHANNELS.WORKSPACE_METADATA_SUBSCRIBE, async () => {
       try {
-        const workspaceMetadata = this.config.getAllWorkspaceMetadata();
+        const workspaceMetadata = await this.config.getAllWorkspaceMetadata();
 
         // Emit current metadata for each workspace
         for (const metadata of workspaceMetadata) {
