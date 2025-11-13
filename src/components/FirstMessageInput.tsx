@@ -148,7 +148,7 @@ export function FirstMessageInput({
   );
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="flex flex-1 h-full flex-col">
       {/* Project title in center */}
       <div className="flex flex-1 items-center justify-center">
         <div className="text-center">
