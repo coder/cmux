@@ -26,7 +26,7 @@
         "disposablestack": "^1.1.7",
         "electron-updater": "^6.6.2",
         "express": "^5.1.0",
-        "ghostty-web": "git+https://github.com/coder/ghostty-web.git",
+        "ghostty-web": "git+https://github.com/coder/ghostty-web.git#4cdb614eb8cbfab182562d7c5332fc19be4e7aff",
         "jsonc-parser": "^3.3.1",
         "lru-cache": "^11.2.2",
         "markdown-it": "^14.1.0",
@@ -1675,7 +1675,7 @@
 
     "get-tsconfig": ["get-tsconfig@4.13.0", "", { "dependencies": { "resolve-pkg-maps": "^1.0.0" } }, "sha512-1VKTZJCwBrvbd+Wn3AOgQP/2Av+TfTCOlE4AcRJE72W1ksZXbAx8PPBR9RzgTeSPzlPMHrbANMH3LbltH73wxQ=="],
 
-    "ghostty-web": ["@coder/ghostty-web@github:coder/ghostty-web#2da65f2", {}, "coder-ghostty-web-2da65f2"],
+    "ghostty-web": ["@coder/ghostty-web@github:coder/ghostty-web#4cdb614", {}, "coder-ghostty-web-4cdb614"],
 
     "glob": ["glob@10.4.5", "", { "dependencies": { "foreground-child": "^3.1.0", "jackspeak": "^3.1.2", "minimatch": "^9.0.4", "minipass": "^7.1.2", "package-json-from-dist": "^1.0.0", "path-scurry": "^1.11.1" }, "bin": { "glob": "dist/esm/bin.mjs" } }, "sha512-7Bv8RF0k6xjo7d4A/PxYLbUCfb6c+Vpd2/mB2yRDlew7Jb5hEXiCD9ibfO7wpk8i4sevK6DFny9h7EYbM3/sHg=="],
 
