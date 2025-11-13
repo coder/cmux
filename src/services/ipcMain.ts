@@ -798,7 +798,7 @@ export class IpcMain {
               createdAt: new Date().toISOString(),
             };
 
-            this.config.editConfig((config) => {
+            await this.config.editConfig((config) => {
               let projectConfig = config.projects.get(options.projectPath!);
               if (!projectConfig) {
                 projectConfig = { workspaces: [] };
