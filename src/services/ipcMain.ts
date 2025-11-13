@@ -1615,11 +1615,12 @@ export class IpcMain {
     });
 
     // Handle subscription events for metadata
-    ipcMain.on(IPC_CHANNELS.WORKSPACE_METADATA_SUBSCRIBE, async () => {
-      try {
-        const workspaceMetadata = await this.config.getAllWorkspaceMetadata();
+    ipcMain.on(IPC_CHANNELS.WORKSPACE_METADATA_SUBSCRIBE, () => {
+      void (async () => {
+        try {
+          const workspaceMetadata = await this.config.getAllWorkspaceMetadata();
 
-        // Emit current metadata for each workspace
+          // Emit current metadata for each workspace
         for (const metadata of workspaceMetadata) {
           this.mainWindow?.webContents.send(IPC_CHANNELS.WORKSPACE_METADATA, {
             workspaceId: metadata.id,
