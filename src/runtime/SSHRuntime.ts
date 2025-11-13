@@ -24,7 +24,7 @@ import { getProjectName } from "../utils/runtime/helpers";
 import { getErrorMessage } from "../utils/errors";
 import { execAsync, DisposableProcess } from "../utils/disposableExec";
 import { getControlPath } from "./sshConnectionPool";
-import { getBashPath } from "../utils/bashPath";
+import { getBashPath } from "../utils/main/bashPath";
 
 /**
  * Shell-escape helper for remote bash.
