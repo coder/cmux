@@ -20,12 +20,12 @@ describe("buildSystemMessage", () => {
     tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "systemMessage-test-"));
     projectDir = path.join(tempDir, "project");
     workspaceDir = path.join(tempDir, "workspace");
-    globalDir = path.join(tempDir, ".cmux");
+    globalDir = path.join(tempDir, ".mux");
     await fs.mkdir(projectDir, { recursive: true });
     await fs.mkdir(workspaceDir, { recursive: true });
     await fs.mkdir(globalDir, { recursive: true });
 
-    // Mock homedir to return our test directory (getSystemDirectory will append .cmux)
+    // Mock homedir to return our test directory (getSystemDirectory will append .mux)
     mockHomedir = spyOn(os, "homedir");
     mockHomedir.mockReturnValue(tempDir);
 
