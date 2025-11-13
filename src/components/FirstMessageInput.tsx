@@ -228,7 +228,7 @@ export function FirstMessageInput({
             <p className="text-muted text-sm">Creating workspace...</p>
           </div>
         ) : (
-          <div className="text-center max-w-2xl px-8">
+          <div className="max-w-2xl px-8 text-center">
             <h1 className="text-foreground mb-4 text-2xl font-semibold">{projectName}</h1>
             <p className="text-muted text-sm leading-relaxed">
               Describe what you want to build. A new workspace will be created with an
