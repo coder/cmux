@@ -191,7 +191,6 @@ export async function getToolDefinitionTokens(
       file_read: 45,
       file_edit_replace_string: 70,
       file_edit_replace_lines: 80,
-      file_edit_insert: 50,
       web_search: 50,
       google_search: 50,
     };

@@ -102,25 +102,14 @@ export type FileEditReplaceLinesToolResult =
 
 export type FileEditSharedToolResult =
   | FileEditReplaceStringToolResult
-  | FileEditReplaceLinesToolResult
-  | FileEditInsertToolResult;
+  | FileEditReplaceLinesToolResult;
 
 export const FILE_EDIT_TOOL_NAMES = [
   "file_edit_replace_string",
   "file_edit_replace_lines",
-  "file_edit_insert",
 ] as const;
 
 export type FileEditToolName = (typeof FILE_EDIT_TOOL_NAMES)[number];
-
-export interface FileEditInsertToolArgs {
-  file_path: string;
-  line_offset: number;
-  content: string;
-  create?: boolean;
-}
-
-export type FileEditInsertToolResult = FileEditDiffSuccessBase | FileEditErrorResult;
 
 /**
  * Prefix for file write denial error messages.
@@ -148,10 +137,7 @@ export const NOTE_READ_FILE_AGAIN_RETRY = "Read the file again and retry.";
 export const TOOL_EDIT_WARNING =
   "Always check the tool result before proceeding with other operations.";
 
-export type FileEditToolArgs =
-  | FileEditReplaceStringToolArgs
-  | FileEditReplaceLinesToolArgs
-  | FileEditInsertToolArgs;
+export type FileEditToolArgs = FileEditReplaceStringToolArgs | FileEditReplaceLinesToolArgs;
 
 // Propose Plan Tool Types
 export interface ProposePlanToolArgs {

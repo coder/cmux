@@ -13,7 +13,6 @@ import {
   BASH_MAX_TOTAL_BYTES,
   STATUS_MESSAGE_MAX_LENGTH,
 } from "@/constants/toolLimits";
-import { TOOL_EDIT_WARNING } from "@/types/tools";
 
 import { zodToJsonSchema } from "zod-to-json-schema";
 
@@ -106,24 +105,6 @@ export const TOOL_DEFINITIONS = {
         .describe(
           "Optional safety check. When provided, the current lines in the specified range must match exactly."
         ),
-    }),
-  },
-  file_edit_insert: {
-    description:
-      "Insert content at a specific line position in a file. Line offset is 1-indexed: 0 inserts at the top, 1 inserts after line 1, etc. " +
-      `IMPORTANT: Edits may fail if line_offset is invalid or file doesn't exist. ${TOOL_EDIT_WARNING}`,
-    schema: z.object({
-      file_path: z.string().describe("The absolute path to the file to edit"),
-      line_offset: z
-        .number()
-        .int()
-        .min(0)
-        .describe("1-indexed line position (0 = insert at top, N = insert after line N)"),
-      content: z.string().describe("The content to insert"),
-      create: z
-        .boolean()
-        .optional()
-        .describe("If true, create the file if it doesn't exist (default: false)"),
     }),
   },
   propose_plan: {
@@ -251,7 +232,6 @@ export function getAvailableTools(modelString: string): string[] {
     "file_read",
     "file_edit_replace_string",
     // "file_edit_replace_lines", // DISABLED: causes models to break repo state
-    "file_edit_insert",
     "propose_plan",
     "todo_write",
     "todo_read",

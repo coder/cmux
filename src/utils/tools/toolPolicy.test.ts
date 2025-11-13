@@ -24,11 +24,6 @@ const mockTools = {
     inputSchema: z.object({ path: z.string(), start_line: z.number() }),
     execute: () => Promise.resolve({ success: true }),
   }),
-  file_edit_insert: tool({
-    description: "Insert content in files",
-    inputSchema: z.object({ path: z.string() }),
-    execute: () => Promise.resolve({ success: true }),
-  }),
   web_search: tool({
     description: "Search the web",
     inputSchema: z.object({ query: z.string() }),
@@ -58,7 +53,6 @@ describe("applyToolPolicy", () => {
       expect(result.file_read).toBeDefined();
       expect(result.file_edit_replace_string).toBeDefined();
       expect(result.file_edit_replace_lines).toBeDefined();
-      expect(result.file_edit_insert).toBeDefined();
       expect(result.web_search).toBeDefined();
     });
 
@@ -74,7 +68,6 @@ describe("applyToolPolicy", () => {
       expect(result.file_read).toBeDefined();
       expect(result.file_edit_replace_string).toBeDefined();
       expect(result.file_edit_replace_lines).toBeDefined();
-      expect(result.file_edit_insert).toBeDefined();
     });
   });
 
@@ -85,7 +78,6 @@ describe("applyToolPolicy", () => {
 
       expect(result.file_edit_replace_string).toBeUndefined();
       expect(result.file_edit_replace_lines).toBeUndefined();
-      expect(result.file_edit_insert).toBeUndefined();
       expect(result.bash).toBeDefined();
       expect(result.file_read).toBeDefined();
       expect(result.web_search).toBeDefined();
@@ -105,7 +97,6 @@ describe("applyToolPolicy", () => {
       expect(result.file_read).toBeUndefined();
       expect(result.file_edit_replace_string).toBeUndefined();
       expect(result.file_edit_replace_lines).toBeUndefined();
-      expect(result.file_edit_insert).toBeUndefined();
       expect(result.bash).toBeDefined();
       expect(result.web_search).toBeDefined();
     });
@@ -123,7 +114,6 @@ describe("applyToolPolicy", () => {
       expect(result.file_read).toBeUndefined();
       expect(result.file_edit_replace_string).toBeUndefined();
       expect(result.file_edit_replace_lines).toBeUndefined();
-      expect(result.file_edit_insert).toBeUndefined();
       expect(result.web_search).toBeUndefined();
     });
 
@@ -136,7 +126,6 @@ describe("applyToolPolicy", () => {
 
       expect(result.file_edit_replace_string).toBeDefined();
       expect(result.file_edit_replace_lines).toBeUndefined();
-      expect(result.file_edit_insert).toBeUndefined();
       expect(result.bash).toBeDefined();
       expect(result.file_read).toBeDefined();
       expect(result.web_search).toBeDefined();
@@ -172,7 +161,6 @@ describe("applyToolPolicy", () => {
       expect(result.file_read).toBeDefined();
       expect(result.file_edit_replace_string).toBeDefined();
       expect(result.file_edit_replace_lines).toBeDefined();
-      expect(result.file_edit_insert).toBeDefined();
     });
 
     test("disables all except bash and file_read", () => {
@@ -218,14 +206,13 @@ describe("applyToolPolicy", () => {
       expect(result.file_read).toBeUndefined();
       expect(result.file_edit_replace_string).toBeUndefined();
       expect(result.file_edit_replace_lines).toBeUndefined();
-      expect(result.file_edit_insert).toBeUndefined();
       expect(result.web_search).toBeUndefined();
     });
 
     test("requires tool with regex pattern", () => {
       const policy: ToolPolicy = [{ regex_match: "file_.*", action: "require" }];
 
-      // This should throw because multiple tools match (file_read, file_edit_replace_string, file_edit_replace_lines, file_edit_insert)
+      // This should throw because multiple tools match (file_read, file_edit_replace_string, file_edit_replace_lines)
       expect(() => applyToolPolicy(mockTools, policy)).toThrow(/Multiple tools marked as required/);
     });
 

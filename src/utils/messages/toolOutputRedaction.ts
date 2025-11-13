@@ -11,7 +11,6 @@
  */
 
 import type {
-  FileEditInsertToolResult,
   FileEditReplaceStringToolResult,
   FileEditReplaceLinesToolResult,
 } from "@/types/tools";
@@ -40,15 +39,6 @@ function rewrapJsonContainer(wrapped: boolean, value: unknown): unknown {
 function isFileEditResult(
   v: unknown
 ): v is FileEditReplaceStringToolResult | FileEditReplaceLinesToolResult {
-  return (
-    typeof v === "object" &&
-    v !== null &&
-    "success" in v &&
-    typeof (v as { success: unknown }).success === "boolean"
-  );
-}
-
-function isFileEditInsertResult(v: unknown): v is FileEditInsertToolResult {
   return (
     typeof v === "object" &&
     v !== null &&
@@ -87,31 +77,12 @@ function redactFileEditReplace(output: unknown): unknown {
   return output;
 }
 
-function redactFileEditInsert(output: unknown): unknown {
-  const unwrapped = unwrapJsonContainer(output);
-  const val = unwrapped.value;
-
-  if (!isFileEditInsertResult(val)) return output; // unknown structure, leave as-is
-
-  if (val.success) {
-    const compact: FileEditInsertToolResult = {
-      success: true,
-      diff: "[diff omitted in context - call file_read on the target file if needed]",
-    };
-    return rewrapJsonContainer(unwrapped.wrapped, compact);
-  }
-
-  return output;
-}
-
 // Public API - registry entrypoint. Add new tools here as needed.
 export function redactToolOutput(toolName: string, output: unknown): unknown {
   switch (toolName) {
     case "file_edit_replace_string":
     case "file_edit_replace_lines":
       return redactFileEditReplace(output);
-    case "file_edit_insert":
-      return redactFileEditInsert(output);
     default:
       return output;
   }

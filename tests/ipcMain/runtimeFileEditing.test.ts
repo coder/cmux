@@ -1,7 +1,7 @@
 /**
  * Integration tests for file editing tools across Local and SSH runtimes
  *
- * Tests file_read, file_edit_replace_string, and file_edit_insert tools
+ * Tests file_read and file_edit_replace_string tools
  * using real IPC handlers on both LocalRuntime and SSHRuntime.
  *
  * Uses toolPolicy to restrict AI to only file tools (prevents bash circumvention).
@@ -325,7 +325,7 @@ describeIntegration("Runtime File Editing Tools", () => {
               const insertEvents = await sendMessageAndWait(
                 env,
                 workspaceId,
-                `Use the file_edit_insert or file_edit_replace_string tool to insert "Line 2" between Line 1 and Line 3 in ${testFileName}.`,
+                `Use the file_edit_replace_string tool to insert "Line 2" between Line 1 and Line 3 in ${testFileName}.`,
                 HAIKU_MODEL,
                 FILE_TOOLS_ONLY,
                 streamTimeout
@@ -336,13 +336,12 @@ describeIntegration("Runtime File Editing Tools", () => {
               expect(streamEnd).toBeDefined();
               expect((streamEnd as any).error).toBeUndefined();
 
-              // Verify a file_edit tool was called (either insert or replace_string)
+              // Verify file_edit_replace_string tool was called
               const toolCalls = insertEvents.filter(
                 (e) => "type" in e && e.type === "tool-call-start"
               );
               const editCall = toolCalls.find(
-                (e: any) =>
-                  e.toolName === "file_edit_insert" || e.toolName === "file_edit_replace_string"
+                (e: any) => e.toolName === "file_edit_replace_string"
               );
               expect(editCall).toBeDefined();
 

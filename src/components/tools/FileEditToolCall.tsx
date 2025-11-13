@@ -1,8 +1,6 @@
 import React from "react";
 import { parsePatch } from "diff";
 import type {
-  FileEditInsertToolArgs,
-  FileEditInsertToolResult,
   FileEditReplaceStringToolArgs,
   FileEditReplaceStringToolResult,
   FileEditReplaceLinesToolArgs,
@@ -24,18 +22,12 @@ import { TooltipWrapper, Tooltip } from "../Tooltip";
 import { DiffContainer, DiffRenderer, SelectableDiffRenderer } from "../shared/DiffRenderer";
 import { KebabMenu, type KebabMenuItem } from "../KebabMenu";
 
-type FileEditOperationArgs =
-  | FileEditReplaceStringToolArgs
-  | FileEditReplaceLinesToolArgs
-  | FileEditInsertToolArgs;
+type FileEditOperationArgs = FileEditReplaceStringToolArgs | FileEditReplaceLinesToolArgs;
 
-type FileEditToolResult =
-  | FileEditReplaceStringToolResult
-  | FileEditReplaceLinesToolResult
-  | FileEditInsertToolResult;
+type FileEditToolResult = FileEditReplaceStringToolResult | FileEditReplaceLinesToolResult;
 
 interface FileEditToolCallProps {
-  toolName: "file_edit_replace_string" | "file_edit_replace_lines" | "file_edit_insert";
+  toolName: "file_edit_replace_string" | "file_edit_replace_lines";
   args: FileEditOperationArgs;
   result?: FileEditToolResult;
   status?: ToolStatus;
