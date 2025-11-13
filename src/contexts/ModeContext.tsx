@@ -10,12 +10,21 @@ type ModeContextType = [UIMode, (mode: UIMode) => void];
 const ModeContext = createContext<ModeContextType | undefined>(undefined);
 
 interface ModeProviderProps {
-  workspaceId: string;
+  workspaceId?: string; // Workspace-scoped storage (highest priority)
+  projectPath?: string; // Project-scoped storage (fallback if no workspaceId)
   children: ReactNode;
 }
 
-export const ModeProvider: React.FC<ModeProviderProps> = ({ workspaceId, children }) => {
-  const [mode, setMode] = usePersistedState<UIMode>(getModeKey(workspaceId), "exec", {
+export const ModeProvider: React.FC<ModeProviderProps> = ({
+  workspaceId,
+  projectPath,
+  children,
+}) => {
+  // Priority: workspace-scoped > project-scoped
+  // Use "/" delimiter so projectPath like "/home/user/project" becomes "__project__/home/user/project"
+  const scopeId = workspaceId ?? (projectPath ? `__project__/${projectPath}` : "__global__");
+  const modeKey = getModeKey(scopeId);
+  const [mode, setMode] = usePersistedState<UIMode>(modeKey, "exec", {
     listener: true, // Listen for changes from command palette and other sources
   });
 

@@ -12,12 +12,20 @@ interface ThinkingContextType {
 const ThinkingContext = createContext<ThinkingContextType | undefined>(undefined);
 
 interface ThinkingProviderProps {
-  workspaceId: string;
+  workspaceId?: string; // Workspace-scoped storage (highest priority)
+  projectPath?: string; // Project-scoped storage (fallback if no workspaceId)
   children: ReactNode;
 }
 
-export const ThinkingProvider: React.FC<ThinkingProviderProps> = ({ workspaceId, children }) => {
-  const key = getThinkingLevelKey(workspaceId);
+export const ThinkingProvider: React.FC<ThinkingProviderProps> = ({
+  workspaceId,
+  projectPath,
+  children,
+}) => {
+  // Priority: workspace-scoped > project-scoped
+  // Use "/" delimiter so projectPath like "/home/user/project" becomes "__project__/home/user/project"
+  const scopeId = workspaceId ?? (projectPath ? `__project__/${projectPath}` : "__global__");
+  const key = getThinkingLevelKey(scopeId);
   const [thinkingLevel, setThinkingLevel] = usePersistedState<ThinkingLevel>(
     key,
     "off",

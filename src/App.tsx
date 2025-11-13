@@ -14,10 +14,13 @@ import { useResumeManager } from "./hooks/useResumeManager";
 import { useUnreadTracking } from "./hooks/useUnreadTracking";
 import { useAutoCompactContinue } from "./hooks/useAutoCompactContinue";
 import { useWorkspaceStoreRaw, useWorkspaceRecency } from "./stores/WorkspaceStore";
+import { FirstMessageInput } from "./components/FirstMessageInput";
 
 import { useStableReference, compareMaps } from "./hooks/useStableReference";
 import { CommandRegistryProvider, useCommandRegistry } from "./contexts/CommandRegistryContext";
 import type { CommandAction } from "./contexts/CommandRegistryContext";
+import { ModeProvider } from "./contexts/ModeContext";
+import { ThinkingProvider } from "./contexts/ThinkingContext";
 import { CommandPalette } from "./components/CommandPalette";
 import { buildCoreSources, type BuildSourcesParams } from "./utils/commands/sources";
 
@@ -56,6 +59,9 @@ function AppInner() {
   );
   const [workspaceModalLoadError, setWorkspaceModalLoadError] = useState<string | null>(null);
   const workspaceModalProjectRef = useRef<string | null>(null);
+
+  // Track when we're in "new workspace creation" mode (show FirstMessageInput)
+  const [pendingNewWorkspaceProject, setPendingNewWorkspaceProject] = useState<string | null>(null);
 
   // Auto-collapse sidebar on mobile by default
   const isMobile = typeof window !== "undefined" && window.innerWidth <= 768;
@@ -114,9 +120,10 @@ function AppInner() {
         window.history.replaceState(null, "", newHash);
       }
 
-      // Update window title with workspace name
+      // Update window title with workspace name (prefer displayName if available)
+      const metadata = workspaceMetadata.get(selectedWorkspace.workspaceId);
       const workspaceName =
-        workspaceMetadata.get(selectedWorkspace.workspaceId)?.name ?? selectedWorkspace.workspaceId;
+        metadata?.displayName ?? metadata?.name ?? selectedWorkspace.workspaceId;
       const title = `${workspaceName} - ${selectedWorkspace.projectName} - cmux`;
       void window.api.window.setTitle(title);
     } else {
@@ -169,46 +176,15 @@ function AppInner() {
     [removeProject, selectedWorkspace, setSelectedWorkspace]
   );
 
-  const handleAddWorkspace = useCallback(async (projectPath: string) => {
-    const projectName = projectPath.split("/").pop() ?? projectPath.split("\\").pop() ?? "project";
-
-    workspaceModalProjectRef.current = projectPath;
-    setWorkspaceModalProject(projectPath);
-    setWorkspaceModalProjectName(projectName);
-    setWorkspaceModalBranches([]);
-    setWorkspaceModalDefaultTrunk(undefined);
-    setWorkspaceModalLoadError(null);
-    setWorkspaceModalOpen(true);
-
-    try {
-      const branchResult = await window.api.projects.listBranches(projectPath);
-
-      // Guard against race condition: only update state if this is still the active project
-      if (workspaceModalProjectRef.current !== projectPath) {
-        return;
-      }
-
-      const sanitizedBranches = Array.isArray(branchResult?.branches)
-        ? branchResult.branches.filter((branch): branch is string => typeof branch === "string")
-        : [];
-
-      const recommended =
-        typeof branchResult?.recommendedTrunk === "string" &&
-        sanitizedBranches.includes(branchResult.recommendedTrunk)
-          ? branchResult.recommendedTrunk
-          : sanitizedBranches[0];
-
-      setWorkspaceModalBranches(sanitizedBranches);
-      setWorkspaceModalDefaultTrunk(recommended);
-      setWorkspaceModalLoadError(null);
-    } catch (err) {
-      console.error("Failed to load branches for modal:", err);
-      const message = err instanceof Error ? err.message : "Unknown error";
-      setWorkspaceModalLoadError(
-        `Unable to load branches automatically: ${message}. You can still enter the trunk branch manually.`
-      );
-    }
-  }, []);
+  const handleAddWorkspace = useCallback(
+    (projectPath: string) => {
+      // Show FirstMessageInput for this project
+      setPendingNewWorkspaceProject(projectPath);
+      // Clear any selected workspace so FirstMessageInput is shown
+      setSelectedWorkspace(null);
+    },
+    [setSelectedWorkspace]
+  );
 
   // Memoize callbacks to prevent LeftSidebar/ProjectSidebar re-renders
   const handleAddProjectCallback = useCallback(() => {
@@ -646,6 +622,48 @@ function AppInner() {
                   }
                 />
               </ErrorBoundary>
+            ) : pendingNewWorkspaceProject || projects.size === 1 ? (
+              (() => {
+                const projectPath = pendingNewWorkspaceProject ?? Array.from(projects.keys())[0];
+                const projectName =
+                  projectPath.split("/").pop() ?? projectPath.split("\\").pop() ?? "Project";
+                return (
+                  <ModeProvider projectPath={projectPath}>
+                    <ThinkingProvider projectPath={projectPath}>
+                      <FirstMessageInput
+                        projectPath={projectPath}
+                        projectName={projectName}
+                        onWorkspaceCreated={(metadata) => {
+                          // Add to workspace metadata map
+                          setWorkspaceMetadata((prev) => new Map(prev).set(metadata.id, metadata));
+
+                          // Switch to new workspace
+                          handleWorkspaceSwitch({
+                            workspaceId: metadata.id,
+                            projectPath: metadata.projectPath,
+                            projectName: metadata.projectName,
+                            namedWorkspacePath: metadata.namedWorkspacePath,
+                          });
+
+                          // Track telemetry
+                          telemetry.workspaceCreated(metadata.id);
+
+                          // Clear pending state
+                          setPendingNewWorkspaceProject(null);
+                        }}
+                        onCancel={
+                          pendingNewWorkspaceProject
+                            ? () => {
+                                // User cancelled workspace creation - clear pending state
+                                setPendingNewWorkspaceProject(null);
+                              }
+                            : undefined
+                        }
+                      />
+                    </ThinkingProvider>
+                  </ModeProvider>
+                );
+              })()
             ) : (
               <div
                 className="[&_p]:text-muted mx-auto w-full max-w-3xl text-center [&_h2]:mb-4 [&_h2]:font-bold [&_h2]:tracking-tight [&_h2]:text-white [&_p]:leading-[1.6]"

@@ -252,10 +252,18 @@ export interface IPCApi {
       | { success: false; error: string }
     >;
     sendMessage(
-      workspaceId: string,
+      workspaceId: string | null,
       message: string,
-      options?: SendMessageOptions & { imageParts?: Array<{ url: string; mediaType: string }> }
-    ): Promise<Result<void, SendMessageError>>;
+      options?: SendMessageOptions & {
+        imageParts?: Array<{ url: string; mediaType: string }>;
+        runtimeConfig?: RuntimeConfig;
+        projectPath?: string; // Required when workspaceId is null
+        trunkBranch?: string; // Optional - trunk branch to branch from (when workspaceId is null)
+      }
+    ): Promise<
+      | Result<void, SendMessageError>
+      | { success: true; workspaceId: string; metadata: FrontendWorkspaceMetadata }
+    >;
     resumeStream(
       workspaceId: string,
       options: SendMessageOptions
