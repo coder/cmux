@@ -220,11 +220,18 @@ export function FirstMessageInput({
 
   return (
     <div className="flex h-full flex-1 flex-col">
-      {/* Project title in center */}
+      {/* Project title or loading state in center */}
       <div className="flex flex-1 items-center justify-center">
-        <div className="text-center">
-          <h1 className="text-foreground text-2xl font-semibold">{projectName}</h1>
-        </div>
+        {isSending ? (
+          <div className="text-center">
+            <div className="bg-accent mb-3 inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-current border-r-transparent"></div>
+            <p className="text-muted text-sm">Creating workspace...</p>
+          </div>
+        ) : (
+          <div className="text-center">
+            <h1 className="text-foreground text-2xl font-semibold">{projectName}</h1>
+          </div>
+        )}
       </div>
 
       {/* Input area - styled like ChatInput */}
