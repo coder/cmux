@@ -18,15 +18,26 @@ export class TerminalWindowManager {
    * Multiple windows can be open for the same workspace
    */
   async openTerminalWindow(workspaceId: string, devServerPort?: string): Promise<void> {
-
-    // Create new terminal window with unique title
     this.windowCount++;
     const windowId = this.windowCount;
+
+    // Parse workspaceId to get project and branch names
+    // Format: projectName-branchName (e.g., "cmux-main" or "cmux-local-pty")
+    const parts = workspaceId.split('-');
+    let title: string;
+    if (parts.length >= 2) {
+      const projectName = parts[0];
+      const branchName = parts.slice(1).join('-'); // Handle branch names with dashes
+      title = `Terminal ${windowId} — ${projectName} (${branchName})`;
+    } else {
+      // Fallback if format doesn't match
+      title = `Terminal ${windowId} — ${workspaceId}`;
+    }
     
     const terminalWindow = new BrowserWindow({
       width: 1000,
       height: 600,
-      title: `Terminal ${windowId} - ${workspaceId}`,
+      title,
       webPreferences: {
         nodeIntegration: false,
         contextIsolation: true,
