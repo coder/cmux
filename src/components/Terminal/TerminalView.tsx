@@ -179,21 +179,31 @@ export function TerminalView({ workspaceId, visible }: TerminalViewProps) {
       return;
     }
 
-    console.log("[TerminalView] Setting up ResizeObserver");
-    const resizeObserver = new ResizeObserver(() => {
-      console.log("[TerminalView] Container resized, calling fit()");
+    console.log("[TerminalView] Setting up ResizeObserver and window resize handler");
+    
+    // Use both ResizeObserver (for container changes) and window resize (as backup)
+    const handleResize = () => {
+      console.log("[TerminalView] Resize triggered, calling fit()");
       if (fitAddonRef.current && termRef.current) {
-        fitAddonRef.current.fit();
-        console.log("[TerminalView] Fit complete, new size:", termRef.current.cols, "x", termRef.current.rows);
+        try {
+          fitAddonRef.current.fit();
+          console.log("[TerminalView] Fit complete, new size:", termRef.current.cols, "x", termRef.current.rows);
+        } catch (err) {
+          console.error("[TerminalView] Error fitting terminal:", err);
+        }
       }
-      // Terminal will fire onResize event which will update terminalSize and propagate to PTY
-    });
-
+    };
+    
+    const resizeObserver = new ResizeObserver(handleResize);
     resizeObserver.observe(containerRef.current);
+    
+    // Also listen to window resize as backup
+    window.addEventListener('resize', handleResize);
 
     return () => {
-      console.log("[TerminalView] Disconnecting ResizeObserver");
+      console.log("[TerminalView] Disconnecting resize handlers");
       resizeObserver.disconnect();
+      window.removeEventListener('resize', handleResize);
     };
   }, [visible, terminalReady]); // terminalReady ensures ResizeObserver is set up after terminal is initialized
 
