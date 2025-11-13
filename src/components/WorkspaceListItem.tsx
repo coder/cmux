@@ -38,11 +38,7 @@ const WorkspaceListItemInner: React.FC<WorkspaceListItemProps> = ({
   onToggleUnread,
 }) => {
   // Destructure metadata for convenience
-  const {
-    id: workspaceId,
-    name: workspaceName,
-    namedWorkspacePath,
-  } = metadata;
+  const { id: workspaceId, name: workspaceName, namedWorkspacePath } = metadata;
   const gitStatus = useGitStatus(workspaceId);
 
   // Get rename context

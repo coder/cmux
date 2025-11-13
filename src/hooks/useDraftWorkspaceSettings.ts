@@ -4,11 +4,7 @@ import { use1MContext } from "./use1MContext";
 import { useThinkingLevel } from "./useThinkingLevel";
 import { useMode } from "@/contexts/ModeContext";
 import { useModelLRU } from "./useModelLRU";
-import {
-  type RuntimeMode,
-  parseRuntimeModeAndHost,
-  buildRuntimeString,
-} from "@/types/runtime";
+import { type RuntimeMode, parseRuntimeModeAndHost, buildRuntimeString } from "@/types/runtime";
 import {
   getModelKey,
   getRuntimeKey,

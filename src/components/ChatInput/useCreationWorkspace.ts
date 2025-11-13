@@ -106,7 +106,14 @@ export function useCreationWorkspace({
         setIsSending(false);
       }
     },
-    [isSending, projectPath, onWorkspaceCreated, getRuntimeString, sendMessageOptions, settings.trunkBranch]
+    [
+      isSending,
+      projectPath,
+      onWorkspaceCreated,
+      getRuntimeString,
+      sendMessageOptions,
+      settings.trunkBranch,
+    ]
   );
 
   return {

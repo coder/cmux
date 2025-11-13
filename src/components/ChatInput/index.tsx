@@ -327,7 +327,7 @@ export const ChatInput: React.FC<ChatInputProps> = (props) => {
   // Show toast when thinking level is changed via command palette (workspace only)
   useEffect(() => {
     if (variant !== "workspace") return;
-    
+
     const handler = (event: Event) => {
       const detail = (event as CustomEvent<{ workspaceId: string; level: ThinkingLevel }>).detail;
       if (detail?.workspaceId !== props.workspaceId || !detail.level) {
@@ -358,7 +358,7 @@ export const ChatInput: React.FC<ChatInputProps> = (props) => {
   const workspaceIdForFocus = variant === "workspace" ? props.workspaceId : null;
   useEffect(() => {
     if (variant !== "workspace") return;
-    
+
     // Small delay to ensure DOM is ready and other components have settled
     const timer = setTimeout(() => {
       focusMessageInput();
@@ -692,13 +692,17 @@ export const ChatInput: React.FC<ChatInputProps> = (props) => {
           inputRef.current.style.height = "36px";
         }
 
-        const result = await window.api.workspace.sendMessage(props.workspaceId, actualMessageText, {
-          ...sendMessageOptions,
-          ...compactionOptions,
-          editMessageId: editingMessage?.id,
-          imageParts: imageParts.length > 0 ? imageParts : undefined,
-          cmuxMetadata,
-        });
+        const result = await window.api.workspace.sendMessage(
+          props.workspaceId,
+          actualMessageText,
+          {
+            ...sendMessageOptions,
+            ...compactionOptions,
+            editMessageId: editingMessage?.id,
+            imageParts: imageParts.length > 0 ? imageParts : undefined,
+            cmuxMetadata,
+          }
+        );
 
         if (!result.success) {
           // Log error for debugging
@@ -769,7 +773,13 @@ export const ChatInput: React.FC<ChatInputProps> = (props) => {
     }
 
     // Handle up arrow on empty input - edit last user message (workspace only)
-    if (variant === "workspace" && e.key === "ArrowUp" && !editingMessage && input.trim() === "" && props.onEditLastUserMessage) {
+    if (
+      variant === "workspace" &&
+      e.key === "ArrowUp" &&
+      !editingMessage &&
+      input.trim() === "" &&
+      props.onEditLastUserMessage
+    ) {
       e.preventDefault();
       props.onEditLastUserMessage();
       return;
@@ -829,8 +839,7 @@ export const ChatInput: React.FC<ChatInputProps> = (props) => {
 
   // Wrapper for creation variant to enable full-height flex layout
   const Wrapper = variant === "creation" ? "div" : React.Fragment;
-  const wrapperProps =
-    variant === "creation" ? { className: "flex h-full flex-1 flex-col" } : {};
+  const wrapperProps = variant === "creation" ? { className: "flex h-full flex-1 flex-col" } : {};
 
   return (
     <Wrapper {...wrapperProps}>
@@ -880,20 +889,22 @@ export const ChatInput: React.FC<ChatInputProps> = (props) => {
             onPaste={variant === "workspace" ? handlePaste : undefined}
             onDragOver={variant === "workspace" ? handleDragOver : undefined}
             onDrop={variant === "workspace" ? handleDrop : undefined}
-          suppressKeys={showCommandSuggestions ? COMMAND_SUGGESTION_KEYS : undefined}
-          placeholder={placeholder}
-          disabled={!editingMessage && (disabled || isSending || isCompacting)}
-          aria-label={editingMessage ? "Edit your last message" : "Message Claude"}
-          aria-autocomplete="list"
-          aria-controls={
-            showCommandSuggestions && commandSuggestions.length > 0 ? commandListId : undefined
-          }
-          aria-expanded={showCommandSuggestions && commandSuggestions.length > 0}
+            suppressKeys={showCommandSuggestions ? COMMAND_SUGGESTION_KEYS : undefined}
+            placeholder={placeholder}
+            disabled={!editingMessage && (disabled || isSending || isCompacting)}
+            aria-label={editingMessage ? "Edit your last message" : "Message Claude"}
+            aria-autocomplete="list"
+            aria-controls={
+              showCommandSuggestions && commandSuggestions.length > 0 ? commandListId : undefined
+            }
+            aria-expanded={showCommandSuggestions && commandSuggestions.length > 0}
           />
         </div>
 
         {/* Image attachments - workspace only */}
-        {variant === "workspace" && <ImageAttachments images={imageAttachments} onRemove={handleRemoveImage} />}
+        {variant === "workspace" && (
+          <ImageAttachments images={imageAttachments} onRemove={handleRemoveImage} />
+        )}
 
         <div className="flex flex-col gap-1" data-component="ChatModeToggles">
           {/* Editing indicator - workspace only */}
@@ -904,64 +915,65 @@ export const ChatInput: React.FC<ChatInputProps> = (props) => {
           )}
 
           <div className="@container flex flex-wrap items-center gap-x-3 gap-y-2">
-          {/* Model Selector - always visible */}
-          <div className="flex items-center" data-component="ModelSelectorGroup">
-            <ModelSelector
-              ref={modelSelectorRef}
-              value={preferredModel}
-              onChange={setPreferredModel}
-              recentModels={recentModels}
-              onComplete={() => inputRef.current?.focus()}
-            />
-            <TooltipWrapper inline>
-              <HelpIndicator>?</HelpIndicator>
-              <Tooltip className="tooltip" align="left" width="wide">
-                <strong>Click to edit</strong> or use {formatKeybind(KEYBINDS.OPEN_MODEL_SELECTOR)}
-                <br />
-                <br />
-                <strong>Abbreviations:</strong>
-                <br />• <code>/model opus</code> - Claude Opus 4.1
-                <br />• <code>/model sonnet</code> - Claude Sonnet 4.5
-                <br />
-                <br />
-                <strong>Full format:</strong>
-                <br />
-                <code>/model provider:model-name</code>
-                <br />
-                (e.g., <code>/model anthropic:claude-sonnet-4-5</code>)
-              </Tooltip>
-            </TooltipWrapper>
-          </div>
-
-          {/* Thinking Slider - slider hidden on narrow containers, label always clickable */}
-          <div
-            className="flex items-center [&_.thinking-slider]:[@container(max-width:550px)]:hidden"
-            data-component="ThinkingSliderGroup"
-          >
-            <ThinkingSliderComponent modelString={preferredModel} />
-          </div>
-
-          {/* Context 1M Checkbox - always visible */}
-          <div className="flex items-center" data-component="Context1MGroup">
-            <Context1MCheckbox modelString={preferredModel} />
-          </div>
-
-          {preferredModel && (
-            <div className={hasTypedText ? "block" : "hidden"}>
-              <Suspense
-                fallback={
-                  <div
-                    className="text-muted flex items-center gap-1 text-xs"
-                    data-component="TokenEstimate"
-                  >
-                    <span>Calculating tokens…</span>
-                  </div>
-                }
-              >
-                <TokenCountDisplay reader={tokenCountReader} />
-              </Suspense>
+            {/* Model Selector - always visible */}
+            <div className="flex items-center" data-component="ModelSelectorGroup">
+              <ModelSelector
+                ref={modelSelectorRef}
+                value={preferredModel}
+                onChange={setPreferredModel}
+                recentModels={recentModels}
+                onComplete={() => inputRef.current?.focus()}
+              />
+              <TooltipWrapper inline>
+                <HelpIndicator>?</HelpIndicator>
+                <Tooltip className="tooltip" align="left" width="wide">
+                  <strong>Click to edit</strong> or use{" "}
+                  {formatKeybind(KEYBINDS.OPEN_MODEL_SELECTOR)}
+                  <br />
+                  <br />
+                  <strong>Abbreviations:</strong>
+                  <br />• <code>/model opus</code> - Claude Opus 4.1
+                  <br />• <code>/model sonnet</code> - Claude Sonnet 4.5
+                  <br />
+                  <br />
+                  <strong>Full format:</strong>
+                  <br />
+                  <code>/model provider:model-name</code>
+                  <br />
+                  (e.g., <code>/model anthropic:claude-sonnet-4-5</code>)
+                </Tooltip>
+              </TooltipWrapper>
             </div>
-          )}
+
+            {/* Thinking Slider - slider hidden on narrow containers, label always clickable */}
+            <div
+              className="flex items-center [&_.thinking-slider]:[@container(max-width:550px)]:hidden"
+              data-component="ThinkingSliderGroup"
+            >
+              <ThinkingSliderComponent modelString={preferredModel} />
+            </div>
+
+            {/* Context 1M Checkbox - always visible */}
+            <div className="flex items-center" data-component="Context1MGroup">
+              <Context1MCheckbox modelString={preferredModel} />
+            </div>
+
+            {preferredModel && (
+              <div className={hasTypedText ? "block" : "hidden"}>
+                <Suspense
+                  fallback={
+                    <div
+                      className="text-muted flex items-center gap-1 text-xs"
+                      data-component="TokenEstimate"
+                    >
+                      <span>Calculating tokens…</span>
+                    </div>
+                  }
+                >
+                  <TokenCountDisplay reader={tokenCountReader} />
+                </Suspense>
+              </div>
+            )}
 
             <ModeSelector mode={mode} onChange={setMode} className="ml-auto" />
           </div>
