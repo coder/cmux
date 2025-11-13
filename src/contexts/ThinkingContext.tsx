@@ -17,7 +17,11 @@ interface ThinkingProviderProps {
   children: ReactNode;
 }
 
-export const ThinkingProvider: React.FC<ThinkingProviderProps> = ({ workspaceId, projectPath, children }) => {
+export const ThinkingProvider: React.FC<ThinkingProviderProps> = ({
+  workspaceId,
+  projectPath,
+  children,
+}) => {
   // Priority: workspace-scoped > project-scoped
   const scopeId = workspaceId ?? (projectPath ? `__project__${projectPath}` : "__global__");
   const key = getThinkingLevelKey(scopeId);

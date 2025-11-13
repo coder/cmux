@@ -15,7 +15,11 @@ interface ModeProviderProps {
   children: ReactNode;
 }
 
-export const ModeProvider: React.FC<ModeProviderProps> = ({ workspaceId, projectPath, children }) => {
+export const ModeProvider: React.FC<ModeProviderProps> = ({
+  workspaceId,
+  projectPath,
+  children,
+}) => {
   // Priority: workspace-scoped > project-scoped
   const scopeId = workspaceId ?? (projectPath ? `__project__${projectPath}` : "__global__");
   const modeKey = getModeKey(scopeId);
