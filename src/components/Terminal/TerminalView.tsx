@@ -187,7 +187,7 @@ export function TerminalView({ workspaceId, visible }: TerminalViewProps) {
       console.log("[TerminalView] Disconnecting ResizeObserver");
       resizeObserver.disconnect();
     };
-  }, [visible]);
+  }, [visible, terminalReady]); // Add terminalReady to ensure ResizeObserver is set up after terminal is initialized
 
   if (!visible) return null;
 
