@@ -208,6 +208,7 @@
     },
     "win": {
       "target": "nsis"
-    }
+    },
+    "npmRebuild": false
   }
 }
