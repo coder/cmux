@@ -1578,7 +1578,7 @@ export class IpcMain {
       return this.terminalServer.getPort();
     });
 
-    ipcMain.handle(IPC_CHANNELS.TERMINAL_WINDOW_OPEN, async (_event, workspaceId: string) => {
+    ipcMain.handle(IPC_CHANNELS.TERMINAL_WINDOW_OPEN, (_event, workspaceId: string) => {
       try {
         const devServerPort = process.env.CMUX_DEVSERVER_PORT ?? "5173";
         void this.terminalWindowManager.openTerminalWindow(workspaceId, devServerPort);
@@ -1627,9 +1627,10 @@ export class IpcMain {
             metadata,
           });
         }
-      } catch (error) {
-        console.error("Failed to emit current metadata:", error);
-      }
+        } catch (error) {
+          console.error("Failed to emit current metadata:", error);
+        }
+      })();
     });
   }
 
