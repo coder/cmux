@@ -169,6 +169,7 @@ const AIViewInner: React.FC<AIViewProps> = ({
   );
 
   const handleOpenTerminal = useCallback(() => {
+    console.log(`[AIView] Opening terminal window for workspace: ${workspaceId}`);
     void window.api.terminal.openWindow(workspaceId);
   }, [workspaceId]);
 
