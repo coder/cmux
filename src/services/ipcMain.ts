@@ -31,7 +31,6 @@ import { isSSHRuntime } from "@/types/runtime";
 import { validateProjectPath } from "@/utils/pathUtils";
 import { ExtensionMetadataService } from "@/services/ExtensionMetadataService";
 import { generateWorkspaceNames } from "./workspaceTitleGenerator";
-import { checkInitHookExists } from "@/runtime/initHook";
 /**
  * IpcMain - Manages all IPC handlers and service coordination
  *
