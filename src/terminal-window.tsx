@@ -10,6 +10,10 @@ import ReactDOM from "react-dom/client";
 import { TerminalView } from "./components/Terminal/TerminalView";
 import "./styles/globals.css";
 
+// Debug: Check if window.api is available
+console.log("[Terminal Window] window.api available:", !!window.api);
+console.log("[Terminal Window] window.api.terminal available:", !!window.api?.terminal);
+
 // Get workspace ID from query parameter
 const params = new URLSearchParams(window.location.search);
 const workspaceId = params.get("workspaceId");

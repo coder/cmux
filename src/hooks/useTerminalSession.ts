@@ -25,6 +25,13 @@ export function useTerminalSession(
 
     const initSession = async () => {
       try {
+        // Check if window.api is available
+        if (!window.api) {
+          throw new Error("window.api is not available - preload script may not have loaded");
+        }
+        if (!window.api.terminal) {
+          throw new Error("window.api.terminal is not available");
+        }
         
         // Get WebSocket port from backend
         const port = await window.api.terminal.getPort();
