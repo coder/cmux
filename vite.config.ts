@@ -63,16 +63,10 @@ export default defineConfig(async ({ mode }) => {
     sourcemap: true,
     minify: "esbuild",
     rollupOptions: {
-      input:
-        mode === "development"
-          ? {
-              main: path.resolve(__dirname, "index.html"),
-              terminal: path.resolve(__dirname, "terminal.html"),
-            }
-          : {
-              main: path.resolve(__dirname, "index.html"),
-              // Skip terminal.html in production until ghostty-web is published to npm
-            },
+      input: {
+        main: path.resolve(__dirname, "index.html"),
+        terminal: path.resolve(__dirname, "terminal.html"),
+      },
       output: {
         format: "es",
         inlineDynamicImports: false,

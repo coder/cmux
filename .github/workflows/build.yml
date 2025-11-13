@@ -1,5 +1,9 @@
 name: Build
 
+permissions:
+  packages: read # Required to install @coder scoped packages from GitHub Packages
+  contents: read
+
 on:
   pull_request:
     branches: ["**"]

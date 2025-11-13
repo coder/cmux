@@ -13,6 +13,10 @@ on:
         # This filter is passed to unit tests, integration tests, e2e tests, and storybook tests
         # to enable faster iteration when debugging specific test failures in CI
 
+permissions:
+  packages: read # Required to install @coder scoped packages from GitHub Packages
+  contents: read
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
