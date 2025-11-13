@@ -25,9 +25,10 @@ if (!workspaceId) {
     </div>
   `;
 } else {
+  // Don't use StrictMode for terminal windows to avoid double-mounting issues
+  // StrictMode intentionally double-mounts components in dev, which causes
+  // race conditions with WebSocket connections and terminal lifecycle
   ReactDOM.createRoot(document.getElementById("root")!).render(
-    <React.StrictMode>
-      <TerminalView workspaceId={workspaceId} visible={true} />
-    </React.StrictMode>
+    <TerminalView workspaceId={workspaceId} visible={true} />
   );
 }
