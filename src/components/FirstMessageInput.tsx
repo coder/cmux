@@ -39,12 +39,15 @@ export function FirstMessageInput({
   const { recentModels, addModel } = useModelLRU();
   const projectModelKey = getModelKey(`__project__${projectPath}`);
   const preferredModel = localStorage.getItem(projectModelKey) ?? recentModels[0];
-  
+
   // Setter for model
-  const setPreferredModel = useCallback((model: string) => {
-    addModel(model);
-    localStorage.setItem(projectModelKey, model);
-  }, [projectModelKey, addModel]);
+  const setPreferredModel = useCallback(
+    (model: string) => {
+      addModel(model);
+      localStorage.setItem(projectModelKey, model);
+    },
+    [projectModelKey, addModel]
+  );
 
   // Runtime configuration (Local vs SSH)
   const [runtimeOptions, setRuntimeOptions] = useNewWorkspaceOptions(projectPath);
@@ -150,7 +153,6 @@ export function FirstMessageInput({
             disabled={isSending}
             aria-label="First message"
           />
-
         </div>
 
         {/* Options row - Model + Runtime + Cancel/Send */}
@@ -171,7 +173,9 @@ export function FirstMessageInput({
               <select
                 value={runtimeMode}
                 onChange={(e) => {
-                  const newMode = e.target.value as typeof RUNTIME_MODE.LOCAL | typeof RUNTIME_MODE.SSH;
+                  const newMode = e.target.value as
+                    | typeof RUNTIME_MODE.LOCAL
+                    | typeof RUNTIME_MODE.SSH;
                   setRuntimeOptions(newMode, newMode === RUNTIME_MODE.LOCAL ? "" : sshHost);
                 }}
                 disabled={isSending}
