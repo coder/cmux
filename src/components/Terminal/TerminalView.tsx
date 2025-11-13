@@ -40,7 +40,6 @@ export function TerminalView({ workspaceId, visible }: TerminalViewProps) {
 
     const initTerminal = async () => {
       try {
-        console.log("[TerminalView] Initializing terminal...");
         terminal = new Terminal({
           fontSize: 13,
           fontFamily: "Monaco, Menlo, 'Courier New', monospace",
@@ -89,7 +88,6 @@ export function TerminalView({ workspaceId, visible }: TerminalViewProps) {
         
         // User input → WebSocket (use ref to always get latest sendInput)
         terminal.onData((data: string) => {
-          console.log("[TerminalView] onData:", JSON.stringify(data));
           sendInputRef.current(data);
         });
 
@@ -170,24 +168,14 @@ export function TerminalView({ workspaceId, visible }: TerminalViewProps) {
   // Resize on container size change
   useEffect(() => {
     if (!visible || !fitAddonRef.current || !containerRef.current || !termRef.current) {
-      console.log("[TerminalView] Resize observer not set up:", { 
-        visible, 
-        hasFitAddon: !!fitAddonRef.current, 
-        hasContainer: !!containerRef.current,
-        hasTerminal: !!termRef.current 
-      });
       return;
     }
-
-    console.log("[TerminalView] Setting up ResizeObserver and window resize handler");
     
     // Use both ResizeObserver (for container changes) and window resize (as backup)
     const handleResize = () => {
-      console.log("[TerminalView] Resize triggered, calling fit()");
       if (fitAddonRef.current && termRef.current) {
         try {
           fitAddonRef.current.fit();
-          console.log("[TerminalView] Fit complete, new size:", termRef.current.cols, "x", termRef.current.rows);
         } catch (err) {
           console.error("[TerminalView] Error fitting terminal:", err);
         }
@@ -201,7 +189,6 @@ export function TerminalView({ workspaceId, visible }: TerminalViewProps) {
     window.addEventListener('resize', handleResize);
 
     return () => {
-      console.log("[TerminalView] Disconnecting resize handlers");
       resizeObserver.disconnect();
       window.removeEventListener('resize', handleResize);
     };

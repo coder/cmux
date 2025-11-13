@@ -11,18 +11,21 @@ export function useTerminalSession(
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [connected, setConnected] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [shouldInit, setShouldInit] = useState(false);
   const wsRef = useRef<WebSocket | null>(null);
-  const initialSizeRef = useRef<{ cols: number; rows: number } | null>(null);
+
+  // Watch for terminalSize to become available
+  useEffect(() => {
+    if (enabled && terminalSize && !shouldInit) {
+      setShouldInit(true);
+    }
+  }, [enabled, terminalSize, shouldInit]);
 
   // Create terminal session and WebSocket connection
+  // Only depends on workspaceId and shouldInit, NOT terminalSize
   useEffect(() => {
-    if (!enabled || !terminalSize) {
+    if (!shouldInit || !terminalSize) {
       return;
-    }
-
-    // Store initial size, but don't recreate session if it changes
-    if (!initialSizeRef.current) {
-      initialSizeRef.current = terminalSize;
     }
 
     let mounted = true;
@@ -42,11 +45,11 @@ export function useTerminalSession(
         // Get WebSocket port from backend
         const port = await window.api.terminal.getPort();
 
-        // Create terminal session with initial terminal size
+        // Create terminal session with current terminal size
         const session = await window.api.terminal.create({
           workspaceId,
-          cols: initialSizeRef.current!.cols,
-          rows: initialSizeRef.current!.rows,
+          cols: terminalSize.cols,
+          rows: terminalSize.rows,
         });
 
         if (!mounted) {
@@ -97,7 +100,6 @@ export function useTerminalSession(
     return () => {
       mounted = false;
       
-      
       // Close WebSocket
       if (ws) {
         ws.close();
@@ -108,12 +110,12 @@ export function useTerminalSession(
       if (createdSessionId) {
         void window.api.terminal.close(createdSessionId);
       }
-      
-      // Reset initial size ref so a new session can be created
-      initialSizeRef.current = null;
+
+      // Reset init flag so a new session can be created if workspace changes
+      setShouldInit(false);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [workspaceId, enabled, terminalSize]); // Include terminalSize to trigger when available, but use ref to prevent re-creation on resize
+  }, [workspaceId, shouldInit]); // DO NOT include terminalSize - changes should not recreate session
 
   // Send input to terminal
   const sendInput = useCallback(
