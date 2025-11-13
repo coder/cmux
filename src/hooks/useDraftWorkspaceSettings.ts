@@ -13,6 +13,7 @@ import {
   getModelKey,
   getRuntimeKey,
   getTrunkBranchKey,
+  getProjectScopeId,
 } from "@/constants/storage";
 import type { UIMode } from "@/types/mode";
 import type { ThinkingLevel } from "@/types/thinking";
@@ -61,7 +62,7 @@ export function useDraftWorkspaceSettings(
 
   // Project-scoped model preference (persisted per project)
   const [model] = usePersistedState<string>(
-    getModelKey(`__project__${projectPath}`),
+    getModelKey(getProjectScopeId(projectPath)),
     recentModels[0],
     { listener: true }
   );

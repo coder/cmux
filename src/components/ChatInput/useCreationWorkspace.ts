@@ -4,6 +4,7 @@ import type { RuntimeConfig, RuntimeMode } from "@/types/runtime";
 import { parseRuntimeString } from "@/utils/chatCommands";
 import { useDraftWorkspaceSettings } from "@/hooks/useDraftWorkspaceSettings";
 import { useSendMessageOptions } from "@/hooks/useSendMessageOptions";
+import { getProjectScopeId } from "@/constants/storage";
 import { extractErrorMessage } from "./utils";
 
 interface UseCreationWorkspaceOptions {
@@ -45,7 +46,7 @@ export function useCreationWorkspace({
     useDraftWorkspaceSettings(projectPath, branches, recommendedTrunk);
 
   // Get send options from shared hook (uses project-scoped storage key)
-  const sendMessageOptions = useSendMessageOptions(`__project__${projectPath}`);
+  const sendMessageOptions = useSendMessageOptions(getProjectScopeId(projectPath));
 
   // Load branches on mount
   useEffect(() => {

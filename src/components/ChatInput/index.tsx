@@ -18,7 +18,13 @@ import { useMode } from "@/contexts/ModeContext";
 import { ThinkingSliderComponent } from "../ThinkingSlider";
 import { Context1MCheckbox } from "../Context1MCheckbox";
 import { useSendMessageOptions } from "@/hooks/useSendMessageOptions";
-import { getModelKey, getInputKey, VIM_ENABLED_KEY } from "@/constants/storage";
+import {
+  getModelKey,
+  getInputKey,
+  VIM_ENABLED_KEY,
+  getProjectScopeId,
+  getPendingScopeId,
+} from "@/constants/storage";
 import {
   handleNewCommand,
   handleCompactCommand,
@@ -100,8 +106,8 @@ export const ChatInput: React.FC<ChatInputProps> = (props) => {
   const storageKeys = (() => {
     if (variant === "creation") {
       return {
-        inputKey: getInputKey(`__pending__${props.projectPath}`),
-        modelKey: getModelKey(`__project__${props.projectPath}`),
+        inputKey: getInputKey(getPendingScopeId(props.projectPath)),
+        modelKey: getModelKey(getProjectScopeId(props.projectPath)),
       };
     }
     return {
@@ -133,7 +139,7 @@ export const ChatInput: React.FC<ChatInputProps> = (props) => {
   // Get current send message options from shared hook (must be at component top level)
   // For creation variant, use project-scoped key; for workspace, use workspace ID
   const sendMessageOptions = useSendMessageOptions(
-    variant === "workspace" ? props.workspaceId : `__project__${props.projectPath}`
+    variant === "workspace" ? props.workspaceId : getProjectScopeId(props.projectPath)
   );
   // Extract model for convenience (don't create separate state - use hook as single source of truth)
   const preferredModel = sendMessageOptions.model;
