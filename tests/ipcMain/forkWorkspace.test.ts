@@ -213,9 +213,9 @@ describeIntegration("WORKSPACE_FORK with both runtimes", () => {
       // Get runtime-specific init wait time (SSH needs more time)
       const getInitWaitTime = () => (type === "ssh" ? SSH_INIT_WAIT_MS : INIT_HOOK_WAIT_MS);
 
-      describe("Basic fork operations", () => {
+      describe("Fork operations", () => {
         test.concurrent(
-          "should fail to fork workspace with invalid name",
+          "validates workspace name",
           () =>
             withForkTest(async ({ env, tempGitRepo }) => {
               // Create source workspace
@@ -261,50 +261,7 @@ describeIntegration("WORKSPACE_FORK with both runtimes", () => {
         );
 
         test.concurrent(
-          "should fork workspace successfully",
-          () =>
-            withForkTest(async ({ env, tempGitRepo }) => {
-              const trunkBranch = await detectDefaultTrunkBranch(tempGitRepo);
-              const sourceBranchName = generateBranchName();
-              const runtimeConfig = getRuntimeConfig();
-
-              // Create workspace
-              const createResult = await env.mockIpcRenderer.invoke(
-                IPC_CHANNELS.WORKSPACE_CREATE,
-                tempGitRepo,
-                sourceBranchName,
-                trunkBranch,
-                runtimeConfig
-              );
-              expect(createResult.success).toBe(true);
-              const sourceWorkspaceId = createResult.metadata.id;
-
-              // Wait for init to complete
-              await new Promise((resolve) => setTimeout(resolve, getInitWaitTime()));
-
-              // Fork the workspace
-              const forkedName = generateBranchName();
-              const forkResult = await env.mockIpcRenderer.invoke(
-                IPC_CHANNELS.WORKSPACE_FORK,
-                sourceWorkspaceId,
-                forkedName
-              );
-              expect(forkResult.success).toBe(true);
-              expect(forkResult.metadata).toBeDefined();
-              expect(forkResult.metadata.id).toBeDefined();
-
-              // Cleanup
-              await env.mockIpcRenderer.invoke(IPC_CHANNELS.WORKSPACE_REMOVE, sourceWorkspaceId);
-              await env.mockIpcRenderer.invoke(
-                IPC_CHANNELS.WORKSPACE_REMOVE,
-                forkResult.metadata.id
-              );
-            }),
-          TEST_TIMEOUT_MS
-        );
-
-        test.concurrent(
-          "should preserve runtime config and allow tool execution after fork",
+          "preserves runtime config and creates usable workspace",
           () =>
             withForkTest(async ({ env, tempGitRepo }) => {
               const trunkBranch = await detectDefaultTrunkBranch(tempGitRepo);
@@ -370,499 +327,284 @@ describeIntegration("WORKSPACE_FORK with both runtimes", () => {
         );
       });
 
-      describe("Init hook execution", () => {
-        test.concurrent(
-          "should run init hook when forking workspace",
-          () =>
-            withForkTest(async ({ env, tempGitRepo }) => {
-              // Create init hook that writes a marker file
-              const hookContent = `#!/bin/bash
-echo "Init hook ran at $(date)" > init-marker.txt
-`;
-              await createInitHook(tempGitRepo, hookContent);
-              await commitChanges(tempGitRepo, "Add init hook");
+      test.concurrent(
+        "preserves chat history",
+        async () => {
+          // Note: setupWorkspace doesn't support runtimeConfig, only testing local for API tests
+          if (type === "ssh") {
+            return; // Skip SSH for API tests
+          }
 
-              const trunkBranch = await detectDefaultTrunkBranch(tempGitRepo);
-              const sourceBranchName = generateBranchName();
-              const runtimeConfig = getRuntimeConfig();
+          const {
+            env,
+            workspaceId: sourceWorkspaceId,
+            cleanup,
+          } = await setupWorkspace("anthropic");
 
-              // Create source workspace
-              const createResult = await env.mockIpcRenderer.invoke(
-                IPC_CHANNELS.WORKSPACE_CREATE,
-                tempGitRepo,
-                sourceBranchName,
-                trunkBranch,
-                runtimeConfig
-              );
-              expect(createResult.success).toBe(true);
-              const sourceWorkspaceId = createResult.metadata.id;
+          try {
+            // Add history to source workspace
+            const historyService = new HistoryService(env.config);
+            const uniqueWord = `testword-${Date.now()}`;
+            const historyMessages = [
+              createCmuxMessage("msg-1", "user", `Remember this word: ${uniqueWord}`, {}),
+              createCmuxMessage(
+                "msg-2",
+                "assistant",
+                `I will remember the word "${uniqueWord}".`,
+                {}
+              ),
+            ];
 
-              // Wait for source init to complete
-              await new Promise((resolve) => setTimeout(resolve, getInitWaitTime()));
+            for (const msg of historyMessages) {
+              const result = await historyService.appendToHistory(sourceWorkspaceId, msg);
+              expect(result.success).toBe(true);
+            }
 
-              // Set up event capture for fork init events
-              const capturedEvents = setupInitEventCapture(env);
+            // Fork the workspace
+            const forkedName = generateBranchName();
+            const forkResult = await env.mockIpcRenderer.invoke(
+              IPC_CHANNELS.WORKSPACE_FORK,
+              sourceWorkspaceId,
+              forkedName
+            );
+            expect(forkResult.success).toBe(true);
+            const forkedWorkspaceId = forkResult.metadata.id;
 
-              // Fork the workspace
-              const forkedName = generateBranchName();
-              const forkResult = await env.mockIpcRenderer.invoke(
-                IPC_CHANNELS.WORKSPACE_FORK,
-                sourceWorkspaceId,
-                forkedName
-              );
-              expect(forkResult.success).toBe(true);
-              const forkedWorkspaceId = forkResult.metadata.id;
+            // Wait for fork init to complete
+            await new Promise((resolve) => setTimeout(resolve, getInitWaitTime()));
 
-              // Wait for fork init to complete
-              await new Promise((resolve) => setTimeout(resolve, getInitWaitTime()));
+            // User expects: forked workspace has access to history
+            // Send a message that requires the historical context
+            env.sentEvents.length = 0;
+            const sendResult = await sendMessage(
+              env.mockIpcRenderer,
+              forkedWorkspaceId,
+              "What word did I ask you to remember? Reply with just the word.",
+              { model: DEFAULT_TEST_MODEL }
+            );
+            expect(sendResult.success).toBe(true);
 
-              // Verify init hook ran - check for init-end event
-              const endEvents = filterEventsByType(capturedEvents, EVENT_TYPE_INIT_END);
-              expect(endEvents.length).toBeGreaterThan(0);
+            // Verify stream completes successfully
+            const collector = createEventCollector(env.sentEvents, forkedWorkspaceId);
+            await collector.waitForEvent("stream-end", 30000);
+            assertStreamSuccess(collector);
 
-              // Verify init-end event has exitCode 0 (success)
-              const endEvent = endEvents[0].data as { type: string; exitCode?: number };
-              expect(endEvent.exitCode).toBe(0);
+            const finalMessage = collector.getFinalMessage();
+            expect(finalMessage).toBeDefined();
 
-              // Cleanup
-              await env.mockIpcRenderer.invoke(IPC_CHANNELS.WORKSPACE_REMOVE, sourceWorkspaceId);
-              await env.mockIpcRenderer.invoke(IPC_CHANNELS.WORKSPACE_REMOVE, forkedWorkspaceId);
-            }),
-          TEST_TIMEOUT_MS
-        );
-      });
+            // Verify the response contains the word from history
+            if (finalMessage && "parts" in finalMessage && Array.isArray(finalMessage.parts)) {
+              const content = finalMessage.parts
+                .filter((part) => part.type === "text")
+                .map((part) => (part as { text: string }).text)
+                .join("");
+              expect(content.toLowerCase()).toContain(uniqueWord.toLowerCase());
+            }
+          } finally {
+            await cleanup();
+          }
+        },
+        45000
+      );
 
-      describe("Fork with API operations", () => {
-        test.concurrent(
-          "should fork workspace and send message successfully",
-          async () => {
-            // Note: setupWorkspace doesn't support runtimeConfig, only testing local for API tests
+      test.concurrent(
+        "preserves uncommitted changes (SSH only)",
+        () => {
+          // Note: Local runtime creates git worktrees which are clean checkouts
+          // Uncommitted changes are only preserved in SSH runtime (uses cp -a)
+          if (type === "local") {
+            return Promise.resolve(); // Skip for local
+          }
+
+          return withForkTest(async ({ env, tempGitRepo }) => {
+            const trunkBranch = await detectDefaultTrunkBranch(tempGitRepo);
+            const sourceBranchName = generateBranchName();
+            const runtimeConfig = getRuntimeConfig();
+
+            // Create workspace
+            const createResult = await env.mockIpcRenderer.invoke(
+              IPC_CHANNELS.WORKSPACE_CREATE,
+              tempGitRepo,
+              sourceBranchName,
+              trunkBranch,
+              runtimeConfig
+            );
+            expect(createResult.success).toBe(true);
+            const sourceWorkspaceId = createResult.metadata.id;
+
+            // Wait for init to complete
+            await new Promise((resolve) => setTimeout(resolve, getInitWaitTime()));
+
+            // For SSH, construct path manually since namedWorkspacePath doesn't work for SSH
+            const projectName = tempGitRepo.split("/").pop() ?? "unknown";
+            const sourceWorkspacePath =
+              type === "ssh" && sshConfig
+                ? `${sshConfig.workdir}/${projectName}/${sourceBranchName}`
+                : (await env.mockIpcRenderer.invoke(IPC_CHANNELS.WORKSPACE_LIST)).find(
+                    (w: any) => w.id === sourceWorkspaceId
+                  )?.namedWorkspacePath;
+
+            expect(sourceWorkspacePath).toBeDefined();
+
+            // Create runtime for file operations
+            const runtime = createRuntime(
+              runtimeConfig ?? { type: "local", srcBaseDir: "~/.cmux/src" }
+            );
+
+            const testContent = `Test content - ${Date.now()}`;
+            const testFilePath =
+              type === "ssh"
+                ? `${sourceWorkspacePath}/uncommitted-test.txt`
+                : path.join(sourceWorkspacePath, "uncommitted-test.txt");
+
+            // Write file using runtime
             if (type === "ssh") {
-              return; // Skip SSH for API tests
+              const writeStream = await runtime.writeFile(testFilePath);
+              const writer = writeStream.getWriter();
+              const encoder = new TextEncoder();
+              await writer.write(encoder.encode(testContent));
+              await writer.close();
+            } else {
+              await fs.writeFile(testFilePath, testContent);
             }
 
-            const {
-              env,
-              workspaceId: sourceWorkspaceId,
-              cleanup,
-            } = await setupWorkspace("anthropic");
+            // Fork the workspace
+            const forkedName = generateBranchName();
+            const forkResult = await env.mockIpcRenderer.invoke(
+              IPC_CHANNELS.WORKSPACE_FORK,
+              sourceWorkspaceId,
+              forkedName
+            );
+            expect(forkResult.success).toBe(true);
+            const forkedWorkspaceId = forkResult.metadata.id;
 
-            try {
-              // Fork the workspace
-              const forkedName = generateBranchName();
-              const forkResult = await env.mockIpcRenderer.invoke(
-                IPC_CHANNELS.WORKSPACE_FORK,
-                sourceWorkspaceId,
-                forkedName
-              );
-              expect(forkResult.success).toBe(true);
-              const forkedWorkspaceId = forkResult.metadata.id;
+            // Wait for fork init to complete
+            await new Promise((resolve) => setTimeout(resolve, getInitWaitTime()));
 
-              // Wait for fork init to complete
-              await new Promise((resolve) => setTimeout(resolve, getInitWaitTime()));
+            // Get forked workspace path from metadata (or construct for SSH)
+            const forkedWorkspacePath =
+              type === "ssh" && sshConfig
+                ? `${sshConfig.workdir}/${projectName}/${forkedName}`
+                : (await env.mockIpcRenderer.invoke(IPC_CHANNELS.WORKSPACE_LIST)).find(
+                    (w: any) => w.id === forkedWorkspaceId
+                  )?.namedWorkspacePath;
 
-              // User expects: forked workspace is functional - can send messages to it
-              env.sentEvents.length = 0;
-              const sendResult = await sendMessage(
-                env.mockIpcRenderer,
-                forkedWorkspaceId,
-                "What is 2+2? Answer with just the number.",
-                { model: DEFAULT_TEST_MODEL }
-              );
-              expect(sendResult.success).toBe(true);
+            expect(forkedWorkspacePath).toBeDefined();
 
-              // Verify stream completes successfully
-              const collector = createEventCollector(env.sentEvents, forkedWorkspaceId);
-              await collector.waitForEvent("stream-end", 30000);
-              assertStreamSuccess(collector);
+            const forkedFilePath =
+              type === "ssh"
+                ? `${forkedWorkspacePath}/uncommitted-test.txt`
+                : path.join(forkedWorkspacePath, "uncommitted-test.txt");
 
-              const finalMessage = collector.getFinalMessage();
-              expect(finalMessage).toBeDefined();
-            } finally {
-              await cleanup();
-            }
-          },
-          45000
-        );
-
-        test.concurrent(
-          "should preserve chat history when forking workspace",
-          async () => {
-            // Note: setupWorkspace doesn't support runtimeConfig, only testing local for API tests
             if (type === "ssh") {
-              return; // Skip SSH for API tests
+              const readStream = await runtime.readFile(forkedFilePath);
+              const forkedContent = await streamToString(readStream);
+              expect(forkedContent).toBe(testContent);
+            } else {
+              const forkedContent = await fs.readFile(forkedFilePath, "utf-8");
+              expect(forkedContent).toBe(testContent);
             }
 
-            const {
-              env,
-              workspaceId: sourceWorkspaceId,
-              cleanup,
-            } = await setupWorkspace("anthropic");
+            // Cleanup
+            await env.mockIpcRenderer.invoke(IPC_CHANNELS.WORKSPACE_REMOVE, sourceWorkspaceId);
+            await env.mockIpcRenderer.invoke(IPC_CHANNELS.WORKSPACE_REMOVE, forkedWorkspaceId);
+          });
+        },
+        TEST_TIMEOUT_MS
+      );
 
-            try {
-              // Add history to source workspace
-              const historyService = new HistoryService(env.config);
-              const uniqueWord = `testword-${Date.now()}`;
-              const historyMessages = [
-                createCmuxMessage("msg-1", "user", `Remember this word: ${uniqueWord}`, {}),
-                createCmuxMessage(
-                  "msg-2",
-                  "assistant",
-                  `I will remember the word "${uniqueWord}".`,
-                  {}
-                ),
-              ];
-
-              for (const msg of historyMessages) {
-                const result = await historyService.appendToHistory(sourceWorkspaceId, msg);
-                expect(result.success).toBe(true);
-              }
-
-              // Fork the workspace
-              const forkedName = generateBranchName();
-              const forkResult = await env.mockIpcRenderer.invoke(
-                IPC_CHANNELS.WORKSPACE_FORK,
-                sourceWorkspaceId,
-                forkedName
-              );
-              expect(forkResult.success).toBe(true);
-              const forkedWorkspaceId = forkResult.metadata.id;
-
-              // Wait for fork init to complete
-              await new Promise((resolve) => setTimeout(resolve, getInitWaitTime()));
-
-              // User expects: forked workspace has access to history
-              // Send a message that requires the historical context
-              env.sentEvents.length = 0;
-              const sendResult = await sendMessage(
-                env.mockIpcRenderer,
-                forkedWorkspaceId,
-                "What word did I ask you to remember? Reply with just the word.",
-                { model: DEFAULT_TEST_MODEL }
-              );
-              expect(sendResult.success).toBe(true);
-
-              // Verify stream completes successfully
-              const collector = createEventCollector(env.sentEvents, forkedWorkspaceId);
-              await collector.waitForEvent("stream-end", 30000);
-              assertStreamSuccess(collector);
-
-              const finalMessage = collector.getFinalMessage();
-              expect(finalMessage).toBeDefined();
-
-              // Verify the response contains the word from history
-              if (finalMessage && "parts" in finalMessage && Array.isArray(finalMessage.parts)) {
-                const content = finalMessage.parts
-                  .filter((part) => part.type === "text")
-                  .map((part) => (part as { text: string }).text)
-                  .join("");
-                expect(content.toLowerCase()).toContain(uniqueWord.toLowerCase());
-              }
-            } finally {
-              await cleanup();
-            }
-          },
-          45000
-        );
-      });
-
-      describe("Fork preserves filesystem state", () => {
-        test.concurrent(
-          "should preserve uncommitted changes when forking workspace",
-          () => {
-            // Note: Local runtime creates git worktrees which are clean checkouts
-            // Uncommitted changes are only preserved in SSH runtime (uses cp -a)
-            if (type === "local") {
-              return Promise.resolve(); // Skip for local
-            }
-
-            return withForkTest(async ({ env, tempGitRepo }) => {
-              const trunkBranch = await detectDefaultTrunkBranch(tempGitRepo);
-              const sourceBranchName = generateBranchName();
-              const runtimeConfig = getRuntimeConfig();
-
-              // Create workspace
-              const createResult = await env.mockIpcRenderer.invoke(
-                IPC_CHANNELS.WORKSPACE_CREATE,
-                tempGitRepo,
-                sourceBranchName,
-                trunkBranch,
-                runtimeConfig
-              );
-              expect(createResult.success).toBe(true);
-              const sourceWorkspaceId = createResult.metadata.id;
-
-              // Wait for init to complete
-              await new Promise((resolve) => setTimeout(resolve, getInitWaitTime()));
-
-              // For SSH, construct path manually since namedWorkspacePath doesn't work for SSH
-              const projectName = tempGitRepo.split("/").pop() ?? "unknown";
-              const sourceWorkspacePath =
-                type === "ssh" && sshConfig
-                  ? `${sshConfig.workdir}/${projectName}/${sourceBranchName}`
-                  : (await env.mockIpcRenderer.invoke(IPC_CHANNELS.WORKSPACE_LIST)).find(
-                      (w: any) => w.id === sourceWorkspaceId
-                    )?.namedWorkspacePath;
-
-              expect(sourceWorkspacePath).toBeDefined();
-
-              // Create runtime for file operations
-              const runtime = createRuntime(
-                runtimeConfig ?? { type: "local", srcBaseDir: "~/.cmux/src" }
-              );
-
-              const testContent = `Test content - ${Date.now()}`;
-              const testFilePath =
-                type === "ssh"
-                  ? `${sourceWorkspacePath}/uncommitted-test.txt`
-                  : path.join(sourceWorkspacePath, "uncommitted-test.txt");
-
-              // Write file using runtime
-              if (type === "ssh") {
-                const writeStream = await runtime.writeFile(testFilePath);
-                const writer = writeStream.getWriter();
-                const encoder = new TextEncoder();
-                await writer.write(encoder.encode(testContent));
-                await writer.close();
-              } else {
-                await fs.writeFile(testFilePath, testContent);
-              }
-
-              // Fork the workspace
-              const forkedName = generateBranchName();
-              const forkResult = await env.mockIpcRenderer.invoke(
-                IPC_CHANNELS.WORKSPACE_FORK,
-                sourceWorkspaceId,
-                forkedName
-              );
-              expect(forkResult.success).toBe(true);
-              const forkedWorkspaceId = forkResult.metadata.id;
-
-              // Wait for fork init to complete
-              await new Promise((resolve) => setTimeout(resolve, getInitWaitTime()));
-
-              // Get forked workspace path from metadata (or construct for SSH)
-              const forkedWorkspacePath =
-                type === "ssh" && sshConfig
-                  ? `${sshConfig.workdir}/${projectName}/${forkedName}`
-                  : (await env.mockIpcRenderer.invoke(IPC_CHANNELS.WORKSPACE_LIST)).find(
-                      (w: any) => w.id === forkedWorkspaceId
-                    )?.namedWorkspacePath;
-
-              expect(forkedWorkspacePath).toBeDefined();
-
-              const forkedFilePath =
-                type === "ssh"
-                  ? `${forkedWorkspacePath}/uncommitted-test.txt`
-                  : path.join(forkedWorkspacePath, "uncommitted-test.txt");
-
-              if (type === "ssh") {
-                const readStream = await runtime.readFile(forkedFilePath);
-                const forkedContent = await streamToString(readStream);
-                expect(forkedContent).toBe(testContent);
-              } else {
-                const forkedContent = await fs.readFile(forkedFilePath, "utf-8");
-                expect(forkedContent).toBe(testContent);
-              }
-
-              // Cleanup
-              await env.mockIpcRenderer.invoke(IPC_CHANNELS.WORKSPACE_REMOVE, sourceWorkspaceId);
-              await env.mockIpcRenderer.invoke(IPC_CHANNELS.WORKSPACE_REMOVE, forkedWorkspaceId);
-            });
-          },
-          TEST_TIMEOUT_MS
-        );
-
-        test.concurrent(
-          "should fork workspace and preserve git state",
-          () =>
-            withForkTest(async ({ env, tempGitRepo }) => {
-              const trunkBranch = await detectDefaultTrunkBranch(tempGitRepo);
-              const sourceBranchName = generateBranchName();
-              const runtimeConfig = getRuntimeConfig();
-
-              // Create workspace
-              const createResult = await env.mockIpcRenderer.invoke(
-                IPC_CHANNELS.WORKSPACE_CREATE,
-                tempGitRepo,
-                sourceBranchName,
-                trunkBranch,
-                runtimeConfig
-              );
-              expect(createResult.success).toBe(true);
-              const sourceWorkspaceId = createResult.metadata.id;
-
-              // Wait for init to complete
-              await new Promise((resolve) => setTimeout(resolve, getInitWaitTime()));
-
-              // Fork the workspace
-              const forkedName = generateBranchName();
-              const forkResult = await env.mockIpcRenderer.invoke(
-                IPC_CHANNELS.WORKSPACE_FORK,
-                sourceWorkspaceId,
-                forkedName
-              );
-              expect(forkResult.success).toBe(true);
-              const forkedWorkspaceId = forkResult.metadata.id;
-
-              // Wait for fork init to complete
-              await new Promise((resolve) => setTimeout(resolve, getInitWaitTime()));
-
-              // Get forked workspace path from metadata (or construct for SSH)
-              const projectName = tempGitRepo.split("/").pop() ?? "unknown";
-              const forkedWorkspacePath =
-                type === "ssh" && sshConfig
-                  ? `${sshConfig.workdir}/${projectName}/${forkedName}`
-                  : (await env.mockIpcRenderer.invoke(IPC_CHANNELS.WORKSPACE_LIST)).find(
-                      (w: any) => w.id === forkedWorkspaceId
-                    )?.namedWorkspacePath;
-
-              expect(forkedWorkspacePath).toBeDefined();
-
-              // Create runtime for exec operations
-              const runtime = createRuntime(
-                runtimeConfig ?? { type: "local", srcBaseDir: "~/.cmux/src" }
-              );
-
-              // Check git branch in forked workspace
-              const execStream = await runtime.exec(
-                `git -C "${forkedWorkspacePath}" branch --show-current`,
-                { cwd: type === "ssh" ? "~" : process.cwd(), timeout: 10 }
-              );
-              const currentBranch = (await streamToString(execStream.stdout)).trim();
-
-              expect(currentBranch).toBe(forkedName);
-
-              // Cleanup
-              await env.mockIpcRenderer.invoke(IPC_CHANNELS.WORKSPACE_REMOVE, sourceWorkspaceId);
-              await env.mockIpcRenderer.invoke(IPC_CHANNELS.WORKSPACE_REMOVE, forkedWorkspaceId);
-            }),
-          TEST_TIMEOUT_MS
-        );
-      });
-
-      describe("Fork during init", () => {
-        test.concurrent(
-          "should fail to fork workspace that is currently initializing",
-          () =>
-            withForkTest(async ({ env, tempGitRepo }) => {
-              // Create init hook that takes a long time (ensures workspace stays in init state)
-              const initHookContent = `#!/bin/bash
-echo "Init starting"
-sleep 5
-echo "Init complete"
-`;
-              await createInitHook(tempGitRepo, initHookContent);
-              await commitChanges(tempGitRepo, "Add slow init hook");
-
-              // Create source workspace (triggers init)
-              const trunkBranch = await detectDefaultTrunkBranch(tempGitRepo);
-              const sourceBranchName = generateBranchName();
-              const runtimeConfig = getRuntimeConfig();
-              const createResult = await env.mockIpcRenderer.invoke(
-                IPC_CHANNELS.WORKSPACE_CREATE,
-                tempGitRepo,
-                sourceBranchName,
-                trunkBranch,
-                runtimeConfig
-              );
-              expect(createResult.success).toBe(true);
-              const sourceWorkspaceId = createResult.metadata.id;
-
-              // Immediately try to fork (while init is running)
-              const forkedName = generateBranchName();
-              const forkResult = await env.mockIpcRenderer.invoke(
-                IPC_CHANNELS.WORKSPACE_FORK,
-                sourceWorkspaceId,
-                forkedName
-              );
-
-              // Fork should fail because source workspace is initializing
-              expect(forkResult.success).toBe(false);
-              expect(forkResult.error).toMatch(/initializing/i);
-
-              // Wait for init to complete before cleanup
-              await new Promise((resolve) => setTimeout(resolve, getInitWaitTime()));
-
-              // Cleanup
-              await env.mockIpcRenderer.invoke(IPC_CHANNELS.WORKSPACE_REMOVE, sourceWorkspaceId);
-            }),
-          TEST_TIMEOUT_MS
-        );
-
-        test.concurrent(
-          "should block file_read in forked workspace until init completes",
-          () =>
-            withForkTest(async ({ env, tempGitRepo }) => {
-              // SSH only - local runtime init completes too quickly to test reliably
-              // SSH is the important path since filesystem operations take time
-              if (type !== "ssh") {
-                return;
-              }
-
-              // Create init hook that takes time (3 seconds)
-              // Provider setup happens automatically in sendMessage
-              const initHookContent = `#!/bin/bash
+      test.concurrent(
+        "manages init state correctly",
+        () =>
+          withForkTest(async ({ env, tempGitRepo }) => {
+            // Create init hook that takes time
+            const initHookContent = `#!/bin/bash
 echo "Init starting"
 sleep 3
 echo "Init complete"
 `;
-              await createInitHook(tempGitRepo, initHookContent);
-              await commitChanges(tempGitRepo, "Add init hook");
+            await createInitHook(tempGitRepo, initHookContent);
+            await commitChanges(tempGitRepo, "Add init hook");
 
-              // Create source workspace
-              const trunkBranch = await detectDefaultTrunkBranch(tempGitRepo);
-              const sourceBranchName = generateBranchName();
-              const runtimeConfig = getRuntimeConfig();
-              const createResult = await env.mockIpcRenderer.invoke(
-                IPC_CHANNELS.WORKSPACE_CREATE,
-                tempGitRepo,
-                sourceBranchName,
-                trunkBranch,
-                runtimeConfig
-              );
-              expect(createResult.success).toBe(true);
-              const sourceWorkspaceId = createResult.metadata.id;
+            // Create source workspace
+            const trunkBranch = await detectDefaultTrunkBranch(tempGitRepo);
+            const sourceBranchName = generateBranchName();
+            const runtimeConfig = getRuntimeConfig();
+            const createResult = await env.mockIpcRenderer.invoke(
+              IPC_CHANNELS.WORKSPACE_CREATE,
+              tempGitRepo,
+              sourceBranchName,
+              trunkBranch,
+              runtimeConfig
+            );
+            expect(createResult.success).toBe(true);
+            const sourceWorkspaceId = createResult.metadata.id;
 
-              // Wait for source workspace init to complete
-              await new Promise((resolve) => setTimeout(resolve, getInitWaitTime()));
+            // Wait for source workspace init to complete
+            await new Promise((resolve) => setTimeout(resolve, getInitWaitTime()));
 
-              // Fork the workspace (triggers init for new workspace)
-              const forkedName = generateBranchName();
-              const forkTime = Date.now();
-              const forkResult = await env.mockIpcRenderer.invoke(
-                IPC_CHANNELS.WORKSPACE_FORK,
-                sourceWorkspaceId,
-                forkedName
-              );
-              expect(forkResult.success).toBe(true);
-              const forkedWorkspaceId = forkResult.metadata.id;
+            // Test 1: Can't fork workspace that's currently initializing
+            // Create another workspace that will be initializing
+            const anotherBranchName = generateBranchName();
+            const createResult2 = await env.mockIpcRenderer.invoke(
+              IPC_CHANNELS.WORKSPACE_CREATE,
+              tempGitRepo,
+              anotherBranchName,
+              trunkBranch,
+              runtimeConfig
+            );
+            expect(createResult2.success).toBe(true);
+            const initializingWorkspaceId = createResult2.metadata.id;
 
-              // Clear events BEFORE sending message
-              env.sentEvents.length = 0;
+            // Immediately try to fork (while init is running)
+            const tempForkName = generateBranchName();
+            const tempForkResult = await env.mockIpcRenderer.invoke(
+              IPC_CHANNELS.WORKSPACE_FORK,
+              initializingWorkspaceId,
+              tempForkName
+            );
+            expect(tempForkResult.success).toBe(false);
+            expect(tempForkResult.error).toMatch(/initializing/i);
 
-              // Send message that will use file_read tool
-              // The tool should block until init completes
-              await sendMessage(env.mockIpcRenderer, forkedWorkspaceId, "Read the README.md file", {
-                model: DEFAULT_TEST_MODEL,
-              });
+            // Wait for init to complete
+            await new Promise((resolve) => setTimeout(resolve, getInitWaitTime()));
 
-              // Wait for stream to complete
-              const collector = createEventCollector(env.sentEvents, forkedWorkspaceId);
-              await collector.waitForEvent("stream-end", 30000);
-              assertStreamSuccess(collector);
+            // Test 2: Tools are blocked in forked workspace until init completes
+            // Fork the first workspace (triggers init for new workspace)
+            const forkedName = generateBranchName();
+            const forkTime = Date.now();
+            const forkResult = await env.mockIpcRenderer.invoke(
+              IPC_CHANNELS.WORKSPACE_FORK,
+              sourceWorkspaceId,
+              forkedName
+            );
+            expect(forkResult.success).toBe(true);
+            const forkedWorkspaceId = forkResult.metadata.id;
 
-              // If we get here without errors, init blocking worked
-              // (If init didn't complete, file_read would fail with "file not found")
-              // The presence of both stream-end and successful tool execution proves it
+            // Clear events BEFORE sending message
+            env.sentEvents.length = 0;
 
-              // Cleanup
-              await env.mockIpcRenderer.invoke(IPC_CHANNELS.WORKSPACE_REMOVE, sourceWorkspaceId);
-              await env.mockIpcRenderer.invoke(IPC_CHANNELS.WORKSPACE_REMOVE, forkedWorkspaceId);
-            }),
-          TEST_TIMEOUT_MS
-        );
-      });
+            // Send message that will use file_read tool
+            // The tool should block until init completes
+            await sendMessage(env.mockIpcRenderer, forkedWorkspaceId, "Read the README.md file", {
+              model: DEFAULT_TEST_MODEL,
+            });
+
+            // Wait for stream to complete
+            const collector = createEventCollector(env.sentEvents, forkedWorkspaceId);
+            await collector.waitForEvent("stream-end", 30000);
+            assertStreamSuccess(collector);
+
+            // If we get here without errors, init blocking worked
+            // (If init didn't complete, file_read would fail with "file not found")
+            // The presence of both stream-end and successful tool execution proves it
+
+            // Cleanup
+            await env.mockIpcRenderer.invoke(IPC_CHANNELS.WORKSPACE_REMOVE, sourceWorkspaceId);
+            await env.mockIpcRenderer.invoke(IPC_CHANNELS.WORKSPACE_REMOVE, forkedWorkspaceId);
+          }),
+        TEST_TIMEOUT_MS
+      );
     }
   );
 });
