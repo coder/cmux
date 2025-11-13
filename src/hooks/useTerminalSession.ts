@@ -82,7 +82,7 @@ export function useTerminalSession(
         };
 
         ws.onerror = (event) => {
-          console.error(`[Terminal] WebSocket error for session ${createdSessionId}:`, event);
+          console.error(`[Terminal] WebSocket error for session ${createdSessionId ?? "unknown"}:`, event);
           if (mounted) {
             setError("WebSocket connection failed");
           }
