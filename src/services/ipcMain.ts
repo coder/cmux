@@ -815,7 +815,7 @@ export class IpcMain {
               return config;
             });
 
-            const allMetadata = this.config.getAllWorkspaceMetadata();
+            const allMetadata = await this.config.getAllWorkspaceMetadata();
             const completeMetadata = allMetadata.find((m) => m.id === workspaceId);
             if (!completeMetadata) {
               return { success: false, error: "Failed to retrieve workspace metadata" };
