@@ -370,7 +370,7 @@ export class LocalRuntime implements Runtime {
     const { projectPath, workspacePath, initLogger } = params;
 
     try {
-      // Run .cmux/init hook if it exists
+      // Run .mux/init hook if it exists
       // Note: runInitHook calls logComplete() internally if hook exists
       const hookExists = await checkInitHookExists(projectPath);
       if (hookExists) {
@@ -392,7 +392,7 @@ export class LocalRuntime implements Runtime {
   }
 
   /**
-   * Run .cmux/init hook if it exists and is executable
+   * Run .mux/init hook if it exists and is executable
    */
   private async runInitHook(
     projectPath: string,

@@ -706,7 +706,7 @@ export class SSHRuntime implements Runtime {
   }
 
   /**
-   * Run .cmux/init hook on remote machine if it exists
+   * Run .mux/init hook on remote machine if it exists
    */
   private async runInitHook(
     projectPath: string,
@@ -721,7 +721,7 @@ export class SSHRuntime implements Runtime {
     }
 
     // Construct hook path - expand tilde if present
-    const remoteHookPath = `${workspacePath}/.cmux/init`;
+    const remoteHookPath = `${workspacePath}/.mux/init`;
     initLogger.logStep(`Running init hook: ${remoteHookPath}`);
 
     // Expand tilde in hook path for execution
@@ -888,7 +888,7 @@ export class SSHRuntime implements Runtime {
       }
       initLogger.logStep("Branch checked out successfully");
 
-      // 3. Run .cmux/init hook if it exists
+      // 3. Run .mux/init hook if it exists
       // Note: runInitHook calls logComplete() internally if hook exists
       const hookExists = await checkInitHookExists(projectPath);
       if (hookExists) {

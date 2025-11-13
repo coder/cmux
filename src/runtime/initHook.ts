@@ -4,7 +4,7 @@ import * as path from "path";
 import type { InitLogger } from "./Runtime";
 
 /**
- * Check if .cmux/init hook exists and is executable
+ * Check if .mux/init hook exists and is executable
  * @param projectPath - Path to the project root
  * @returns true if hook exists and is executable, false otherwise
  */
