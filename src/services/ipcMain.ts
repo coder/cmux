@@ -1574,7 +1574,7 @@ export class IpcMain {
       }
     );
 
-    ipcMain.handle(IPC_CHANNELS.TERMINAL_GET_PORT, async () => {
+    ipcMain.handle(IPC_CHANNELS.TERMINAL_GET_PORT, () => {
       return this.terminalServer.getPort();
     });
 
@@ -1588,7 +1588,7 @@ export class IpcMain {
       }
     });
 
-    ipcMain.handle(IPC_CHANNELS.TERMINAL_WINDOW_CLOSE, async (_event, workspaceId: string) => {
+    ipcMain.handle(IPC_CHANNELS.TERMINAL_WINDOW_CLOSE, (_event, workspaceId: string) => {
       try {
         this.terminalWindowManager.closeTerminalWindow(workspaceId);
       } catch (err) {
