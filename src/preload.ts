@@ -81,8 +81,11 @@ const api: IPCApi = {
     getInfo: (workspaceId) => ipcRenderer.invoke(IPC_CHANNELS.WORKSPACE_GET_INFO, workspaceId),
     executeBash: (workspaceId, script, options) =>
       ipcRenderer.invoke(IPC_CHANNELS.WORKSPACE_EXECUTE_BASH, workspaceId, script, options),
-    openTerminal: (workspaceId) =>
-      ipcRenderer.invoke(IPC_CHANNELS.WORKSPACE_OPEN_TERMINAL, workspaceId),
+    openTerminal: (workspaceId) => {
+      console.log(`[Preload] workspace.openTerminal called (OLD API) with workspaceId: ${workspaceId}`);
+      console.trace('[Preload] Call stack:');
+      return ipcRenderer.invoke(IPC_CHANNELS.WORKSPACE_OPEN_TERMINAL, workspaceId);
+    },
 
     onChat: (workspaceId: string, callback) => {
       const channel = getChatChannel(workspaceId);
