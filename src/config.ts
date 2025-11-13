@@ -402,6 +402,27 @@ export class Config {
   }
 
   /**
+   * Update workspace metadata fields (e.g., regenerate missing title/branch)
+   * Used to fix incomplete metadata after errors or restarts
+   */
+  async updateWorkspaceMetadata(
+    workspaceId: string,
+    updates: Partial<Pick<WorkspaceMetadata, "name" | "displayName">>
+  ): Promise<void> {
+    await this.editConfig((config) => {
+      for (const [_projectPath, projectConfig] of config.projects) {
+        const workspace = projectConfig.workspaces.find((w) => w.id === workspaceId);
+        if (workspace) {
+          if (updates.name !== undefined) workspace.name = updates.name;
+          if (updates.displayName !== undefined) workspace.displayName = updates.displayName;
+          return config;
+        }
+      }
+      throw new Error(`Workspace ${workspaceId} not found in config`);
+    });
+  }
+
+  /**
    * Load providers configuration from JSONC file
    * Supports comments in JSONC format
    */
