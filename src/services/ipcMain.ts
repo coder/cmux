@@ -961,7 +961,7 @@ export class IpcMain {
     ipcMain.handle(IPC_CHANNELS.WORKSPACE_OPEN_TERMINAL, async (_event, workspaceId: string) => {
       try {
         // Look up workspace metadata to get runtime config
-        const allMetadata = this.config.getAllWorkspaceMetadata();
+        const allMetadata = await this.config.getAllWorkspaceMetadata();
         const workspace = allMetadata.find((w) => w.id === workspaceId);
 
         if (!workspace) {
