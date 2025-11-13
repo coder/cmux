@@ -18,6 +18,10 @@
       "@/*": ["./src/*"]
     }
   },
+  "watchOptions": {
+    "excludeDirectories": ["**/node_modules", "**/dist", "**/build", "**/.git"],
+    "excludeFiles": ["**/*.d.ts.map"]
+  },
   "include": [
     "src/**/*.tsx",
     "src/**/*.ts",

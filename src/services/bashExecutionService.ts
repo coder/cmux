@@ -1,6 +1,7 @@
 import { spawn } from "child_process";
 import type { ChildProcess } from "child_process";
 import { log } from "./log";
+import { getBashPath } from "../utils/bashPath";
 
 /**
  * Configuration for bash execution
@@ -120,10 +121,13 @@ export class BashExecutionService {
       `BashExecutionService: Script: ${script.substring(0, 100)}${script.length > 100 ? "..." : ""}`
     );
 
-    const spawnCommand = config.niceness !== undefined ? "nice" : "bash";
+    // Windows doesn't have nice command, so just spawn bash directly
+    const isWindows = process.platform === "win32";
+    const bashPath = getBashPath();
+    const spawnCommand = config.niceness !== undefined && !isWindows ? "nice" : bashPath;
     const spawnArgs =
-      config.niceness !== undefined
-        ? ["-n", config.niceness.toString(), "bash", "-c", script]
+      config.niceness !== undefined && !isWindows
+        ? ["-n", config.niceness.toString(), bashPath, "-c", script]
         : ["-c", script];
 
     const child = spawn(spawnCommand, spawnArgs, {

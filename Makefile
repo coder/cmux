@@ -41,7 +41,7 @@ endif
 # Include formatting rules
 include fmt.mk
 
-.PHONY: all build dev start clean help
+.PHONY: all build dev start clean clean-cache help
 .PHONY: build-renderer version build-icons build-static
 .PHONY: lint lint-fix typecheck static-check
 .PHONY: test test-unit test-integration test-watch test-coverage test-e2e
@@ -105,11 +105,15 @@ help: ## Show this help message
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-20s\033[0m %s\n", $$1, $$2}'
 
 ## Development
-dev: node_modules/.installed build-main ## Start development server (Vite + tsgo watcher for 10x faster type checking)
-	@npx concurrently -k --raw \
-		"$(TSGO) -w -p tsconfig.main.json" \
-		"bun x tsc-alias -w -p tsconfig.main.json" \
+dev: node_modules/.installed build-main clean-cache ## Start development server (Vite + nodemon watcher for Windows compatibility)
+	@echo "Starting dev mode (2 watchers: nodemon for main process, vite for renderer)..."
+	@NODE_OPTIONS="--max-old-space-size=4096" npx concurrently -k --raw \
+		"npx nodemon --exec node scripts/build-main-watch.js" \
 		"vite"
+
+clean-cache: ## Clean Vite cache (helps with EMFILE errors on Windows)
+	@echo "Cleaning Vite cache..."
+	@rm -rf node_modules/.vite
 
 dev-server: node_modules/.installed build-main ## Start server mode with hot reload (backend :3000 + frontend :5173). Use VITE_HOST=0.0.0.0 BACKEND_HOST=0.0.0.0 for remote access
 	@echo "Starting dev-server..."
@@ -202,7 +206,7 @@ lint-fix: node_modules/.installed ## Run linter with --fix
 	@./scripts/lint.sh --fix
 
 typecheck: node_modules/.installed src/version.ts ## Run TypeScript type checking (uses tsgo for 10x speedup)
-	@bun x concurrently -g \
+	@npx concurrently -g \
 		"$(TSGO) --noEmit" \
 		"$(TSGO) --noEmit -p tsconfig.main.json"
 
