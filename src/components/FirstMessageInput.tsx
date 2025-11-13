@@ -134,9 +134,7 @@ export function FirstMessageInput({
       // Build SendMessageOptions (same logic as useSendMessageOptions)
       const additionalSystemInstructions = mode === "plan" ? PLAN_MODE_INSTRUCTION : undefined;
       const model =
-        typeof preferredModel === "string" && preferredModel
-          ? preferredModel
-          : recentModels[0];
+        typeof preferredModel === "string" && preferredModel ? preferredModel : recentModels[0];
       const uiThinking = enforceThinkingPolicy(model, thinkingLevel);
 
       const sendMessageOptions: SendMessageOptions = {
@@ -231,8 +229,8 @@ export function FirstMessageInput({
           <div className="max-w-2xl px-8 text-center">
             <h1 className="text-foreground mb-4 text-2xl font-semibold">{projectName}</h1>
             <p className="text-muted text-sm leading-relaxed">
-              Describe what you want to build. A new workspace will be created with an
-              automatically generated branch name. Configure runtime and model options below.
+              Describe what you want to build. A new workspace will be created with an automatically
+              generated branch name. Configure runtime and model options below.
             </p>
           </div>
         )}
