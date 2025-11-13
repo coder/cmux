@@ -1,5 +1,6 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
+import topLevelAwait from "vite-plugin-top-level-await";
 import svgr from "vite-plugin-svgr";
 import tailwindcss from "@tailwindcss/vite";
 import path from "path";
@@ -42,16 +43,9 @@ const basePlugins = [
   tailwindcss(),
 ];
 
-export default defineConfig(async ({ mode }) => {
-  // Dynamically import topLevelAwait only in dev mode
-  const plugins =
-    mode === "development"
-      ? [...basePlugins, (await import("vite-plugin-top-level-await")).default()]
-      : basePlugins;
-
-  return {
+export default defineConfig(({ mode }) => ({
   // This prevents mermaid initialization errors in production while allowing dev to work
-  plugins,
+  plugins: mode === "development" ? [...basePlugins, topLevelAwait()] : basePlugins,
   resolve: {
     alias,
   },
@@ -89,12 +83,7 @@ export default defineConfig(async ({ mode }) => {
   },
   worker: {
     format: "es",
-    plugins: async () => {
-      if (mode === "development") {
-        return [(await import("vite-plugin-top-level-await")).default()];
-      }
-      return [];
-    },
+    plugins: () => [topLevelAwait()],
   },
   server: {
     host: devServerHost, // Configurable via MUX_VITE_HOST (defaults to 127.0.0.1 for security)
@@ -121,5 +110,4 @@ export default defineConfig(async ({ mode }) => {
     },
   },
   assetsInclude: ["**/*.wasm"],
-};
-});
+}));
