@@ -13,14 +13,13 @@ import { modeToToolPolicy, PLAN_MODE_INSTRUCTION } from "@/utils/ui/modeUtils";
 import { enforceThinkingPolicy } from "@/utils/thinking/policy";
 import type { SendMessageOptions } from "@/types/ipc";
 import { ModelSelector } from "./ModelSelector";
-import { TooltipWrapper, Tooltip, HelpIndicator } from "./Tooltip";
 import { VimTextArea } from "./VimTextArea";
-import { ToggleGroup, type ToggleOption } from "./ToggleGroup";
-import type { UIMode } from "@/types/mode";
 import { cn } from "@/lib/utils";
 import { ThinkingSliderComponent } from "./ThinkingSlider";
 import { Context1MCheckbox } from "./Context1MCheckbox";
 import { matchesKeybind, KEYBINDS } from "@/utils/ui/keybinds";
+import { ModeSelector } from "./ModeSelector";
+import { TooltipWrapper, Tooltip } from "./Tooltip";
 
 interface FirstMessageInputProps {
   projectPath: string;
@@ -28,22 +27,6 @@ interface FirstMessageInputProps {
   onWorkspaceCreated: (metadata: FrontendWorkspaceMetadata) => void;
   onCancel?: () => void;
 }
-
-const MODE_OPTIONS: Array<ToggleOption<UIMode>> = [
-  { value: "exec", label: "Exec", activeClassName: "bg-exec-mode text-white" },
-  { value: "plan", label: "Plan", activeClassName: "bg-plan-mode text-white" },
-];
-
-const ModeHelpTooltip: React.FC = () => (
-  <TooltipWrapper inline>
-    <HelpIndicator>?</HelpIndicator>
-    <Tooltip className="tooltip" align="center" width="wide">
-      <strong>Exec Mode:</strong> AI edits files and executes commands
-      <br />
-      <strong>Plan Mode:</strong> AI proposes changes for your review
-    </Tooltip>
-  </TooltipWrapper>
-);
 
 /**
  * FirstMessageInput - Simplified input for sending first message without a workspace
@@ -315,27 +298,7 @@ export function FirstMessageInput({
               <Context1MCheckbox modelString={preferredModel} />
             </div>
 
-            {/* Mode Switch - full version for wider containers */}
-            <div className="ml-auto flex items-center gap-1.5 [@container(max-width:550px)]:hidden">
-              <div
-                className={cn(
-                  "[&>button:first-of-type]:rounded-l [&>button:last-of-type]:rounded-r",
-                  mode === "exec" &&
-                    "[&>button:first-of-type]:bg-exec-mode [&>button:first-of-type]:text-white [&>button:first-of-type]:hover:bg-exec-mode-hover",
-                  mode === "plan" &&
-                    "[&>button:last-of-type]:bg-plan-mode [&>button:last-of-type]:text-white [&>button:last-of-type]:hover:bg-plan-mode-hover"
-                )}
-              >
-                <ToggleGroup<UIMode> options={MODE_OPTIONS} value={mode} onChange={setMode} />
-              </div>
-              <ModeHelpTooltip />
-            </div>
-
-            {/* Mode Switch - compact version for narrow containers */}
-            <div className="ml-auto hidden items-center gap-1.5 [@container(max-width:550px)]:flex">
-              <ToggleGroup<UIMode> options={MODE_OPTIONS} value={mode} onChange={setMode} compact />
-              <ModeHelpTooltip />
-            </div>
+            <ModeSelector mode={mode} onChange={setMode} className="ml-auto" />
 
             {/* Runtime Selector */}
             <div className="flex items-center gap-1" data-component="RuntimeSelectorGroup">

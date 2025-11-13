@@ -27,7 +27,6 @@ import {
   prepareCompactionMessage,
   type CommandHandlerContext,
 } from "@/utils/chatCommands";
-import { ToggleGroup, type ToggleOption } from "./ToggleGroup";
 import { CUSTOM_EVENTS } from "@/constants/events";
 import type { UIMode } from "@/types/mode";
 import {
@@ -35,6 +34,7 @@ import {
   type SlashSuggestion,
 } from "@/utils/slashCommands/suggestions";
 import { TooltipWrapper, Tooltip, HelpIndicator } from "./Tooltip";
+import { ModeSelector } from "./ModeSelector";
 import { matchesKeybind, formatKeybind, KEYBINDS, isEditableElement } from "@/utils/ui/keybinds";
 import { ModelSelector, type ModelSelectorRef } from "./ModelSelector";
 import { useModelLRU } from "@/hooks/useModelLRU";
@@ -88,25 +88,6 @@ export interface ChatInputAPI {
   appendText: (text: string) => void;
 }
 
-const MODE_OPTIONS: Array<ToggleOption<UIMode>> = [
-  { value: "exec", label: "Exec", activeClassName: "bg-exec-mode text-white" },
-  { value: "plan", label: "Plan", activeClassName: "bg-plan-mode text-white" },
-];
-
-const ModeHelpTooltip: React.FC = () => (
-  <TooltipWrapper inline>
-    <HelpIndicator>?</HelpIndicator>
-    <Tooltip className="tooltip" align="center" width="wide">
-      <strong>Exec Mode:</strong> AI edits files and execute commands
-      <br />
-      <br />
-      <strong>Plan Mode:</strong> AI proposes plans but does not edit files
-      <br />
-      <br />
-      Toggle with: {formatKeybind(KEYBINDS.TOGGLE_MODE)}
-    </Tooltip>
-  </TooltipWrapper>
-);
 export interface ChatInputProps {
   workspaceId: string;
   onMessageSent?: () => void; // Optional callback after successful send
@@ -902,28 +883,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
             </div>
           )}
 
-          {/* Mode Switch - full version for wide containers */}
-          <div className="ml-auto flex items-center gap-1.5 [@container(max-width:550px)]:hidden">
-            <div
-              className={cn(
-                "flex gap-0 bg-toggle-bg rounded",
-                "[&>button:first-of-type]:rounded-l [&>button:last-of-type]:rounded-r",
-                mode === "exec" &&
-                  "[&>button:first-of-type]:bg-exec-mode [&>button:first-of-type]:text-white [&>button:first-of-type]:hover:bg-exec-mode-hover",
-                mode === "plan" &&
-                  "[&>button:last-of-type]:bg-plan-mode [&>button:last-of-type]:text-white [&>button:last-of-type]:hover:bg-plan-mode-hover"
-              )}
-            >
-              <ToggleGroup<UIMode> options={MODE_OPTIONS} value={mode} onChange={setMode} />
-            </div>
-            <ModeHelpTooltip />
-          </div>
-
-          {/* Mode Switch - compact version for narrow containers */}
-          <div className="ml-auto hidden items-center gap-1.5 [@container(max-width:550px)]:flex">
-            <ToggleGroup<UIMode> options={MODE_OPTIONS} value={mode} onChange={setMode} compact />
-            <ModeHelpTooltip />
-          </div>
+          <ModeSelector mode={mode} onChange={setMode} className="ml-auto" />
         </div>
       </div>
     </div>
