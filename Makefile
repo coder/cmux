@@ -28,12 +28,8 @@
 # exist in Chocolatey's make environment or on GitHub Actions windows-latest.
 ifeq ($(OS),Windows_NT)
 SHELL := bash
-# Windows: Use npm/npx because $(RUNNER) doesn't correctly pass arguments on Windows
-RUNNER := npx
 else
 SHELL := /bin/bash
-# Non-Windows: Use $(RUNNER) for better performance
-RUNNER := bun x
 endif
 .SHELLFLAGS := -eu -o pipefail -c
 
@@ -104,33 +100,54 @@ help: ## Show this help message
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-20s\033[0m %s\n", $$1, $$2}'
 
 ## Development
+ifeq ($(OS),Windows_NT)
 dev: node_modules/.installed build-main clean-cache ## Start development server (Vite + nodemon watcher for Windows compatibility)
 	@echo "Starting dev mode (2 watchers: nodemon for main process, vite for renderer)..."
-	@# On Windows, use npm run because $(RUNNER) doesn't correctly pass arguments
-	@NODE_OPTIONS="--max-old-space-size=4096" $(RUNNER) concurrently -k --raw \
-		"$(RUNNER) nodemon --exec node scripts/build-main-watch.js" \
+	# On Windows, use npm run because bunx doesn't correctly pass arguments to concurrently
+	# https://github.com/oven-sh/bun/issues/18275
+	@NODE_OPTIONS="--max-old-space-size=4096" npm x concurrently -k --raw \
+		"bun x nodemon --exec node scripts/build-main-watch.js" \
 		"vite"
+else
+dev: node_modules/.installed build-main ## Start development server (Vite + tsgo watcher for 10x faster type checking)
+	@bun x concurrently -k \
+		"bun x concurrently \"$(TSGO) -w -p tsconfig.main.json\" \"bun x tsc-alias -w -p tsconfig.main.json\"" \
+		"vite"
+endif
 
 clean-cache: ## Clean Vite cache (helps with EMFILE errors on Windows)
 	@echo "Cleaning Vite cache..."
 	@rm -rf node_modules/.vite
 
+ifeq ($(OS),Windows_NT)
 dev-server: node_modules/.installed build-main ## Start server mode with hot reload (backend :3000 + frontend :5173). Use VITE_HOST=0.0.0.0 BACKEND_HOST=0.0.0.0 for remote access
 	@echo "Starting dev-server..."
 	@echo "  Backend (IPC/WebSocket): http://$(or $(BACKEND_HOST),localhost):$(or $(BACKEND_PORT),3000)"
 	@echo "  Frontend (with HMR):     http://$(or $(VITE_HOST),localhost):$(or $(VITE_PORT),5173)"
 	@echo ""
 	@echo "For remote access: make dev-server VITE_HOST=0.0.0.0 BACKEND_HOST=0.0.0.0"
-	@# On Windows, use npm run because $(RUNNER) doesn't correctly pass arguments
-	@$(RUNNER) concurrently -k \
-		"$(RUNNER) nodemon --exec node scripts/build-main-watch.js" \
-		"$(RUNNER) nodemon --watch dist/main.js --watch dist/main-server.js --delay 500ms --exec \"node dist/main.js server --host $(or $(BACKEND_HOST),localhost) --port $(or $(BACKEND_PORT),3000)\"" \
+	@# On Windows, use npm run because bunxdoesn't correctly pass arguments
+	@npmx concurrently -k \
+		"npmx nodemon --exec node scripts/build-main-watch.js" \
+		"npmx nodemon --watch dist/main.js --watch dist/main-server.js --delay 500ms --exec \"node dist/main.js server --host $(or $(BACKEND_HOST),localhost) --port $(or $(BACKEND_PORT),3000)\"" \
 		"$(SHELL) -lc \"CMUX_VITE_HOST=$(or $(VITE_HOST),127.0.0.1) CMUX_VITE_PORT=$(or $(VITE_PORT),5173) VITE_BACKEND_URL=http://$(or $(BACKEND_HOST),localhost):$(or $(BACKEND_PORT),3000) vite\""
+else
+dev-server: node_modules/.installed build-main ## Start server mode with hot reload (backend :3000 + frontend :5173). Use VITE_HOST=0.0.0.0 BACKEND_HOST=0.0.0.0 for remote access
+	@echo "Starting dev-server..."
+	@echo "  Backend (IPC/WebSocket): http://$(or $(BACKEND_HOST),localhost):$(or $(BACKEND_PORT),3000)"
+	@echo "  Frontend (with HMR):     http://$(or $(VITE_HOST),localhost):$(or $(VITE_PORT),5173)"
+	@echo ""
+	@echo "For remote access: make dev-server VITE_HOST=0.0.0.0 BACKEND_HOST=0.0.0.0"
+	@bun x concurrently -k \
+		"bun x concurrently \"$(TSGO) -w -p tsconfig.main.json\" \"bun x tsc-alias -w -p tsconfig.main.json\"" \
+		"bun x nodemon --watch dist/main.js --watch dist/main-server.js --delay 500ms --exec 'node dist/main.js server --host $(or $(BACKEND_HOST),localhost) --port $(or $(BACKEND_PORT),3000)'" \
+		"CMUX_VITE_HOST=$(or $(VITE_HOST),127.0.0.1) CMUX_VITE_PORT=$(or $(VITE_PORT),5173) VITE_BACKEND_URL=http://$(or $(BACKEND_HOST),localhost):$(or $(BACKEND_PORT),3000) vite"
+endif
 
 
 
 start: node_modules/.installed build-main build-preload build-static ## Build and start Electron app
-	@$(RUNNER) electron --remote-debugging-port=9222 .
+	@bun x electron --remote-debugging-port=9222 .
 
 ## Build targets (can run in parallel)
 build: node_modules/.installed src/version.ts build-renderer build-main build-preload build-icons build-static ## Build all targets
@@ -155,7 +172,7 @@ dist/preload.js: src/preload.ts $(TS_SOURCES)
 
 build-renderer: node_modules/.installed src/version.ts ## Build renderer process
 	@echo "Building renderer..."
-	@$(RUNNER) vite build
+	@bun x vite build
 
 build-static: ## Copy static assets to dist
 	@echo "Copying static assets..."
@@ -206,17 +223,24 @@ lint: node_modules/.installed ## Run ESLint (typecheck runs in separate target)
 lint-fix: node_modules/.installed ## Run linter with --fix
 	@./scripts/lint.sh --fix
 
+ifeq ($(OS),Windows_NT) 
 typecheck: node_modules/.installed src/version.ts ## Run TypeScript type checking (uses tsgo for 10x speedup)
 	@# On Windows, use npm run because bun x doesn't correctly pass arguments
-	@$(RUNNER) concurrently -g \
+	@npmx concurrently -g \
 		"$(TSGO) --noEmit" \
 		"$(TSGO) --noEmit -p tsconfig.main.json"
+else
+typecheck: node_modules/.installed src/version.ts
+	@bun x concurrently -g \
+		"$(TSGO) --noEmit" \
+		"$(TSGO) --noEmit -p tsconfig.main.json"
+endif
 
 check-deadcode: node_modules/.installed ## Check for potential dead code (manual only, not in static-check)
 	@echo "Checking for potential dead code with ts-prune..."
 	@echo "(Note: Some unused exports are legitimate - types, public APIs, entry points, etc.)"
 	@echo ""
-	@$(RUNNER) ts-prune -i '(test|spec|mock|bench|debug|storybook)' \
+	@bun x ts-prune -i '(test|spec|mock|bench|debug|storybook)' \
 		| grep -v "used in module" \
 		| grep -v "src/App.tsx.*default" \
 		| grep -v "src/types/" \
@@ -226,7 +250,7 @@ check-deadcode: node_modules/.installed ## Check for potential dead code (manual
 ## Testing
 test-integration: node_modules/.installed build-main ## Run all tests (unit + integration)
 	@bun test src
-	@TEST_INTEGRATION=1 $(RUNNER) jest tests
+	@TEST_INTEGRATION=1 bun x jest tests
 
 test-unit: node_modules/.installed build-main ## Run unit tests
 	@bun test src
@@ -241,22 +265,22 @@ test-coverage: ## Run tests with coverage
 
 test-e2e: ## Run end-to-end tests
 	@$(MAKE) build
-	@CMUX_E2E_LOAD_DIST=1 CMUX_E2E_SKIP_BUILD=1 PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 $(RUNNER) playwright test --project=electron $(PLAYWRIGHT_ARGS)
+	@CMUX_E2E_LOAD_DIST=1 CMUX_E2E_SKIP_BUILD=1 PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 bun x playwright test --project=electron $(PLAYWRIGHT_ARGS)
 
 ## Distribution
 dist: build ## Build distributable packages
-	@$(RUNNER) electron-builder --publish never
+	@bun x electron-builder --publish never
 
 # Parallel macOS builds - notarization happens concurrently
 dist-mac: build ## Build macOS distributables (x64 + arm64)
 	@if [ -n "$$CSC_LINK" ]; then \
 		echo "🔐 Code signing enabled - building sequentially to avoid keychain conflicts..."; \
-		$(RUNNER) electron-builder --mac --x64 --publish never && \
-		$(RUNNER) electron-builder --mac --arm64 --publish never; \
+		bun x electron-builder --mac --x64 --publish never && \
+		bun x electron-builder --mac --arm64 --publish never; \
 	else \
 		echo "Building macOS architectures in parallel..."; \
-		$(RUNNER) electron-builder --mac --x64 --publish never & pid1=$$! ; \
-		$(RUNNER) electron-builder --mac --arm64 --publish never & pid2=$$! ; \
+		bun x electron-builder --mac --x64 --publish never & pid1=$$! ; \
+		bun x electron-builder --mac --arm64 --publish never & pid2=$$! ; \
 		wait $$pid1 && wait $$pid2; \
 	fi
 	@echo "✅ Both architectures built successfully"
@@ -264,29 +288,29 @@ dist-mac: build ## Build macOS distributables (x64 + arm64)
 dist-mac-release: build ## Build and publish macOS distributables (x64 + arm64)
 	@if [ -n "$$CSC_LINK" ]; then \
 		echo "🔐 Code signing enabled - building sequentially to avoid keychain conflicts..."; \
-		$(RUNNER) electron-builder --mac --x64 --publish always && \
-		$(RUNNER) electron-builder --mac --arm64 --publish always; \
+		bun x electron-builder --mac --x64 --publish always && \
+		bun x electron-builder --mac --arm64 --publish always; \
 	else \
 		echo "Building and publishing macOS architectures in parallel..."; \
-		$(RUNNER) electron-builder --mac --x64 --publish always & pid1=$$! ; \
-		$(RUNNER) electron-builder --mac --arm64 --publish always & pid2=$$! ; \
+		bun x electron-builder --mac --x64 --publish always & pid1=$$! ; \
+		bun x electron-builder --mac --arm64 --publish always & pid2=$$! ; \
 		wait $$pid1 && wait $$pid2; \
 	fi
 	@echo "✅ Both architectures built and published successfully"
 
 dist-mac-x64: build ## Build macOS x64 distributable only
 	@echo "Building macOS x64..."
-	@$(RUNNER) electron-builder --mac --x64 --publish never
+	@bun x electron-builder --mac --x64 --publish never
 
 dist-mac-arm64: build ## Build macOS arm64 distributable only
 	@echo "Building macOS arm64..."
-	@$(RUNNER) electron-builder --mac --arm64 --publish never
+	@bun x electron-builder --mac --arm64 --publish never
 
 dist-win: build ## Build Windows distributable
-	@$(RUNNER) electron-builder --win --publish never
+	@bun x electron-builder --win --publish never
 
 dist-linux: build ## Build Linux distributable
-	@$(RUNNER) electron-builder --linux --publish never
+	@bun x electron-builder --linux --publish never
 
 ## Documentation
 docs: ## Serve documentation locally
@@ -301,19 +325,19 @@ docs-watch: ## Watch and rebuild documentation
 ## Storybook
 storybook: node_modules/.installed ## Start Storybook development server
 	$(check_node_version)
-	@$(RUNNER) storybook dev -p 6006 $(STORYBOOK_OPEN_FLAG)
+	@bun x storybook dev -p 6006 $(STORYBOOK_OPEN_FLAG)
 
 storybook-build: node_modules/.installed src/version.ts ## Build static Storybook
 	$(check_node_version)
-	@$(RUNNER) storybook build
+	@bun x storybook build
 
 test-storybook: node_modules/.installed ## Run Storybook interaction tests (requires Storybook to be running or built)
 	$(check_node_version)
-	@$(RUNNER) test-storybook
+	@bun x test-storybook
 
 chromatic: node_modules/.installed ## Run Chromatic for visual regression testing
 	$(check_node_version)
-	@$(RUNNER) chromatic --exit-zero-on-changes
+	@bun x chromatic --exit-zero-on-changes
 
 ## Benchmarks
 benchmark-terminal: ## Run Terminal-Bench with the cmux agent (use TB_DATASET/TB_SAMPLE_SIZE/TB_TIMEOUT/TB_ARGS to customize)
