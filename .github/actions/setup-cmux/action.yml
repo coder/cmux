@@ -34,11 +34,6 @@ runs:
         restore-keys: |
           ${{ runner.os }}-bun-cache-
 
-    - name: Setup npm authentication for GitHub Packages
-      shell: bash
-      run: |
-        echo "//npm.pkg.github.com/:_authToken=${{ github.token }}" >> ~/.npmrc
-
     - name: Install dependencies
       shell: bash
       run: bun install --frozen-lockfile
