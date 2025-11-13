@@ -621,35 +621,43 @@ function AppInner() {
                 />
               </ErrorBoundary>
             ) : pendingNewWorkspaceProject || projects.size === 1 ? (
-              <FirstMessageInput
-                projectPath={pendingNewWorkspaceProject ?? Array.from(projects.keys())[0]}
-                onWorkspaceCreated={(metadata) => {
-                  // Add to workspace metadata map
-                  setWorkspaceMetadata((prev) => new Map(prev).set(metadata.id, metadata));
+              (() => {
+                const projectPath = pendingNewWorkspaceProject ?? Array.from(projects.keys())[0];
+                const projectName =
+                  projectPath.split("/").pop() ?? projectPath.split("\\").pop() ?? "Project";
+                return (
+                  <FirstMessageInput
+                    projectPath={projectPath}
+                    projectName={projectName}
+                    onWorkspaceCreated={(metadata) => {
+                      // Add to workspace metadata map
+                      setWorkspaceMetadata((prev) => new Map(prev).set(metadata.id, metadata));
 
-                  // Switch to new workspace
-                  handleWorkspaceSwitch({
-                    workspaceId: metadata.id,
-                    projectPath: metadata.projectPath,
-                    projectName: metadata.projectName,
-                    namedWorkspacePath: metadata.namedWorkspacePath,
-                  });
+                      // Switch to new workspace
+                      handleWorkspaceSwitch({
+                        workspaceId: metadata.id,
+                        projectPath: metadata.projectPath,
+                        projectName: metadata.projectName,
+                        namedWorkspacePath: metadata.namedWorkspacePath,
+                      });
 
-                  // Track telemetry
-                  telemetry.workspaceCreated(metadata.id);
+                      // Track telemetry
+                      telemetry.workspaceCreated(metadata.id);
 
-                  // Clear pending state
-                  setPendingNewWorkspaceProject(null);
-                }}
-                onCancel={
-                  pendingNewWorkspaceProject
-                    ? () => {
-                        // User cancelled workspace creation - clear pending state
-                        setPendingNewWorkspaceProject(null);
-                      }
-                    : undefined
-                }
-              />
+                      // Clear pending state
+                      setPendingNewWorkspaceProject(null);
+                    }}
+                    onCancel={
+                      pendingNewWorkspaceProject
+                        ? () => {
+                            // User cancelled workspace creation - clear pending state
+                            setPendingNewWorkspaceProject(null);
+                          }
+                        : undefined
+                    }
+                  />
+                );
+              })()
             ) : (
               <div
                 className="[&_p]:text-muted mx-auto w-full max-w-3xl text-center [&_h2]:mb-4 [&_h2]:font-bold [&_h2]:tracking-tight [&_h2]:text-white [&_p]:leading-[1.6]"

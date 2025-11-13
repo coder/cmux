@@ -1,5 +1,4 @@
-import React, { useState, useRef, useCallback } from "react";
-import { cn } from "@/lib/utils";
+import React, { useState, useRef, useCallback, useEffect } from "react";
 import type { FrontendWorkspaceMetadata } from "@/types/workspace";
 import type { RuntimeConfig } from "@/types/runtime";
 import { RUNTIME_MODE } from "@/types/runtime";
@@ -13,6 +12,7 @@ import { VimTextArea } from "./VimTextArea";
 
 interface FirstMessageInputProps {
   projectPath: string;
+  projectName: string;
   onWorkspaceCreated: (metadata: FrontendWorkspaceMetadata) => void;
   onCancel?: () => void;
 }
@@ -27,12 +27,15 @@ interface FirstMessageInputProps {
  */
 export function FirstMessageInput({
   projectPath,
+  projectName,
   onWorkspaceCreated,
   onCancel,
 }: FirstMessageInputProps) {
   const [input, setInput] = useState("");
   const [isSending, setIsSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [branches, setBranches] = useState<string[]>([]);
+  const [trunkBranch, setTrunkBranch] = useState<string>("");
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
   // Get most recent model from LRU (project-scoped preference)
@@ -52,6 +55,31 @@ export function FirstMessageInput({
   // Runtime configuration (Local vs SSH)
   const [runtimeOptions, setRuntimeOptions] = useNewWorkspaceOptions(projectPath);
   const { runtimeMode, sshHost, getRuntimeString } = runtimeOptions;
+
+  // Load branches on mount
+  useEffect(() => {
+    async function loadBranches() {
+      try {
+        const result = await window.api.projects.listBranches(projectPath);
+        const sanitizedBranches = Array.isArray(result?.branches)
+          ? result.branches.filter((branch): branch is string => typeof branch === "string")
+          : [];
+        setBranches(sanitizedBranches);
+
+        // Set default trunk branch
+        const recommended =
+          typeof result?.recommendedTrunk === "string" &&
+          sanitizedBranches.includes(result.recommendedTrunk)
+            ? result.recommendedTrunk
+            : (sanitizedBranches[0] ?? "main");
+        setTrunkBranch(recommended);
+      } catch (err) {
+        console.error("Failed to load branches:", err);
+        setTrunkBranch("main"); // Fallback
+      }
+    }
+    void loadBranches();
+  }, [projectPath]);
 
   const handleSend = useCallback(async () => {
     if (!input.trim() || isSending) return;
@@ -121,8 +149,15 @@ export function FirstMessageInput({
 
   return (
     <div className="flex h-full flex-col">
-      {/* Spacer to push input to bottom */}
-      <div className="flex-1" />
+      {/* Project title in center */}
+      <div className="flex flex-1 items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-foreground mb-2 text-2xl font-semibold">{projectName}</h1>
+          <p className="text-muted text-sm">
+            {branches.length > 0 && trunkBranch && <>Based on {trunkBranch}</>}
+          </p>
+        </div>
+      </div>
 
       {/* Input area - styled like ChatInput */}
       <div
@@ -155,7 +190,7 @@ export function FirstMessageInput({
           />
         </div>
 
-        {/* Options row - Model + Runtime + Cancel/Send */}
+        {/* Options row - Model + Runtime */}
         <div className="@container flex flex-col gap-1" data-component="FirstMessageOptions">
           <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
             {/* Model Selector */}
@@ -203,33 +238,6 @@ export function FirstMessageInput({
                   <br />• SSH: remote clone in ~/cmux on SSH host
                 </Tooltip>
               </TooltipWrapper>
-            </div>
-
-            {/* Action buttons */}
-            <div className="ml-auto flex gap-2">
-              {onCancel && (
-                <button
-                  type="button"
-                  onClick={onCancel}
-                  disabled={isSending}
-                  className="text-muted hover:text-foreground rounded px-3 py-1 text-sm disabled:opacity-50"
-                >
-                  Cancel
-                </button>
-              )}
-              <button
-                type="button"
-                onClick={() => void handleSend()}
-                disabled={!input.trim() || isSending}
-                className={cn(
-                  "rounded px-3 py-1 text-sm font-medium",
-                  !input.trim() || isSending
-                    ? "cursor-not-allowed bg-gray-700 text-gray-500"
-                    : "bg-accent text-white hover:bg-accent/90"
-                )}
-              >
-                {isSending ? "Creating..." : "Send"}
-              </button>
             </div>
           </div>
         </div>
