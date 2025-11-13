@@ -21,7 +21,7 @@ export const ImageAttachments: React.FC<ImageAttachmentsProps> = ({ images, onRe
           key={image.id}
           className="border-border-light bg-dark group relative h-20 w-20 overflow-hidden rounded border"
         >
-          <img src={image.url} alt="Attached image" className="h-full w-full object-cover" />
+          {/* <img src={image.url} alt="Attached image" className="h-full w-full object-cover" /> */}
           <button
             onClick={() => onRemove(image.id)}
             title="Remove image"
