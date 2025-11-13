@@ -780,14 +780,18 @@ export class SSHRuntime implements Runtime {
 
   getWorkspacePath(projectPath: string, workspaceName: string): string {
     const projectName = getProjectName(projectPath);
-    return path.posix.join(this.config.srcBaseDir, projectName, workspaceName);
+    // Always sanitize workspace name to ensure filesystem-safe directory names
+    // This is idempotent - sanitizing an already-sanitized name returns the same value
+    const { sanitizeBranchNameForDirectory } = require("../utils/workspace/directoryName");
+    const directoryName = sanitizeBranchNameForDirectory(workspaceName);
+    return path.posix.join(this.config.srcBaseDir, projectName, directoryName);
   }
 
   async createWorkspace(params: WorkspaceCreationParams): Promise<WorkspaceCreationResult> {
     try {
-      const { projectPath, branchName, initLogger, abortSignal } = params;
-      // Compute workspace path using canonical method
-      const workspacePath = this.getWorkspacePath(projectPath, branchName);
+      const { projectPath, branchName, directoryName, initLogger, abortSignal } = params;
+      // Compute workspace path (getWorkspacePath sanitizes the name automatically)
+      const workspacePath = this.getWorkspacePath(projectPath, directoryName);
 
       // Prepare parent directory for git clone (fast - returns immediately)
       // Note: git clone will create the workspace directory itself during initWorkspace,
@@ -922,7 +926,7 @@ export class SSHRuntime implements Runtime {
     if (abortSignal?.aborted) {
       return { success: false, error: "Rename operation aborted" };
     }
-    // Compute workspace paths using canonical method
+    // Compute workspace paths (getWorkspacePath sanitizes the names automatically)
     const oldPath = this.getWorkspacePath(projectPath, oldName);
     const newPath = this.getWorkspacePath(projectPath, newName);
 
@@ -983,7 +987,7 @@ export class SSHRuntime implements Runtime {
       return { success: false, error: "Delete operation aborted" };
     }
 
-    // Compute workspace path using canonical method
+    // Compute workspace path (getWorkspacePath sanitizes the name automatically)
     const deletedPath = this.getWorkspacePath(projectPath, workspaceName);
 
     try {

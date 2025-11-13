@@ -27,11 +27,19 @@ describe("validateWorkspaceName", () => {
       expect(validateWorkspaceName("a1-b2_c3").valid).toBe(true);
     });
 
+    test("accepts forward slashes", () => {
+      expect(validateWorkspaceName("feature/foo").valid).toBe(true);
+      expect(validateWorkspaceName("feature/branch").valid).toBe(true);
+      expect(validateWorkspaceName("docs/bash-timeout-ux").valid).toBe(true);
+      expect(validateWorkspaceName("bugfix/issue-123").valid).toBe(true);
+    });
+
     test("accepts single character", () => {
       expect(validateWorkspaceName("a").valid).toBe(true);
       expect(validateWorkspaceName("1").valid).toBe(true);
       expect(validateWorkspaceName("_").valid).toBe(true);
       expect(validateWorkspaceName("-").valid).toBe(true);
+      expect(validateWorkspaceName("/").valid).toBe(true);
     });
 
     test("accepts 64 characters", () => {
@@ -72,12 +80,10 @@ describe("validateWorkspaceName", () => {
       expect(validateWorkspaceName("branch%123").valid).toBe(false);
       expect(validateWorkspaceName("branch!123").valid).toBe(false);
       expect(validateWorkspaceName("branch.123").valid).toBe(false);
-      expect(validateWorkspaceName("branch/123").valid).toBe(false);
-      expect(validateWorkspaceName("branch\\123").valid).toBe(false);
     });
 
-    test("rejects names with slashes", () => {
-      expect(validateWorkspaceName("feature/branch").valid).toBe(false);
+    test("rejects backslashes", () => {
+      expect(validateWorkspaceName("branch\\123").valid).toBe(false);
       expect(validateWorkspaceName("path\\to\\branch").valid).toBe(false);
     });
   });

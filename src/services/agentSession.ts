@@ -189,6 +189,7 @@ export class AgentSession {
             const runtime = createRuntime(
               metadata.runtimeConfig ?? { type: "local", srcBaseDir: this.config.srcDir }
             );
+            // getWorkspacePath sanitizes the branch name automatically
             return runtime.getWorkspacePath(metadata.projectPath, metadata.name);
           })();
       assert(

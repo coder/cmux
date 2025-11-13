@@ -643,7 +643,8 @@ export class AIService extends EventEmitter {
       const isInPlace = metadata.projectPath === metadata.name;
       const workspacePath = isInPlace
         ? metadata.projectPath
-        : runtime.getWorkspacePath(metadata.projectPath, metadata.name);
+        : // getWorkspacePath sanitizes the branch name automatically
+          runtime.getWorkspacePath(metadata.projectPath, metadata.name);
 
       // Build system message from workspace metadata
       const systemMessage = await buildSystemMessage(

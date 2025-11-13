@@ -25,6 +25,7 @@ import { execAsync, DisposableProcess } from "../utils/disposableExec";
 import { getProjectName } from "../utils/runtime/helpers";
 import { getErrorMessage } from "../utils/errors";
 import { expandTilde } from "./tildeExpansion";
+import { sanitizeBranchNameForDirectory } from "../utils/workspace/directoryName";
 
 /**
  * Local runtime implementation that executes commands and file operations
@@ -306,15 +307,18 @@ export class LocalRuntime implements Runtime {
 
   getWorkspacePath(projectPath: string, workspaceName: string): string {
     const projectName = getProjectName(projectPath);
-    return path.join(this.srcBaseDir, projectName, workspaceName);
+    // Always sanitize workspace name to ensure filesystem-safe directory names
+    // This is idempotent - sanitizing an already-sanitized name returns the same value
+    const directoryName = sanitizeBranchNameForDirectory(workspaceName);
+    return path.join(this.srcBaseDir, projectName, directoryName);
   }
 
   async createWorkspace(params: WorkspaceCreationParams): Promise<WorkspaceCreationResult> {
-    const { projectPath, branchName, trunkBranch, initLogger } = params;
+    const { projectPath, branchName, trunkBranch, directoryName, initLogger } = params;
 
     try {
-      // Compute workspace path using the canonical method
-      const workspacePath = this.getWorkspacePath(projectPath, branchName);
+      // Compute workspace path (getWorkspacePath sanitizes the name automatically)
+      const workspacePath = this.getWorkspacePath(projectPath, directoryName);
       initLogger.logStep("Creating git worktree...");
 
       // Create parent directory if needed
@@ -451,11 +455,19 @@ export class LocalRuntime implements Runtime {
     { success: true; oldPath: string; newPath: string } | { success: false; error: string }
   > {
     // Note: _abortSignal ignored for local operations (fast, no need for cancellation)
-    // Compute workspace paths using canonical method
+    // Compute workspace paths (getWorkspacePath sanitizes the names automatically)
     const oldPath = this.getWorkspacePath(projectPath, oldName);
     const newPath = this.getWorkspacePath(projectPath, newName);
 
     try {
+      // Create parent directory for new path if needed (for nested directory names)
+      const newParentDir = path.dirname(newPath);
+      try {
+        await fsPromises.access(newParentDir);
+      } catch {
+        await fsPromises.mkdir(newParentDir, { recursive: true });
+      }
+
       // Use git worktree move to rename the worktree directory
       // This updates git's internal worktree metadata correctly
       using proc = execAsync(`git -C "${projectPath}" worktree move "${oldPath}" "${newPath}"`);
@@ -479,7 +491,7 @@ export class LocalRuntime implements Runtime {
     // These are direct workspace directories (e.g., CLI/benchmark sessions), not git worktrees
     const isInPlace = projectPath === workspaceName;
 
-    // Compute workspace path using the canonical method
+    // Compute workspace path (getWorkspacePath sanitizes the name automatically)
     const deletedPath = this.getWorkspacePath(projectPath, workspaceName);
 
     // Check if directory exists - if not, operation is idempotent
@@ -572,7 +584,7 @@ export class LocalRuntime implements Runtime {
   async forkWorkspace(params: WorkspaceForkParams): Promise<WorkspaceForkResult> {
     const { projectPath, sourceWorkspaceName, newWorkspaceName, initLogger } = params;
 
-    // Get source workspace path
+    // Get source workspace path (getWorkspacePath sanitizes the name automatically)
     const sourceWorkspacePath = this.getWorkspacePath(projectPath, sourceWorkspaceName);
 
     // Get current branch from source workspace
@@ -593,7 +605,7 @@ export class LocalRuntime implements Runtime {
         projectPath,
         branchName: newWorkspaceName,
         trunkBranch: sourceBranch, // Fork from source branch instead of main/master
-        directoryName: newWorkspaceName,
+        directoryName: sanitizeBranchNameForDirectory(newWorkspaceName),
         initLogger,
       });
 
