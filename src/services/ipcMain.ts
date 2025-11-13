@@ -14,6 +14,8 @@ import { log } from "@/services/log";
 import { countTokens, countTokensBatch } from "@/utils/main/tokenizer";
 import { calculateTokenStats } from "@/utils/tokens/tokenStatsCalculator";
 import { IPC_CHANNELS, getChatChannel } from "@/constants/ipc-constants";
+import { SUPPORTED_PROVIDERS } from "@/constants/providers";
+import { DEFAULT_RUNTIME_CONFIG } from "@/constants/workspace";
 import type { SendMessageError } from "@/types/errors";
 import type { SendMessageOptions, DeleteMessage } from "@/types/ipc";
 import { Ok, Err } from "@/types/result";
@@ -116,17 +118,14 @@ export class IpcMain {
     });
 
     // Clear streaming status on stream end/abort
-    this.aiService.on("stream-end", (data: unknown) => {
+    const handleStreamStop = (data: unknown) => {
       if (isWorkspaceEvent(data)) {
+        // Fire and forget - don't block event handler
         void this.extensionMetadata.setStreaming(data.workspaceId, false);
       }
-    });
-
-    this.aiService.on("stream-abort", (data: unknown) => {
-      if (isWorkspaceEvent(data)) {
-        void this.extensionMetadata.setStreaming(data.workspaceId, false);
-      }
-    });
+    };
+    this.aiService.on("stream-end", handleStreamStop);
+    this.aiService.on("stream-abort", handleStreamStop);
   }
 
   /**
@@ -517,7 +516,7 @@ export class IpcMain {
         // Note: metadata.json no longer written - config is the only source of truth
 
         // Update config to include the new workspace (with full metadata)
-        void this.config.editConfig((config) => {
+        await this.config.editConfig((config) => {
           let projectConfig = config.projects.get(projectPath);
           if (!projectConfig) {
             // Create project config if it doesn't exist
@@ -645,7 +644,7 @@ export class IpcMain {
           const { oldPath, newPath } = renameResult;
 
           // Update config with new name and path
-          void this.config.editConfig((config) => {
+          await this.config.editConfig((config) => {
             const projectConfig = config.projects.get(projectPath);
             if (projectConfig) {
               const workspaceEntry = projectConfig.workspaces.find((w) => w.path === oldPath);
@@ -796,11 +795,11 @@ export class IpcMain {
             projectName,
             projectPath: foundProjectPath,
             createdAt: new Date().toISOString(),
-            runtimeConfig: sourceRuntimeConfig,
+            runtimeConfig: DEFAULT_RUNTIME_CONFIG,
           };
 
           // Write metadata to config.json
-          this.config.addWorkspace(foundProjectPath, metadata);
+          await this.config.addWorkspace(foundProjectPath, metadata);
 
           // Emit metadata event
           session.emitMetadata(metadata);
@@ -817,10 +816,10 @@ export class IpcMain {
       }
     );
 
-    ipcMain.handle(IPC_CHANNELS.WORKSPACE_LIST, () => {
+    ipcMain.handle(IPC_CHANNELS.WORKSPACE_LIST, async () => {
       try {
         // getAllWorkspaceMetadata now returns complete metadata with paths
-        return this.config.getAllWorkspaceMetadata();
+        return await this.config.getAllWorkspaceMetadata();
       } catch (error) {
         console.error("Failed to list workspaces:", error);
         return [];
@@ -1376,9 +1375,9 @@ export class IpcMain {
 
     ipcMain.handle(IPC_CHANNELS.PROVIDERS_LIST, () => {
       try {
-        // Return all supported providers, not just configured ones
-        // This matches the providers defined in the registry
-        return ["anthropic", "openai"];
+        // Return all supported providers from centralized registry
+        // This automatically stays in sync as new providers are added
+        return [...SUPPORTED_PROVIDERS];
       } catch (error) {
         log.error("Failed to list providers:", error);
         return [];
@@ -1621,12 +1620,12 @@ export class IpcMain {
           const workspaceMetadata = await this.config.getAllWorkspaceMetadata();
 
           // Emit current metadata for each workspace
-        for (const metadata of workspaceMetadata) {
-          this.mainWindow?.webContents.send(IPC_CHANNELS.WORKSPACE_METADATA, {
-            workspaceId: metadata.id,
-            metadata,
-          });
-        }
+          for (const metadata of workspaceMetadata) {
+            this.mainWindow?.webContents.send(IPC_CHANNELS.WORKSPACE_METADATA, {
+              workspaceId: metadata.id,
+              metadata,
+            });
+          }
         } catch (error) {
           console.error("Failed to emit current metadata:", error);
         }
