@@ -13,6 +13,7 @@
   - [SSH](./ssh.md)
   - [Forking](./fork.md)
   - [Init Hooks](./init-hooks.md)
+- [VS Code Extension](./vscode-extension.md)
 - [Models](./models.md)
 - [Keyboard Shortcuts](./keybinds.md)
   - [Vim Mode](./vim-mode.md)

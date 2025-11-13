@@ -4,6 +4,7 @@ import type { BashToolResult } from "@/types/tools";
 import { describe, it, test, expect, beforeEach, afterEach, jest } from "@jest/globals";
 import { GitStatusStore } from "./GitStatusStore";
 import type { FrontendWorkspaceMetadata } from "@/types/workspace";
+import { DEFAULT_RUNTIME_CONFIG } from "@/constants/workspace";
 
 /**
  * Unit tests for GitStatusStore.
@@ -74,6 +75,7 @@ describe("GitStatusStore", () => {
           projectName: "test-project",
           projectPath: "/home/user/test-project",
           namedWorkspacePath: "/home/user/.cmux/src/test-project/main",
+          runtimeConfig: DEFAULT_RUNTIME_CONFIG,
         },
       ],
     ]);
@@ -95,6 +97,7 @@ describe("GitStatusStore", () => {
           projectName: "test-project",
           projectPath: "/home/user/test-project",
           namedWorkspacePath: "/home/user/.cmux/src/test-project/main",
+          runtimeConfig: DEFAULT_RUNTIME_CONFIG,
         },
       ],
       [
@@ -105,6 +108,7 @@ describe("GitStatusStore", () => {
           projectName: "test-project",
           projectPath: "/home/user/test-project",
           namedWorkspacePath: "/home/user/.cmux/src/test-project/feature",
+          runtimeConfig: DEFAULT_RUNTIME_CONFIG,
         },
       ],
     ]);
@@ -127,6 +131,7 @@ describe("GitStatusStore", () => {
           projectName: "test-project",
           projectPath: "/home/user/test-project",
           namedWorkspacePath: "/home/user/.cmux/src/test-project/main",
+          runtimeConfig: DEFAULT_RUNTIME_CONFIG,
         },
       ],
     ]);
@@ -151,6 +156,7 @@ describe("GitStatusStore", () => {
           projectName: "test-project",
           projectPath: "/home/user/test-project",
           namedWorkspacePath: "/home/user/.cmux/src/test-project/main",
+          runtimeConfig: DEFAULT_RUNTIME_CONFIG,
         },
       ],
     ]);
@@ -176,6 +182,7 @@ describe("GitStatusStore", () => {
           projectName: "test-project",
           projectPath: "/home/user/test-project",
           namedWorkspacePath: "/home/user/.cmux/src/test-project/main",
+          runtimeConfig: DEFAULT_RUNTIME_CONFIG,
         },
       ],
     ]);
@@ -205,6 +212,7 @@ describe("GitStatusStore", () => {
           projectName: "test-project",
           projectPath: "/home/user/test-project",
           namedWorkspacePath: "/home/user/.cmux/src/test-project/main",
+          runtimeConfig: DEFAULT_RUNTIME_CONFIG,
         },
       ],
     ]);
@@ -232,6 +240,7 @@ describe("GitStatusStore", () => {
           projectName: "test-project",
           projectPath: "/home/user/test-project",
           namedWorkspacePath: "/home/user/.cmux/src/test-project/main",
+          runtimeConfig: DEFAULT_RUNTIME_CONFIG,
         },
       ],
     ]);
@@ -260,6 +269,7 @@ describe("GitStatusStore", () => {
           projectName: "test-project",
           projectPath: "/home/user/test-project",
           namedWorkspacePath: "/home/user/.cmux/src/test-project/main",
+          runtimeConfig: DEFAULT_RUNTIME_CONFIG,
         },
       ],
     ]);

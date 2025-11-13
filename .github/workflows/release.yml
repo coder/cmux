@@ -89,3 +89,24 @@ jobs:
         run: bun x electron-builder --win --publish always
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  build-vscode-extension:
+    name: Build and Release VS Code Extension
+    runs-on: ${{ github.repository_owner == 'coder' && 'depot-ubuntu-22.04-16' || 'ubuntu-latest' }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Required for git describe to find tags
+
+      - uses: ./.github/actions/setup-cmux
+
+      - uses: ./.github/actions/build-vscode-extension
+
+      - name: Upload VS Code extension to release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release upload ${{ github.event.release.tag_name }} \
+            vscode/cmux-*.vsix \
+            --clobber

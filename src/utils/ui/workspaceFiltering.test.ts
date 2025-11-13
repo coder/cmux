@@ -1,6 +1,7 @@
 import { describe, it, expect } from "@jest/globals";
 import { partitionWorkspacesByAge, formatOldWorkspaceThreshold } from "./workspaceFiltering";
 import type { FrontendWorkspaceMetadata } from "@/types/workspace";
+import { DEFAULT_RUNTIME_CONFIG } from "@/constants/workspace";
 
 describe("partitionWorkspacesByAge", () => {
   const now = Date.now();
@@ -12,6 +13,7 @@ describe("partitionWorkspacesByAge", () => {
     projectName: "test-project",
     projectPath: "/test/project",
     namedWorkspacePath: `/test/project/workspace-${id}`, // Path is arbitrary for this test
+    runtimeConfig: DEFAULT_RUNTIME_CONFIG,
   });
 
   it("should partition workspaces into recent and old based on 24-hour threshold", () => {

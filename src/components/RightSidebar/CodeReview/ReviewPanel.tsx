@@ -467,6 +467,33 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({
     toggleExpandFnsRef.current.set(hunkId, toggleFn);
   }, []);
 
+  // Handle marking all hunks in a file as read
+  const handleMarkFileAsRead = useCallback(
+    (hunkId: string) => {
+      // Find the hunk to determine its file path
+      const hunk = hunks.find((h) => h.id === hunkId);
+      if (!hunk) return;
+
+      // Find all hunks in the same file
+      const fileHunkIds = hunks.filter((h) => h.filePath === hunk.filePath).map((h) => h.id);
+
+      // Mark all hunks in the file as read
+      markAsRead(fileHunkIds);
+
+      // If marking the selected hunk's file as read and hunks will be filtered out, navigate
+      if (hunkId === selectedHunkId && !filters.showReadHunks) {
+        // Find the next visible hunk that's not in the same file
+        const currentFiltered = hunks.filter((h) => !isRead(h.id) && h.filePath !== hunk.filePath);
+        if (currentFiltered.length > 0) {
+          setSelectedHunkId(currentFiltered[0].id);
+        } else {
+          setSelectedHunkId(null);
+        }
+      }
+    },
+    [hunks, markAsRead, isRead, filters.showReadHunks, selectedHunkId]
+  );
+
   // Calculate stats
   const stats = useMemo(() => {
     const total = hunks.length;
@@ -534,6 +561,10 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({
         // Mark selected hunk as unread
         e.preventDefault();
         handleMarkAsUnread(selectedHunkId);
+      } else if (matchesKeybind(e, KEYBINDS.MARK_FILE_READ)) {
+        // Mark entire file (all hunks) as read
+        e.preventDefault();
+        handleMarkFileAsRead(selectedHunkId);
       } else if (matchesKeybind(e, KEYBINDS.TOGGLE_HUNK_COLLAPSE)) {
         // Toggle expand/collapse state of selected hunk
         e.preventDefault();
@@ -553,6 +584,7 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({
     handleToggleRead,
     handleMarkAsRead,
     handleMarkAsUnread,
+    handleMarkFileAsRead,
   ]);
 
   // Global keyboard shortcuts (Ctrl+R / Cmd+R for refresh, Ctrl+F / Cmd+F for search)

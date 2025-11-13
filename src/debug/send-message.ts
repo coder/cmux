@@ -4,6 +4,7 @@ import { defaultConfig } from "@/config";
 import type { CmuxMessage } from "@/types/message";
 import type { SendMessageOptions } from "@/types/ipc";
 import { getDefaultModelFromLRU } from "@/hooks/useModelLRU";
+import { getCmuxSessionsDir } from "@/constants/paths";
 
 /**
  * Debug command to send a message to a workspace, optionally editing an existing message
@@ -28,7 +29,7 @@ export function sendMessageCommand(
   if (!fs.existsSync(chatHistoryPath)) {
     console.error(`❌ No chat history found at: ${chatHistoryPath}`);
     console.log("\nAvailable workspaces:");
-    const sessionsDir = path.join(process.env.HOME ?? "", ".cmux", "sessions");
+    const sessionsDir = getCmuxSessionsDir();
     if (fs.existsSync(sessionsDir)) {
       const sessions = fs.readdirSync(sessionsDir);
       sessions.forEach((session) => console.log(`  - ${session}`));

@@ -46,6 +46,7 @@ include fmt.mk
 .PHONY: lint lint-fix typecheck static-check
 .PHONY: test test-unit test-integration test-watch test-coverage test-e2e
 .PHONY: dist dist-mac dist-win dist-linux
+.PHONY: vscode-ext vscode-ext-install
 .PHONY: docs docs-build docs-watch
 .PHONY: storybook storybook-build test-storybook chromatic
 .PHONY: benchmark-terminal
@@ -91,6 +92,10 @@ node_modules/.installed: package.json bun.lock
 
 # Legacy target for backwards compatibility
 ensure-deps: node_modules/.installed
+
+
+
+
 
 ## Help
 help: ## Show this help message
@@ -276,6 +281,14 @@ dist-win: build ## Build Windows distributable
 
 dist-linux: build ## Build Linux distributable
 	@bun x electron-builder --linux --publish never
+
+## VS Code Extension (delegates to vscode/Makefile)
+
+vscode-ext: ## Build VS Code extension (.vsix)
+	@$(MAKE) -C vscode build
+
+vscode-ext-install: ## Build and install VS Code extension locally
+	@$(MAKE) -C vscode install
 
 ## Documentation
 docs: ## Serve documentation locally

@@ -3,6 +3,7 @@ import * as os from "os";
 import * as path from "path";
 import { buildSystemMessage } from "./systemMessage";
 import type { WorkspaceMetadata } from "@/types/workspace";
+import { DEFAULT_RUNTIME_CONFIG } from "@/constants/workspace";
 import { describe, test, expect, beforeEach, afterEach, spyOn, type Mock } from "bun:test";
 import { LocalRuntime } from "@/runtime/LocalRuntime";
 
@@ -57,6 +58,7 @@ Use diagrams where appropriate.
       name: "test-workspace",
       projectName: "test-project",
       projectPath: projectDir,
+      runtimeConfig: DEFAULT_RUNTIME_CONFIG,
     };
 
     const systemMessage = await buildSystemMessage(metadata, runtime, workspaceDir, "plan");
@@ -88,6 +90,7 @@ Focus on planning and design.
       name: "test-workspace",
       projectName: "test-project",
       projectPath: projectDir,
+      runtimeConfig: DEFAULT_RUNTIME_CONFIG,
     };
 
     const systemMessage = await buildSystemMessage(metadata, runtime, workspaceDir);
@@ -127,6 +130,7 @@ Project plan instructions (should win).
       name: "test-workspace",
       projectName: "test-project",
       projectPath: projectDir,
+      runtimeConfig: DEFAULT_RUNTIME_CONFIG,
     };
 
     const systemMessage = await buildSystemMessage(metadata, runtime, workspaceDir, "plan");
@@ -162,6 +166,7 @@ Just general project stuff.
       name: "test-workspace",
       projectName: "test-project",
       projectPath: projectDir,
+      runtimeConfig: DEFAULT_RUNTIME_CONFIG,
     };
 
     const systemMessage = await buildSystemMessage(metadata, runtime, workspaceDir, "plan");
@@ -183,6 +188,7 @@ Special mode instructions.
       name: "test-workspace",
       projectName: "test-project",
       projectPath: projectDir,
+      runtimeConfig: DEFAULT_RUNTIME_CONFIG,
     };
 
     const systemMessage = await buildSystemMessage(

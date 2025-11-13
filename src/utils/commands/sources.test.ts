@@ -1,6 +1,7 @@
 import { buildCoreSources } from "./sources";
 import type { ProjectConfig } from "@/config";
 import type { FrontendWorkspaceMetadata } from "@/types/workspace";
+import { DEFAULT_RUNTIME_CONFIG } from "@/constants/workspace";
 
 const mk = (over: Partial<Parameters<typeof buildCoreSources>[0]> = {}) => {
   const projects = new Map<string, ProjectConfig>();
@@ -14,6 +15,7 @@ const mk = (over: Partial<Parameters<typeof buildCoreSources>[0]> = {}) => {
     projectName: "a",
     projectPath: "/repo/a",
     namedWorkspacePath: "/repo/a/feat-x",
+    runtimeConfig: DEFAULT_RUNTIME_CONFIG,
   });
   workspaceMetadata.set("w2", {
     id: "w2",
@@ -21,6 +23,7 @@ const mk = (over: Partial<Parameters<typeof buildCoreSources>[0]> = {}) => {
     projectName: "a",
     projectPath: "/repo/a",
     namedWorkspacePath: "/repo/a/feat-y",
+    runtimeConfig: DEFAULT_RUNTIME_CONFIG,
   });
   const params: Parameters<typeof buildCoreSources>[0] = {
     projects,

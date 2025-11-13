@@ -230,7 +230,8 @@ export const HunkViewer = React.memo<HunkViewerProps>(
                   {isRead ? "○" : "◉"}
                 </button>
                 <Tooltip align="right" position="top">
-                  Mark as read ({formatKeybind(KEYBINDS.TOGGLE_HUNK_READ)})
+                  Mark as read ({formatKeybind(KEYBINDS.TOGGLE_HUNK_READ)}) · Mark file (
+                  {formatKeybind(KEYBINDS.MARK_FILE_READ)})
                 </Tooltip>
               </TooltipWrapper>
             )}
