@@ -58,6 +58,9 @@ function AppInner() {
   const [workspaceModalLoadError, setWorkspaceModalLoadError] = useState<string | null>(null);
   const workspaceModalProjectRef = useRef<string | null>(null);
 
+  // Track when we're in "new workspace creation" mode (show FirstMessageInput)
+  const [pendingNewWorkspaceProject, setPendingNewWorkspaceProject] = useState<string | null>(null);
+
   // Auto-collapse sidebar on mobile by default
   const isMobile = typeof window !== "undefined" && window.innerWidth <= 768;
   const [sidebarCollapsed, setSidebarCollapsed] = usePersistedState("sidebarCollapsed", isMobile);
@@ -171,46 +174,12 @@ function AppInner() {
     [removeProject, selectedWorkspace, setSelectedWorkspace]
   );
 
-  const handleAddWorkspace = useCallback(async (projectPath: string) => {
-    const projectName = projectPath.split("/").pop() ?? projectPath.split("\\").pop() ?? "project";
-
-    workspaceModalProjectRef.current = projectPath;
-    setWorkspaceModalProject(projectPath);
-    setWorkspaceModalProjectName(projectName);
-    setWorkspaceModalBranches([]);
-    setWorkspaceModalDefaultTrunk(undefined);
-    setWorkspaceModalLoadError(null);
-    setWorkspaceModalOpen(true);
-
-    try {
-      const branchResult = await window.api.projects.listBranches(projectPath);
-
-      // Guard against race condition: only update state if this is still the active project
-      if (workspaceModalProjectRef.current !== projectPath) {
-        return;
-      }
-
-      const sanitizedBranches = Array.isArray(branchResult?.branches)
-        ? branchResult.branches.filter((branch): branch is string => typeof branch === "string")
-        : [];
-
-      const recommended =
-        typeof branchResult?.recommendedTrunk === "string" &&
-        sanitizedBranches.includes(branchResult.recommendedTrunk)
-          ? branchResult.recommendedTrunk
-          : sanitizedBranches[0];
-
-      setWorkspaceModalBranches(sanitizedBranches);
-      setWorkspaceModalDefaultTrunk(recommended);
-      setWorkspaceModalLoadError(null);
-    } catch (err) {
-      console.error("Failed to load branches for modal:", err);
-      const message = err instanceof Error ? err.message : "Unknown error";
-      setWorkspaceModalLoadError(
-        `Unable to load branches automatically: ${message}. You can still enter the trunk branch manually.`
-      );
-    }
-  }, []);
+  const handleAddWorkspace = useCallback((projectPath: string) => {
+    // Show FirstMessageInput for this project
+    setPendingNewWorkspaceProject(projectPath);
+    // Clear any selected workspace so FirstMessageInput is shown
+    setSelectedWorkspace(null);
+  }, [setSelectedWorkspace]);
 
   // Memoize callbacks to prevent LeftSidebar/ProjectSidebar re-renders
   const handleAddProjectCallback = useCallback(() => {
@@ -648,9 +617,9 @@ function AppInner() {
                   }
                 />
               </ErrorBoundary>
-            ) : projects.size === 1 ? (
+            ) : pendingNewWorkspaceProject || projects.size === 1 ? (
               <FirstMessageInput
-                projectPath={Array.from(projects.keys())[0]}
+                projectPath={pendingNewWorkspaceProject ?? Array.from(projects.keys())[0]}
                 onWorkspaceCreated={(metadata) => {
                   // Add to workspace metadata map
                   setWorkspaceMetadata((prev) => new Map(prev).set(metadata.id, metadata));
@@ -665,7 +634,18 @@ function AppInner() {
 
                   // Track telemetry
                   telemetry.workspaceCreated(metadata.id);
+
+                  // Clear pending state
+                  setPendingNewWorkspaceProject(null);
                 }}
+                onCancel={
+                  pendingNewWorkspaceProject
+                    ? () => {
+                        // User cancelled workspace creation - clear pending state
+                        setPendingNewWorkspaceProject(null);
+                      }
+                    : undefined
+                }
               />
             ) : (
               <div

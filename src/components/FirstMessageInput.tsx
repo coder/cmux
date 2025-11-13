@@ -9,6 +9,7 @@ import { useModelLRU } from "@/hooks/useModelLRU";
 interface FirstMessageInputProps {
   projectPath: string;
   onWorkspaceCreated: (metadata: FrontendWorkspaceMetadata) => void;
+  onCancel?: () => void;
 }
 
 /**
@@ -19,7 +20,7 @@ interface FirstMessageInputProps {
  * 2. Sends the message to the new workspace
  * 3. Switches to the new workspace (via callback)
  */
-export function FirstMessageInput({ projectPath, onWorkspaceCreated }: FirstMessageInputProps) {
+export function FirstMessageInput({ projectPath, onWorkspaceCreated, onCancel }: FirstMessageInputProps) {
   const [input, setInput] = useState("");
   const [isSending, setIsSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -88,8 +89,13 @@ export function FirstMessageInput({ projectPath, onWorkspaceCreated }: FirstMess
         e.preventDefault();
         void handleSend();
       }
+      // Cancel on Escape
+      if (e.key === "Escape" && onCancel) {
+        e.preventDefault();
+        onCancel();
+      }
     },
-    [handleSend]
+    [handleSend, onCancel]
   );
 
   return (
@@ -125,21 +131,34 @@ export function FirstMessageInput({ projectPath, onWorkspaceCreated }: FirstMess
           <div className="flex items-center justify-between">
             <span className="text-xs text-gray-500">
               {window.api.platform === "darwin" ? "⌘" : "Ctrl"}+Enter to send
+              {onCancel && " • Esc to cancel"}
             </span>
 
-            <button
-              type="button"
-              onClick={() => void handleSend()}
-              disabled={!input.trim() || isSending}
-              className={cn(
-                "rounded px-4 py-2 text-sm font-medium",
-                !input.trim() || isSending
-                  ? "cursor-not-allowed bg-gray-700 text-gray-500"
-                  : "bg-blue-600 text-white hover:bg-blue-700"
+            <div className="flex gap-2">
+              {onCancel && (
+                <button
+                  type="button"
+                  onClick={onCancel}
+                  disabled={isSending}
+                  className="rounded bg-gray-700 px-4 py-2 text-sm font-medium text-gray-300 hover:bg-gray-600 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  Cancel
+                </button>
               )}
-            >
-              {isSending ? "Creating..." : "Send"}
-            </button>
+              <button
+                type="button"
+                onClick={() => void handleSend()}
+                disabled={!input.trim() || isSending}
+                className={cn(
+                  "rounded px-4 py-2 text-sm font-medium",
+                  !input.trim() || isSending
+                    ? "cursor-not-allowed bg-gray-700 text-gray-500"
+                    : "bg-blue-600 text-white hover:bg-blue-700"
+                )}
+              >
+                {isSending ? "Creating..." : "Send"}
+              </button>
+            </div>
           </div>
         </div>
       </div>
