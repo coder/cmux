@@ -82,6 +82,7 @@ export class IpcMain {
       this.partialService,
       this.initStateManager
     );
+    // Terminal services - lazy initialization on first use
     this.ptyService = new PTYService();
     this.terminalServer = new TerminalServer(this.ptyService);
     this.ptyService.setTerminalServer(this.terminalServer);
