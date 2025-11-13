@@ -12,13 +12,15 @@ interface ThinkingContextType {
 const ThinkingContext = createContext<ThinkingContextType | undefined>(undefined);
 
 interface ThinkingProviderProps {
-  workspaceId?: string; // Optional - if not provided, uses global key
+  workspaceId?: string; // Workspace-scoped storage (highest priority)
+  projectPath?: string; // Project-scoped storage (fallback if no workspaceId)
   children: ReactNode;
 }
 
-export const ThinkingProvider: React.FC<ThinkingProviderProps> = ({ workspaceId, children }) => {
-  // Use workspace-scoped key if workspaceId provided, otherwise use global key
-  const key = workspaceId ? getThinkingLevelKey(workspaceId) : getThinkingLevelKey("__global__");
+export const ThinkingProvider: React.FC<ThinkingProviderProps> = ({ workspaceId, projectPath, children }) => {
+  // Priority: workspace-scoped > project-scoped
+  const scopeId = workspaceId ?? (projectPath ? `__project__${projectPath}` : "__global__");
+  const key = getThinkingLevelKey(scopeId);
   const [thinkingLevel, setThinkingLevel] = usePersistedState<ThinkingLevel>(
     key,
     "off",

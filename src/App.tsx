@@ -628,8 +628,8 @@ function AppInner() {
                 const projectName =
                   projectPath.split("/").pop() ?? projectPath.split("\\").pop() ?? "Project";
                 return (
-                  <ModeProvider>
-                    <ThinkingProvider>
+                  <ModeProvider projectPath={projectPath}>
+                    <ThinkingProvider projectPath={projectPath}>
                       <FirstMessageInput
                         projectPath={projectPath}
                         projectName={projectName}
