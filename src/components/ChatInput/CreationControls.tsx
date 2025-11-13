@@ -64,7 +64,7 @@ export function CreationControls(props: CreationControlsProps) {
             onChange={(e) => props.onRuntimeChange(RUNTIME_MODE.SSH, e.target.value)}
             placeholder="user@host"
             disabled={props.disabled}
-            className="bg-separator text-foreground border-border-medium focus:border-accent w-32 rounded border px-2 py-1 text-xs focus:outline-none disabled:opacity-50"
+            className="bg-separator text-foreground border-border-medium focus:border-accent w-32 rounded border px-1 py-0.5 text-xs focus:outline-none disabled:opacity-50"
           />
         )}
         <TooltipWrapper inline>

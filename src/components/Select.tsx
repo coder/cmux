@@ -40,7 +40,7 @@ export function Select({
       onChange={(e) => onChange(e.target.value)}
       disabled={disabled}
       aria-label={ariaLabel}
-      className={`bg-separator text-foreground border-border-medium focus:border-accent rounded border px-2 py-1 text-xs focus:outline-none disabled:opacity-50 ${className}`}
+      className={`bg-separator text-foreground border-border-medium focus:border-accent rounded border px-1 py-0.5 text-xs focus:outline-none disabled:opacity-50 ${className}`}
     >
       {normalizedOptions.map((opt) => (
         <option key={opt.value} value={opt.value}>
