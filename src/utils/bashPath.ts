@@ -1,6 +1,6 @@
 /**
  * Platform-specific bash path resolution
- * 
+ *
  * On Unix/Linux/macOS, bash is in PATH by default.
  * On Windows, bash comes from Git Bash and needs to be located.
  */
@@ -73,7 +73,7 @@ function findWindowsBash(): string | null {
 
 /**
  * Get the bash executable path for the current platform
- * 
+ *
  * @returns Path to bash executable. On Unix/macOS returns "bash",
  *          on Windows returns full path to bash.exe if found.
  * @throws Error if bash cannot be found on Windows
@@ -103,7 +103,7 @@ export function getBashPath(): string {
 
 /**
  * Check if bash is available on the system
- * 
+ *
  * @returns true if bash is available, false otherwise
  */
 export function isBashAvailable(): boolean {
@@ -114,5 +114,3 @@ export function isBashAvailable(): boolean {
     return false;
   }
 }
-
-
