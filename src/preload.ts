@@ -171,9 +171,6 @@ contextBridge.exposeInMainWorld("api", {
   },
 });
 
-console.log("[Preload] window.api exposed successfully");
-
-// Debug: Log that preload script has run
 console.log("[Preload] window.api exposed successfully", {
   hasTerminal: !!api.terminal,
   terminalMethods: api.terminal ? Object.keys(api.terminal) : [],
