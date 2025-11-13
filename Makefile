@@ -145,6 +145,7 @@ build-renderer: node_modules/.installed src/version.ts ## Build renderer process
 build-static: ## Copy static assets to dist
 	@echo "Copying static assets..."
 	@mkdir -p dist
+	@./scripts/copy-fonts.sh
 	@cp static/splash.html dist/splash.html
 	@cp -r public/* dist/
 
