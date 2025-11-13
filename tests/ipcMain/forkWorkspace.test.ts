@@ -302,6 +302,72 @@ describeIntegration("WORKSPACE_FORK with both runtimes", () => {
             }),
           TEST_TIMEOUT_MS
         );
+
+        test.concurrent(
+          "should preserve runtime config and allow tool execution after fork",
+          () =>
+            withForkTest(async ({ env, tempGitRepo }) => {
+              const trunkBranch = await detectDefaultTrunkBranch(tempGitRepo);
+              const sourceBranchName = generateBranchName();
+              const runtimeConfig = getRuntimeConfig();
+
+              // Create source workspace
+              const createResult = await env.mockIpcRenderer.invoke(
+                IPC_CHANNELS.WORKSPACE_CREATE,
+                tempGitRepo,
+                sourceBranchName,
+                trunkBranch,
+                runtimeConfig
+              );
+              expect(createResult.success).toBe(true);
+              const sourceWorkspaceId = createResult.metadata.id;
+              const sourceMetadata = createResult.metadata;
+
+              // Wait for init to complete
+              await new Promise((resolve) => setTimeout(resolve, getInitWaitTime()));
+
+              // Fork the workspace
+              const forkedName = generateBranchName();
+              const forkResult = await env.mockIpcRenderer.invoke(
+                IPC_CHANNELS.WORKSPACE_FORK,
+                sourceWorkspaceId,
+                forkedName
+              );
+              expect(forkResult.success).toBe(true);
+              expect(forkResult.metadata).toBeDefined();
+              expect(forkResult.metadata.id).toBeDefined();
+
+              // CRITICAL: Check that runtime config is preserved from source
+              // (Not from the original input, since WORKSPACE_CREATE may normalize it)
+              expect(forkResult.metadata.runtimeConfig).toEqual(sourceMetadata.runtimeConfig);
+
+              // Wait for init to complete
+              await new Promise((resolve) => setTimeout(resolve, getInitWaitTime()));
+
+              // Property test: Forked workspace should be immediately usable for tool execution
+              // This will fail if runtime config is wrong or directory doesn't exist
+              const forkedWorkspaceId = forkResult.metadata.id;
+              env.sentEvents.length = 0;
+
+              const sendResult = await sendMessage(
+                env.mockIpcRenderer,
+                forkedWorkspaceId,
+                "Run this bash command: echo 'fork-test-success'",
+                { model: DEFAULT_TEST_MODEL }
+              );
+              expect(sendResult.success).toBe(true);
+
+              // Verify stream completes successfully (would fail if workspace broken)
+              const collector = createEventCollector(env.sentEvents, forkedWorkspaceId);
+              await collector.waitForEvent("stream-end", 30000);
+              assertStreamSuccess(collector);
+
+              // Cleanup
+              await env.mockIpcRenderer.invoke(IPC_CHANNELS.WORKSPACE_REMOVE, sourceWorkspaceId);
+              await env.mockIpcRenderer.invoke(IPC_CHANNELS.WORKSPACE_REMOVE, forkedWorkspaceId);
+            }),
+          TEST_TIMEOUT_MS
+        );
       });
 
       describe("Init hook execution", () => {

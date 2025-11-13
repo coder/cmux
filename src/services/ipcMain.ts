@@ -15,7 +15,6 @@ import { countTokens, countTokensBatch } from "@/utils/main/tokenizer";
 import { calculateTokenStats } from "@/utils/tokens/tokenStatsCalculator";
 import { IPC_CHANNELS, getChatChannel } from "@/constants/ipc-constants";
 import { SUPPORTED_PROVIDERS } from "@/constants/providers";
-import { DEFAULT_RUNTIME_CONFIG } from "@/constants/workspace";
 import type { SendMessageError } from "@/types/errors";
 import type { SendMessageOptions, DeleteMessage } from "@/types/ipc";
 import { Ok, Err } from "@/types/result";
@@ -717,12 +716,16 @@ export class IpcMain {
           const foundProjectPath = sourceMetadata.projectPath;
           const projectName = sourceMetadata.projectName;
 
-          // Create runtime for source workspace
-          const sourceRuntimeConfig = sourceMetadata.runtimeConfig ?? {
-            type: "local",
-            srcBaseDir: this.config.srcDir,
-          };
-          const runtime = createRuntime(sourceRuntimeConfig);
+          // Preserve source runtime config (undefined for local default, or explicit SSH config)
+          const sourceRuntimeConfig = sourceMetadata.runtimeConfig;
+
+          // Create runtime for fork operation
+          const runtimeForFork = createRuntime(
+            sourceRuntimeConfig ?? {
+              type: "local",
+              srcBaseDir: this.config.srcDir,
+            }
+          );
 
           // Generate stable workspace ID for the new workspace
           const newWorkspaceId = this.config.generateStableId();
@@ -736,7 +739,7 @@ export class IpcMain {
           const initLogger = this.createInitLogger(newWorkspaceId);
 
           // Delegate fork operation to runtime (fast path - returns before init hook)
-          const forkResult = await runtime.forkWorkspace({
+          const forkResult = await runtimeForFork.forkWorkspace({
             projectPath: foundProjectPath,
             sourceWorkspaceName: sourceMetadata.name,
             newWorkspaceName: newName,
@@ -788,7 +791,7 @@ export class IpcMain {
             }
           } catch (copyError) {
             // If copy fails, clean up everything we created
-            await runtime.deleteWorkspace(foundProjectPath, newName, true);
+            await runtimeForFork.deleteWorkspace(foundProjectPath, newName, true);
             try {
               await fsPromises.rm(newSessionDir, { recursive: true, force: true });
             } catch (cleanupError) {
@@ -805,7 +808,7 @@ export class IpcMain {
             projectName,
             projectPath: foundProjectPath,
             createdAt: new Date().toISOString(),
-            runtimeConfig: DEFAULT_RUNTIME_CONFIG,
+            runtimeConfig: sourceRuntimeConfig,
           };
 
           // Write metadata to config.json
@@ -818,7 +821,7 @@ export class IpcMain {
           // For SSH: copies workspace + creates branch + runs init hook
           // For Local: just runs init hook (worktree already created)
           // This allows fork to return immediately while init streams progress
-          void runtime
+          void runtimeForFork
             .initWorkspace({
               projectPath: foundProjectPath,
               branchName: newName,
