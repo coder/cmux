@@ -45,7 +45,7 @@ export function CreationControls(props: CreationControlsProps) {
           value={props.runtimeMode}
           options={[
             { value: RUNTIME_MODE.LOCAL, label: "Local" },
-            { value: RUNTIME_MODE.SSH, label: "SSH Remote" },
+            { value: RUNTIME_MODE.SSH, label: "SSH" },
           ]}
           onChange={(newMode) => {
             const mode = newMode as RuntimeMode;

@@ -217,7 +217,7 @@ const NewWorkspaceModal: React.FC<NewWorkspaceModalProps> = ({
             disabled={isLoading}
           >
             <option value={RUNTIME_MODE.LOCAL}>Local</option>
-            <option value={RUNTIME_MODE.SSH}>SSH Remote</option>
+            <option value={RUNTIME_MODE.SSH}>SSH</option>
           </select>
         </div>
 
