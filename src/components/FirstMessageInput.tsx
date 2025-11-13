@@ -155,6 +155,7 @@ export function FirstMessageInput({
         ...sendMessageOptions,
         runtimeConfig,
         projectPath, // Pass projectPath when workspaceId is null
+        trunkBranch, // Pass selected trunk branch
       });
 
       if (!result.success) {
@@ -197,6 +198,7 @@ export function FirstMessageInput({
     thinkingLevel,
     use1M,
     recentModels,
+    trunkBranch,
   ]);
 
   const handleKeyDown = useCallback(
@@ -270,6 +272,28 @@ export function FirstMessageInput({
                 onComplete={() => inputRef.current?.focus()}
               />
             </div>
+
+            {/* Trunk Branch Selector */}
+            {branches.length > 0 && (
+              <div className="flex items-center gap-1" data-component="TrunkBranchGroup">
+                <label htmlFor="trunk-branch" className="text-muted text-xs">
+                  From:
+                </label>
+                <select
+                  id="trunk-branch"
+                  value={trunkBranch}
+                  onChange={(e) => setTrunkBranch(e.target.value)}
+                  disabled={isSending}
+                  className="bg-separator text-foreground border-border-medium focus:border-accent rounded border px-2 py-1 text-xs focus:outline-none disabled:opacity-50"
+                >
+                  {branches.map((branch) => (
+                    <option key={branch} value={branch}>
+                      {branch}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
 
             {/* Thinking Slider - slider hidden on narrow containers, label always clickable */}
             <div

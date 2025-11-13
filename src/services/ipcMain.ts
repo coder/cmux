@@ -699,6 +699,7 @@ export class IpcMain {
           imageParts?: Array<{ url: string; mediaType: string }>;
           runtimeConfig?: RuntimeConfig;
           projectPath?: string;
+          trunkBranch?: string;
         }
       ) => {
         // If workspaceId is null, create a new workspace first (lazy creation)
@@ -722,10 +723,12 @@ export class IpcMain {
 
             log.debug("Generated workspace names", { title, branchName });
 
-            // 2. Get recommended trunk
+            // 2. Get trunk branch (use provided trunkBranch or auto-detect)
             const branches = await listLocalBranches(options.projectPath);
             const recommendedTrunk =
-              (await detectDefaultTrunkBranch(options.projectPath, branches)) ?? "main";
+              options.trunkBranch ??
+              (await detectDefaultTrunkBranch(options.projectPath, branches)) ??
+              "main";
 
             // 3. Create workspace
             const finalRuntimeConfig: RuntimeConfig = options.runtimeConfig ?? {

@@ -258,6 +258,7 @@ export interface IPCApi {
         imageParts?: Array<{ url: string; mediaType: string }>;
         runtimeConfig?: RuntimeConfig;
         projectPath?: string; // Required when workspaceId is null
+        trunkBranch?: string; // Optional - trunk branch to branch from (when workspaceId is null)
       }
     ): Promise<
       | Result<void, SendMessageError>
