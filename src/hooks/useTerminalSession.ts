@@ -16,7 +16,6 @@ export function useTerminalSession(
   // Create terminal session and WebSocket connection
   useEffect(() => {
     if (!enabled || !terminalSize) {
-      console.log('[Terminal] Session effect skipped - enabled:', enabled, 'terminalSize:', terminalSize);
       return;
     }
 
@@ -26,7 +25,6 @@ export function useTerminalSession(
 
     const initSession = async () => {
       try {
-        console.log(`[Terminal] Initializing session for workspace ${workspaceId} with size ${terminalSize.cols}x${terminalSize.rows}`);
         
         // Get WebSocket port from backend
         const port = await window.api.terminal.getPort();
@@ -39,13 +37,11 @@ export function useTerminalSession(
         });
 
         if (!mounted) {
-          console.log(`[Terminal] Component unmounted, aborting session ${session.sessionId}`);
           return;
         }
 
         createdSessionId = session.sessionId; // Store in closure
         setSessionId(session.sessionId);
-        console.log(`[Terminal] Session created: ${session.sessionId} with size ${terminalSize.cols}x${terminalSize.rows}`);
 
         // Connect WebSocket
         ws = new WebSocket(`ws://localhost:${port}/terminal`);
@@ -53,13 +49,11 @@ export function useTerminalSession(
 
         ws.onopen = () => {
           if (mounted && ws) {
-            console.log(`[Terminal] WebSocket connected for session ${createdSessionId}`);
             // Send attach message to register this WebSocket with the session
             ws.send(JSON.stringify({
               type: "attach",
               sessionId: createdSessionId,
             }));
-            console.log(`[Terminal] Sent attach message for session ${createdSessionId}`);
             setConnected(true);
             setError(null);
           }
@@ -67,7 +61,6 @@ export function useTerminalSession(
 
         ws.onclose = () => {
           if (mounted) {
-            console.log(`[Terminal] WebSocket closed for session ${createdSessionId}`);
             setConnected(false);
           }
         };
@@ -91,7 +84,6 @@ export function useTerminalSession(
     return () => {
       mounted = false;
       
-      console.log(`[Terminal] Cleaning up session ${createdSessionId || '(not created)'}`);
       
       // Close WebSocket
       if (ws) {

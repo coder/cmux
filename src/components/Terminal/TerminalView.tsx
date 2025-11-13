@@ -33,16 +33,13 @@ export function TerminalView({ workspaceId, visible }: TerminalViewProps) {
   // Initialize terminal when visible
   useEffect(() => {
     if (!containerRef.current || !visible) {
-      console.log("[TerminalView] Skipping init - containerRef:", !!containerRef.current, "visible:", visible);
       return;
     }
 
-    console.log("[TerminalView] Initializing terminal for workspace:", workspaceId);
     let terminal: Terminal | null = null;
 
     const initTerminal = async () => {
       try {
-        console.log("[TerminalView] Creating Terminal instance...");
         terminal = new Terminal({
           wasmPath: "/src/assets/ghostty-vt.wasm",
           fontSize: 13,
@@ -73,26 +70,20 @@ export function TerminalView({ workspaceId, visible }: TerminalViewProps) {
           },
         });
 
-        console.log("[TerminalView] Terminal instance created, loading FitAddon...");
         const fitAddon = new FitAddon();
         terminal.loadAddon(fitAddon);
 
-        console.log("[TerminalView] Opening terminal in DOM...");
         await terminal.open(containerRef.current!);
         fitAddon.fit();
 
-        console.log("[TerminalView] Terminal mounted and fitted");
         const { cols, rows } = terminal;
-        console.log(`[TerminalView] Fitted terminal dimensions: ${cols}x${rows}`);
         
         // Set terminal size so PTY session can be created with matching dimensions
         // Use stable object reference to prevent unnecessary effect re-runs
         setTerminalSize(prev => {
           if (prev && prev.cols === cols && prev.rows === rows) {
-            console.log('[TerminalView] Size unchanged, keeping same object reference');
             return prev;
           }
-          console.log('[TerminalView] Size changed, updating state');
           return { cols, rows };
         });
         
@@ -103,7 +94,6 @@ export function TerminalView({ workspaceId, visible }: TerminalViewProps) {
 
         // Handle resize (use ref to always get latest resize)
         terminal.onResize(({ cols, rows }: { cols: number; rows: number }) => {
-          console.log(`[TerminalView] Terminal resized to ${cols}x${rows}`);
           // Use stable object reference to prevent unnecessary effect re-runs
           setTerminalSize(prev => {
             if (prev && prev.cols === cols && prev.rows === rows) {
@@ -117,7 +107,6 @@ export function TerminalView({ workspaceId, visible }: TerminalViewProps) {
         termRef.current = terminal;
         fitAddonRef.current = fitAddon;
         setTerminalReady(true);
-        console.log("[TerminalView] Terminal ready for WebSocket data");
       } catch (err) {
         console.error("Failed to initialize terminal:", err);
         setTerminalError(err instanceof Error ? err.message : "Failed to initialize terminal");
@@ -128,7 +117,6 @@ export function TerminalView({ workspaceId, visible }: TerminalViewProps) {
 
     return () => {
       if (terminal) {
-        console.log("[TerminalView] Disposing terminal");
         terminal.dispose();
       }
       termRef.current = null;
@@ -147,11 +135,9 @@ export function TerminalView({ workspaceId, visible }: TerminalViewProps) {
     const term = termRef.current;
     
     if (!ws || !term || !connected || !terminalReady) {
-      console.log('[TerminalView] Message handler not ready - ws:', !!ws, 'term:', !!term, 'connected:', connected, 'terminalReady:', terminalReady);
       return;
     }
     
-    console.log('[TerminalView] Attaching WebSocket message handler to:', ws);
 
     const handleMessage = (event: MessageEvent) => {
       try {
@@ -164,7 +150,6 @@ export function TerminalView({ workspaceId, visible }: TerminalViewProps) {
         }
         
         if (msg.type === "output") {
-          console.log('[TerminalView] Received output:', msg.data.length, 'bytes');
           currentTerm.write(msg.data);
         } else if (msg.type === "exit") {
           currentTerm.write(`\r\n[Process exited with code ${msg.exitCode}]\r\n`);
@@ -175,9 +160,7 @@ export function TerminalView({ workspaceId, visible }: TerminalViewProps) {
     };
 
     ws.addEventListener("message", handleMessage);
-    console.log('[TerminalView] Message handler attached');
     return () => {
-      console.log('[TerminalView] Removing message handler from:', ws);
       ws.removeEventListener("message", handleMessage);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -188,7 +171,6 @@ export function TerminalView({ workspaceId, visible }: TerminalViewProps) {
     if (!visible || !fitAddonRef.current || !containerRef.current) return;
 
     const resizeObserver = new ResizeObserver(() => {
-      console.log("[TerminalView] Container resized, fitting terminal");
       fitAddonRef.current?.fit();
       // Terminal will fire onResize event which will update terminalSize and propagate to PTY
     });
