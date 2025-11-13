@@ -104,7 +104,7 @@ export function useTerminalSession(
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [workspaceId, enabled, terminalSize]); // Add terminalSize to deps
+  }, [workspaceId, enabled]); // Don't include terminalSize - we only need it for initial session creation, not re-creation on resize
 
   // Send input to terminal
   const sendInput = useCallback(
