@@ -16,11 +16,8 @@ import type { Result } from "@/types/result";
 import { Ok, Err } from "@/types/result";
 import { enforceThinkingPolicy } from "@/utils/thinking/policy";
 import { createRuntime } from "@/runtime/runtimeFactory";
-
-interface ImagePart {
-  url: string;
-  mediaType: string;
-}
+import { MessageQueue } from "@/services/messageQueue";
+import type { ImagePart } from "@/types/ipc";
 
 export interface AgentSessionChatEvent {
   workspaceId: string;
@@ -54,6 +51,7 @@ export class AgentSession {
   private readonly initListeners: Array<{ event: string; handler: (...args: unknown[]) => void }> =
     [];
   private disposed = false;
+  private readonly messageQueue = new MessageQueue();
 
   constructor(options: AgentSessionOptions) {
     assert(options, "AgentSession requires options");
@@ -403,13 +401,41 @@ export class AgentSession {
 
     forward("stream-start", (payload) => this.emitChatEvent(payload));
     forward("stream-delta", (payload) => this.emitChatEvent(payload));
-    forward("stream-end", (payload) => this.emitChatEvent(payload));
     forward("tool-call-start", (payload) => this.emitChatEvent(payload));
     forward("tool-call-delta", (payload) => this.emitChatEvent(payload));
     forward("tool-call-end", (payload) => this.emitChatEvent(payload));
     forward("reasoning-delta", (payload) => this.emitChatEvent(payload));
     forward("reasoning-end", (payload) => this.emitChatEvent(payload));
-    forward("stream-abort", (payload) => this.emitChatEvent(payload));
+
+    forward("stream-end", (payload) => {
+      this.emitChatEvent(payload);
+      // Stream end: auto-send queued messages
+      if (!this.messageQueue.isEmpty()) {
+        const { message, options } = this.messageQueue.produceMessage();
+        this.messageQueue.clear();
+        this.emitQueuedMessageChanged();
+
+        void this.sendMessage(message, options);
+      }
+    });
+
+    forward("stream-abort", (payload) => {
+      this.emitChatEvent(payload);
+      // Stream aborted: restore queued messages to input
+      if (!this.messageQueue.isEmpty()) {
+        const displayText = this.messageQueue.getDisplayText();
+        const imageParts = this.messageQueue.getImageParts();
+        this.messageQueue.clear();
+        this.emitQueuedMessageChanged();
+
+        this.emitChatEvent({
+          type: "restore-to-input",
+          workspaceId: this.workspaceId,
+          text: displayText,
+          imageParts: imageParts,
+        });
+      }
+    });
 
     const errorHandler = (...args: unknown[]) => {
       const [raw] = args;
@@ -474,6 +500,28 @@ export class AgentSession {
       workspaceId: this.workspaceId,
       message,
     } satisfies AgentSessionChatEvent);
+  }
+
+  queueMessage(message: string, options?: SendMessageOptions & { imageParts?: ImagePart[] }): void {
+    this.assertNotDisposed("queueMessage");
+    this.messageQueue.add(message, options);
+    this.emitQueuedMessageChanged();
+  }
+
+  clearQueue(): void {
+    this.assertNotDisposed("clearQueue");
+    this.messageQueue.clear();
+    this.emitQueuedMessageChanged();
+  }
+
+  private emitQueuedMessageChanged(): void {
+    this.emitChatEvent({
+      type: "queued-message-changed",
+      workspaceId: this.workspaceId,
+      queuedMessages: this.messageQueue.getMessages(),
+      displayText: this.messageQueue.getDisplayText(),
+      imageParts: this.messageQueue.getImageParts(),
+    });
   }
 
   private assertNotDisposed(operation: string): void {

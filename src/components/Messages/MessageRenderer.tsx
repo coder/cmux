@@ -7,11 +7,13 @@ import { ReasoningMessage } from "./ReasoningMessage";
 import { StreamErrorMessage } from "./StreamErrorMessage";
 import { HistoryHiddenMessage } from "./HistoryHiddenMessage";
 import { InitMessage } from "./InitMessage";
+// Note: QueuedMessage is NOT imported here - it's rendered directly in AIView after StreamingBarrier
 
 interface MessageRendererProps {
   message: DisplayedMessage;
   className?: string;
   onEditUserMessage?: (messageId: string, content: string) => void;
+  onEditQueuedMessage?: () => void;
   workspaceId?: string;
   isCompacting?: boolean;
 }

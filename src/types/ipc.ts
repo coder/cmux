@@ -74,6 +74,23 @@ export type WorkspaceInitEvent =
       timestamp: number;
     };
 
+// Queued message changed event (when messages are queued during streaming)
+export interface QueuedMessageChangedEvent {
+  type: "queued-message-changed";
+  workspaceId: string;
+  queuedMessages: string[]; // Raw messages for editing/restoration
+  displayText: string; // Display text (handles slash commands)
+  imageParts?: ImagePart[]; // Optional image attachments
+}
+
+// Restore to input event (when stream ends/aborts with queued messages)
+export interface RestoreToInputEvent {
+  type: "restore-to-input";
+  workspaceId: string;
+  text: string;
+  imageParts?: ImagePart[]; // Optional image attachments to restore
+}
+
 // Union type for workspace chat messages
 export type WorkspaceChatMessage =
   | MuxMessage
@@ -89,7 +106,9 @@ export type WorkspaceChatMessage =
   | ToolCallEndEvent
   | ReasoningDeltaEvent
   | ReasoningEndEvent
-  | WorkspaceInitEvent;
+  | WorkspaceInitEvent
+  | QueuedMessageChangedEvent
+  | RestoreToInputEvent;
 
 // Type guard for caught up messages
 export function isCaughtUpMessage(msg: WorkspaceChatMessage): msg is CaughtUpMessage {
@@ -149,6 +168,18 @@ export function isReasoningDelta(msg: WorkspaceChatMessage): msg is ReasoningDel
 // Type guard for reasoning end events
 export function isReasoningEnd(msg: WorkspaceChatMessage): msg is ReasoningEndEvent {
   return "type" in msg && msg.type === "reasoning-end";
+}
+
+// Type guard for queued message changed events
+export function isQueuedMessageChanged(
+  msg: WorkspaceChatMessage
+): msg is QueuedMessageChangedEvent {
+  return "type" in msg && msg.type === "queued-message-changed";
+}
+
+// Type guard for restore to input events
+export function isRestoreToInput(msg: WorkspaceChatMessage): msg is RestoreToInputEvent {
+  return "type" in msg && msg.type === "restore-to-input";
 }
 
 // Type guard for MuxMessage (messages with role but no type field)
@@ -255,7 +286,7 @@ export interface IPCApi {
       workspaceId: string | null,
       message: string,
       options?: SendMessageOptions & {
-        imageParts?: Array<{ url: string; mediaType: string }>;
+        imageParts?: ImagePart[];
         runtimeConfig?: RuntimeConfig;
         projectPath?: string; // Required when workspaceId is null
         trunkBranch?: string; // Optional - trunk branch to branch from (when workspaceId is null)
@@ -272,6 +303,7 @@ export interface IPCApi {
       workspaceId: string,
       options?: { abandonPartial?: boolean }
     ): Promise<Result<void, string>>;
+    clearQueue(workspaceId: string): Promise<Result<void, string>>;
     truncateHistory(workspaceId: string, percentage?: number): Promise<Result<void, string>>;
     replaceChatHistory(
       workspaceId: string,
@@ -321,3 +353,8 @@ export type UpdateStatus =
   | { type: "downloading"; percent: number }
   | { type: "downloaded"; info: { version: string } }
   | { type: "error"; message: string };
+
+export interface ImagePart {
+  url: string; // Data URL (e.g., "data:image/png;base64,...")
+  mediaType: string; // MIME type (e.g., "image/png", "image/jpeg")
+}
