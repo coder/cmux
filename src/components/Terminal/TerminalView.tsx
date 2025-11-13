@@ -21,7 +21,7 @@ export function TerminalView({ workspaceId, visible }: TerminalViewProps) {
     terminalSize
   );
 
-  // Keep refs to latest functions so onData callback always uses current version
+  // Keep refs to latest functions so callbacks always use current version
   const sendInputRef = useRef(sendInput);
   const resizeRef = useRef(resize);
   
@@ -89,18 +89,6 @@ export function TerminalView({ workspaceId, visible }: TerminalViewProps) {
         // User input → WebSocket (use ref to always get latest sendInput)
         terminal.onData((data: string) => {
           sendInputRef.current(data);
-        });
-
-        // Handle resize (use ref to always get latest resize)
-        terminal.onResize(({ cols, rows }: { cols: number; rows: number }) => {
-          // Use stable object reference to prevent unnecessary effect re-runs
-          setTerminalSize(prev => {
-            if (prev && prev.cols === cols && prev.rows === rows) {
-              return prev;
-            }
-            return { cols, rows };
-          });
-          resizeRef.current(cols, rows);
         });
 
         termRef.current = terminal;
@@ -171,11 +159,36 @@ export function TerminalView({ workspaceId, visible }: TerminalViewProps) {
       return;
     }
     
+    let resizeTimeoutId: ReturnType<typeof setTimeout> | null = null;
+    
     // Use both ResizeObserver (for container changes) and window resize (as backup)
     const handleResize = () => {
       if (fitAddonRef.current && termRef.current) {
         try {
+          // Resize terminal UI to fit container immediately for responsive UX
           fitAddonRef.current.fit();
+          
+          // Get new dimensions
+          const { cols, rows } = termRef.current;
+          
+          // Update state (with stable reference to prevent unnecessary re-renders)
+          setTerminalSize(prev => {
+            if (prev && prev.cols === cols && prev.rows === rows) {
+              return prev;
+            }
+            return { cols, rows };
+          });
+          
+          // Debounce PTY resize to avoid sending too many resize events during drag
+          // This prevents vim cursor position issues from rapid resize signals
+          if (resizeTimeoutId !== null) {
+            clearTimeout(resizeTimeoutId);
+          }
+          
+          resizeTimeoutId = setTimeout(() => {
+            // Send final resize to PTY after user stops resizing
+            resizeRef.current(cols, rows);
+          }, 100); // 100ms debounce - waits for resize drag to finish before notifying PTY
         } catch (err) {
           console.error("[TerminalView] Error fitting terminal:", err);
         }
@@ -189,6 +202,9 @@ export function TerminalView({ workspaceId, visible }: TerminalViewProps) {
     window.addEventListener('resize', handleResize);
 
     return () => {
+      if (resizeTimeoutId !== null) {
+        clearTimeout(resizeTimeoutId);
+      }
       resizeObserver.disconnect();
       window.removeEventListener('resize', handleResize);
     };
