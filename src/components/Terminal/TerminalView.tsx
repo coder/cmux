@@ -161,6 +161,8 @@ export function TerminalView({ workspaceId, visible }: TerminalViewProps) {
     
     let lastCols = 0;
     let lastRows = 0;
+    let resizeTimeoutId: ReturnType<typeof setTimeout> | null = null;
+    let pendingResize: { cols: number; rows: number } | null = null;
     
     // Use both ResizeObserver (for container changes) and window resize (as backup)
     const handleResize = () => {
@@ -188,10 +190,28 @@ export function TerminalView({ workspaceId, visible }: TerminalViewProps) {
             return { cols, rows };
           });
           
-          // Send resize to PTY immediately so vim/apps get correct dimensions
-          // No debounce - we filter duplicates above instead
-          console.log(`[TerminalView] Sending resize to PTY: ${cols}x${rows}`);
-          resizeRef.current(cols, rows);
+          // Store pending resize
+          pendingResize = { cols, rows };
+          
+          // Throttle PTY resize notifications to avoid overwhelming vim during drag
+          // Clear any pending timeout and set a new one
+          if (resizeTimeoutId !== null) {
+            clearTimeout(resizeTimeoutId);
+          }
+          
+          resizeTimeoutId = setTimeout(() => {
+            if (pendingResize) {
+              // Wait for next frame to ensure terminal has fully rendered
+              requestAnimationFrame(() => {
+                if (pendingResize) {
+                  console.log(`[TerminalView] Sending resize to PTY: ${pendingResize.cols}x${pendingResize.rows}`);
+                  resizeRef.current(pendingResize.cols, pendingResize.rows);
+                  pendingResize = null;
+                }
+              });
+            }
+            resizeTimeoutId = null;
+          }, 250); // 250ms debounce - waits for user to finish resizing before notifying PTY
         } catch (err) {
           console.error("[TerminalView] Error fitting terminal:", err);
         }
@@ -205,6 +225,9 @@ export function TerminalView({ workspaceId, visible }: TerminalViewProps) {
     window.addEventListener('resize', handleResize);
 
     return () => {
+      if (resizeTimeoutId !== null) {
+        clearTimeout(resizeTimeoutId);
+      }
       resizeObserver.disconnect();
       window.removeEventListener('resize', handleResize);
     };
