@@ -163,7 +163,6 @@ export function TerminalView({ workspaceId, visible }: TerminalViewProps) {
     let lastRows = 0;
     let resizeTimeoutId: ReturnType<typeof setTimeout> | null = null;
     let pendingResize: { cols: number; rows: number } | null = null;
-    let lastResizeTime = 0;
     
     // Use both ResizeObserver (for container changes) and window resize (as backup)
     const handleResize = () => {
@@ -180,17 +179,6 @@ export function TerminalView({ workspaceId, visible }: TerminalViewProps) {
             return;
           }
           
-          const now = Date.now();
-          const timeSinceLastResize = now - lastResizeTime;
-          lastResizeTime = now;
-          
-          // Calculate size delta BEFORE updating lastCols/lastRows
-          const prevSize = lastCols * lastRows;
-          const newSize = cols * rows;
-          const sizeDelta = Math.abs(newSize - prevSize);
-          const sizeChangePercent = prevSize > 0 ? (sizeDelta / prevSize) * 100 : 100;
-          
-          // Now update lastCols/lastRows for next comparison
           lastCols = cols;
           lastRows = rows;
           
@@ -205,42 +193,27 @@ export function TerminalView({ workspaceId, visible }: TerminalViewProps) {
           // Store pending resize
           pendingResize = { cols, rows };
           
-          // Detect maximize/minimize: large size change (>20%) OR long pause (>500ms)
-          const isLargeSizeJump = sizeChangePercent > 20;
-          const isAfterPause = timeSinceLastResize > 500;
-          const isMaximizeOrMinimize = isLargeSizeJump || isAfterPause;
+          // Always debounce PTY resize to prevent vim corruption
+          // Clear any pending timeout and set a new one
+          if (resizeTimeoutId !== null) {
+            clearTimeout(resizeTimeoutId);
+          }
           
-          if (isMaximizeOrMinimize) {
-            // Maximize/minimize: send resize immediately
-            console.log(`[TerminalView] Immediate resize (${sizeChangePercent.toFixed(0)}% change): ${cols}x${rows}`);
-            requestAnimationFrame(() => {
-              resizeRef.current(cols, rows);
-            });
-            pendingResize = null;
-            if (resizeTimeoutId !== null) {
-              clearTimeout(resizeTimeoutId);
-              resizeTimeoutId = null;
-            }
-          } else {
-            // Drag resize: debounce to avoid spamming vim with SIGWINCH
-            console.log(`[TerminalView] Debounced resize (${sizeChangePercent.toFixed(0)}% change): ${cols}x${rows}`);
-            if (resizeTimeoutId !== null) {
-              clearTimeout(resizeTimeoutId);
-            }
-            
-            resizeTimeoutId = setTimeout(() => {
-              if (pendingResize) {
-                console.log(`[TerminalView] Sending debounced resize: ${pendingResize.cols}x${pendingResize.rows}`);
+          resizeTimeoutId = setTimeout(() => {
+            if (pendingResize) {
+              console.log(`[TerminalView] Sending resize to PTY: ${pendingResize.cols}x${pendingResize.rows}`);
+              // Double requestAnimationFrame to ensure vim is ready
+              requestAnimationFrame(() => {
                 requestAnimationFrame(() => {
                   if (pendingResize) {
                     resizeRef.current(pendingResize.cols, pendingResize.rows);
                     pendingResize = null;
                   }
                 });
-              }
-              resizeTimeoutId = null;
-            }, 250); // 250ms debounce for drag resize
-          }
+              });
+            }
+            resizeTimeoutId = null;
+          }, 300); // 300ms debounce - enough time for vim to stabilize
         } catch (err) {
           console.error("[TerminalView] Error fitting terminal:", err);
         }
