@@ -1164,6 +1164,7 @@ export class IpcMain {
     );
 
     ipcMain.handle(IPC_CHANNELS.WORKSPACE_OPEN_TERMINAL, async (_event, workspaceId: string) => {
+      console.log(`[BACKEND] WORKSPACE_OPEN_TERMINAL handler called with: ${workspaceId}`);
       try {
         log.info(`[WORKSPACE_OPEN_TERMINAL] Called with workspaceId: ${workspaceId}`);
         // Look up workspace metadata to get runtime config
@@ -1528,6 +1529,7 @@ export class IpcMain {
     });
 
     ipcMain.handle(IPC_CHANNELS.TERMINAL_WINDOW_OPEN, async (_event, workspaceId: string) => {
+      console.log(`[BACKEND] TERMINAL_WINDOW_OPEN handler called with: ${workspaceId}`);
       try {
         log.info(`Opening terminal window for workspace: ${workspaceId}`);
         const devServerPort = process.env.CMUX_DEVSERVER_PORT ?? "5173";
