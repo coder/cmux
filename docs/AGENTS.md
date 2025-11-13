@@ -1,5 +1,7 @@
 # AGENT INSTRUCTIONS
 
+**Edits to this file must be minimal and token-efficient.** Think carefully about how to represent information concisely. Avoid redundant examples or verbose explanations when the knowledge can be conveyed in a sentence or two.
+
 ## Project Context
 
 - Project is named `mux`
@@ -364,6 +366,27 @@ If IPC is hard to test, fix the test infrastructure or IPC layer, don't work aro
 ## Component State Management
 
 **For per-operation state tied to async workflows, parent components should own all localStorage operations.** Child components should notify parents of user intent without manipulating storage directly, preventing bugs from stale or orphaned state across component lifecycles.
+
+**Always use persistedState helpers (`usePersistedState`, `readPersistedState`, `updatePersistedState`) instead of direct `localStorage` calls** - provides cross-component sync and consistent error handling.
+
+**Avoid destructuring props in function signatures** - Use `props.fieldName` instead of destructuring in the parameter list. Destructuring duplicates field names and makes refactoring more cumbersome.
+
+```typescript
+// ❌ BAD - Duplicates field names, harder to refactor
+export function MyComponent({
+  field1,
+  field2,
+  field3,
+  onAction,
+}: MyComponentProps) {
+  return <div onClick={onAction}>{field1}</div>;
+}
+
+// ✅ GOOD - Single source of truth, easier to refactor
+export function MyComponent(props: MyComponentProps) {
+  return <div onClick={props.onAction}>{props.field1}</div>;
+}
+```
 
 ## Module Imports
 

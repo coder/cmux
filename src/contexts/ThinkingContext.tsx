@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import React, { createContext, useContext } from "react";
 import type { ThinkingLevel } from "@/types/thinking";
 import { usePersistedState } from "@/hooks/usePersistedState";
-import { getThinkingLevelKey } from "@/constants/storage";
+import { getThinkingLevelKey, getProjectScopeId, GLOBAL_SCOPE_ID } from "@/constants/storage";
 
 interface ThinkingContextType {
   thinkingLevel: ThinkingLevel;
@@ -22,9 +22,8 @@ export const ThinkingProvider: React.FC<ThinkingProviderProps> = ({
   projectPath,
   children,
 }) => {
-  // Priority: workspace-scoped > project-scoped
-  // Use "/" delimiter so projectPath like "/home/user/project" becomes "__project__/home/user/project"
-  const scopeId = workspaceId ?? (projectPath ? `__project__/${projectPath}` : "__global__");
+  // Priority: workspace-scoped > project-scoped > global
+  const scopeId = workspaceId ?? (projectPath ? getProjectScopeId(projectPath) : GLOBAL_SCOPE_ID);
   const key = getThinkingLevelKey(scopeId);
   const [thinkingLevel, setThinkingLevel] = usePersistedState<ThinkingLevel>(
     key,

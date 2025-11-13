@@ -14,7 +14,7 @@ import { useResumeManager } from "./hooks/useResumeManager";
 import { useUnreadTracking } from "./hooks/useUnreadTracking";
 import { useAutoCompactContinue } from "./hooks/useAutoCompactContinue";
 import { useWorkspaceStoreRaw, useWorkspaceRecency } from "./stores/WorkspaceStore";
-import { FirstMessageInput } from "./components/FirstMessageInput";
+import { ChatInput } from "./components/ChatInput/index";
 
 import { useStableReference, compareMaps } from "./hooks/useStableReference";
 import { CommandRegistryProvider, useCommandRegistry } from "./contexts/CommandRegistryContext";
@@ -120,10 +120,9 @@ function AppInner() {
         window.history.replaceState(null, "", newHash);
       }
 
-      // Update window title with workspace name (prefer displayName if available)
+      // Update window title with workspace name
       const metadata = workspaceMetadata.get(selectedWorkspace.workspaceId);
-      const workspaceName =
-        metadata?.displayName ?? metadata?.name ?? selectedWorkspace.workspaceId;
+      const workspaceName = metadata?.name ?? selectedWorkspace.workspaceId;
       const title = `${workspaceName} - ${selectedWorkspace.projectName} - cmux`;
       void window.api.window.setTitle(title);
     } else {
@@ -630,7 +629,8 @@ function AppInner() {
                 return (
                   <ModeProvider projectPath={projectPath}>
                     <ThinkingProvider projectPath={projectPath}>
-                      <FirstMessageInput
+                      <ChatInput
+                        variant="creation"
                         projectPath={projectPath}
                         projectName={projectName}
                         onWorkspaceCreated={(metadata) => {

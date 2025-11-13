@@ -3,7 +3,7 @@ import React, { createContext, useContext, useEffect } from "react";
 import type { UIMode } from "@/types/mode";
 import { usePersistedState } from "@/hooks/usePersistedState";
 import { matchesKeybind, KEYBINDS } from "@/utils/ui/keybinds";
-import { getModeKey } from "@/constants/storage";
+import { getModeKey, getProjectScopeId, GLOBAL_SCOPE_ID } from "@/constants/storage";
 
 type ModeContextType = [UIMode, (mode: UIMode) => void];
 
@@ -20,9 +20,8 @@ export const ModeProvider: React.FC<ModeProviderProps> = ({
   projectPath,
   children,
 }) => {
-  // Priority: workspace-scoped > project-scoped
-  // Use "/" delimiter so projectPath like "/home/user/project" becomes "__project__/home/user/project"
-  const scopeId = workspaceId ?? (projectPath ? `__project__/${projectPath}` : "__global__");
+  // Priority: workspace-scoped > project-scoped > global
+  const scopeId = workspaceId ?? (projectPath ? getProjectScopeId(projectPath) : GLOBAL_SCOPE_ID);
   const modeKey = getModeKey(scopeId);
   const [mode, setMode] = usePersistedState<UIMode>(modeKey, "exec", {
     listener: true, // Listen for changes from command palette and other sources

@@ -252,7 +252,6 @@ export class Config {
             const metadata: WorkspaceMetadata = {
               id: workspace.id,
               name: workspace.name,
-              displayName: workspace.displayName, // Optional display title
               projectName,
               projectPath,
               // GUARANTEE: All workspaces must have createdAt (assign now if missing)
@@ -407,14 +406,13 @@ export class Config {
    */
   async updateWorkspaceMetadata(
     workspaceId: string,
-    updates: Partial<Pick<WorkspaceMetadata, "name" | "displayName">>
+    updates: Partial<Pick<WorkspaceMetadata, "name">>
   ): Promise<void> {
     await this.editConfig((config) => {
       for (const [_projectPath, projectConfig] of config.projects) {
         const workspace = projectConfig.workspaces.find((w) => w.id === workspaceId);
         if (workspace) {
           if (updates.name !== undefined) workspace.name = updates.name;
-          if (updates.displayName !== undefined) workspace.displayName = updates.displayName;
           return config;
         }
       }
