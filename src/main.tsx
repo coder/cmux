@@ -41,7 +41,8 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
 
 // Register service worker for PWA support
 if ("serviceWorker" in navigator) {
-  const isHttpProtocol = window.location.protocol === "http:" || window.location.protocol === "https:";
+  const isHttpProtocol =
+    window.location.protocol === "http:" || window.location.protocol === "https:";
   if (isHttpProtocol) {
     window.addEventListener("load", () => {
       navigator.serviceWorker
