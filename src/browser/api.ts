@@ -273,12 +273,9 @@ const webApi: IPCApi = {
   },
 };
 
-// Only shim window.api if we're not in Electron (i.e., running in browser/server mode)
-// In Electron, window.api is provided by the preload script before this module loads
 if (typeof window.api === "undefined") {
   // @ts-expect-error - Assigning to window.api which is not in TypeScript types
   window.api = webApi;
-  console.log("[Browser API] Shimmed window.api (server mode)");
 }
 
 window.addEventListener("beforeunload", () => {

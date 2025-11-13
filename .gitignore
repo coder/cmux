@@ -1,3 +1,8 @@
+# Vim swap files
+*.swp
+*.swo
+*~
+
 # OSX
 .DS_Store
 
