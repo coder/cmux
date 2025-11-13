@@ -140,6 +140,11 @@ export function TerminalView({ workspaceId, visible }: TerminalViewProps) {
           // Debug: log output to check for corruption
           if (msg.data.includes("38;5;130")) {
             console.log("[TerminalView] DETECTED COLOR CODE IN OUTPUT:", JSON.stringify(msg.data.substring(0, 200)));
+            // Check if escape sequence is malformed (missing ESC[)
+            if (/^[0-9;]+m/.test(msg.data) || /[^\\x1b][0-9;]+m/.test(msg.data)) {
+              console.error("[TerminalView] MALFORMED ESCAPE SEQUENCE - Missing ESC[");
+              console.error("[TerminalView] First 20 bytes:", Array.from(msg.data.substring(0, 20)).map(c => c.charCodeAt(0).toString(16)).join(' '));
+            }
           }
           currentTerm.write(msg.data);
         } else if (msg.type === "exit") {
