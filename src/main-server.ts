@@ -136,7 +136,13 @@ const app = express();
 app.use(cors());
 app.use(express.json({ limit: "50mb" }));
 
-// Initialize server in async context
+// Track WebSocket clients and their subscriptions
+const clients: Clients = new Map();
+
+const mockWindow = new MockBrowserWindow(clients);
+const httpIpcMain = new HttpIpcMainAdapter(app);
+
+// Initialize async services and register handlers
 (async () => {
   // Migrate from .cmux to .mux directory structure if needed
   migrateCmuxToMux();
@@ -144,15 +150,10 @@ app.use(express.json({ limit: "50mb" }));
   // Initialize config and IPC service
   const config = new Config();
   const ipcMainService = new IpcMain(config);
-
-  // Track WebSocket clients and their subscriptions
-  const clients: Clients = new Map();
-
-  const mockWindow = new MockBrowserWindow(clients);
-  const httpIpcMain = new HttpIpcMainAdapter(app);
+  await ipcMainService.initialize();
 
   // Register IPC handlers
-  await ipcMainService.register(
+  ipcMainService.register(
     httpIpcMain as unknown as ElectronIpcMain,
     mockWindow as unknown as BrowserWindow
   );
