@@ -115,7 +115,7 @@ dev-server: node_modules/.installed build-main ## Start server mode with hot rel
 
 
 start: node_modules/.installed build-main build-preload build-static ## Build and start Electron app
-	@bun x electron --remote-debugging-port=9222 .
+	@CMUX_DEV_MODE=1 bun x electron --remote-debugging-port=9222 .
 
 ## Build targets (can run in parallel)
 build: node_modules/.installed src/version.ts build-renderer build-main build-preload build-icons build-static ## Build all targets
