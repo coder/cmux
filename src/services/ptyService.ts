@@ -94,7 +94,15 @@ export class PTYService {
       }
 
       // Forward PTY data to terminal server
+      let chunkCount = 0;
       ptyProcess.onData((data) => {
+        chunkCount++;
+        // Debug: Log every chunk from PTY
+        const firstTenBytes = Array.from(data.substring(0, Math.min(10, data.length)))
+          .map(c => c.charCodeAt(0).toString(16).padStart(2, '0'))
+          .join(' ');
+        log.info(`[PTY] Chunk ${chunkCount}: ${data.length} bytes, first 10: ${firstTenBytes}`);
+        
         this.terminalServer?.sendOutput(sessionId, data);
       });
 
