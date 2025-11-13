@@ -23,17 +23,20 @@ interface UseAIViewKeybindsParams {
   handleOpenTerminal: () => void;
   aggregator: StreamingMessageAggregator; // For compaction detection
   setEditingMessage: (editing: { id: string; content: string } | undefined) => void;
+  vimEnabled: boolean; // For vim-aware interrupt keybind
 }
 
 /**
  * Manages keyboard shortcuts for AIView:
- * - Escape: Interrupt stream
+ * - Esc (non-vim) or Ctrl+C (vim): Interrupt stream (always, regardless of selection)
  * - Ctrl+I: Focus chat input
  * - Ctrl+Shift+T: Toggle thinking level
  * - Ctrl+G: Jump to bottom
  * - Ctrl+T: Open terminal
- * - Ctrl+C (during compaction): Cancel compaction, restore command (uses localStorage)
+ * - Ctrl+C (during compaction in vim mode): Cancel compaction, restore command
  * - Ctrl+A (during compaction): Accept early with [truncated]
+ *
+ * Note: In vim mode, Ctrl+C always interrupts streams. Use vim yank (y) commands for copying.
  */
 export function useAIViewKeybinds({
   workspaceId,
@@ -48,13 +51,19 @@ export function useAIViewKeybinds({
   handleOpenTerminal,
   aggregator,
   setEditingMessage,
+  vimEnabled,
 }: UseAIViewKeybindsParams): void {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Ctrl+C during compaction: cancel and restore command to input
+      // Check vim-aware interrupt keybind
+      const interruptKeybind = vimEnabled
+        ? KEYBINDS.INTERRUPT_STREAM_VIM
+        : KEYBINDS.INTERRUPT_STREAM_NORMAL;
+
+      // Interrupt stream: Ctrl+C in vim mode, Esc in normal mode
       // (different from Ctrl+A which accepts early with [truncated])
-      // Only intercept if actively compacting (otherwise allow browser default for copy)
-      if (matchesKeybind(e, KEYBINDS.INTERRUPT_STREAM)) {
+      // Only intercept if actively compacting (otherwise allow browser default for copy in vim mode)
+      if (matchesKeybind(e, interruptKeybind)) {
         if (canInterrupt && isCompactingStream(aggregator)) {
           // Ctrl+C during compaction: restore original state and enter edit mode
           // Stores cancellation marker in localStorage (persists across reloads)
@@ -67,33 +76,14 @@ export function useAIViewKeybinds({
         }
 
         // Normal stream interrupt (non-compaction)
-        // Allow interrupt in editable elements if there's no text selection
-        // This way Ctrl+C works for both copy (when text is selected) and interrupt (when not)
-        const inEditableElement = isEditableElement(e.target);
-        let hasSelection = false;
-
-        if (inEditableElement) {
-          // For input/textarea elements, check selectionStart/selectionEnd
-          // (window.getSelection() doesn't work for form elements)
-          const target = e.target as HTMLInputElement | HTMLTextAreaElement;
-          hasSelection =
-            typeof target.selectionStart === "number" &&
-            typeof target.selectionEnd === "number" &&
-            target.selectionStart !== target.selectionEnd;
-        } else {
-          // For contentEditable and other elements, use window.getSelection()
-          hasSelection = (window.getSelection()?.toString().length ?? 0) > 0;
-        }
-
-        if ((canInterrupt || showRetryBarrier) && (!inEditableElement || !hasSelection)) {
+        // Vim mode: Ctrl+C always interrupts (vim uses yank for copy, not Ctrl+C)
+        // Non-vim mode: Esc always interrupts
+        if (canInterrupt || showRetryBarrier) {
           e.preventDefault();
           setAutoRetry(false); // User explicitly stopped - don't auto-retry
           void window.api.workspace.interruptStream(workspaceId);
           return;
         }
-
-        // Let browser handle Ctrl+C (copy) when there's a selection
-        return;
       }
 
       // Ctrl+A during compaction: accept early with [truncated] sentinel
@@ -184,5 +174,6 @@ export function useAIViewKeybinds({
     chatInputAPI,
     aggregator,
     setEditingMessage,
+    vimEnabled,
   ]);
 }

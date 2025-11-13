@@ -15,8 +15,8 @@ import * as fs from "fs";
 import * as path from "path";
 import { parseArgs } from "util";
 import { defaultConfig } from "@/config";
-import type { CmuxMessage } from "@/types/message";
-import { createCmuxMessage } from "@/types/message";
+import type { MuxMessage } from "@/types/message";
+import { createMuxMessage } from "@/types/message";
 import { InitStateManager } from "@/services/initStateManager";
 import { AIService } from "@/services/aiService";
 import { HistoryService } from "@/services/historyService";
@@ -57,11 +57,11 @@ async function main() {
 
   // Read history
   const historyContent = fs.readFileSync(historyFile, "utf-8");
-  let messages: CmuxMessage[];
+  let messages: MuxMessage[];
 
   try {
     // Try parsing as JSON array first
-    messages = JSON.parse(historyContent) as CmuxMessage[];
+    messages = JSON.parse(historyContent) as MuxMessage[];
     if (!Array.isArray(messages)) {
       messages = [messages];
     }
@@ -70,7 +70,7 @@ async function main() {
     messages = historyContent
       .split("\n")
       .filter((line) => line.trim())
-      .map((line) => JSON.parse(line) as CmuxMessage);
+      .map((line) => JSON.parse(line) as MuxMessage);
   }
 
   console.log(`📝 Loaded ${messages.length} messages from history\n`);
@@ -110,7 +110,7 @@ async function main() {
   console.log(`\n✓ Created temporary workspace: ${workspaceId}`);
 
   // Add new user message to the history
-  const userMessage = createCmuxMessage(
+  const userMessage = createMuxMessage(
     `user-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
     "user",
     messageText,

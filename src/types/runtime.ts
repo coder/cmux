@@ -35,6 +35,7 @@ export type RuntimeConfig =
 /**
  * Parse runtime string from localStorage or UI input into mode and host
  * Format: "ssh <host>" -> { mode: "ssh", host: "<host>" }
+ *         "ssh" -> { mode: "ssh", host: "" }
  *         "local" or undefined -> { mode: "local", host: "" }
  *
  * Use this for UI state management (localStorage, form inputs)
@@ -54,7 +55,8 @@ export function parseRuntimeModeAndHost(runtime: string | null | undefined): {
     return { mode: RUNTIME_MODE.LOCAL, host: "" };
   }
 
-  if (lowerTrimmed.startsWith(SSH_RUNTIME_PREFIX)) {
+  // Handle both "ssh" and "ssh <host>"
+  if (lowerTrimmed === RUNTIME_MODE.SSH || lowerTrimmed.startsWith(SSH_RUNTIME_PREFIX)) {
     const host = trimmed.substring(SSH_RUNTIME_PREFIX.length).trim();
     return { mode: RUNTIME_MODE.SSH, host };
   }
@@ -65,12 +67,22 @@ export function parseRuntimeModeAndHost(runtime: string | null | undefined): {
 
 /**
  * Build runtime string for storage/IPC from mode and host
- * Returns: "ssh <host>" for SSH, undefined for local
+ * Returns: "ssh <host>" for SSH with host, "ssh" for SSH without host, undefined for local
  */
 export function buildRuntimeString(mode: RuntimeMode, host: string): string | undefined {
   if (mode === RUNTIME_MODE.SSH) {
     const trimmedHost = host.trim();
-    return trimmedHost ? `${SSH_RUNTIME_PREFIX}${trimmedHost}` : undefined;
+    // Persist SSH mode even without a host so UI remains in SSH state
+    return trimmedHost ? `${SSH_RUNTIME_PREFIX}${trimmedHost}` : "ssh";
   }
   return undefined;
+}
+
+/**
+ * Type guard to check if a runtime config is SSH
+ */
+export function isSSHRuntime(
+  config: RuntimeConfig | undefined
+): config is Extract<RuntimeConfig, { type: "ssh" }> {
+  return config?.type === "ssh";
 }

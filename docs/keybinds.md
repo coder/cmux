@@ -1,6 +1,6 @@
 # Keyboard Shortcuts
 
-cmux is designed to be keyboard-driven for maximum efficiency. All major actions have keyboard shortcuts.
+mux is designed to be keyboard-driven for maximum efficiency. All major actions have keyboard shortcuts.
 
 > **Note**: This document should be kept in sync with `src/utils/ui/keybinds.ts`, which is the source of truth for keybind definitions.
 

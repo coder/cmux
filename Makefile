@@ -1,6 +1,6 @@
 # Build System
 # ============
-# This Makefile orchestrates the cmux build process.
+# This Makefile orchestrates the mux build process.
 #
 # Quick Start:
 #   make help          - Show all available targets
@@ -37,6 +37,7 @@ include fmt.mk
 .PHONY: lint lint-fix typecheck static-check
 .PHONY: test test-unit test-integration test-watch test-coverage test-e2e
 .PHONY: dist dist-mac dist-win dist-linux
+.PHONY: vscode-ext vscode-ext-install
 .PHONY: docs docs-build docs-watch
 .PHONY: storybook storybook-build test-storybook chromatic
 .PHONY: benchmark-terminal
@@ -83,6 +84,10 @@ node_modules/.installed: package.json bun.lock
 # Legacy target for backwards compatibility
 ensure-deps: node_modules/.installed
 
+
+
+
+
 ## Help
 help: ## Show this help message
 	@echo 'Usage: make [target]'
@@ -104,13 +109,13 @@ dev-server: node_modules/.installed build-main ## Start server mode with hot rel
 	@echo "For remote access: make dev-server VITE_HOST=0.0.0.0 BACKEND_HOST=0.0.0.0"
 	@bun x concurrently -k \
 		"bun x concurrently \"$(TSGO) -w -p tsconfig.main.json\" \"bun x tsc-alias -w -p tsconfig.main.json\"" \
-		"bun x nodemon --watch dist/main.js --watch dist/main-server.js --delay 500ms --exec 'node dist/main.js server --host $(or $(BACKEND_HOST),localhost) --port $(or $(BACKEND_PORT),3000)'" \
-		"CMUX_VITE_HOST=$(or $(VITE_HOST),127.0.0.1) CMUX_VITE_PORT=$(or $(VITE_PORT),5173) VITE_BACKEND_URL=http://$(or $(BACKEND_HOST),localhost):$(or $(BACKEND_PORT),3000) vite"
+		"bun x nodemon --watch dist/main.js --watch dist/main-server.js --delay 500ms --exec 'NODE_ENV=development node dist/main.js server --host $(or $(BACKEND_HOST),localhost) --port $(or $(BACKEND_PORT),3000)'" \
+		"MUX_VITE_HOST=$(or $(VITE_HOST),127.0.0.1) MUX_VITE_PORT=$(or $(VITE_PORT),5173) VITE_BACKEND_URL=http://$(or $(BACKEND_HOST),localhost):$(or $(BACKEND_PORT),3000) vite"
 
 
 
 start: node_modules/.installed build-main build-preload build-static ## Build and start Electron app
-	@bun x electron --remote-debugging-port=9222 .
+	@NODE_ENV=development bun x electron --remote-debugging-port=9222 .
 
 ## Build targets (can run in parallel)
 build: node_modules/.installed src/version.ts build-renderer build-main build-preload build-icons build-static ## Build all targets
@@ -140,6 +145,7 @@ build-renderer: node_modules/.installed src/version.ts ## Build renderer process
 build-static: ## Copy static assets to dist
 	@echo "Copying static assets..."
 	@mkdir -p dist
+	@./scripts/copy-fonts.sh
 	@cp static/splash.html dist/splash.html
 	@cp -r public/* dist/
 
@@ -220,7 +226,7 @@ test-coverage: ## Run tests with coverage
 
 test-e2e: ## Run end-to-end tests
 	@$(MAKE) build
-	@CMUX_E2E_LOAD_DIST=1 CMUX_E2E_SKIP_BUILD=1 PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 bun x playwright test --project=electron $(PLAYWRIGHT_ARGS)
+	@MUX_E2E_LOAD_DIST=1 MUX_E2E_SKIP_BUILD=1 PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 bun x playwright test --project=electron $(PLAYWRIGHT_ARGS)
 
 ## Distribution
 dist: build ## Build distributable packages
@@ -267,6 +273,14 @@ dist-win: build ## Build Windows distributable
 dist-linux: build ## Build Linux distributable
 	@bun x electron-builder --linux --publish never
 
+## VS Code Extension (delegates to vscode/Makefile)
+
+vscode-ext: ## Build VS Code extension (.vsix)
+	@$(MAKE) -C vscode build
+
+vscode-ext-install: ## Build and install VS Code extension locally
+	@$(MAKE) -C vscode install
+
 ## Documentation
 docs: ## Serve documentation locally
 	@./scripts/docs.sh
@@ -295,7 +309,7 @@ chromatic: node_modules/.installed ## Run Chromatic for visual regression testin
 	@bun x chromatic --exit-zero-on-changes
 
 ## Benchmarks
-benchmark-terminal: ## Run Terminal-Bench with the cmux agent (use TB_DATASET/TB_SAMPLE_SIZE/TB_TIMEOUT/TB_ARGS to customize)
+benchmark-terminal: ## Run Terminal-Bench with the mux agent (use TB_DATASET/TB_SAMPLE_SIZE/TB_TIMEOUT/TB_ARGS to customize)
 	@TB_DATASET=$${TB_DATASET:-terminal-bench-core==0.1.1}; \
 	TB_TIMEOUT=$${TB_TIMEOUT:-1800}; \
 	CONCURRENCY_FLAG=$${TB_CONCURRENCY:+--n-concurrent $$TB_CONCURRENCY}; \
@@ -320,10 +334,10 @@ benchmark-terminal: ## Run Terminal-Bench with the cmux agent (use TB_DATASET/TB
 	fi; \
 	echo "Using timeout: $$TB_TIMEOUT seconds"; \
 	echo "Running Terminal-Bench with dataset $$TB_DATASET"; \
-	export CMUX_TIMEOUT_MS=$$((TB_TIMEOUT * 1000)); \
+	export MUX_TIMEOUT_MS=$$((TB_TIMEOUT * 1000)); \
 	uvx terminal-bench run \
 		--dataset "$$TB_DATASET" \
-		--agent-import-path benchmarks.terminal_bench.cmux_agent:CmuxAgent \
+		--agent-import-path benchmarks.terminal_bench.mux_agent:CmuxAgent \
 		--global-agent-timeout-sec $$TB_TIMEOUT \
 		$$CONCURRENCY_FLAG \
 		$$LIVESTREAM_FLAG \

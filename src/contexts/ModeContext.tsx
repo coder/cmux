@@ -3,19 +3,27 @@ import React, { createContext, useContext, useEffect } from "react";
 import type { UIMode } from "@/types/mode";
 import { usePersistedState } from "@/hooks/usePersistedState";
 import { matchesKeybind, KEYBINDS } from "@/utils/ui/keybinds";
-import { getModeKey } from "@/constants/storage";
+import { getModeKey, getProjectScopeId, GLOBAL_SCOPE_ID } from "@/constants/storage";
 
 type ModeContextType = [UIMode, (mode: UIMode) => void];
 
 const ModeContext = createContext<ModeContextType | undefined>(undefined);
 
 interface ModeProviderProps {
-  workspaceId: string;
+  workspaceId?: string; // Workspace-scoped storage (highest priority)
+  projectPath?: string; // Project-scoped storage (fallback if no workspaceId)
   children: ReactNode;
 }
 
-export const ModeProvider: React.FC<ModeProviderProps> = ({ workspaceId, children }) => {
-  const [mode, setMode] = usePersistedState<UIMode>(getModeKey(workspaceId), "exec", {
+export const ModeProvider: React.FC<ModeProviderProps> = ({
+  workspaceId,
+  projectPath,
+  children,
+}) => {
+  // Priority: workspace-scoped > project-scoped > global
+  const scopeId = workspaceId ?? (projectPath ? getProjectScopeId(projectPath) : GLOBAL_SCOPE_ID);
+  const modeKey = getModeKey(scopeId);
+  const [mode, setMode] = usePersistedState<UIMode>(modeKey, "exec", {
     listener: true, // Listen for changes from command palette and other sources
   });
 

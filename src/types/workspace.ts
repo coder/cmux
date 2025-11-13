@@ -40,7 +40,7 @@ export interface WorkspaceMetadata {
   /** Stable unique identifier (10 hex chars for new workspaces, legacy format for old) */
   id: string;
 
-  /** User-facing workspace name (e.g., "feature-branch") */
+  /** Git branch / directory name (e.g., "feature-branch") - used for path computation */
   name: string;
 
   /** Project name extracted from project path (for display) */
@@ -52,8 +52,8 @@ export interface WorkspaceMetadata {
   /** ISO 8601 timestamp of when workspace was created (optional for backward compatibility) */
   createdAt?: string;
 
-  /** Runtime configuration for this workspace (optional, defaults to local) */
-  runtimeConfig?: RuntimeConfig;
+  /** Runtime configuration for this workspace (always set, defaults to local on load) */
+  runtimeConfig: RuntimeConfig;
 }
 
 /**

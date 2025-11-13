@@ -4,12 +4,12 @@ import * as path from "path";
 import type { InitLogger } from "./Runtime";
 
 /**
- * Check if .cmux/init hook exists and is executable
+ * Check if .mux/init hook exists and is executable
  * @param projectPath - Path to the project root
  * @returns true if hook exists and is executable, false otherwise
  */
 export async function checkInitHookExists(projectPath: string): Promise<boolean> {
-  const hookPath = path.join(projectPath, ".cmux", "init");
+  const hookPath = path.join(projectPath, ".mux", "init");
 
   try {
     await fsPromises.access(hookPath, fs.constants.X_OK);
@@ -23,7 +23,23 @@ export async function checkInitHookExists(projectPath: string): Promise<boolean>
  * Get the init hook path for a project
  */
 export function getInitHookPath(projectPath: string): string {
-  return path.join(projectPath, ".cmux", "init");
+  return path.join(projectPath, ".mux", "init");
+}
+
+/**
+ * Get environment variables for init hook execution
+ * Centralizes env var injection to avoid duplication across runtimes
+ * @param projectPath - Path to project root (local path for LocalRuntime, remote path for SSHRuntime)
+ * @param runtime - Runtime type: "local" or "ssh"
+ */
+export function getInitHookEnv(
+  projectPath: string,
+  runtime: "local" | "ssh"
+): Record<string, string> {
+  return {
+    MUX_PROJECT_PATH: projectPath,
+    MUX_RUNTIME: runtime,
+  };
 }
 
 /**

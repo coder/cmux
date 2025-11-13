@@ -52,7 +52,7 @@ function createMockBrowserWindow(): {
  */
 export async function createTestEnvironment(): Promise<TestEnvironment> {
   // Create temporary directory for test config
-  const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "cmux-test-"));
+  const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "mux-test-"));
 
   // Create config with temporary directory
   const config = new Config(tempDir);
@@ -67,6 +67,7 @@ export async function createTestEnvironment(): Promise<TestEnvironment> {
 
   // Create IpcMain instance
   const ipcMain = new IpcMain(config);
+  await ipcMain.initialize();
 
   // Register handlers with mock ipcMain and window
   ipcMain.register(mockIpcMainModule, mockWindow);

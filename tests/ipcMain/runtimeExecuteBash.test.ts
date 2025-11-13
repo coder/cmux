@@ -247,7 +247,7 @@ describeIntegration("Runtime Bash Execution", () => {
 
               // Test command that pipes file through stdin-reading command (grep)
               // This would hang forever if stdin.close() was used instead of stdin.abort()
-              // Regression test for: https://github.com/coder/cmux/issues/503
+              // Regression test for: https://github.com/coder/mux/issues/503
               const startTime = Date.now();
               const events = await sendMessageAndWait(
                 env,

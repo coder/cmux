@@ -1,8 +1,8 @@
 <div align="center">
 
-<img src="docs/img/logo.webp" alt="cmux logo" width="15%" />
+<img src="docs/img/logo.webp" alt="mux logo" width="15%" />
 
-# cmux - coding agent multiplexer
+# mux - coding agent multiplexer
 
 [![CI](https://github.com/coder/cmux/actions/workflows/ci.yml/badge.svg)](https://github.com/coder/cmux/actions/workflows/ci.yml)
 [![Build](https://github.com/coder/cmux/actions/workflows/build.yml/badge.svg?event=merge_group)](https://github.com/coder/cmux/actions/workflows/build.yml?query=event:merge_group)
@@ -11,7 +11,7 @@
 
 </div>
 
-![cmux product screenshot](docs/img/product-hero.webp)
+![mux product screenshot](docs/img/product-hero.webp)
 
 A desktop application for parallel agentic development.
 
@@ -27,23 +27,23 @@ Here are some specific use cases we enable:
   - The stream will automatically resume after restarts or intermittent connection issues. If the model completes early we will show an indicator.
 - **A/B testing**: run multiple workspaces in parallel on the same problem but different approaches,
   abandon the bad ones.
-- **Tangent exploration**: launch tangents in `cmux` away from main work
+- **Tangent exploration**: launch tangents in `mux` away from main work
 
 </details>
 
 ## Features
 
-- Isolated workspaces with central view on git divergence
+- **Isolated workspaces** with central view on git divergence
   - **Local**: git worktrees on your local machine ([docs](https://cmux.io/local.html))
   - **SSH**: regular git clones on a remote server ([docs](https://cmux.io/ssh.html))
-- Multi-model (`sonnet-4-*`, `gpt-5-*`, `opus-4-*`)
+- **Multi-model** (`sonnet-4-*`, `gpt-5-*`, `opus-4-*`)
   - Ollama supported for local LLMs ([docs](https://cmux.io/models.html#ollama-local))
   - OpenRouter supported for long-tail of LLMs ([docs](https://cmux.io/models.html#openrouter-cloud))
+- **VS Code Extension**: Jump into mux workspaces directly from VS Code ([docs](https://cmux.io/vscode-extension.html))
 - Supporting UI and keybinds for efficiently managing a suite of agents
 - Rich markdown outputs (mermaid diagrams, LaTeX, etc.)
 
-`cmux` has a custom agent loop, but, we are heavily inspired by Claude Code in our
-UX. You'll find familiar features like Plan/Exec mode, VIM inputs, `/compact` and new ones
+mux has a custom agent loop but much of the core UX is inspired by Claude Code. You'll find familiar features like Plan/Exec mode, vim inputs, `/compact` and new ones
 like [opportunistic compaction](https://cmux.io/context-management.html) and [mode prompts](https://cmux.io/instruction-files.html#mode-prompts).
 
 **[Read the full documentation →](https://cmux.io)**

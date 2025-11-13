@@ -6,7 +6,7 @@
 
 # Vim Mode
 
-cmux includes a built-in Vim mode for the chat input, providing familiar Vim-style editing for power users.
+mux includes a built-in Vim mode for the chat input, providing familiar Vim-style editing for power users.
 
 ## Enabling Vim Mode
 
@@ -146,7 +146,16 @@ ESC is used for:
 
 1. Exiting Vim normal mode (highest priority)
 2. NOT used for canceling edits (use **Ctrl-Q** instead)
-3. NOT used for interrupting streams (use **Ctrl-C** instead)
+3. NOT used for interrupting streams in Vim mode (use **Ctrl-C**)
+4. In non-Vim mode, **Esc** interrupts streams
+
+### Ctrl+C Key (Vim Mode)
+
+In Vim mode, **Ctrl+C always interrupts streams** (similar to terminal interrupt behavior). This means:
+
+- Standard Ctrl+C copy is **not available** in Vim mode
+- Use **vim yank commands** (`y`, `yy`, `yiw`, etc.) to copy text instead
+- This provides consistent interrupt behavior whether text is selected or not
 
 ## Tips
 

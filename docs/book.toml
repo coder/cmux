@@ -3,7 +3,7 @@ authors = ["Ammar Bandukwala"]
 language = "en"
 multilingual = false
 src = "."
-title = "cmux docs"
+title = "mux docs"
 
 [build]
 build-dir = "book"
@@ -20,8 +20,8 @@ command = "bun ../scripts/mdbook-shiki.ts"
 renderer = ["html"]
 
 [output.html]
-git-repository-url = "https://github.com/coder/cmux"
-edit-url-template = "https://github.com/coder/cmux/edit/main/docs/{path}"
+git-repository-url = "https://github.com/coder/mux"
+edit-url-template = "https://github.com/coder/mux/edit/main/docs/{path}"
 additional-js = ["mermaid.min.js", "mermaid-init.js", "theme/pagetoc.js", "theme/copy-buttons.js"]
 additional-css = ["theme/custom.css", "theme/pagetoc.css"]
 default-theme = "navy"

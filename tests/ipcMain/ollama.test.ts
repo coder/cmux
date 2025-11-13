@@ -198,11 +198,11 @@ describeOllama("IpcMain Ollama integration tests", () => {
       const fileReadCall = toolCallStarts.find((e: any) => e.toolName === "file_read");
       expect(fileReadCall).toBeDefined();
 
-      // Verify response mentions README content (cmux heading or similar)
+      // Verify response mentions README content (mux heading or similar)
       const deltas = collector.getDeltas();
       const responseText = extractTextFromEvents(deltas).toLowerCase();
 
-      expect(responseText).toMatch(/cmux|readme|heading/i);
+      expect(responseText).toMatch(/mux|readme|heading/i);
     } finally {
       await cleanup();
     }

@@ -201,7 +201,10 @@ export const KEYBINDS = {
   CANCEL_EDIT: { key: "q", ctrl: true, macCtrlBehavior: "control" },
 
   /** Interrupt active stream (destructive - stops AI generation) */
-  INTERRUPT_STREAM: { key: "c", ctrl: true, macCtrlBehavior: "control" },
+  // Vim mode: Ctrl+C (familiar from terminal interrupt)
+  // Non-Vim mode: Esc (intuitive cancel/stop key)
+  INTERRUPT_STREAM_VIM: { key: "c", ctrl: true, macCtrlBehavior: "control" },
+  INTERRUPT_STREAM_NORMAL: { key: "Escape" },
 
   /** Accept partial compaction early (adds [truncated] sentinel) */
   ACCEPT_EARLY_COMPACTION: { key: "a", ctrl: true, macCtrlBehavior: "control" },
@@ -275,6 +278,9 @@ export const KEYBINDS = {
 
   /** Mark selected hunk as unread in Code Review panel */
   MARK_HUNK_UNREAD: { key: "h" },
+
+  /** Mark entire file (all hunks) as read in Code Review panel */
+  MARK_FILE_READ: { key: "M", shift: true },
 
   /** Toggle hunk expand/collapse in Code Review panel */
   TOGGLE_HUNK_COLLAPSE: { key: " " },

@@ -4,7 +4,7 @@ See also:
 
 - [System Prompt](./system-prompt.md)
 
-cmux supports multiple AI providers through its flexible provider architecture.
+mux supports multiple AI providers through its flexible provider architecture.
 
 ### Supported Providers
 
@@ -41,7 +41,7 @@ Access 300+ models from multiple providers through a single API:
 **Setup:**
 
 1. Get your API key from [openrouter.ai](https://openrouter.ai/)
-2. Add to `~/.cmux/providers.jsonc`:
+2. Add to `~/.mux/providers.jsonc`:
 
 ```jsonc
 {
@@ -53,7 +53,7 @@ Access 300+ models from multiple providers through a single API:
 
 **Provider Routing (Advanced):**
 
-OpenRouter can route requests to specific infrastructure providers (Cerebras, Fireworks, Together, etc.). Configure provider preferences in `~/.cmux/providers.jsonc`:
+OpenRouter can route requests to specific infrastructure providers (Cerebras, Fireworks, Together, etc.). Configure provider preferences in `~/.mux/providers.jsonc`:
 
 ```jsonc
 {
@@ -117,7 +117,7 @@ Run models locally with Ollama. No API key required:
 
 **Custom Configuration** (optional):
 
-By default, cmux connects to Ollama at `http://localhost:11434/api`. To use a remote instance or custom port, add to `~/.cmux/providers.jsonc`:
+By default, mux connects to Ollama at `http://localhost:11434/api`. To use a remote instance or custom port, add to `~/.mux/providers.jsonc`:
 
 ```jsonc
 {
@@ -129,7 +129,7 @@ By default, cmux connects to Ollama at `http://localhost:11434/api`. To use a re
 
 ### Provider Configuration
 
-All providers are configured in `~/.cmux/providers.jsonc`. Example configurations:
+All providers are configured in `~/.mux/providers.jsonc`. Example configurations:
 
 ```jsonc
 {

@@ -20,7 +20,7 @@ const DEBUG_OBJ_DIR = path.join(defaultConfig.rootDir, "debug_obj");
  * Check if debug mode is enabled
  */
 function isDebugMode(): boolean {
-  return parseBoolEnv(process.env.CMUX_DEBUG);
+  return parseBoolEnv(process.env.MUX_DEBUG);
 }
 
 /**
@@ -124,7 +124,7 @@ function safePipeLog(level: "info" | "error" | "debug", ...args: unknown[]): voi
         console.error(prefix, ...args);
       }
     } else if (level === "debug") {
-      // Only log debug messages if CMUX_DEBUG is set
+      // Only log debug messages if MUX_DEBUG is set
       if (isDebugMode()) {
         console.log(prefix, ...args);
       }
@@ -203,7 +203,7 @@ export const log = {
   },
 
   /**
-   * Log a debug message to stdout (only when CMUX_DEBUG is set)
+   * Log a debug message to stdout (only when MUX_DEBUG is set)
    * Prefixes output with caller's file path and line number
    */
   debug: (...args: unknown[]): void => {
@@ -211,7 +211,7 @@ export const log = {
   },
 
   /**
-   * Dump an object to a JSON file for debugging (only when CMUX_DEBUG is set)
+   * Dump an object to a JSON file for debugging (only when MUX_DEBUG is set)
    * Files are written to ~/.cmux/debug_obj/
    *
    * @param filename - Name of the file (e.g., "model_messages.json" or "workspace/data.json")

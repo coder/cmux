@@ -1,10 +1,12 @@
 # Agentic Git Identity
 
-Configure cmux to use a separate Git identity for AI-generated commits, making it easy to distinguish between human and AI contributions. Reasons to use a separate identity include:
+Configure mux to use a separate Git identity for AI-generated commits, making it easy to distinguish between human and AI contributions. Reasons to use a separate identity include:
 
 - Clear attribution
 - Preventing (accidental) destructive actions
 - Enforcing review flow, e.g. preventing AI from merging into `main` while allowing humans
+
+![agentic git identity](./img/agentic-git-id.webp)
 
 ## Setup Overview
 
@@ -31,7 +33,7 @@ Classic tokens are easier to configure than fine-grained tokens for repository a
 2. Go to [Settings → Developer settings → Personal access tokens → Tokens (classic)](https://github.com/settings/tokens)
 3. Click "Generate new token (classic)"
 4. Configure the token:
-   - **Note**: "cmux agent token" (or similar)
+   - **Note**: "mux agent token" (or similar)
    - **Expiration**: Choose based on your security preferences
    - **Scopes**: Select `repo` (Full control of private repositories)
 5. Click "Generate token"
@@ -39,9 +41,9 @@ Classic tokens are easier to configure than fine-grained tokens for repository a
 
 ## Step 3: Configure Git Identity
 
-Add the Git identity environment variables as [Project Secrets](./project-secrets.md) in cmux:
+Add the Git identity environment variables as [Project Secrets](./project-secrets.md) in mux:
 
-1. Open cmux and find your project in the sidebar
+1. Open mux and find your project in the sidebar
 2. Click the 🔑 key icon to open the secrets modal
 3. Add the following four secrets:
    - `GIT_AUTHOR_NAME` = `Your Name (Agent)`
@@ -52,7 +54,7 @@ Add the Git identity environment variables as [Project Secrets](./project-secret
 
 These environment variables will be automatically injected when the agent runs Git commands in that project.
 
-> **Note**: If you need the agent identity outside of cmux, you can alternatively set these as global environment variables in your shell configuration (`~/.zshrc`, `~/.bashrc`, etc.)
+> **Note**: If you need the agent identity outside of mux, you can alternatively set these as global environment variables in your shell configuration (`~/.zshrc`, `~/.bashrc`, etc.)
 
 ## Step 4: Configure GitHub Authentication
 

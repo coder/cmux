@@ -17,12 +17,12 @@ const GitBranchDataSchema = z.object({
 type GitBranchData = z.infer<typeof GitBranchDataSchema>;
 
 const SECTION_MARKERS = {
-  showBranchStart: "__CMUX_BRANCH_DATA__BEGIN_SHOW_BRANCH__",
-  showBranchEnd: "__CMUX_BRANCH_DATA__END_SHOW_BRANCH__",
-  datesStart: "__CMUX_BRANCH_DATA__BEGIN_DATES__",
-  datesEnd: "__CMUX_BRANCH_DATA__END_DATES__",
-  dirtyStart: "__CMUX_BRANCH_DATA__BEGIN_DIRTY_FILES__",
-  dirtyEnd: "__CMUX_BRANCH_DATA__END_DIRTY_FILES__",
+  showBranchStart: "__MUX_BRANCH_DATA__BEGIN_SHOW_BRANCH__",
+  showBranchEnd: "__MUX_BRANCH_DATA__END_SHOW_BRANCH__",
+  datesStart: "__MUX_BRANCH_DATA__BEGIN_DATES__",
+  datesEnd: "__MUX_BRANCH_DATA__END_DATES__",
+  dirtyStart: "__MUX_BRANCH_DATA__BEGIN_DIRTY_FILES__",
+  dirtyEnd: "__MUX_BRANCH_DATA__END_DIRTY_FILES__",
 } as const;
 
 const isDevelopment = import.meta.env.DEV;
@@ -206,9 +206,9 @@ fi
 # Get dirty files if requested
 ${getDirtyFiles}
 
-printf '__CMUX_BRANCH_DATA__BEGIN_SHOW_BRANCH__\\n%s\\n__CMUX_BRANCH_DATA__END_SHOW_BRANCH__\\n' "$SHOW_BRANCH"
-printf '__CMUX_BRANCH_DATA__BEGIN_DATES__\\n%s\\n__CMUX_BRANCH_DATA__END_DATES__\\n' "$DATES_OUTPUT"
-printf '__CMUX_BRANCH_DATA__BEGIN_DIRTY_FILES__\\n%s\\n__CMUX_BRANCH_DATA__END_DIRTY_FILES__\\n' "$DIRTY_FILES"
+printf '__MUX_BRANCH_DATA__BEGIN_SHOW_BRANCH__\\n%s\\n__MUX_BRANCH_DATA__END_SHOW_BRANCH__\\n' "$SHOW_BRANCH"
+printf '__MUX_BRANCH_DATA__BEGIN_DATES__\\n%s\\n__MUX_BRANCH_DATA__END_DATES__\\n' "$DATES_OUTPUT"
+printf '__MUX_BRANCH_DATA__BEGIN_DIRTY_FILES__\\n%s\\n__MUX_BRANCH_DATA__END_DIRTY_FILES__\\n' "$DIRTY_FILES"
 `;
 
       const result = await window.api.workspace.executeBash(workspaceId, script, {

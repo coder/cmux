@@ -16,13 +16,11 @@ describeIntegration("Window title IPC", () => {
         // Call setTitle via IPC
         await env.mockIpcRenderer.invoke(
           IPC_CHANNELS.WINDOW_SET_TITLE,
-          "test-workspace - test-project - cmux"
+          "test-workspace - test-project - mux"
         );
 
         // Verify setTitle was called on the window
-        expect(env.mockWindow.setTitle).toHaveBeenCalledWith(
-          "test-workspace - test-project - cmux"
-        );
+        expect(env.mockWindow.setTitle).toHaveBeenCalledWith("test-workspace - test-project - mux");
       } finally {
         await cleanupTestEnvironment(env);
       }
@@ -37,10 +35,10 @@ describeIntegration("Window title IPC", () => {
 
       try {
         // Set to default title
-        await env.mockIpcRenderer.invoke(IPC_CHANNELS.WINDOW_SET_TITLE, "cmux");
+        await env.mockIpcRenderer.invoke(IPC_CHANNELS.WINDOW_SET_TITLE, "mux");
 
         // Verify setTitle was called with default
-        expect(env.mockWindow.setTitle).toHaveBeenCalledWith("cmux");
+        expect(env.mockWindow.setTitle).toHaveBeenCalledWith("mux");
       } finally {
         await cleanupTestEnvironment(env);
       }

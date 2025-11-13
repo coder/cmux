@@ -676,7 +676,7 @@ export async function createTempGitRepo(): Promise<string> {
   const execAsync = promisify(exec);
 
   // Use mkdtemp to avoid race conditions and ensure unique directory
-  const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "cmux-test-repo-"));
+  const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "mux-test-repo-"));
 
   // Use promisify(exec) for test setup - DisposableExec has issues in CI
   // TODO: Investigate why DisposableExec causes empty git output in CI
@@ -756,7 +756,7 @@ export async function buildLargeHistory(
   } = {}
 ): Promise<void> {
   const { HistoryService } = await import("../../src/services/historyService");
-  const { createCmuxMessage } = await import("../../src/types/message");
+  const { createMuxMessage } = await import("../../src/types/message");
 
   // HistoryService only needs getSessionDir, so we can cast the partial config
   const historyService = new HistoryService(config as any);
@@ -771,7 +771,7 @@ export async function buildLargeHistory(
   for (let i = 0; i < messageCount; i++) {
     const isUser = i % 2 === 0;
     const role = isUser ? "user" : "assistant";
-    const message = createCmuxMessage(`history-msg-${i}`, role, largeText, {});
+    const message = createMuxMessage(`history-msg-${i}`, role, largeText, {});
 
     const result = await historyService.appendToHistory(workspaceId, message);
     if (!result.success) {

@@ -3,7 +3,7 @@ import type { StreamErrorType, SendMessageError } from "@/types/errors";
 
 /**
  * Debug flag to force all errors to be retryable
- * Set in browser console: window.__CMUX_FORCE_ALL_RETRYABLE = true
+ * Set in browser console: window.__MUX_FORCE_ALL_RETRYABLE = true
  *
  * Useful for testing retry/backoff logic without needing to simulate
  * specific network conditions or rate limits.
@@ -14,7 +14,7 @@ import type { StreamErrorType, SendMessageError } from "@/types/errors";
  */
 declare global {
   interface Window {
-    __CMUX_FORCE_ALL_RETRYABLE?: boolean;
+    __MUX_FORCE_ALL_RETRYABLE?: boolean;
   }
 }
 
@@ -22,7 +22,7 @@ declare global {
  * Check if the debug flag to force all errors to be retryable is enabled
  */
 function isForceAllRetryableEnabled(): boolean {
-  return typeof window !== "undefined" && window.__CMUX_FORCE_ALL_RETRYABLE === true;
+  return typeof window !== "undefined" && window.__MUX_FORCE_ALL_RETRYABLE === true;
 }
 
 /**

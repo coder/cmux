@@ -1,6 +1,6 @@
 import type { Result } from "./result";
 import type { FrontendWorkspaceMetadata, WorkspaceMetadata } from "./workspace";
-import type { CmuxMessage, CmuxFrontendMetadata } from "./message";
+import type { MuxMessage, MuxFrontendMetadata } from "./message";
 import type { ChatStats } from "./chatStats";
 import type { ProjectConfig } from "@/config";
 import type { SendMessageError, StreamErrorType } from "./errors";
@@ -8,7 +8,7 @@ import type { ThinkingLevel } from "./thinking";
 import type { ToolPolicy } from "@/utils/tools/toolPolicy";
 import type { BashToolResult } from "./tools";
 import type { Secret } from "./secrets";
-import type { CmuxProviderOptions } from "./providerOptions";
+import type { MuxProviderOptions } from "./providerOptions";
 import type { RuntimeConfig } from "./runtime";
 import type {
   StreamStartEvent,
@@ -76,7 +76,7 @@ export type WorkspaceInitEvent =
 
 // Union type for workspace chat messages
 export type WorkspaceChatMessage =
-  | CmuxMessage
+  | MuxMessage
   | CaughtUpMessage
   | StreamErrorMessage
   | DeleteMessage
@@ -151,8 +151,8 @@ export function isReasoningEnd(msg: WorkspaceChatMessage): msg is ReasoningEndEv
   return "type" in msg && msg.type === "reasoning-end";
 }
 
-// Type guard for CmuxMessage (messages with role but no type field)
-export function isCmuxMessage(msg: WorkspaceChatMessage): msg is CmuxMessage {
+// Type guard for MuxMessage (messages with role but no type field)
+export function isMuxMessage(msg: WorkspaceChatMessage): msg is MuxMessage {
   return "role" in msg && !("type" in msg);
 }
 
@@ -185,9 +185,9 @@ export interface SendMessageOptions {
   toolPolicy?: ToolPolicy;
   additionalSystemInstructions?: string;
   maxOutputTokens?: number;
-  providerOptions?: CmuxProviderOptions;
+  providerOptions?: MuxProviderOptions;
   mode?: string; // Mode name - frontend narrows to specific values, backend accepts any string
-  cmuxMetadata?: CmuxFrontendMetadata; // Frontend-defined metadata, backend treats as black-box
+  cmuxMetadata?: MuxFrontendMetadata; // Frontend-defined metadata, backend treats as black-box
 }
 
 // API method signatures (shared between main and preload)
@@ -204,7 +204,7 @@ export interface IPCApi {
   tokenizer: {
     countTokens(model: string, text: string): Promise<number>;
     countTokensBatch(model: string, texts: string[]): Promise<number[]>;
-    calculateStats(messages: CmuxMessage[], model: string): Promise<ChatStats>;
+    calculateStats(messages: MuxMessage[], model: string): Promise<ChatStats>;
   };
   providers: {
     setProviderConfig(
@@ -252,10 +252,18 @@ export interface IPCApi {
       | { success: false; error: string }
     >;
     sendMessage(
-      workspaceId: string,
+      workspaceId: string | null,
       message: string,
-      options?: SendMessageOptions & { imageParts?: Array<{ url: string; mediaType: string }> }
-    ): Promise<Result<void, SendMessageError>>;
+      options?: SendMessageOptions & {
+        imageParts?: Array<{ url: string; mediaType: string }>;
+        runtimeConfig?: RuntimeConfig;
+        projectPath?: string; // Required when workspaceId is null
+        trunkBranch?: string; // Optional - trunk branch to branch from (when workspaceId is null)
+      }
+    ): Promise<
+      | Result<void, SendMessageError>
+      | { success: true; workspaceId: string; metadata: FrontendWorkspaceMetadata }
+    >;
     resumeStream(
       workspaceId: string,
       options: SendMessageOptions
@@ -267,7 +275,7 @@ export interface IPCApi {
     truncateHistory(workspaceId: string, percentage?: number): Promise<Result<void, string>>;
     replaceChatHistory(
       workspaceId: string,
-      summaryMessage: CmuxMessage
+      summaryMessage: MuxMessage
     ): Promise<Result<void, string>>;
     getInfo(workspaceId: string): Promise<FrontendWorkspaceMetadata | null>;
     executeBash(

@@ -2,18 +2,18 @@
 
 ## Overview
 
-cmux layers instructions from two locations:
+mux layers instructions from two locations:
 
-1. `~/.cmux/AGENTS.md` (+ optional `AGENTS.local.md`) — global defaults
+1. `~/.mux/AGENTS.md` (+ optional `AGENTS.local.md`) — global defaults
 2. `<workspace>/AGENTS.md` (+ optional `AGENTS.local.md`) — workspace-specific context
 
-Priority within each location: `AGENTS.md` → `AGENT.md` → `CLAUDE.md` (first match wins). If the base file is found, cmux also appends `AGENTS.local.md` from the same directory when present.
+Priority within each location: `AGENTS.md` → `AGENT.md` → `CLAUDE.md` (first match wins). If the base file is found, mux also appends `AGENTS.local.md` from the same directory when present.
 
 ## Mode Prompts
 
 > Use mode-specific sections to optimize context and customize the behavior specific modes.
 
-cmux reads mode context from sections inside your instruction files. Add a heading titled:
+mux reads mode context from sections inside your instruction files. Add a heading titled:
 
 - `Mode: <mode>` (case-insensitive), at any heading level (`#` .. `######`)
 
@@ -26,7 +26,7 @@ Rules:
 
 <!-- Note to developers: This behavior is implemented in src/services/systemMessage.ts (search for extractModeSection). Keep this documentation in sync with code changes. -->
 
-Example (in either `~/.cmux/AGENTS.md` or `my-project/AGENTS.md`):
+Example (in either `~/.mux/AGENTS.md` or `my-project/AGENTS.md`):
 
 ```markdown
 # General Instructions
@@ -63,7 +63,7 @@ Customizing the `compact` mode is particularly useful for controlling what infor
 ## Practical layout
 
 ```
-~/.cmux/
+~/.mux/
   AGENTS.md          # Global instructions
   AGENTS.local.md    # Personal tweaks (gitignored)
 

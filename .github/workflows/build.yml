@@ -16,7 +16,7 @@ jobs:
         with:
           fetch-depth: 0 # Required for git describe to find tags
 
-      - uses: ./.github/actions/setup-cmux
+      - uses: ./.github/actions/setup-mux
         with:
           install-imagemagick: true
 
@@ -72,7 +72,7 @@ jobs:
         with:
           fetch-depth: 0 # Required for git describe to find tags
 
-      - uses: ./.github/actions/setup-cmux
+      - uses: ./.github/actions/setup-mux
         with:
           install-imagemagick: true
 
@@ -87,5 +87,26 @@ jobs:
         with:
           name: linux-appimage
           path: release/*.AppImage
+          retention-days: 30
+          if-no-files-found: error
+
+  build-vscode-extension:
+    name: Build VS Code Extension
+    runs-on: ${{ github.repository_owner == 'coder' && 'depot-ubuntu-22.04-16' || 'ubuntu-latest' }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Required for git describe to find tags
+
+      - uses: ./.github/actions/setup-mux
+
+      - uses: ./.github/actions/build-vscode-extension
+
+      - name: Upload VS Code extension artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: vscode-extension
+          path: vscode/cmux-*.vsix
           retention-days: 30
           if-no-files-found: error

@@ -10,4 +10,4 @@ Here are some specific use cases we enable:
     a subtle indicator when the model completes.
 - **A/B testing**: test a variety of approaches to the same problem,
   abandon the bad ones.
-- **Tangent management**: launch tangents in `cmux` away from main work
+- **Tangent management**: launch tangents in `mux` away from main work

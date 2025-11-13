@@ -8,18 +8,23 @@ import React, {
   useMemo,
   useDeferredValue,
 } from "react";
-import { cn } from "@/lib/utils";
-import { CommandSuggestions, COMMAND_SUGGESTION_KEYS } from "./CommandSuggestions";
-import type { Toast } from "./ChatInputToast";
-import { ChatInputToast } from "./ChatInputToast";
-import { createCommandToast, createErrorToast } from "./ChatInputToasts";
+import { CommandSuggestions, COMMAND_SUGGESTION_KEYS } from "../CommandSuggestions";
+import type { Toast } from "../ChatInputToast";
+import { ChatInputToast } from "../ChatInputToast";
+import { createCommandToast, createErrorToast } from "../ChatInputToasts";
 import { parseCommand } from "@/utils/slashCommands/parser";
 import { usePersistedState, updatePersistedState } from "@/hooks/usePersistedState";
 import { useMode } from "@/contexts/ModeContext";
-import { ThinkingSliderComponent } from "./ThinkingSlider";
-import { Context1MCheckbox } from "./Context1MCheckbox";
+import { ThinkingSliderComponent } from "../ThinkingSlider";
+import { Context1MCheckbox } from "../Context1MCheckbox";
 import { useSendMessageOptions } from "@/hooks/useSendMessageOptions";
-import { getModelKey, getInputKey, VIM_ENABLED_KEY } from "@/constants/storage";
+import {
+  getModelKey,
+  getInputKey,
+  VIM_ENABLED_KEY,
+  getProjectScopeId,
+  getPendingScopeId,
+} from "@/constants/storage";
 import {
   handleNewCommand,
   handleCompactCommand,
@@ -27,19 +32,18 @@ import {
   prepareCompactionMessage,
   type CommandHandlerContext,
 } from "@/utils/chatCommands";
-import { ToggleGroup, type ToggleOption } from "./ToggleGroup";
 import { CUSTOM_EVENTS } from "@/constants/events";
-import type { UIMode } from "@/types/mode";
 import {
   getSlashCommandSuggestions,
   type SlashSuggestion,
 } from "@/utils/slashCommands/suggestions";
-import { TooltipWrapper, Tooltip, HelpIndicator } from "./Tooltip";
+import { TooltipWrapper, Tooltip, HelpIndicator } from "../Tooltip";
+import { ModeSelector } from "../ModeSelector";
 import { matchesKeybind, formatKeybind, KEYBINDS, isEditableElement } from "@/utils/ui/keybinds";
-import { ModelSelector, type ModelSelectorRef } from "./ModelSelector";
+import { ModelSelector, type ModelSelectorRef } from "../ModelSelector";
 import { useModelLRU } from "@/hooks/useModelLRU";
-import { VimTextArea } from "./VimTextArea";
-import { ImageAttachments, type ImageAttachment } from "./ImageAttachments";
+import { VimTextArea } from "../VimTextArea";
+import { ImageAttachments, type ImageAttachment } from "../ImageAttachments";
 import {
   extractImagesFromClipboard,
   extractImagesFromDrop,
@@ -47,10 +51,13 @@ import {
 } from "@/utils/imageHandling";
 
 import type { ThinkingLevel } from "@/types/thinking";
-import type { CmuxFrontendMetadata } from "@/types/message";
+import type { MuxFrontendMetadata } from "@/types/message";
 import { useTelemetry } from "@/hooks/useTelemetry";
 import { setTelemetryEnabled } from "@/telemetry";
 import { getTokenCountPromise } from "@/utils/tokenizer/rendererClient";
+import { CreationCenterContent } from "./CreationCenterContent";
+import { CreationControls } from "./CreationControls";
+import { useCreationWorkspace } from "./useCreationWorkspace";
 
 type TokenCountReader = () => number;
 
@@ -82,63 +89,34 @@ function createTokenCountResource(promise: Promise<number>): TokenCountReader {
   };
 }
 
-export interface ChatInputAPI {
-  focus: () => void;
-  restoreText: (text: string) => void;
-  appendText: (text: string) => void;
-}
+// Import types from local types file
+import type { ChatInputProps, ChatInputAPI } from "./types";
+export type { ChatInputProps, ChatInputAPI };
 
-const MODE_OPTIONS: Array<ToggleOption<UIMode>> = [
-  { value: "exec", label: "Exec", activeClassName: "bg-exec-mode text-white" },
-  { value: "plan", label: "Plan", activeClassName: "bg-plan-mode text-white" },
-];
+export const ChatInput: React.FC<ChatInputProps> = (props) => {
+  const { variant } = props;
 
-const ModeHelpTooltip: React.FC = () => (
-  <TooltipWrapper inline>
-    <HelpIndicator>?</HelpIndicator>
-    <Tooltip className="tooltip" align="center" width="wide">
-      <strong>Exec Mode:</strong> AI edits files and execute commands
-      <br />
-      <br />
-      <strong>Plan Mode:</strong> AI proposes plans but does not edit files
-      <br />
-      <br />
-      Toggle with: {formatKeybind(KEYBINDS.TOGGLE_MODE)}
-    </Tooltip>
-  </TooltipWrapper>
-);
-export interface ChatInputProps {
-  workspaceId: string;
-  onMessageSent?: () => void; // Optional callback after successful send
-  onTruncateHistory: (percentage?: number) => Promise<void>;
-  onProviderConfig?: (provider: string, keyPath: string[], value: string) => Promise<void>;
-  onModelChange?: (model: string) => void;
-  disabled?: boolean;
-  isCompacting?: boolean;
-  editingMessage?: { id: string; content: string };
-  onCancelEdit?: () => void;
-  onEditLastUserMessage?: () => void;
-  canInterrupt?: boolean; // Whether Esc can be used to interrupt streaming
-  onReady?: (api: ChatInputAPI) => void; // Callback with focus method
-}
+  // Extract workspace-specific props with defaults
+  const disabled = props.disabled ?? false;
+  const editingMessage = variant === "workspace" ? props.editingMessage : undefined;
+  const isCompacting = variant === "workspace" ? (props.isCompacting ?? false) : false;
+  const canInterrupt = variant === "workspace" ? (props.canInterrupt ?? false) : false;
 
-// Helper function to convert parsed command to display toast
+  // Storage keys differ by variant
+  const storageKeys = (() => {
+    if (variant === "creation") {
+      return {
+        inputKey: getInputKey(getPendingScopeId(props.projectPath)),
+        modelKey: getModelKey(getProjectScopeId(props.projectPath)),
+      };
+    }
+    return {
+      inputKey: getInputKey(props.workspaceId),
+      modelKey: getModelKey(props.workspaceId),
+    };
+  })();
 
-export const ChatInput: React.FC<ChatInputProps> = ({
-  workspaceId,
-  onMessageSent,
-  onTruncateHistory,
-  onProviderConfig,
-  onModelChange,
-  disabled = false,
-  isCompacting = false,
-  editingMessage,
-  onCancelEdit,
-  onEditLastUserMessage,
-  canInterrupt = false,
-  onReady,
-}) => {
-  const [input, setInput] = usePersistedState(getInputKey(workspaceId), "", { listener: true });
+  const [input, setInput] = usePersistedState(storageKeys.inputKey, "", { listener: true });
   const [isSending, setIsSending] = useState(false);
   const [showCommandSuggestions, setShowCommandSuggestions] = useState(false);
   const [commandSuggestions, setCommandSuggestions] = useState<SlashSuggestion[]>([]);
@@ -159,7 +137,10 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   });
 
   // Get current send message options from shared hook (must be at component top level)
-  const sendMessageOptions = useSendMessageOptions(workspaceId);
+  // For creation variant, use project-scoped key; for workspace, use workspace ID
+  const sendMessageOptions = useSendMessageOptions(
+    variant === "workspace" ? props.workspaceId : getProjectScopeId(props.projectPath)
+  );
   // Extract model for convenience (don't create separate state - use hook as single source of truth)
   const preferredModel = sendMessageOptions.model;
   const deferredModel = useDeferredValue(preferredModel);
@@ -179,9 +160,25 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   const setPreferredModel = useCallback(
     (model: string) => {
       addModel(model); // Update LRU
-      updatePersistedState(getModelKey(workspaceId), model); // Update workspace-specific
+      updatePersistedState(storageKeys.modelKey, model); // Update workspace or project-specific
     },
-    [workspaceId, addModel]
+    [storageKeys.modelKey, addModel]
+  );
+
+  // Creation-specific state (hook always called, but only used when variant === "creation")
+  // This avoids conditional hook calls which violate React rules
+  const creationState = useCreationWorkspace(
+    variant === "creation"
+      ? {
+          projectPath: props.projectPath,
+          onWorkspaceCreated: props.onWorkspaceCreated,
+        }
+      : {
+          // Dummy values for workspace variant (never used)
+          projectPath: "",
+          // eslint-disable-next-line @typescript-eslint/no-empty-function
+          onWorkspaceCreated: () => {},
+        }
   );
 
   const focusMessageInput = useCallback(() => {
@@ -225,14 +222,14 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 
   // Provide API to parent via callback
   useEffect(() => {
-    if (onReady) {
-      onReady({
+    if (props.onReady) {
+      props.onReady({
         focus: focusMessageInput,
         restoreText,
         appendText,
       });
     }
-  }, [onReady, focusMessageInput, restoreText, appendText]);
+  }, [props.onReady, focusMessageInput, restoreText, appendText, props]);
 
   useEffect(() => {
     const handleGlobalKeyDown = (event: KeyboardEvent) => {
@@ -327,11 +324,13 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       window.removeEventListener(CUSTOM_EVENTS.OPEN_MODEL_SELECTOR, handler as EventListener);
   }, []);
 
-  // Show toast when thinking level is changed via command palette
+  // Show toast when thinking level is changed via command palette (workspace only)
   useEffect(() => {
+    if (variant !== "workspace") return;
+
     const handler = (event: Event) => {
       const detail = (event as CustomEvent<{ workspaceId: string; level: ThinkingLevel }>).detail;
-      if (detail?.workspaceId !== workspaceId || !detail.level) {
+      if (detail?.workspaceId !== props.workspaceId || !detail.level) {
         return;
       }
 
@@ -353,16 +352,19 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     window.addEventListener(CUSTOM_EVENTS.THINKING_LEVEL_TOAST, handler as EventListener);
     return () =>
       window.removeEventListener(CUSTOM_EVENTS.THINKING_LEVEL_TOAST, handler as EventListener);
-  }, [workspaceId, setToast]);
+  }, [variant, props, setToast]);
 
-  // Auto-focus chat input when workspace changes (e.g., new workspace created or switched)
+  // Auto-focus chat input when workspace changes (workspace only)
+  const workspaceIdForFocus = variant === "workspace" ? props.workspaceId : null;
   useEffect(() => {
+    if (variant !== "workspace") return;
+
     // Small delay to ensure DOM is ready and other components have settled
     const timer = setTimeout(() => {
       focusMessageInput();
     }, 100);
     return () => clearTimeout(timer);
-  }, [workspaceId, focusMessageInput]);
+  }, [variant, workspaceIdForFocus, focusMessageInput]);
 
   // Handle paste events to extract images
   const handlePaste = useCallback((e: React.ClipboardEvent<HTMLTextAreaElement>) => {
@@ -423,6 +425,19 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 
     const messageText = input.trim();
 
+    // Route to creation handler for creation variant
+    if (variant === "creation") {
+      // Creation variant: simple message send + workspace creation
+      setIsSending(true);
+      setInput(""); // Clear input immediately (will be restored by parent if creation fails)
+      await creationState.handleSend(messageText);
+      setIsSending(false);
+      return;
+    }
+
+    // Workspace variant: full command handling + message send
+    if (variant !== "workspace") return; // Type guard
+
     try {
       // Parse command
       const parsed = parseCommand(messageText);
@@ -434,7 +449,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
           if (inputRef.current) {
             inputRef.current.style.height = "36px";
           }
-          await onTruncateHistory(1.0);
+          await props.onTruncateHistory(1.0);
           setToast({
             id: Date.now().toString(),
             type: "success",
@@ -449,7 +464,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
           if (inputRef.current) {
             inputRef.current.style.height = "36px";
           }
-          await onTruncateHistory(parsed.percentage);
+          await props.onTruncateHistory(parsed.percentage);
           setToast({
             id: Date.now().toString(),
             type: "success",
@@ -459,12 +474,12 @@ export const ChatInput: React.FC<ChatInputProps> = ({
         }
 
         // Handle /providers set command
-        if (parsed.type === "providers-set" && onProviderConfig) {
+        if (parsed.type === "providers-set" && props.onProviderConfig) {
           setIsSending(true);
           setInput(""); // Clear input immediately
 
           try {
-            await onProviderConfig(parsed.provider, parsed.keyPath, parsed.value);
+            await props.onProviderConfig(parsed.provider, parsed.keyPath, parsed.value);
             // Success - show toast
             setToast({
               id: Date.now().toString(),
@@ -489,7 +504,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
         if (parsed.type === "model-set") {
           setInput(""); // Clear input immediately
           setPreferredModel(parsed.modelString);
-          onModelChange?.(parsed.modelString);
+          props.onModelChange?.(parsed.modelString);
           setToast({
             id: Date.now().toString(),
             type: "success",
@@ -520,13 +535,13 @@ export const ChatInput: React.FC<ChatInputProps> = ({
         // Handle /compact command
         if (parsed.type === "compact") {
           const context: CommandHandlerContext = {
-            workspaceId,
+            workspaceId: props.workspaceId,
             sendMessageOptions,
             editMessageId: editingMessage?.id,
             setInput,
             setIsSending,
             setToast,
-            onCancelEdit,
+            onCancelEdit: props.onCancelEdit,
           };
 
           const result = await handleCompactCommand(parsed, context);
@@ -543,7 +558,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 
           try {
             const forkResult = await forkWorkspace({
-              sourceWorkspaceId: workspaceId,
+              sourceWorkspaceId: props.workspaceId,
               newName: parsed.newName,
               startMessage: parsed.startMessage,
               sendMessageOptions,
@@ -585,7 +600,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
         // Handle /new command
         if (parsed.type === "new") {
           const context: CommandHandlerContext = {
-            workspaceId,
+            workspaceId: props.workspaceId,
             sendMessageOptions,
             setInput,
             setIsSending,
@@ -645,7 +660,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 
         // When editing a /compact command, regenerate the actual summarization request
         let actualMessageText = messageText;
-        let cmuxMetadata: CmuxFrontendMetadata | undefined;
+        let cmuxMetadata: MuxFrontendMetadata | undefined;
         let compactionOptions = {};
 
         if (editingMessage && messageText.startsWith("/")) {
@@ -656,7 +671,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
               metadata,
               sendOptions,
             } = prepareCompactionMessage({
-              workspaceId,
+              workspaceId: props.workspaceId,
               maxOutputTokens: parsed.maxOutputTokens,
               continueMessage: parsed.continueMessage,
               model: parsed.model,
@@ -677,13 +692,17 @@ export const ChatInput: React.FC<ChatInputProps> = ({
           inputRef.current.style.height = "36px";
         }
 
-        const result = await window.api.workspace.sendMessage(workspaceId, actualMessageText, {
-          ...sendMessageOptions,
-          ...compactionOptions,
-          editMessageId: editingMessage?.id,
-          imageParts: imageParts.length > 0 ? imageParts : undefined,
-          cmuxMetadata,
-        });
+        const result = await window.api.workspace.sendMessage(
+          props.workspaceId,
+          actualMessageText,
+          {
+            ...sendMessageOptions,
+            ...compactionOptions,
+            editMessageId: editingMessage?.id,
+            imageParts: imageParts.length > 0 ? imageParts : undefined,
+            cmuxMetadata,
+          }
+        );
 
         if (!result.success) {
           // Log error for debugging
@@ -698,10 +717,10 @@ export const ChatInput: React.FC<ChatInputProps> = ({
           telemetry.messageSent(sendMessageOptions.model, mode, actualMessageText.length);
 
           // Exit editing mode if we were editing
-          if (editingMessage && onCancelEdit) {
-            onCancelEdit();
+          if (editingMessage && props.onCancelEdit) {
+            props.onCancelEdit();
           }
-          onMessageSent?.();
+          props.onMessageSent?.();
         }
       } catch (error) {
         // Handle unexpected errors
@@ -726,6 +745,13 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    // Handle cancel for creation variant
+    if (variant === "creation" && matchesKeybind(e, KEYBINDS.CANCEL) && props.onCancel) {
+      e.preventDefault();
+      props.onCancel();
+      return;
+    }
+
     // Handle open model selector
     if (matchesKeybind(e, KEYBINDS.OPEN_MODEL_SELECTOR)) {
       e.preventDefault();
@@ -733,11 +759,11 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       return;
     }
 
-    // Handle cancel edit (Ctrl+Q)
+    // Handle cancel edit (Ctrl+Q) - workspace only
     if (matchesKeybind(e, KEYBINDS.CANCEL_EDIT)) {
-      if (editingMessage && onCancelEdit) {
+      if (variant === "workspace" && editingMessage && props.onCancelEdit) {
         e.preventDefault();
-        onCancelEdit();
+        props.onCancelEdit();
         const isFocused = document.activeElement === inputRef.current;
         if (isFocused) {
           inputRef.current?.blur();
@@ -746,15 +772,21 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       }
     }
 
-    // Handle up arrow on empty input - edit last user message
-    if (e.key === "ArrowUp" && !editingMessage && input.trim() === "" && onEditLastUserMessage) {
+    // Handle up arrow on empty input - edit last user message (workspace only)
+    if (
+      variant === "workspace" &&
+      e.key === "ArrowUp" &&
+      !editingMessage &&
+      input.trim() === "" &&
+      props.onEditLastUserMessage
+    ) {
       e.preventDefault();
-      onEditLastUserMessage();
+      props.onEditLastUserMessage();
       return;
     }
 
     // Note: ESC handled by VimTextArea (for mode transitions) and CommandSuggestions (for dismissal)
-    // Edit canceling is Ctrl+Q, stream interruption is Ctrl+C
+    // Edit canceling is Ctrl+Q, stream interruption is Ctrl+C (vim) or Esc (normal)
 
     // Don't handle keys if command suggestions are visible
     if (
@@ -774,17 +806,29 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 
   // Build placeholder text based on current state
   const placeholder = (() => {
+    // Creation variant has simple placeholder
+    if (variant === "creation") {
+      return `Type your first message to create a workspace... (${formatKeybind(KEYBINDS.SEND_MESSAGE)} to send, Esc to cancel)`;
+    }
+
+    // Workspace variant placeholders
     if (editingMessage) {
       return `Edit your message... (${formatKeybind(KEYBINDS.CANCEL_EDIT)} to cancel, ${formatKeybind(KEYBINDS.SEND_MESSAGE)} to send)`;
     }
     if (isCompacting) {
-      return `Compacting... (${formatKeybind(KEYBINDS.INTERRUPT_STREAM)} cancel | ${formatKeybind(KEYBINDS.ACCEPT_EARLY_COMPACTION)} accept early)`;
+      const interruptKeybind = vimEnabled
+        ? KEYBINDS.INTERRUPT_STREAM_VIM
+        : KEYBINDS.INTERRUPT_STREAM_NORMAL;
+      return `Compacting... (${formatKeybind(interruptKeybind)} cancel | ${formatKeybind(KEYBINDS.ACCEPT_EARLY_COMPACTION)} accept early)`;
     }
 
     // Build hints for normal input
     const hints: string[] = [];
     if (canInterrupt) {
-      hints.push(`${formatKeybind(KEYBINDS.INTERRUPT_STREAM)} to interrupt`);
+      const interruptKeybind = vimEnabled
+        ? KEYBINDS.INTERRUPT_STREAM_VIM
+        : KEYBINDS.INTERRUPT_STREAM_NORMAL;
+      hints.push(`${formatKeybind(interruptKeybind)} to interrupt`);
     }
     hints.push(`${formatKeybind(KEYBINDS.SEND_MESSAGE)} to send`);
     hints.push(`${formatKeybind(KEYBINDS.OPEN_MODEL_SELECTOR)} to change model`);
@@ -793,134 +837,162 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     return `Type a message... (${hints.join(", ")})`;
   })();
 
+  // Wrapper for creation variant to enable full-height flex layout
+  const Wrapper = variant === "creation" ? "div" : React.Fragment;
+  const wrapperProps = variant === "creation" ? { className: "flex h-full flex-1 flex-col" } : {};
+
   return (
-    <div
-      className="bg-separator border-border-light relative flex flex-col gap-1 border-t px-[15px] pt-[5px] pb-[15px]"
-      data-component="ChatInputSection"
-    >
-      <ChatInputToast toast={toast} onDismiss={handleToastDismiss} />
-      <CommandSuggestions
-        suggestions={commandSuggestions}
-        onSelectSuggestion={handleCommandSelect}
-        onDismiss={() => setShowCommandSuggestions(false)}
-        isVisible={showCommandSuggestions}
-        ariaLabel="Slash command suggestions"
-        listId={commandListId}
-      />
-      <div className="flex items-end gap-2.5" data-component="ChatInputControls">
-        <VimTextArea
-          ref={inputRef}
-          value={input}
-          isEditing={!!editingMessage}
-          mode={mode}
-          onChange={setInput}
-          onKeyDown={handleKeyDown}
-          onPaste={handlePaste}
-          onDragOver={handleDragOver}
-          onDrop={handleDrop}
-          suppressKeys={showCommandSuggestions ? COMMAND_SUGGESTION_KEYS : undefined}
-          placeholder={placeholder}
-          disabled={!editingMessage && (disabled || isSending || isCompacting)}
-          aria-label={editingMessage ? "Edit your last message" : "Message Claude"}
-          aria-autocomplete="list"
-          aria-controls={
-            showCommandSuggestions && commandSuggestions.length > 0 ? commandListId : undefined
-          }
-          aria-expanded={showCommandSuggestions && commandSuggestions.length > 0}
+    <Wrapper {...wrapperProps}>
+      {/* Creation center content (shows while loading or idle) */}
+      {variant === "creation" && (
+        <CreationCenterContent
+          projectName={props.projectName}
+          isSending={creationState.isSending || isSending}
         />
-      </div>
-      <ImageAttachments images={imageAttachments} onRemove={handleRemoveImage} />
-      <div className="flex flex-col gap-1" data-component="ChatModeToggles">
-        {editingMessage && (
-          <div className="text-edit-mode text-[11px] font-medium">
-            Editing message ({formatKeybind(KEYBINDS.CANCEL_EDIT)} to cancel)
+      )}
+
+      {/* Input section */}
+      <div
+        className="bg-separator border-border-light relative flex flex-col gap-1 border-t px-[15px] pt-[5px] pb-[15px]"
+        data-component="ChatInputSection"
+      >
+        {/* Creation error toast */}
+        {variant === "creation" && creationState?.error && (
+          <div className="mb-2 rounded border border-red-700 bg-red-900/20 px-3 py-2 text-sm text-red-400">
+            {creationState.error}
           </div>
         )}
-        <div className="@container flex flex-wrap items-center gap-x-3 gap-y-2">
-          {/* Model Selector - always visible */}
-          <div className="flex items-center" data-component="ModelSelectorGroup">
-            <ModelSelector
-              ref={modelSelectorRef}
-              value={preferredModel}
-              onChange={setPreferredModel}
-              recentModels={recentModels}
-              onComplete={() => inputRef.current?.focus()}
-            />
-            <TooltipWrapper inline>
-              <HelpIndicator>?</HelpIndicator>
-              <Tooltip className="tooltip" align="left" width="wide">
-                <strong>Click to edit</strong> or use {formatKeybind(KEYBINDS.OPEN_MODEL_SELECTOR)}
-                <br />
-                <br />
-                <strong>Abbreviations:</strong>
-                <br />• <code>/model opus</code> - Claude Opus 4.1
-                <br />• <code>/model sonnet</code> - Claude Sonnet 4.5
-                <br />
-                <br />
-                <strong>Full format:</strong>
-                <br />
-                <code>/model provider:model-name</code>
-                <br />
-                (e.g., <code>/model anthropic:claude-sonnet-4-5</code>)
-              </Tooltip>
-            </TooltipWrapper>
-          </div>
 
-          {/* Thinking Slider - slider hidden on narrow containers, label always clickable */}
-          <div
-            className="flex items-center [&_.thinking-slider]:[@container(max-width:550px)]:hidden"
-            data-component="ThinkingSliderGroup"
-          >
-            <ThinkingSliderComponent modelString={preferredModel} />
-          </div>
+        {/* Workspace toast */}
+        {variant === "workspace" && <ChatInputToast toast={toast} onDismiss={handleToastDismiss} />}
 
-          {/* Context 1M Checkbox - always visible */}
-          <div className="flex items-center" data-component="Context1MGroup">
-            <Context1MCheckbox modelString={preferredModel} />
-          </div>
+        {/* Command suggestions - workspace only */}
+        {variant === "workspace" && (
+          <CommandSuggestions
+            suggestions={commandSuggestions}
+            onSelectSuggestion={handleCommandSelect}
+            onDismiss={() => setShowCommandSuggestions(false)}
+            isVisible={showCommandSuggestions}
+            ariaLabel="Slash command suggestions"
+            listId={commandListId}
+          />
+        )}
 
-          {preferredModel && (
-            <div className={hasTypedText ? "block" : "hidden"}>
-              <Suspense
-                fallback={
-                  <div
-                    className="text-muted flex items-center gap-1 text-xs"
-                    data-component="TokenEstimate"
-                  >
-                    <span>Calculating tokens…</span>
-                  </div>
-                }
-              >
-                <TokenCountDisplay reader={tokenCountReader} />
-              </Suspense>
+        <div className="flex items-end gap-2.5" data-component="ChatInputControls">
+          <VimTextArea
+            ref={inputRef}
+            value={input}
+            isEditing={!!editingMessage}
+            mode={mode}
+            onChange={setInput}
+            onKeyDown={handleKeyDown}
+            onPaste={variant === "workspace" ? handlePaste : undefined}
+            onDragOver={variant === "workspace" ? handleDragOver : undefined}
+            onDrop={variant === "workspace" ? handleDrop : undefined}
+            suppressKeys={showCommandSuggestions ? COMMAND_SUGGESTION_KEYS : undefined}
+            placeholder={placeholder}
+            disabled={!editingMessage && (disabled || isSending || isCompacting)}
+            aria-label={editingMessage ? "Edit your last message" : "Message Claude"}
+            aria-autocomplete="list"
+            aria-controls={
+              showCommandSuggestions && commandSuggestions.length > 0 ? commandListId : undefined
+            }
+            aria-expanded={showCommandSuggestions && commandSuggestions.length > 0}
+          />
+        </div>
+
+        {/* Image attachments - workspace only */}
+        {variant === "workspace" && (
+          <ImageAttachments images={imageAttachments} onRemove={handleRemoveImage} />
+        )}
+
+        <div className="flex flex-col gap-1" data-component="ChatModeToggles">
+          {/* Editing indicator - workspace only */}
+          {variant === "workspace" && editingMessage && (
+            <div className="text-edit-mode text-[11px] font-medium">
+              Editing message ({formatKeybind(KEYBINDS.CANCEL_EDIT)} to cancel)
             </div>
           )}
 
-          {/* Mode Switch - full version for wide containers */}
-          <div className="ml-auto flex items-center gap-1.5 [@container(max-width:550px)]:hidden">
-            <div
-              className={cn(
-                "flex gap-0 bg-toggle-bg rounded",
-                "[&>button:first-of-type]:rounded-l [&>button:last-of-type]:rounded-r",
-                mode === "exec" &&
-                  "[&>button:first-of-type]:bg-exec-mode [&>button:first-of-type]:text-white [&>button:first-of-type]:hover:bg-exec-mode-hover",
-                mode === "plan" &&
-                  "[&>button:last-of-type]:bg-plan-mode [&>button:last-of-type]:text-white [&>button:last-of-type]:hover:bg-plan-mode-hover"
-              )}
-            >
-              <ToggleGroup<UIMode> options={MODE_OPTIONS} value={mode} onChange={setMode} />
+          <div className="@container flex flex-wrap items-center gap-x-3 gap-y-2">
+            {/* Model Selector - always visible */}
+            <div className="flex items-center" data-component="ModelSelectorGroup">
+              <ModelSelector
+                ref={modelSelectorRef}
+                value={preferredModel}
+                onChange={setPreferredModel}
+                recentModels={recentModels}
+                onComplete={() => inputRef.current?.focus()}
+              />
+              <TooltipWrapper inline>
+                <HelpIndicator>?</HelpIndicator>
+                <Tooltip className="tooltip" align="left" width="wide">
+                  <strong>Click to edit</strong> or use{" "}
+                  {formatKeybind(KEYBINDS.OPEN_MODEL_SELECTOR)}
+                  <br />
+                  <br />
+                  <strong>Abbreviations:</strong>
+                  <br />• <code>/model opus</code> - Claude Opus 4.1
+                  <br />• <code>/model sonnet</code> - Claude Sonnet 4.5
+                  <br />
+                  <br />
+                  <strong>Full format:</strong>
+                  <br />
+                  <code>/model provider:model-name</code>
+                  <br />
+                  (e.g., <code>/model anthropic:claude-sonnet-4-5</code>)
+                </Tooltip>
+              </TooltipWrapper>
             </div>
-            <ModeHelpTooltip />
+
+            {/* Thinking Slider - slider hidden on narrow containers, label always clickable */}
+            <div
+              className="flex items-center [&_.thinking-slider]:[@container(max-width:550px)]:hidden"
+              data-component="ThinkingSliderGroup"
+            >
+              <ThinkingSliderComponent modelString={preferredModel} />
+            </div>
+
+            {/* Context 1M Checkbox - always visible */}
+            <div className="flex items-center" data-component="Context1MGroup">
+              <Context1MCheckbox modelString={preferredModel} />
+            </div>
+
+            {preferredModel && (
+              <div className={hasTypedText ? "block" : "hidden"}>
+                <Suspense
+                  fallback={
+                    <div
+                      className="text-muted flex items-center gap-1 text-xs"
+                      data-component="TokenEstimate"
+                    >
+                      <span>Calculating tokens…</span>
+                    </div>
+                  }
+                >
+                  <TokenCountDisplay reader={tokenCountReader} />
+                </Suspense>
+              </div>
+            )}
+
+            <ModeSelector mode={mode} onChange={setMode} className="ml-auto" />
           </div>
 
-          {/* Mode Switch - compact version for narrow containers */}
-          <div className="ml-auto hidden items-center gap-1.5 [@container(max-width:550px)]:flex">
-            <ToggleGroup<UIMode> options={MODE_OPTIONS} value={mode} onChange={setMode} compact />
-            <ModeHelpTooltip />
-          </div>
+          {/* Creation controls - second row for creation variant */}
+          {variant === "creation" && (
+            <CreationControls
+              branches={creationState.branches}
+              trunkBranch={creationState.trunkBranch}
+              onTrunkBranchChange={creationState.setTrunkBranch}
+              runtimeMode={creationState.runtimeMode}
+              sshHost={creationState.sshHost}
+              onRuntimeChange={creationState.setRuntimeOptions}
+              disabled={creationState.isSending || isSending}
+            />
+          )}
         </div>
       </div>
-    </div>
+    </Wrapper>
   );
 };
 

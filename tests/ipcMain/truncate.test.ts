@@ -6,7 +6,7 @@ import {
   waitFor,
 } from "./helpers";
 import { HistoryService } from "../../src/services/historyService";
-import { createCmuxMessage } from "../../src/types/message";
+import { createMuxMessage } from "../../src/types/message";
 import type { DeleteMessage } from "../../src/types/ipc";
 import { IPC_CHANNELS } from "../../src/constants/ipc-constants";
 
@@ -35,12 +35,12 @@ describeIntegration("IpcMain truncate integration tests", () => {
         // Create messages with a unique word in the first message
         const uniqueWord = `testword-${Date.now()}`;
         const messages = [
-          createCmuxMessage("msg-1", "user", `Remember this word: ${uniqueWord}`, {}),
-          createCmuxMessage("msg-2", "assistant", "I will remember that word.", {}),
-          createCmuxMessage("msg-3", "user", "What is 2+2?", {}),
-          createCmuxMessage("msg-4", "assistant", "4", {}),
-          createCmuxMessage("msg-5", "user", "What is 3+3?", {}),
-          createCmuxMessage("msg-6", "assistant", "6", {}),
+          createMuxMessage("msg-1", "user", `Remember this word: ${uniqueWord}`, {}),
+          createMuxMessage("msg-2", "assistant", "I will remember that word.", {}),
+          createMuxMessage("msg-3", "user", "What is 2+2?", {}),
+          createMuxMessage("msg-4", "assistant", "4", {}),
+          createMuxMessage("msg-5", "user", "What is 3+3?", {}),
+          createMuxMessage("msg-6", "assistant", "6", {}),
         ];
 
         // Append messages to history
@@ -137,10 +137,10 @@ describeIntegration("IpcMain truncate integration tests", () => {
         // Prepopulate chat with messages (avoid API calls)
         const uniqueWord = `testword-${Date.now()}`;
         const messages = [
-          createCmuxMessage("msg-1", "user", `Remember this word: ${uniqueWord}`, {}),
-          createCmuxMessage("msg-2", "assistant", "I will remember that word.", {}),
-          createCmuxMessage("msg-3", "user", "Tell me a fact about cats", {}),
-          createCmuxMessage("msg-4", "assistant", "Cats sleep 12-16 hours a day.", {}),
+          createMuxMessage("msg-1", "user", `Remember this word: ${uniqueWord}`, {}),
+          createMuxMessage("msg-2", "assistant", "I will remember that word.", {}),
+          createMuxMessage("msg-3", "user", "Tell me a fact about cats", {}),
+          createMuxMessage("msg-4", "assistant", "Cats sleep 12-16 hours a day.", {}),
         ];
 
         // Append messages to history
@@ -245,8 +245,8 @@ describeIntegration("IpcMain truncate integration tests", () => {
         // Prepopulate some history
         const uniqueWord = `testword-${Date.now()}`;
         const messages = [
-          createCmuxMessage("msg-1", "user", `Remember this word: ${uniqueWord}`, {}),
-          createCmuxMessage("msg-2", "assistant", "I will remember that word.", {}),
+          createMuxMessage("msg-1", "user", `Remember this word: ${uniqueWord}`, {}),
+          createMuxMessage("msg-2", "assistant", "I will remember that word.", {}),
         ];
 
         for (const msg of messages) {

@@ -1,12 +1,12 @@
 /**
- * Apply centralized tool-output redaction to a list of CmuxMessages.
+ * Apply centralized tool-output redaction to a list of MuxMessages.
  * Produces a cloned array safe for sending to providers without touching persisted history/UI.
  */
-import type { CmuxMessage } from "@/types/message";
+import type { MuxMessage } from "@/types/message";
 import type { DynamicToolPart } from "@/types/toolParts";
 import { redactToolOutput } from "./toolOutputRedaction";
 
-export function applyToolOutputRedaction(messages: CmuxMessage[]): CmuxMessage[] {
+export function applyToolOutputRedaction(messages: MuxMessage[]): MuxMessage[] {
   return messages.map((msg) => {
     if (msg.role !== "assistant") return msg;
 
@@ -26,6 +26,6 @@ export function applyToolOutputRedaction(messages: CmuxMessage[]): CmuxMessage[]
     return {
       ...msg,
       parts: newParts,
-    } satisfies CmuxMessage;
+    } satisfies MuxMessage;
   });
 }

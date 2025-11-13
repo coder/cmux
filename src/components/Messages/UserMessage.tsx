@@ -7,6 +7,8 @@ import { formatKeybind, KEYBINDS } from "@/utils/ui/keybinds";
 import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
 import type { KebabMenuItem } from "@/components/KebabMenu";
 import { copyToClipboard } from "@/utils/clipboard";
+import { usePersistedState } from "@/hooks/usePersistedState";
+import { VIM_ENABLED_KEY } from "@/constants/storage";
 
 interface UserMessageProps {
   message: DisplayedMessage & { type: "user" };
@@ -24,6 +26,7 @@ export const UserMessage: React.FC<UserMessageProps> = ({
   clipboardWriteText = copyToClipboard,
 }) => {
   const content = message.content;
+  const [vimEnabled] = usePersistedState<boolean>(VIM_ENABLED_KEY, false, { listener: true });
 
   console.assert(
     typeof clipboardWriteText === "function",
@@ -58,7 +61,7 @@ export const UserMessage: React.FC<UserMessageProps> = ({
             onClick: handleEdit,
             disabled: isCompacting,
             tooltip: isCompacting
-              ? `Cannot edit while compacting (${formatKeybind(KEYBINDS.INTERRUPT_STREAM)} to cancel)`
+              ? `Cannot edit while compacting (${formatKeybind(vimEnabled ? KEYBINDS.INTERRUPT_STREAM_VIM : KEYBINDS.INTERRUPT_STREAM_NORMAL)} to cancel)`
               : undefined,
           },
         ]

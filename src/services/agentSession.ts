@@ -1,13 +1,14 @@
 import assert from "@/utils/assert";
 import { EventEmitter } from "events";
 import * as path from "path";
-import { createCmuxMessage } from "@/types/message";
+import { createMuxMessage } from "@/types/message";
 import type { Config } from "@/config";
 import type { AIService } from "@/services/aiService";
 import type { HistoryService } from "@/services/historyService";
 import type { PartialService } from "@/services/partialService";
 import type { InitStateManager } from "@/services/initStateManager";
 import type { WorkspaceMetadata } from "@/types/workspace";
+import { DEFAULT_RUNTIME_CONFIG } from "@/constants/workspace";
 import type { WorkspaceChatMessage, StreamErrorMessage, SendMessageOptions } from "@/types/ipc";
 import type { SendMessageError } from "@/types/errors";
 import { createUnknownSendMessageError } from "@/services/utils/sendMessageError";
@@ -164,7 +165,7 @@ export class AgentSession {
     });
   }
 
-  ensureMetadata(args: { workspacePath: string; projectName?: string }): void {
+  async ensureMetadata(args: { workspacePath: string; projectName?: string }): Promise<void> {
     this.assertNotDisposed("ensureMetadata");
     assert(args, "ensureMetadata requires arguments");
     const { workspacePath, projectName } = args;
@@ -174,7 +175,7 @@ export class AgentSession {
     assert(trimmedWorkspacePath.length > 0, "workspacePath must not be empty");
 
     const normalizedWorkspacePath = path.resolve(trimmedWorkspacePath);
-    const existing = this.aiService.getWorkspaceMetadata(this.workspaceId);
+    const existing = await this.aiService.getWorkspaceMetadata(this.workspaceId);
 
     if (existing.success) {
       // Metadata already exists, verify workspace path matches
@@ -231,10 +232,11 @@ export class AgentSession {
       name: workspaceName,
       projectName: derivedProjectName,
       projectPath: derivedProjectPath,
+      runtimeConfig: DEFAULT_RUNTIME_CONFIG,
     };
 
     // Write metadata directly to config.json (single source of truth)
-    this.config.addWorkspace(derivedProjectPath, metadata);
+    await this.config.addWorkspace(derivedProjectPath, metadata);
     this.emitMetadata(metadata);
   }
 
@@ -290,7 +292,7 @@ export class AgentSession {
           })
         : undefined;
 
-    const userMessage = createCmuxMessage(
+    const userMessage = createMuxMessage(
       messageId,
       "user",
       message,

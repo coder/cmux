@@ -1,6 +1,6 @@
 # System Prompt
 
-`cmux` is interested in supporting a variety of models at different levels of performance.
+`mux` is interested in supporting a variety of models at different levels of performance.
 
 To that end, we're built on the [Vercel AI SDK](https://ai-sdk.dev/providers/ai-sdk-providers) which does most of the heavy lifting in creating a unified API for all models.
 
@@ -12,7 +12,7 @@ Here's a snippet from `src/services/systemMessage.ts` which is our shared system
 
 ```typescript
 // The PRELUDE is intentionally minimal to not conflict with the user's instructions.
-// cmux is designed to be model agnostic, and models have shown large inconsistency in how they
+// mux is designed to be model agnostic, and models have shown large inconsistency in how they
 // follow instructions.
 const PRELUDE = `
 <prelude>

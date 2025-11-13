@@ -48,7 +48,6 @@ const WorkspaceListItemInner: React.FC<WorkspaceListItemProps> = ({
   const [editingName, setEditingName] = useState<string>("");
   const [renameError, setRenameError] = useState<string | null>(null);
 
-  // Use workspace name from metadata instead of deriving from path
   const displayName = workspaceName;
   const isEditing = editingWorkspaceId === workspaceId;
 

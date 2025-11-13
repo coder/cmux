@@ -31,7 +31,7 @@ export interface Workspace {
   /** Stable workspace ID (10 hex chars for new workspaces) - optional for legacy */
   id?: string;
 
-  /** User-facing workspace name - optional for legacy */
+  /** Git branch / directory name (e.g., "feature-branch") - optional for legacy */
   name?: string;
 
   /** ISO 8601 creation timestamp - optional for legacy */
