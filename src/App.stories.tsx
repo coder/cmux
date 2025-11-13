@@ -643,6 +643,46 @@ export const ActiveWorkspaceWithChat: Story = {
                     },
                   });
 
+                  // Assistant message with status_set showing PR is ready
+                  callback({
+                    id: "msg-10",
+                    role: "assistant",
+                    parts: [
+                      {
+                        type: "text",
+                        text: "Perfect! The authentication is complete with proper error handling. Let me push the changes and create a PR.",
+                      },
+                      {
+                        type: "dynamic-tool",
+                        toolCallId: "call-5",
+                        toolName: "status_set",
+                        state: "output-available",
+                        input: {
+                          emoji: "✅",
+                          message: "PR ready - CI checks passed",
+                          url: "https://github.com/example/my-app/pull/123",
+                        },
+                        output: {
+                          success: true,
+                          emoji: "✅",
+                          message: "PR ready - CI checks passed",
+                          url: "https://github.com/example/my-app/pull/123",
+                        },
+                      },
+                    ],
+                    metadata: {
+                      historySequence: 10,
+                      timestamp: STABLE_TIMESTAMP - 160000,
+                      model: "claude-sonnet-4-20250514",
+                      usage: {
+                        inputTokens: 3800,
+                        outputTokens: 150,
+                        totalTokens: 3950,
+                      },
+                      duration: 2100,
+                    },
+                  });
+
                   // Mark as caught up
                   callback({ type: "caught-up" });
                 }, 100);
@@ -658,11 +698,25 @@ export const ActiveWorkspaceWithChat: Story = {
               truncateHistory: () => Promise.resolve({ success: true, data: undefined }),
               replaceChatHistory: () => Promise.resolve({ success: true, data: undefined }),
               getInfo: () => Promise.resolve(null),
-              executeBash: () =>
-                Promise.resolve({
+              executeBash: (workspaceId: string, command: string) => {
+                // Mock git status check - show workspace is 2 commits ahead and has uncommitted changes
+                if (command.includes("git show-branch")) {
+                  return Promise.resolve({
+                    success: true,
+                    data: {
+                      success: true,
+                      output:
+                        "! [origin/main] Previous commit\n * [feature/auth] Add JWT authentication\n--\n *  [feature/auth] Add JWT authentication\n *  [feature/auth^] Add error handling\n+  [origin/main] Previous commit\n===DIRTY_FILES===\n3",
+                      exitCode: 0,
+                      wall_duration_ms: 50,
+                    },
+                  });
+                }
+                return Promise.resolve({
                   success: true,
                   data: { success: true, output: "", exitCode: 0, wall_duration_ms: 0 },
-                }),
+                });
+              },
             },
           },
         });
