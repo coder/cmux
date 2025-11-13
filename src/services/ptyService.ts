@@ -73,7 +73,7 @@ export class PTYService {
 
       let ptyProcess;
       try {
-        ptyProcess = pty.spawn(shell, ["-l"], {
+        ptyProcess = pty.spawn(shell, [], {
           name: "xterm-256color",
           cols: params.cols,
           rows: params.rows,

@@ -24,6 +24,9 @@ import type { FrontendWorkspaceMetadata } from "./types/workspace";
 import type { ProjectConfig } from "./types/project";
 import { IPC_CHANNELS, getChatChannel } from "./constants/ipc-constants";
 
+// Debug: Log that preload is running
+console.log("[Preload] Script loaded - about to expose window.api");
+
 // Build the API implementation using the shared interface
 const api: IPCApi = {
   tokenizer: {
@@ -166,4 +169,12 @@ contextBridge.exposeInMainWorld("api", {
     chrome: process.versions.chrome,
     electron: process.versions.electron,
   },
+});
+
+console.log("[Preload] window.api exposed successfully");
+
+// Debug: Log that preload script has run
+console.log("[Preload] window.api exposed successfully", {
+  hasTerminal: !!api.terminal,
+  terminalMethods: api.terminal ? Object.keys(api.terminal) : [],
 });
