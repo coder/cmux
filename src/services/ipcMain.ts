@@ -1476,11 +1476,13 @@ export class IpcMain {
     );
   }
 
-  private registerTerminalHandlers(ipcMain: ElectronIpcMain, _mainWindow: BrowserWindow): void {
+  private registerTerminalHandlers(ipcMain: ElectronIpcMain, mainWindow: BrowserWindow): void {
     ipcMain.handle(IPC_CHANNELS.TERMINAL_CREATE, async (event, params: TerminalCreateParams) => {
       try {
         // Get the window that requested this terminal
-        const senderWindow = BrowserWindow.fromWebContents(event.sender);
+        // In Electron, use the actual sender window. In browser mode, event.sender is null,
+        // so we use the mockWindow which broadcasts to all WebSocket clients
+        const senderWindow = event.sender ? BrowserWindow.fromWebContents(event.sender) : mainWindow;
         if (!senderWindow) {
           throw new Error("Could not find sender window for terminal creation");
         }
@@ -1511,10 +1513,12 @@ export class IpcMain {
           workspacePath,
           // onData callback - send output to the window that created the session
           (data: string) => {
+            console.log(`[Terminal] Sending output for session ${session.sessionId}, length: ${data.length}`);
             senderWindow.webContents.send(`terminal:output:${session.sessionId}`, data);
           },
           // onExit callback - send exit event and clean up
           (exitCode: number) => {
+            console.log(`[Terminal] Sending exit for session ${session.sessionId}, code: ${exitCode}`);
             senderWindow.webContents.send(`terminal:exit:${session.sessionId}`, exitCode);
           }
         );
