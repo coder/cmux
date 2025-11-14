@@ -1588,10 +1588,8 @@ describe.each(PROVIDER_CONFIGS)("%s:%s image support", (provider, model) => {
     },
     40000
   );
-});
 
-// Test multi-turn conversation specifically for reasoning models (codex)
-describeIntegration("Multi-turn conversation tests", () => {
+  // Test multi-turn conversation specifically for reasoning models (codex)
   test.concurrent(
     "should handle multi-turn conversation with response ID persistence (openai reasoning models)",
     async () => {
