@@ -12,6 +12,7 @@ interface ModelSelectorProps {
   value: string;
   onChange: (value: string) => void;
   recentModels: string[];
+  onRemoveModel?: (model: string) => void;
   onComplete?: () => void;
 }
 
@@ -20,7 +21,7 @@ export interface ModelSelectorRef {
 }
 
 export const ModelSelector = forwardRef<ModelSelectorRef, ModelSelectorProps>(
-  ({ value, onChange, recentModels, onComplete }, ref) => {
+  ({ value, onChange, recentModels, onRemoveModel, onComplete }, ref) => {
     const [isEditing, setIsEditing] = useState(false);
     const [inputValue, setInputValue] = useState(value);
     const [error, setError] = useState<string | null>(null);
@@ -151,6 +152,22 @@ export const ModelSelector = forwardRef<ModelSelectorRef, ModelSelectorProps>(
       setShowDropdown(false);
     };
 
+    const handleRemoveModel = useCallback(
+      (model: string, event: React.MouseEvent<HTMLButtonElement>) => {
+        event.preventDefault();
+        event.stopPropagation();
+        if (!onRemoveModel) {
+          return;
+        }
+        onRemoveModel(model);
+        setHighlightedIndex(-1);
+        if (inputValue === model) {
+          setInputValue("");
+        }
+      },
+      [inputValue, onRemoveModel]
+    );
+
     const handleClick = useCallback(() => {
       setIsEditing(true);
       setInputValue(""); // Clear input to show all models
@@ -224,7 +241,19 @@ export const ModelSelector = forwardRef<ModelSelectorRef, ModelSelectorProps>(
                 )}
                 onClick={() => handleSelectModel(model)}
               >
-                {model}
+                <div className="flex items-center justify-between gap-2">
+                  <span className="truncate">{model}</span>
+                  {onRemoveModel && (
+                    <button
+                      type="button"
+                      onClick={(event) => handleRemoveModel(model, event)}
+                      className="text-muted-light border-border-light/40 hover:border-danger-soft/60 hover:text-danger-soft rounded-sm border px-1 py-0.5 text-[9px] font-semibold tracking-wide uppercase transition-colors duration-150"
+                      aria-label={`Remove ${model} from recent models`}
+                    >
+                      ×
+                    </button>
+                  )}
+                </div>
               </div>
             ))}
           </div>

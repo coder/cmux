@@ -26,6 +26,7 @@ import { getModelName } from "@/utils/ai/models";
 import type { DisplayedMessage } from "@/types/message";
 import type { RuntimeConfig } from "@/types/runtime";
 import { useAIViewKeybinds } from "@/hooks/useAIViewKeybinds";
+import { evictModelFromLRU } from "@/hooks/useModelLRU";
 
 interface AIViewProps {
   workspaceId: string;
@@ -67,9 +68,35 @@ const AIViewInner: React.FC<AIViewProps> = ({
     storageKey: "review-sidebar-width", // Persists across sessions
   });
 
-  // Get workspace state from store (only re-renders when THIS workspace changes)
   const workspaceState = useWorkspaceState(workspaceId);
   const aggregator = useWorkspaceAggregator(workspaceId);
+  const handledModelErrorsRef = useRef<Set<string>>(new Set());
+
+  useEffect(() => {
+    handledModelErrorsRef.current.clear();
+  }, [workspaceId]);
+
+  useEffect(() => {
+    if (!workspaceState) {
+      return;
+    }
+
+    for (const message of workspaceState.messages) {
+      if (message.type !== "stream-error") {
+        continue;
+      }
+      if (message.errorType !== "model_not_found") {
+        continue;
+      }
+      if (handledModelErrorsRef.current.has(message.id)) {
+        continue;
+      }
+      handledModelErrorsRef.current.add(message.id);
+      if (message.model) {
+        evictModelFromLRU(message.model);
+      }
+    }
+  }, [workspaceState, workspaceId]);
 
   const [editingMessage, setEditingMessage] = useState<{ id: string; content: string } | undefined>(
     undefined

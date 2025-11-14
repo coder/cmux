@@ -36,10 +36,7 @@ function rewrapJsonContainer(wrapped: boolean, value: unknown): unknown {
   return value;
 }
 
-// Narrowing helpers for our tool result types
-function isFileEditResult(
-  v: unknown
-): v is FileEditReplaceStringToolResult | FileEditReplaceLinesToolResult {
+function isFileEditInsertResult(v: unknown): v is FileEditInsertToolResult {
   return (
     typeof v === "object" &&
     v !== null &&
@@ -47,8 +44,10 @@ function isFileEditResult(
     typeof (v as { success: unknown }).success === "boolean"
   );
 }
-
-function isFileEditInsertResult(v: unknown): v is FileEditInsertToolResult {
+// Narrowing helpers for our tool result types
+function isFileEditResult(
+  v: unknown
+): v is FileEditReplaceStringToolResult | FileEditReplaceLinesToolResult {
   return (
     typeof v === "object" &&
     v !== null &&
@@ -91,7 +90,7 @@ function redactFileEditInsert(output: unknown): unknown {
   const unwrapped = unwrapJsonContainer(output);
   const val = unwrapped.value;
 
-  if (!isFileEditInsertResult(val)) return output; // unknown structure, leave as-is
+  if (!isFileEditInsertResult(val)) return output;
 
   if (val.success) {
     const compact: FileEditInsertToolResult = {

@@ -2,7 +2,9 @@
  * Model configuration and constants
  */
 
-export const defaultModel = "anthropic:claude-sonnet-4-5";
+import { DEFAULT_MODEL } from "@/constants/knownModels";
+
+export const defaultModel = DEFAULT_MODEL;
 
 /**
  * Extract the model name from a model string (e.g., "anthropic:claude-sonnet-4-5" -> "claude-sonnet-4-5")

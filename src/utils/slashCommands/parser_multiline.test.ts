@@ -1,6 +1,7 @@
 /**
  * Tests to ensure multiline support doesn't break other commands
  */
+import { KNOWN_MODELS } from "@/constants/knownModels";
 import { parseCommand } from "./parser";
 
 describe("parser multiline compatibility", () => {
@@ -28,7 +29,7 @@ describe("parser multiline compatibility", () => {
     const result = parseCommand("/model\nopus");
     expect(result).toEqual({
       type: "model-set",
-      modelString: "anthropic:claude-opus-4-1",
+      modelString: KNOWN_MODELS.OPUS.id,
     });
   });
 

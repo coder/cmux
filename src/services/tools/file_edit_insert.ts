@@ -1,35 +1,63 @@
 import { tool } from "ai";
-import type { FileEditInsertToolResult } from "@/types/tools";
+import type { FileEditInsertToolArgs, FileEditInsertToolResult } from "@/types/tools";
+import { EDIT_FAILED_NOTE_PREFIX, NOTE_READ_FILE_RETRY } from "@/types/tools";
 import type { ToolConfiguration, ToolFactory } from "@/utils/tools/tools";
 import { TOOL_DEFINITIONS } from "@/utils/tools/toolDefinitions";
-import { validatePathInCwd, validateAndCorrectPath } from "./fileCommon";
-import { EDIT_FAILED_NOTE_PREFIX, NOTE_READ_FILE_RETRY } from "@/types/tools";
+import { generateDiff, validateAndCorrectPath, validatePathInCwd } from "./fileCommon";
 import { executeFileEditOperation } from "./file_edit_operation";
-import { RuntimeError } from "@/runtime/Runtime";
 import { fileExists } from "@/utils/runtime/fileExists";
 import { writeFileString } from "@/utils/runtime/helpers";
+import { RuntimeError } from "@/runtime/Runtime";
 
-/**
- * File edit insert tool factory for AI assistant
- * Creates a tool that allows the AI to insert content at a specific line position
- * @param config Required configuration including working directory
- */
+const READ_AND_RETRY_NOTE = `${EDIT_FAILED_NOTE_PREFIX} ${NOTE_READ_FILE_RETRY}`;
+
+interface InsertOperationSuccess {
+  success: true;
+  newContent: string;
+  metadata: Record<string, never>;
+}
+
+interface InsertOperationFailure {
+  success: false;
+  error: string;
+  note?: string;
+}
+
+interface InsertContentOptions {
+  before?: string;
+  after?: string;
+}
+
+interface GuardResolutionSuccess {
+  success: true;
+  index: number;
+}
+
+function guardFailure(error: string): InsertOperationFailure {
+  return {
+    success: false,
+    error,
+    note: READ_AND_RETRY_NOTE,
+  };
+}
+
+type GuardAnchors = Pick<InsertContentOptions, "before" | "after">;
+
 export const createFileEditInsertTool: ToolFactory = (config: ToolConfiguration) => {
   return tool({
     description: TOOL_DEFINITIONS.file_edit_insert.description,
     inputSchema: TOOL_DEFINITIONS.file_edit_insert.schema,
     execute: async (
-      { file_path, line_offset, content, create },
+      { file_path, content, before, after, create }: FileEditInsertToolArgs,
       { abortSignal }
     ): Promise<FileEditInsertToolResult> => {
       try {
-        // Validate and auto-correct redundant path prefix
-        const { correctedPath: validatedPath, warning: pathWarning } = validateAndCorrectPath(
+        const { correctedPath, warning: pathWarning } = validateAndCorrectPath(
           file_path,
           config.cwd,
           config.runtime
         );
-        file_path = validatedPath;
+        file_path = correctedPath;
 
         const pathValidation = validatePathInCwd(file_path, config.cwd, config.runtime);
         if (pathValidation) {
@@ -39,32 +67,20 @@ export const createFileEditInsertTool: ToolFactory = (config: ToolConfiguration)
           };
         }
 
-        if (line_offset < 0) {
-          return {
-            success: false,
-            error: `line_offset must be non-negative (got ${line_offset})`,
-            note: `${EDIT_FAILED_NOTE_PREFIX} The line_offset must be >= 0.`,
-          };
-        }
-
-        // Use runtime's normalizePath method to resolve paths correctly for both local and SSH runtimes
         const resolvedPath = config.runtime.normalizePath(file_path, config.cwd);
-
-        // Check if file exists using runtime
         const exists = await fileExists(config.runtime, resolvedPath, abortSignal);
 
         if (!exists) {
           if (!create) {
             return {
               success: false,
-              error: `File not found: ${file_path}. To create it, set create: true`,
+              error: `File not found: ${file_path}. Set create: true to create it.`,
               note: `${EDIT_FAILED_NOTE_PREFIX} File does not exist. Set create: true to create it, or check the file path.`,
             };
           }
 
-          // Create empty file using runtime helper
           try {
-            await writeFileString(config.runtime, resolvedPath, "", abortSignal);
+            await writeFileString(config.runtime, resolvedPath, content, abortSignal);
           } catch (err) {
             if (err instanceof RuntimeError) {
               return {
@@ -74,55 +90,25 @@ export const createFileEditInsertTool: ToolFactory = (config: ToolConfiguration)
             }
             throw err;
           }
+
+          const diff = generateDiff(resolvedPath, "", content);
+          return {
+            success: true,
+            diff,
+            ...(pathWarning && { warning: pathWarning }),
+          };
         }
 
-        const result = await executeFileEditOperation({
+        return executeFileEditOperation({
           config,
           filePath: file_path,
           abortSignal,
-          operation: (originalContent) => {
-            const lines = originalContent.split("\n");
-
-            if (line_offset > lines.length) {
-              return {
-                success: false,
-                error: `line_offset ${line_offset} is beyond file length (${lines.length} lines)`,
-                note: `${EDIT_FAILED_NOTE_PREFIX} The file has ${lines.length} lines. ${NOTE_READ_FILE_RETRY}`,
-              };
-            }
-
-            // Handle newline behavior:
-            // - If content ends with \n and we're not at EOF, strip it (join will add it back)
-            // - If content ends with \n and we're at EOF, keep it (join won't add trailing newline)
-            // - If content doesn't end with \n, keep as-is (join will add newlines between lines)
-            const contentEndsWithNewline = content.endsWith("\n");
-            const insertingAtEnd = line_offset === lines.length;
-            const shouldStripTrailingNewline = contentEndsWithNewline && !insertingAtEnd;
-            const normalizedContent = shouldStripTrailingNewline ? content.slice(0, -1) : content;
-
-            const newLines = [
-              ...lines.slice(0, line_offset),
-              normalizedContent,
-              ...lines.slice(line_offset),
-            ];
-            const newContent = newLines.join("\n");
-
-            return {
-              success: true,
-              newContent,
-              metadata: {},
-            };
-          },
+          operation: (originalContent) =>
+            insertContent(originalContent, content, {
+              before,
+              after,
+            }),
         });
-
-        // Add path warning if present
-        if (pathWarning && result.success) {
-          return {
-            ...result,
-            warning: pathWarning,
-          };
-        }
-        return result;
       } catch (error) {
         if (error && typeof error === "object" && "code" in error && error.code === "EACCES") {
           return {
@@ -140,3 +126,86 @@ export const createFileEditInsertTool: ToolFactory = (config: ToolConfiguration)
     },
   });
 };
+
+function insertContent(
+  originalContent: string,
+  contentToInsert: string,
+  options: InsertContentOptions
+): InsertOperationSuccess | InsertOperationFailure {
+  const { before, after } = options;
+
+  if (before !== undefined && after !== undefined) {
+    return guardFailure("Provide only one of before or after (not both).");
+  }
+
+  if (before === undefined && after === undefined) {
+    return guardFailure("Provide either a before or after guard to anchor the insertion point.");
+  }
+
+  return insertWithGuards(originalContent, contentToInsert, { before, after });
+}
+
+function insertWithGuards(
+  originalContent: string,
+  contentToInsert: string,
+  anchors: GuardAnchors
+): InsertOperationSuccess | InsertOperationFailure {
+  const anchorResult = resolveGuardAnchor(originalContent, anchors);
+  if (!anchorResult.success) {
+    return anchorResult;
+  }
+
+  const newContent =
+    originalContent.slice(0, anchorResult.index) +
+    contentToInsert +
+    originalContent.slice(anchorResult.index);
+
+  return {
+    success: true,
+    newContent,
+    metadata: {},
+  };
+}
+
+function findUniqueSubstringIndex(
+  haystack: string,
+  needle: string,
+  label: "before" | "after"
+): GuardResolutionSuccess | InsertOperationFailure {
+  const firstIndex = haystack.indexOf(needle);
+  if (firstIndex === -1) {
+    return guardFailure(`Guard mismatch: unable to find ${label} substring in the current file.`);
+  }
+
+  const secondIndex = haystack.indexOf(needle, firstIndex + needle.length);
+  if (secondIndex !== -1) {
+    return guardFailure(
+      `Guard mismatch: ${label} substring matched multiple times. Provide a more specific string.`
+    );
+  }
+
+  return { success: true, index: firstIndex };
+}
+
+function resolveGuardAnchor(
+  originalContent: string,
+  { before, after }: GuardAnchors
+): GuardResolutionSuccess | InsertOperationFailure {
+  if (before !== undefined) {
+    const beforeIndexResult = findUniqueSubstringIndex(originalContent, before, "before");
+    if (!beforeIndexResult.success) {
+      return beforeIndexResult;
+    }
+    return { success: true, index: beforeIndexResult.index + before.length };
+  }
+
+  if (after !== undefined) {
+    const afterIndexResult = findUniqueSubstringIndex(originalContent, after, "after");
+    if (!afterIndexResult.success) {
+      return afterIndexResult;
+    }
+    return { success: true, index: afterIndexResult.index };
+  }
+
+  return guardFailure("Unable to determine insertion point from guards.");
+}

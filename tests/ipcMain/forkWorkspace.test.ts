@@ -13,6 +13,7 @@ import {
   createEventCollector,
   assertStreamSuccess,
   waitFor,
+  modelString,
 } from "./helpers";
 import { detectDefaultTrunkBranch } from "../../src/git";
 import { HistoryService } from "../../src/services/historyService";
@@ -100,8 +101,7 @@ describeIntegration("IpcMain fork workspace integration tests", () => {
           env.mockIpcRenderer,
           forkedWorkspaceId,
           "What is 2+2? Answer with just the number.",
-          "anthropic",
-          "claude-sonnet-4-5"
+          modelString("anthropic", "claude-sonnet-4-5")
         );
         expect(sendResult.success).toBe(true);
 
@@ -154,8 +154,7 @@ describeIntegration("IpcMain fork workspace integration tests", () => {
           env.mockIpcRenderer,
           forkedWorkspaceId,
           "What word did I ask you to remember? Reply with just the word.",
-          "anthropic",
-          "claude-sonnet-4-5"
+          modelString("anthropic", "claude-sonnet-4-5")
         );
         expect(sendResult.success).toBe(true);
 
@@ -206,15 +205,13 @@ describeIntegration("IpcMain fork workspace integration tests", () => {
             env.mockIpcRenderer,
             sourceWorkspaceId,
             "What is 5+5? Answer with just the number.",
-            "anthropic",
-            "claude-sonnet-4-5"
+            modelString("anthropic", "claude-sonnet-4-5")
           ),
           sendMessageWithModel(
             env.mockIpcRenderer,
             forkedWorkspaceId,
             "What is 3+3? Answer with just the number.",
-            "anthropic",
-            "claude-sonnet-4-5"
+            modelString("anthropic", "claude-sonnet-4-5")
           ),
         ]);
 
@@ -253,8 +250,7 @@ describeIntegration("IpcMain fork workspace integration tests", () => {
           env.mockIpcRenderer,
           sourceWorkspaceId,
           "Count from 1 to 10, one number per line. Then say 'Done counting.'",
-          "anthropic",
-          "claude-sonnet-4-5"
+          modelString("anthropic", "claude-sonnet-4-5")
         );
 
         // Wait for stream to start and produce some content
@@ -286,8 +282,7 @@ describeIntegration("IpcMain fork workspace integration tests", () => {
           env.mockIpcRenderer,
           forkedWorkspaceId,
           "What is 7+3? Answer with just the number.",
-          "anthropic",
-          "claude-sonnet-4-5"
+          modelString("anthropic", "claude-sonnet-4-5")
         );
         expect(forkedSendResult.success).toBe(true);
 

@@ -1,7 +1,7 @@
 {
-  "name": "cmux",
-  "displayName": "cmux",
-  "description": "Open cmux workspaces directly from VS Code",
+  "name": "mux",
+  "displayName": "mux",
+  "description": "Open mux workspaces directly from VS Code",
   "version": "0.1.0",
   "publisher": "coder",
   "icon": "icon.png",
@@ -15,21 +15,21 @@
     "Other"
   ],
   "keywords": [
-    "cmux",
+    "mux",
     "workspace",
     "remote",
     "ssh",
     "development"
   ],
   "activationEvents": [
-    "onCommand:cmux.openWorkspace"
+    "onCommand:mux.openWorkspace"
   ],
   "main": "./out/extension.js",
   "contributes": {
     "commands": [
       {
-        "command": "cmux.openWorkspace",
-        "title": "cmux: Open Workspace"
+        "command": "mux.openWorkspace",
+        "title": "mux: Open Workspace"
       }
     ]
   },
@@ -48,7 +48,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/coder/cmux.git",
+    "url": "https://github.com/coder/mux.git",
     "directory": "vscode"
   },
   "license": "AGPL-3.0-only",

@@ -9,6 +9,7 @@ import type {
   SuggestionDefinition,
 } from "./types";
 import minimist from "minimist";
+import { MODEL_ABBREVIATIONS } from "@/constants/knownModels";
 
 /**
  * Parse multiline command input into first-line tokens and remaining message
@@ -38,16 +39,8 @@ function parseMultilineCommand(rawInput: string): {
   };
 }
 
-// Model abbreviations for common models
-// Order matters: first model becomes the default for new chats
-export const MODEL_ABBREVIATIONS: Record<string, string> = {
-  sonnet: "anthropic:claude-sonnet-4-5",
-  haiku: "anthropic:claude-haiku-4-5",
-  opus: "anthropic:claude-opus-4-1",
-  "gpt-5": "openai:gpt-5",
-  "gpt-5-pro": "openai:gpt-5-pro",
-  codex: "openai:gpt-5-codex",
-};
+// Re-export MODEL_ABBREVIATIONS from constants for backwards compatibility
+export { MODEL_ABBREVIATIONS };
 
 // Provider configuration data
 const DEFAULT_PROVIDER_NAMES: SuggestionDefinition[] = [
@@ -546,12 +539,24 @@ const newCommandDefinition: SlashCommandDefinition = {
 
     // No workspace name provided - return undefined to open modal
     if (parsed._.length === 0) {
+      // Get trunk branch from -t flag
+      let trunkBranch: string | undefined;
+      if (parsed.t !== undefined && typeof parsed.t === "string" && parsed.t.trim().length > 0) {
+        trunkBranch = parsed.t.trim();
+      }
+
+      // Get runtime from -r flag
+      let runtime: string | undefined;
+      if (parsed.r !== undefined && typeof parsed.r === "string" && parsed.r.trim().length > 0) {
+        runtime = parsed.r.trim();
+      }
+
       return {
         type: "new",
         workspaceName: undefined,
-        trunkBranch: undefined,
-        runtime: undefined,
-        startMessage: undefined,
+        trunkBranch,
+        runtime,
+        startMessage: remainingLines,
       };
     }
 

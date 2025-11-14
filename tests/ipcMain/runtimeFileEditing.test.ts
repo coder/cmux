@@ -325,7 +325,7 @@ describeIntegration("Runtime File Editing Tools", () => {
               const insertEvents = await sendMessageAndWait(
                 env,
                 workspaceId,
-                `Use the file_edit_insert or file_edit_replace_string tool to insert "Line 2" between Line 1 and Line 3 in ${testFileName}.`,
+                `Use the file_edit_insert (preferred) or file_edit_replace_string tool to insert "Line 2" between Line 1 and Line 3 in ${testFileName}.`,
                 HAIKU_MODEL,
                 FILE_TOOLS_ONLY,
                 streamTimeout
@@ -336,7 +336,7 @@ describeIntegration("Runtime File Editing Tools", () => {
               expect(streamEnd).toBeDefined();
               expect((streamEnd as any).error).toBeUndefined();
 
-              // Verify a file_edit tool was called (either insert or replace_string)
+              // Verify file_edit_insert (or fallback file_edit_replace_string) tool was called
               const toolCalls = insertEvents.filter(
                 (e) => "type" in e && e.type === "tool-call-start"
               );

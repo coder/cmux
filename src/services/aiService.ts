@@ -599,7 +599,11 @@ export class AIService extends EventEmitter {
       // Convert MuxMessage to ModelMessage format using Vercel AI SDK utility
       // Type assertion needed because MuxMessage has custom tool parts for interrupted tools
       // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-argument
-      const modelMessages = convertToModelMessages(sanitizedMessages as any);
+      const modelMessages = convertToModelMessages(sanitizedMessages as any, {
+        // Drop unfinished tool calls (input-streaming/input-available) so downstream
+        // transforms only see tool calls that actually produced outputs.
+        ignoreIncompleteToolCalls: true,
+      });
       log.debug_obj(`${workspaceId}/2_model_messages.json`, modelMessages);
 
       // Apply ModelMessage transforms based on provider requirements
@@ -826,10 +830,12 @@ export class AIService extends EventEmitter {
 
       // Build provider options based on thinking level and message history
       // Pass filtered messages so OpenAI can extract previousResponseId for persistence
+      // Also pass callback to filter out lost responseIds (OpenAI invalidated them)
       const providerOptions = buildProviderOptions(
         modelString,
         thinkingLevel ?? "off",
-        filteredMessages
+        filteredMessages,
+        (id) => this.streamManager.isResponseIdLost(id)
       );
 
       // Delegate to StreamManager with model instance, system message, tools, historySequence, and initial metadata

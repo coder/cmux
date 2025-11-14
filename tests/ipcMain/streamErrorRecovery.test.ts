@@ -17,7 +17,12 @@
  */
 
 import { setupWorkspace, shouldRunIntegrationTests, validateApiKeys } from "./setup";
-import { sendMessageWithModel, createEventCollector, readChatHistory } from "./helpers";
+import {
+  sendMessageWithModel,
+  createEventCollector,
+  readChatHistory,
+  modelString,
+} from "./helpers";
 import { IPC_CHANNELS } from "../../src/constants/ipc-constants";
 
 // Skip all tests if TEST_INTEGRATION is not set
@@ -246,8 +251,7 @@ IMPORTANT: Do not add any other text. Start immediately with ${nonce}-1: one. If
           env.mockIpcRenderer,
           workspaceId,
           prompt,
-          PROVIDER,
-          MODEL,
+          modelString(PROVIDER, MODEL),
           { toolPolicy: [{ regex_match: ".*", action: "disable" }] }
         );
         expect(sendResult.success).toBe(true);

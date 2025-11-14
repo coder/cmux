@@ -5,32 +5,21 @@ import * as os from "os";
 import { createFileEditInsertTool } from "./file_edit_insert";
 import type { FileEditInsertToolArgs, FileEditInsertToolResult } from "@/types/tools";
 import type { ToolCallOptions } from "ai";
-import { TestTempDir, getTestDeps } from "./testHelpers";
 import { createRuntime } from "@/runtime/runtimeFactory";
+import { getTestDeps } from "./testHelpers";
 
-// Mock ToolCallOptions for testing
 const mockToolCallOptions: ToolCallOptions = {
   toolCallId: "test-call-id",
   messages: [],
 };
 
-// Helper to create file_edit_insert tool with test configuration
-// Returns both tool and disposable temp directory
-function createTestFileEditInsertTool(options?: { cwd?: string }) {
-  const tempDir = new TestTempDir("test-file-edit-insert");
-  const tool = createFileEditInsertTool({
+function createTestTool(cwd: string) {
+  return createFileEditInsertTool({
     ...getTestDeps(),
-    cwd: options?.cwd ?? process.cwd(),
-    runtime: createRuntime({ type: "local", srcBaseDir: "/tmp" }),
-    runtimeTempDir: tempDir.path,
+    cwd,
+    runtime: createRuntime({ type: "local", srcBaseDir: cwd }),
+    runtimeTempDir: cwd,
   });
-
-  return {
-    tool,
-    [Symbol.dispose]() {
-      tempDir[Symbol.dispose]();
-    },
-  };
 }
 
 describe("file_edit_insert tool", () => {
@@ -38,368 +27,100 @@ describe("file_edit_insert tool", () => {
   let testFilePath: string;
 
   beforeEach(async () => {
-    // Create a temporary directory for test files
-    testDir = await fs.mkdtemp(path.join(os.tmpdir(), "fileEditInsert-test-"));
+    testDir = await fs.mkdtemp(path.join(os.tmpdir(), "file-edit-insert-"));
     testFilePath = path.join(testDir, "test.txt");
+    await fs.writeFile(testFilePath, "Line 1\nLine 3");
   });
 
   afterEach(async () => {
-    // Clean up test directory
     await fs.rm(testDir, { recursive: true, force: true });
   });
 
-  it("should insert content at the top of the file (line_offset = 0)", async () => {
-    // Setup
-    const initialContent = "line1\nline2\nline3";
-    await fs.writeFile(testFilePath, initialContent);
-
-    using testEnv = createTestFileEditInsertTool({ cwd: testDir });
-    const tool = testEnv.tool;
+  it("inserts content using before guard", async () => {
+    const tool = createTestTool(testDir);
     const args: FileEditInsertToolArgs = {
-      file_path: "test.txt", // Use relative path
-      line_offset: 0,
-      content: "INSERTED",
+      file_path: path.relative(testDir, testFilePath),
+      content: "Line 2\n",
+      before: "Line 1\n",
     };
 
-    // Execute
     const result = (await tool.execute!(args, mockToolCallOptions)) as FileEditInsertToolResult;
 
-    // Assert
     expect(result.success).toBe(true);
-
-    const updatedContent = await fs.readFile(testFilePath, "utf-8");
-    expect(updatedContent).toBe("INSERTED\nline1\nline2\nline3");
+    const updated = await fs.readFile(testFilePath, "utf-8");
+    expect(updated).toBe("Line 1\nLine 2\nLine 3");
   });
 
-  it("should insert content after line 1 (line_offset = 1)", async () => {
-    // Setup
-    const initialContent = "line1\nline2\nline3";
-    await fs.writeFile(testFilePath, initialContent);
-
-    using testEnv = createTestFileEditInsertTool({ cwd: testDir });
-    const tool = testEnv.tool;
+  it("inserts content using after guard", async () => {
+    const tool = createTestTool(testDir);
     const args: FileEditInsertToolArgs = {
-      file_path: "test.txt", // Use relative path
-      line_offset: 1,
-      content: "INSERTED",
+      file_path: path.relative(testDir, testFilePath),
+      content: "Header\n",
+      after: "Line 1",
     };
 
-    // Execute
     const result = (await tool.execute!(args, mockToolCallOptions)) as FileEditInsertToolResult;
-
-    // Assert
     expect(result.success).toBe(true);
-
-    const updatedContent = await fs.readFile(testFilePath, "utf-8");
-    expect(updatedContent).toBe("line1\nINSERTED\nline2\nline3");
+    expect(await fs.readFile(testFilePath, "utf-8")).toBe("Header\nLine 1\nLine 3");
   });
 
-  it("should insert content after line 2 (line_offset = 2)", async () => {
-    // Setup
-    const initialContent = "line1\nline2\nline3";
-    await fs.writeFile(testFilePath, initialContent);
-
-    using testEnv = createTestFileEditInsertTool({ cwd: testDir });
-    const tool = testEnv.tool;
+  it("fails when guard matches multiple times", async () => {
+    await fs.writeFile(testFilePath, "repeat\nrepeat\nrepeat\n");
+    const tool = createTestTool(testDir);
     const args: FileEditInsertToolArgs = {
-      file_path: "test.txt", // Use relative path
-      line_offset: 2,
-      content: "INSERTED",
+      file_path: path.relative(testDir, testFilePath),
+      content: "middle\n",
+      before: "repeat\n",
     };
 
-    // Execute
     const result = (await tool.execute!(args, mockToolCallOptions)) as FileEditInsertToolResult;
-
-    // Assert
-    expect(result.success).toBe(true);
-
-    const updatedContent = await fs.readFile(testFilePath, "utf-8");
-    expect(updatedContent).toBe("line1\nline2\nINSERTED\nline3");
-  });
-
-  it("should insert content at the end of the file (line_offset = line count)", async () => {
-    // Setup
-    const initialContent = "line1\nline2\nline3";
-    await fs.writeFile(testFilePath, initialContent);
-
-    using testEnv = createTestFileEditInsertTool({ cwd: testDir });
-    const tool = testEnv.tool;
-    const args: FileEditInsertToolArgs = {
-      file_path: "test.txt", // Use relative path
-      line_offset: 3,
-      content: "INSERTED",
-    };
-
-    // Execute
-    const result = (await tool.execute!(args, mockToolCallOptions)) as FileEditInsertToolResult;
-
-    // Assert
-    expect(result.success).toBe(true);
-
-    const updatedContent = await fs.readFile(testFilePath, "utf-8");
-    expect(updatedContent).toBe("line1\nline2\nline3\nINSERTED");
-  });
-
-  it("should insert multiline content", async () => {
-    // Setup
-    const initialContent = "line1\nline2";
-    await fs.writeFile(testFilePath, initialContent);
-
-    using testEnv = createTestFileEditInsertTool({ cwd: testDir });
-    const tool = testEnv.tool;
-    const args: FileEditInsertToolArgs = {
-      file_path: "test.txt", // Use relative path
-      line_offset: 1,
-      content: "INSERTED1\nINSERTED2",
-    };
-
-    // Execute
-    const result = (await tool.execute!(args, mockToolCallOptions)) as FileEditInsertToolResult;
-
-    // Assert
-    expect(result.success).toBe(true);
-
-    const updatedContent = await fs.readFile(testFilePath, "utf-8");
-    expect(updatedContent).toBe("line1\nINSERTED1\nINSERTED2\nline2");
-  });
-
-  it("should insert content into empty file", async () => {
-    // Setup
-    await fs.writeFile(testFilePath, "");
-
-    using testEnv = createTestFileEditInsertTool({ cwd: testDir });
-    const tool = testEnv.tool;
-    const args: FileEditInsertToolArgs = {
-      file_path: "test.txt", // Use relative path
-      line_offset: 0,
-      content: "INSERTED",
-    };
-
-    // Execute
-    const result = (await tool.execute!(args, mockToolCallOptions)) as FileEditInsertToolResult;
-
-    // Assert
-    expect(result.success).toBe(true);
-
-    const updatedContent = await fs.readFile(testFilePath, "utf-8");
-    expect(updatedContent).toBe("INSERTED\n");
-  });
-
-  it("should fail when file does not exist and create is not set", async () => {
-    // Setup
-    using testEnv = createTestFileEditInsertTool({ cwd: testDir });
-    const tool = testEnv.tool;
-    const args: FileEditInsertToolArgs = {
-      file_path: "nonexistent.txt", // Use relative path
-      line_offset: 0,
-      content: "INSERTED",
-    };
-
-    // Execute
-    const result = (await tool.execute!(args, mockToolCallOptions)) as FileEditInsertToolResult;
-
-    // Assert
     expect(result.success).toBe(false);
     if (!result.success) {
-      expect(result.error).toContain("File not found");
-      expect(result.error).toContain("set create: true");
+      expect(result.error).toContain("multiple times");
     }
   });
 
-  it("should create file when create is true and file does not exist", async () => {
-    // Setup
-    const tool = createFileEditInsertTool({
-      ...getTestDeps(),
-      cwd: testDir,
-      runtime: createRuntime({ type: "local", srcBaseDir: "/tmp" }),
-      runtimeTempDir: "/tmp",
-    });
+  it("fails when both before and after are provided", async () => {
+    const tool = createTestTool(testDir);
     const args: FileEditInsertToolArgs = {
-      file_path: "newfile.txt", // Use relative path
-      line_offset: 0,
-      content: "INSERTED",
-      create: true,
+      file_path: path.relative(testDir, testFilePath),
+      content: "oops",
+      before: "Line 1",
+      after: "Line 3",
     };
 
-    // Execute
     const result = (await tool.execute!(args, mockToolCallOptions)) as FileEditInsertToolResult;
-
-    // Assert
-    expect(result.success).toBe(true);
-
-    const fileContent = await fs.readFile(path.join(testDir, "newfile.txt"), "utf-8");
-    expect(fileContent).toBe("INSERTED\n");
-  });
-
-  it("should create parent directories when create is true", async () => {
-    // Setup
-    const tool = createFileEditInsertTool({
-      ...getTestDeps(),
-      cwd: testDir,
-      runtime: createRuntime({ type: "local", srcBaseDir: "/tmp" }),
-      runtimeTempDir: "/tmp",
-    });
-    const args: FileEditInsertToolArgs = {
-      file_path: "nested/dir/newfile.txt", // Use relative path
-      line_offset: 0,
-      content: "INSERTED",
-      create: true,
-    };
-
-    // Execute
-    const result = (await tool.execute!(args, mockToolCallOptions)) as FileEditInsertToolResult;
-
-    // Assert
-    expect(result.success).toBe(true);
-
-    const fileContent = await fs.readFile(path.join(testDir, "nested/dir/newfile.txt"), "utf-8");
-    expect(fileContent).toBe("INSERTED\n");
-  });
-
-  it("should work normally with create: true when file already exists", async () => {
-    // Setup
-    const initialContent = "line1\nline2";
-    await fs.writeFile(testFilePath, initialContent);
-
-    const tool = createFileEditInsertTool({
-      ...getTestDeps(),
-      cwd: testDir,
-      runtime: createRuntime({ type: "local", srcBaseDir: "/tmp" }),
-      runtimeTempDir: "/tmp",
-    });
-    const args: FileEditInsertToolArgs = {
-      file_path: "test.txt", // Use relative path
-      line_offset: 1,
-      content: "INSERTED",
-      create: true,
-    };
-
-    // Execute
-    const result = (await tool.execute!(args, mockToolCallOptions)) as FileEditInsertToolResult;
-
-    // Assert
-    expect(result.success).toBe(true);
-
-    const updatedContent = await fs.readFile(testFilePath, "utf-8");
-    expect(updatedContent).toBe("line1\nINSERTED\nline2");
-  });
-
-  it("should fail when line_offset is negative", async () => {
-    // Setup
-    const initialContent = "line1\nline2";
-    await fs.writeFile(testFilePath, initialContent);
-
-    using testEnv = createTestFileEditInsertTool({ cwd: testDir });
-    const tool = testEnv.tool;
-    const args: FileEditInsertToolArgs = {
-      file_path: "test.txt", // Use relative path
-      line_offset: -1,
-      content: "INSERTED",
-    };
-
-    // Execute
-    const result = (await tool.execute!(args, mockToolCallOptions)) as FileEditInsertToolResult;
-
-    // Assert
     expect(result.success).toBe(false);
     if (!result.success) {
-      expect(result.error).toContain("must be non-negative");
+      expect(result.error).toContain("only one of before or after");
     }
   });
 
-  it("should fail when line_offset exceeds file length", async () => {
-    // Setup
-    const initialContent = "line1\nline2";
-    await fs.writeFile(testFilePath, initialContent);
-
-    using testEnv = createTestFileEditInsertTool({ cwd: testDir });
-    const tool = testEnv.tool;
+  it("creates new file when create flag is provided", async () => {
+    const newFile = path.join(testDir, "new.txt");
+    const tool = createTestTool(testDir);
     const args: FileEditInsertToolArgs = {
-      file_path: "test.txt", // Use relative path
-      line_offset: 10, // File only has 2 lines
-      content: "INSERTED",
-    };
-
-    // Execute
-    const result = (await tool.execute!(args, mockToolCallOptions)) as FileEditInsertToolResult;
-
-    // Assert
-    expect(result.success).toBe(false);
-    if (!result.success) {
-      expect(result.error).toContain("beyond file length");
-    }
-  });
-
-  it("should handle content with trailing newline correctly (no double newlines)", async () => {
-    // This test verifies the fix for the terminal-bench "hello-world" bug
-    // where content with \n at the end was getting an extra newline added
-    using testEnv = createTestFileEditInsertTool({ cwd: testDir });
-    const tool = testEnv.tool;
-    const args: FileEditInsertToolArgs = {
-      file_path: "newfile.txt",
-      line_offset: 0,
-      content: "Hello, world!\n", // Content already has trailing newline
+      file_path: path.relative(testDir, newFile),
+      content: "Hello world!\n",
       create: true,
     };
 
-    // Execute
     const result = (await tool.execute!(args, mockToolCallOptions)) as FileEditInsertToolResult;
-
-    // Assert
     expect(result.success).toBe(true);
-
-    const fileContent = await fs.readFile(path.join(testDir, "newfile.txt"), "utf-8");
-    // Should NOT have double newline - the trailing \n in content should be preserved as-is
-    expect(fileContent).toBe("Hello, world!\n");
-    expect(fileContent).not.toBe("Hello, world!\n\n");
+    expect(await fs.readFile(newFile, "utf-8")).toBe("Hello world!\n");
   });
 
-  it("should handle multiline content with trailing newline", async () => {
-    // Setup
-    const initialContent = "line1\nline2";
-    await fs.writeFile(testFilePath, initialContent);
-
-    using testEnv = createTestFileEditInsertTool({ cwd: testDir });
-    const tool = testEnv.tool;
+  it("fails when no guards are provided", async () => {
+    const tool = createTestTool(testDir);
     const args: FileEditInsertToolArgs = {
-      file_path: "test.txt",
-      line_offset: 1,
-      content: "INSERTED1\nINSERTED2\n", // Multiline with trailing newline
+      file_path: path.relative(testDir, testFilePath),
+      content: "noop",
     };
 
-    // Execute
     const result = (await tool.execute!(args, mockToolCallOptions)) as FileEditInsertToolResult;
-
-    // Assert
-    expect(result.success).toBe(true);
-
-    const updatedContent = await fs.readFile(testFilePath, "utf-8");
-    // Should respect the trailing newline in content
-    expect(updatedContent).toBe("line1\nINSERTED1\nINSERTED2\nline2");
-  });
-
-  it("should preserve trailing newline when appending to file without trailing newline", async () => {
-    // Regression test for Codex feedback: when inserting at EOF with content ending in \n,
-    // the newline should be preserved even if the original file doesn't end with one
-    const initialContent = "line1\nline2"; // No trailing newline
-    await fs.writeFile(testFilePath, initialContent);
-
-    using testEnv = createTestFileEditInsertTool({ cwd: testDir });
-    const tool = testEnv.tool;
-    const args: FileEditInsertToolArgs = {
-      file_path: "test.txt",
-      line_offset: 2, // Append at end
-      content: "line3\n", // With trailing newline
-    };
-
-    // Execute
-    const result = (await tool.execute!(args, mockToolCallOptions)) as FileEditInsertToolResult;
-
-    // Assert
-    expect(result.success).toBe(true);
-
-    const updatedContent = await fs.readFile(testFilePath, "utf-8");
-    // Should preserve the trailing newline from content even at EOF
-    expect(updatedContent).toBe("line1\nline2\nline3\n");
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error).toContain("Provide either a before or after guard");
+    }
   });
 });

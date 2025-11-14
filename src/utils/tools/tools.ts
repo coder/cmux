@@ -65,11 +65,11 @@ export async function getToolsForModel(
   const runtimeTools: Record<string, Tool> = {
     file_read: wrap(createFileReadTool(config)),
     file_edit_replace_string: wrap(createFileEditReplaceStringTool(config)),
+    file_edit_insert: wrap(createFileEditInsertTool(config)),
     // DISABLED: file_edit_replace_lines - causes models (particularly GPT-5-Codex)
     // to leave repository in broken state due to issues with concurrent file modifications
-    // and line number miscalculations. Use file_edit_replace_string or file_edit_insert instead.
+    // and line number miscalculations. Use file_edit_replace_string instead.
     // file_edit_replace_lines: wrap(createFileEditReplaceLinesTool(config)),
-    file_edit_insert: wrap(createFileEditInsertTool(config)),
     bash: wrap(createBashTool(config)),
   };
 

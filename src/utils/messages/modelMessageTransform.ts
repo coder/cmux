@@ -199,6 +199,11 @@ export function injectModeTransition(
 }
 
 /**
+ * Filter out assistant messages that only contain reasoning parts (no text or tool parts).
+ * Anthropic API rejects messages that have reasoning but no actual content.
+ * This happens when a message is interrupted during thinking before producing any text.
+ */
+/**
  * Split assistant messages with mixed text and tool calls into separate messages
  * to comply with Anthropic's requirement that tool_use blocks must be immediately
  * followed by their tool_result blocks without intervening text.
@@ -209,7 +214,6 @@ function splitMixedContentMessages(messages: ModelMessage[]): ModelMessage[] {
   for (let i = 0; i < messages.length; i++) {
     const msg = messages[i];
 
-    // Only process assistant messages
     if (msg.role !== "assistant") {
       result.push(msg);
       continue;
@@ -217,180 +221,118 @@ function splitMixedContentMessages(messages: ModelMessage[]): ModelMessage[] {
 
     const assistantMsg = msg;
 
-    // AssistantContent can be string or array, handle both cases
     if (typeof assistantMsg.content === "string") {
-      // If content is just a string, no tool calls to worry about
       result.push(msg);
       continue;
     }
 
-    // Check if this assistant message has both text and tool calls
-    const textParts = assistantMsg.content.filter((c) => c.type === "text" && c.text.trim());
     const toolCallParts = assistantMsg.content.filter((c) => c.type === "tool-call");
 
-    // Check if the next message is a tool result message
-    const nextMsg = messages[i + 1];
-    const hasToolResults = nextMsg?.role === "tool";
-
-    // If no tool calls, keep as-is
     if (toolCallParts.length === 0) {
       result.push(msg);
       continue;
     }
 
-    // If we have tool calls but no text
-    if (textParts.length === 0) {
-      if (hasToolResults) {
-        // Filter tool calls to only include those with results
-        const toolMsg = nextMsg;
-        const resultIds = new Set(
-          toolMsg.content
-            .filter((r) => r.type === "tool-result")
-            .map((r) => (r.type === "tool-result" ? r.toolCallId : ""))
-        );
+    const nextMsg = messages[i + 1];
+    const hasToolResults = nextMsg?.role === "tool";
 
-        const validToolCalls = toolCallParts.filter(
-          (p) => p.type === "tool-call" && resultIds.has(p.toolCallId)
-        );
-
-        if (validToolCalls.length > 0) {
-          // Only include tool calls that have results
-          result.push({
-            role: "assistant",
-            content: validToolCalls,
-          });
-        }
-        // Skip if no valid tool calls remain
-      }
-      // Skip orphaned tool calls - they violate API requirements
+    if (!hasToolResults) {
+      result.push(msg);
       continue;
     }
 
-    // If we have tool calls that will be followed by results,
-    // we need to ensure no text appears between them
-    if (hasToolResults) {
-      const toolMsg = nextMsg;
+    const toolMsg = nextMsg;
 
-      // Find positions of text and tool calls in content array
-      const contentWithPositions = assistantMsg.content.map((c, idx) => ({
-        content: c,
-        index: idx,
-      }));
+    type ContentArray = Exclude<typeof assistantMsg.content, string>;
+    const groups: Array<{ type: "text" | "tool-call"; parts: ContentArray }> = [];
+    let currentGroup: { type: "text" | "tool-call"; parts: ContentArray } | null = null;
 
-      // Group consecutive parts by type
-      type ContentArray = Exclude<typeof assistantMsg.content, string>;
-      const groups: Array<{ type: "text" | "tool-call"; parts: ContentArray }> = [];
-      let currentGroup: { type: "text" | "tool-call"; parts: ContentArray } | null = null;
+    for (const part of assistantMsg.content) {
+      const partType = part.type === "tool-call" ? "tool-call" : "text";
 
-      for (const item of contentWithPositions) {
-        const partType = item.content.type === "text" ? "text" : "tool-call";
-
-        // eslint-disable-next-line @typescript-eslint/prefer-optional-chain
-        if (!currentGroup || currentGroup.type !== partType) {
-          if (currentGroup) groups.push(currentGroup);
-          currentGroup = { type: partType, parts: [] };
-        }
-
-        currentGroup.parts.push(item.content);
+      // eslint-disable-next-line @typescript-eslint/prefer-optional-chain
+      if (!currentGroup || currentGroup.type !== partType) {
+        if (currentGroup) groups.push(currentGroup);
+        currentGroup = { type: partType, parts: [] };
       }
 
-      if (currentGroup) groups.push(currentGroup);
+      currentGroup.parts.push(part);
+    }
 
-      // If we have alternating text and tool calls, we need to split them
-      if (groups.length > 1) {
-        // Process each group
-        for (const group of groups) {
-          if (group.parts.length > 0) {
-            let partsToInclude = group.parts;
+    if (currentGroup) {
+      groups.push(currentGroup);
+    }
 
-            // If this is a tool-call group, filter to only include tool calls that have results
-            if (group.type === "tool-call" && hasToolResults) {
-              // Get the IDs of tool calls that have results
-              const resultIds = new Set(
-                toolMsg.content
-                  .filter((r) => r.type === "tool-result")
-                  .map((r) => (r.type === "tool-result" ? r.toolCallId : ""))
-              );
+    if (groups.length <= 1) {
+      result.push(msg);
+      continue;
+    }
 
-              // Only include tool calls that have corresponding results
-              partsToInclude = group.parts.filter(
-                (p) => p.type === "tool-call" && resultIds.has(p.toolCallId)
-              );
-            }
+    const toolResultsById = new Map<string, Array<ToolModelMessage["content"][number]>>();
+    for (const content of toolMsg.content) {
+      if (content.type === "tool-result") {
+        const existing = toolResultsById.get(content.toolCallId);
+        if (existing) {
+          existing.push(content);
+        } else {
+          toolResultsById.set(content.toolCallId, [content]);
+        }
+      }
+    }
 
-            // Only create assistant message if there are parts to include
-            if (partsToInclude.length > 0) {
-              const newAssistantMsg: AssistantModelMessage = {
-                role: "assistant",
-                content: partsToInclude,
-              };
-              result.push(newAssistantMsg);
+    for (const group of groups) {
+      if (group.parts.length === 0) {
+        continue;
+      }
 
-              // If this group has tool calls that need results,
-              // add the tool results right after
-              if (group.type === "tool-call" && hasToolResults) {
-                // Get the tool call IDs from filtered parts
-                const toolCallIds = new Set(
-                  partsToInclude
-                    .filter((p) => p.type === "tool-call")
-                    .map((p) => (p.type === "tool-call" ? p.toolCallId : ""))
-                    .filter(Boolean)
-                );
+      if (group.type === "tool-call") {
+        const partsToInclude = group.parts.filter(
+          (p) => p.type === "tool-call" && toolResultsById.has(p.toolCallId)
+        );
 
-                // Filter the tool results to only include those for these tool calls
-                const relevantResults = toolMsg.content.filter(
-                  (r) => r.type === "tool-result" && toolCallIds.has(r.toolCallId)
-                );
+        if (partsToInclude.length === 0) {
+          continue;
+        }
 
-                if (relevantResults.length > 0) {
-                  const newToolMsg: ToolModelMessage = {
-                    role: "tool",
-                    content: relevantResults,
-                  };
-                  result.push(newToolMsg);
-                }
-              }
-            }
+        const newAssistantMsg: AssistantModelMessage = {
+          role: "assistant",
+          content: partsToInclude,
+        };
+        result.push(newAssistantMsg);
+
+        const relevantResults: ToolModelMessage["content"] = [];
+        for (const part of partsToInclude) {
+          if (part.type !== "tool-call") {
+            continue;
+          }
+          const results = toolResultsById.get(part.toolCallId);
+          if (results) {
+            relevantResults.push(...results);
+            toolResultsById.delete(part.toolCallId);
           }
         }
 
-        // Skip the original tool result message since we've redistributed its contents
-        if (hasToolResults) {
-          i++; // Skip next message
+        if (relevantResults.length > 0) {
+          const newToolMsg: ToolModelMessage = {
+            role: "tool",
+            content: relevantResults,
+          };
+          result.push(newToolMsg);
         }
       } else {
-        // No splitting needed, keep as-is
-        result.push(msg);
-      }
-    } else {
-      // No tool results follow, which means these tool calls were interrupted
-      // Both Anthropic and OpenAI APIs require EVERY tool_use to have a tool_result,
-      // so we must strip out interrupted tool calls entirely. The text content with
-      // [INTERRUPTED] sentinel gives the model enough context.
-
-      // Only include text parts (strip out interrupted tool calls)
-      if (textParts.length > 0) {
-        const textMsg: AssistantModelMessage = {
+        const newAssistantMsg: AssistantModelMessage = {
           role: "assistant",
-          content: textParts,
+          content: group.parts,
         };
-        result.push(textMsg);
+        result.push(newAssistantMsg);
       }
-
-      // DO NOT include tool calls without results - they violate API requirements
-      // The interrupted tool calls are preserved in chat.jsonl for UI display, but
-      // excluded from API calls since they have no results
     }
+
+    i++;
   }
 
   return result;
 }
-
-/**
- * Filter out assistant messages that only contain reasoning parts (no text or tool parts).
- * Anthropic API rejects messages that have reasoning but no actual content.
- * This happens when a message is interrupted during thinking before producing any text.
- */
 function filterReasoningOnlyMessages(messages: ModelMessage[]): ModelMessage[] {
   return messages.filter((msg) => {
     if (msg.role !== "assistant") {
@@ -557,8 +499,7 @@ export function transformModelMessages(messages: ModelMessage[], provider: strin
 
 /**
  * Validate that the transformed messages follow Anthropic's requirements:
- * - Every tool-call must be immediately followed by its tool-result
- * - No text can appear between tool-call and tool-result
+ * - Every tool-call must be immediately followed by its tool-result message
  */
 export function validateAnthropicCompliance(messages: ModelMessage[]): {
   valid: boolean;

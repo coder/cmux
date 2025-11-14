@@ -1,5 +1,5 @@
 import { useCallback, useEffect } from "react";
-import { usePersistedState, readPersistedState } from "./usePersistedState";
+import { usePersistedState, readPersistedState, updatePersistedState } from "./usePersistedState";
 import { MODEL_ABBREVIATIONS } from "@/utils/slashCommands/registry";
 import { defaultModel } from "@/utils/ai/models";
 
@@ -7,7 +7,28 @@ const MAX_LRU_SIZE = 8;
 const LRU_KEY = "model-lru";
 
 // Default models from abbreviations (for initial LRU population)
-const DEFAULT_MODELS = Object.values(MODEL_ABBREVIATIONS);
+// Ensure defaultModel is first, then fill with other abbreviations
+const DEFAULT_MODELS = [
+  defaultModel,
+  ...Object.values(MODEL_ABBREVIATIONS).filter((m) => m !== defaultModel),
+].slice(0, MAX_LRU_SIZE);
+function persistModels(models: string[]): void {
+  updatePersistedState(LRU_KEY, models.slice(0, MAX_LRU_SIZE));
+}
+
+export function evictModelFromLRU(model: string): void {
+  const normalized = model.trim();
+  if (!normalized) {
+    return;
+  }
+  const current = readPersistedState<string[]>(LRU_KEY, DEFAULT_MODELS.slice(0, MAX_LRU_SIZE));
+  const filtered = current.filter((m) => m !== normalized);
+  if (filtered.length === current.length) {
+    return;
+  }
+  const nextList = filtered.length > 0 ? filtered : DEFAULT_MODELS.slice(0, MAX_LRU_SIZE);
+  persistModels(nextList);
+}
 
 /**
  * Get the default model from LRU (non-hook version for use outside React)
@@ -28,7 +49,8 @@ export function getDefaultModelFromLRU(): string {
 export function useModelLRU() {
   const [recentModels, setRecentModels] = usePersistedState<string[]>(
     LRU_KEY,
-    DEFAULT_MODELS.slice(0, MAX_LRU_SIZE)
+    DEFAULT_MODELS.slice(0, MAX_LRU_SIZE),
+    { listener: true }
   );
 
   // Merge any new defaults from MODEL_ABBREVIATIONS (only once on mount)
@@ -72,8 +94,16 @@ export function useModelLRU() {
     return recentModels;
   }, [recentModels]);
 
+  const evictModel = useCallback((modelString: string) => {
+    if (!modelString.trim()) {
+      return;
+    }
+    evictModelFromLRU(modelString);
+  }, []);
+
   return {
     addModel,
+    evictModel,
     getRecentModels,
     recentModels,
   };

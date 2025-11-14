@@ -4,6 +4,7 @@ import type { Config } from "@/config";
 import { log } from "./log";
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { createOpenAI } from "@ai-sdk/openai";
+import { MODEL_NAMES } from "@/constants/knownModels";
 
 const workspaceNameSchema = z.object({
   name: z
@@ -72,7 +73,7 @@ function getModelForTitleGeneration(modelString: string, config: Config): Langua
       const provider = createAnthropic({
         apiKey: String(providersConfig.anthropic.apiKey),
       });
-      return provider("claude-haiku-4-5");
+      return provider(MODEL_NAMES.anthropic.HAIKU);
     }
 
     // Try OpenAI GPT-5-mini second
@@ -80,7 +81,7 @@ function getModelForTitleGeneration(modelString: string, config: Config): Langua
       const provider = createOpenAI({
         apiKey: String(providersConfig.openai.apiKey),
       });
-      return provider("gpt-5-mini");
+      return provider(MODEL_NAMES.openai.GPT_MINI);
     }
 
     // Parse user's model as fallback

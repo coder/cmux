@@ -5,7 +5,7 @@ Add a `.mux/init` executable script to your project root to run commands when cr
 ## Example
 
 ```bash
-#!/bin/bash
+#!/usr/bin/env bash
 set -e
 
 bun install
@@ -40,7 +40,7 @@ Init hooks receive the following environment variables:
 **Note for SSH workspaces:** Since the project is synced to the remote machine, files exist in both locations. The init hook runs in the workspace directory (`$PWD`), so use relative paths to reference project files:
 
 ```bash
-#!/bin/bash
+#!/usr/bin/env bash
 set -e
 
 echo "Runtime: $MUX_RUNTIME"

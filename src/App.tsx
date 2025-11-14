@@ -4,7 +4,6 @@ import { useApp } from "./contexts/AppContext";
 import type { WorkspaceSelection } from "./components/ProjectSidebar";
 import type { FrontendWorkspaceMetadata } from "./types/workspace";
 import { LeftSidebar } from "./components/LeftSidebar";
-import NewWorkspaceModal from "./components/NewWorkspaceModal";
 import { ProjectCreateModal } from "./components/ProjectCreateModal";
 import { AIView } from "./components/AIView";
 import { ErrorBoundary } from "./components/ErrorBoundary";
@@ -15,6 +14,7 @@ import { useUnreadTracking } from "./hooks/useUnreadTracking";
 import { useAutoCompactContinue } from "./hooks/useAutoCompactContinue";
 import { useWorkspaceStoreRaw, useWorkspaceRecency } from "./stores/WorkspaceStore";
 import { ChatInput } from "./components/ChatInput/index";
+import type { ChatInputAPI } from "./components/ChatInput/types";
 
 import { useStableReference, compareMaps } from "./hooks/useStableReference";
 import { CommandRegistryProvider, useCommandRegistry } from "./contexts/CommandRegistryContext";
@@ -25,13 +25,12 @@ import { CommandPalette } from "./components/CommandPalette";
 import { buildCoreSources, type BuildSourcesParams } from "./utils/commands/sources";
 
 import type { ThinkingLevel } from "./types/thinking";
-import type { RuntimeConfig } from "./types/runtime";
 import { CUSTOM_EVENTS } from "./constants/events";
 import { isWorkspaceForkSwitchEvent } from "./utils/workspaceFork";
-import { getThinkingLevelKey, getRuntimeKey } from "./constants/storage";
+import { getThinkingLevelKey } from "./constants/storage";
 import type { BranchListResult } from "./types/ipc";
 import { useTelemetry } from "./hooks/useTelemetry";
-import { parseRuntimeString } from "./utils/chatCommands";
+import { useStartWorkspaceCreation, getFirstProjectPath } from "./hooks/useStartWorkspaceCreation";
 
 const THINKING_LEVELS: ThinkingLevel[] = ["off", "low", "medium", "high"];
 
@@ -43,22 +42,12 @@ function AppInner() {
     removeProject,
     workspaceMetadata,
     setWorkspaceMetadata,
-    createWorkspace,
     removeWorkspace,
     renameWorkspace,
     selectedWorkspace,
     setSelectedWorkspace,
   } = useApp();
   const [projectCreateModalOpen, setProjectCreateModalOpen] = useState(false);
-  const [workspaceModalOpen, setWorkspaceModalOpen] = useState(false);
-  const [workspaceModalProject, setWorkspaceModalProject] = useState<string | null>(null);
-  const [workspaceModalProjectName, setWorkspaceModalProjectName] = useState<string>("");
-  const [workspaceModalBranches, setWorkspaceModalBranches] = useState<string[]>([]);
-  const [workspaceModalDefaultTrunk, setWorkspaceModalDefaultTrunk] = useState<string | undefined>(
-    undefined
-  );
-  const [workspaceModalLoadError, setWorkspaceModalLoadError] = useState<string | null>(null);
-  const workspaceModalProjectRef = useRef<string | null>(null);
 
   // Track when we're in "new workspace creation" mode (show FirstMessageInput)
   const [pendingNewWorkspaceProject, setPendingNewWorkspaceProject] = useState<string | null>(null);
@@ -66,6 +55,27 @@ function AppInner() {
   // Auto-collapse sidebar on mobile by default
   const isMobile = typeof window !== "undefined" && window.innerWidth <= 768;
   const [sidebarCollapsed, setSidebarCollapsed] = usePersistedState("sidebarCollapsed", isMobile);
+  const defaultProjectPath = getFirstProjectPath(projects);
+  const creationChatInputRef = useRef<ChatInputAPI | null>(null);
+  const creationProjectPath = !selectedWorkspace
+    ? (pendingNewWorkspaceProject ?? (projects.size === 1 ? defaultProjectPath : null))
+    : null;
+  const handleCreationChatReady = useCallback((api: ChatInputAPI) => {
+    creationChatInputRef.current = api;
+    api.focus();
+  }, []);
+
+  const startWorkspaceCreation = useStartWorkspaceCreation({
+    projects,
+    setPendingNewWorkspaceProject,
+    setSelectedWorkspace,
+  });
+
+  useEffect(() => {
+    if (creationProjectPath) {
+      creationChatInputRef.current?.focus();
+    }
+  }, [creationProjectPath]);
 
   const handleToggleSidebar = useCallback(() => {
     setSidebarCollapsed((prev) => !prev);
@@ -133,7 +143,6 @@ function AppInner() {
       void window.api.window.setTitle("mux");
     }
   }, [selectedWorkspace, workspaceMetadata]);
-
   // Validate selected workspace exists and has all required fields
   useEffect(() => {
     if (selectedWorkspace) {
@@ -177,14 +186,9 @@ function AppInner() {
 
   const handleAddWorkspace = useCallback(
     (projectPath: string) => {
-      console.log("[App] handleAddWorkspace called with projectPath:", projectPath);
-      // Show FirstMessageInput for this project
-      setPendingNewWorkspaceProject(projectPath);
-      // Clear any selected workspace so FirstMessageInput is shown
-      setSelectedWorkspace(null);
-      console.log("[App] Set pendingNewWorkspaceProject to:", projectPath);
+      startWorkspaceCreation(projectPath);
     },
-    [setSelectedWorkspace]
+    [startWorkspaceCreation]
   );
 
   // Memoize callbacks to prevent LeftSidebar/ProjectSidebar re-renders
@@ -205,48 +209,6 @@ function AppInner() {
     },
     [handleRemoveProject]
   );
-
-  const handleCreateWorkspace = async (
-    branchName: string,
-    trunkBranch: string,
-    runtime?: string
-  ) => {
-    if (!workspaceModalProject) return;
-
-    console.assert(
-      typeof trunkBranch === "string" && trunkBranch.trim().length > 0,
-      "Expected trunk branch to be provided by the workspace modal"
-    );
-
-    // Parse runtime config if provided
-    let runtimeConfig: RuntimeConfig | undefined;
-    if (runtime) {
-      try {
-        runtimeConfig = parseRuntimeString(runtime, branchName);
-      } catch (err) {
-        console.error("Failed to parse runtime config:", err);
-        throw err; // Let modal handle the error
-      }
-    }
-
-    const newWorkspace = await createWorkspace(
-      workspaceModalProject,
-      branchName,
-      trunkBranch,
-      runtimeConfig
-    );
-    if (newWorkspace) {
-      // Track workspace creation
-      telemetry.workspaceCreated(newWorkspace.workspaceId);
-      setSelectedWorkspace(newWorkspace);
-
-      // Save runtime preference for this project if provided
-      if (runtime) {
-        const runtimeKey = getRuntimeKey(workspaceModalProject);
-        localStorage.setItem(runtimeKey, runtime);
-      }
-    }
-  };
 
   const handleGetSecrets = useCallback(async (projectPath: string) => {
     return await window.api.projects.secrets.get(projectPath);
@@ -400,9 +362,9 @@ function AppInner() {
 
   const openNewWorkspaceFromPalette = useCallback(
     (projectPath: string) => {
-      void handleAddWorkspace(projectPath);
+      startWorkspaceCreation(projectPath);
     },
-    [handleAddWorkspace]
+    [startWorkspaceCreation]
   );
 
   const getBranchesForProject = useCallback(
@@ -471,7 +433,7 @@ function AppInner() {
     selectedWorkspace,
     getThinkingLevel: getThinkingLevelForWorkspace,
     onSetThinkingLevel: setThinkingLevelFromPalette,
-    onOpenNewWorkspaceModal: openNewWorkspaceFromPalette,
+    onStartWorkspaceCreation: openNewWorkspaceFromPalette,
     getBranchesForProject,
     onSelectWorkspace: selectWorkspaceFromPalette,
     onRemoveWorkspace: removeWorkspaceFromPalette,
@@ -623,9 +585,9 @@ function AppInner() {
                   }
                 />
               </ErrorBoundary>
-            ) : pendingNewWorkspaceProject || projects.size === 1 ? (
+            ) : creationProjectPath ? (
               (() => {
-                const projectPath = pendingNewWorkspaceProject ?? Array.from(projects.keys())[0];
+                const projectPath = creationProjectPath;
                 const projectName =
                   projectPath.split("/").pop() ?? projectPath.split("\\").pop() ?? "Project";
                 return (
@@ -635,6 +597,7 @@ function AppInner() {
                         variant="creation"
                         projectPath={projectPath}
                         projectName={projectName}
+                        onReady={handleCreationChatReady}
                         onWorkspaceCreated={(metadata) => {
                           // Add to workspace metadata map
                           setWorkspaceMetadata((prev) => new Map(prev).set(metadata.id, metadata));
@@ -688,26 +651,6 @@ function AppInner() {
             workspaceId: selectedWorkspace?.workspaceId,
           })}
         />
-        {workspaceModalOpen && workspaceModalProject && (
-          <NewWorkspaceModal
-            isOpen={workspaceModalOpen}
-            projectName={workspaceModalProjectName}
-            projectPath={workspaceModalProject}
-            branches={workspaceModalBranches}
-            defaultTrunkBranch={workspaceModalDefaultTrunk}
-            loadErrorMessage={workspaceModalLoadError}
-            onClose={() => {
-              workspaceModalProjectRef.current = null;
-              setWorkspaceModalOpen(false);
-              setWorkspaceModalProject(null);
-              setWorkspaceModalProjectName("");
-              setWorkspaceModalBranches([]);
-              setWorkspaceModalDefaultTrunk(undefined);
-              setWorkspaceModalLoadError(null);
-            }}
-            onAdd={handleCreateWorkspace}
-          />
-        )}
         <ProjectCreateModal
           isOpen={projectCreateModalOpen}
           onClose={() => setProjectCreateModalOpen(false)}

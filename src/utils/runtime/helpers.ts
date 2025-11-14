@@ -1,5 +1,5 @@
-import path from "path";
 import type { Runtime, ExecOptions } from "@/runtime/Runtime";
+import { PlatformPaths } from "../paths";
 
 /**
  * Convenience helpers for working with streaming Runtime APIs.
@@ -11,9 +11,7 @@ import type { Runtime, ExecOptions } from "@/runtime/Runtime";
  * Works for both local paths and remote paths
  */
 export function getProjectName(projectPath: string): string {
-  // For local paths, use path.basename
-  // For remote paths (containing /), use the last segment
-  return path.basename(projectPath);
+  return PlatformPaths.getProjectName(projectPath);
 }
 
 /**

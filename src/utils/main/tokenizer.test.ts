@@ -7,10 +7,11 @@ import {
   getTokenizerForModel,
   loadTokenizerModules,
 } from "./tokenizer";
+import { KNOWN_MODELS } from "@/constants/knownModels";
 
 jest.setTimeout(20000);
 
-const model = "openai:gpt-5";
+const model = KNOWN_MODELS.GPT.id;
 beforeAll(async () => {
   // warm up the worker_thread and tokenizer before running tests
   await expect(loadTokenizerModules([model])).resolves.toHaveLength(1);

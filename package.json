@@ -10,7 +10,7 @@
   "license": "AGPL-3.0-only",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/coder/cmux.git"
+    "url": "git+https://github.com/coder/mux.git"
   },
   "publishConfig": {
     "access": "public"
@@ -44,9 +44,8 @@
     "test:storybook": "make test-storybook"
   },
   "dependencies": {
-    "@ai-sdk/anthropic": "^2.0.29",
-    "@ai-sdk/openai": "^2.0.52",
-    "@openrouter/ai-sdk-provider": "^1.2.1",
+    "@ai-sdk/openai": "^2.0.66",
+    "@openrouter/ai-sdk-provider": "^1.2.2",
     "ghostty-web": "^0.1.1",
     "@radix-ui/react-dialog": "^1.1.15",
     "@radix-ui/react-dropdown-menu": "^2.1.16",
@@ -57,8 +56,8 @@
     "@radix-ui/react-tabs": "^1.1.13",
     "@radix-ui/react-toggle-group": "^1.1.11",
     "@radix-ui/react-tooltip": "^1.2.8",
-    "ai": "^5.0.72",
-    "ai-tokenizer": "^1.0.3",
+    "ai": "^5.0.93",
+    "ai-tokenizer": "^1.0.4",
     "chalk": "^5.6.2",
     "cors": "^2.8.5",
     "crc-32": "^1.2.2",
@@ -70,8 +69,13 @@
     "lru-cache": "^11.2.2",
     "markdown-it": "^14.1.0",
     "minimist": "^1.2.8",
+<<<<<<< HEAD
     "node-pty": "1.1.0-beta39",
     "ollama-ai-provider-v2": "^1.5.3",
+=======
+    "motion": "^12.23.24",
+    "ollama-ai-provider-v2": "^1.5.4",
+>>>>>>> main
     "rehype-harden": "^1.1.5",
     "shescape": "^2.1.6",
     "source-map-support": "^0.5.21",
@@ -129,6 +133,7 @@
     "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-storybook": "10.0.0",
     "eslint-plugin-tailwindcss": "4.0.0-beta.0",
+    "geist": "^1.5.1",
     "jest": "^30.1.3",
     "mermaid": "^11.12.0",
     "nodemon": "^3.1.10",
@@ -145,6 +150,7 @@
     "rehype-raw": "^7.0.0",
     "remark-gfm": "^4.0.1",
     "remark-math": "^6.0.0",
+    "sharp": "^0.34.5",
     "shiki": "^3.13.0",
     "storybook": "^10.0.0",
     "tailwind-merge": "^3.3.1",
@@ -207,8 +213,15 @@
       "artifactName": "${productName}-${version}-${arch}.${ext}"
     },
     "win": {
+<<<<<<< HEAD
       "target": "nsis"
     },
     "npmRebuild": false
+=======
+      "target": "nsis",
+      "icon": "build/icon.png",
+      "artifactName": "${productName}-${version}-${arch}.${ext}"
+    }
+>>>>>>> main
   }
 }

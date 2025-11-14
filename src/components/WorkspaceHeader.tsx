@@ -1,11 +1,11 @@
 import React, { useCallback } from "react";
-import { AgentStatusIndicator } from "./AgentStatusIndicator";
 import { GitStatusIndicator } from "./GitStatusIndicator";
 import { RuntimeBadge } from "./RuntimeBadge";
 import { TooltipWrapper, Tooltip } from "./Tooltip";
 import { formatKeybind, KEYBINDS } from "@/utils/ui/keybinds";
 import { useGitStatus } from "@/stores/GitStatusStore";
 import type { RuntimeConfig } from "@/types/runtime";
+import { WorkspaceStatusDot } from "./WorkspaceStatusDot";
 
 interface WorkspaceHeaderProps {
   workspaceId: string;
@@ -30,7 +30,7 @@ export const WorkspaceHeader: React.FC<WorkspaceHeaderProps> = ({
   return (
     <div className="bg-separator border-border-light flex items-center justify-between border-b px-[15px] py-1 [@media(max-width:768px)]:flex-wrap [@media(max-width:768px)]:gap-2 [@media(max-width:768px)]:py-2 [@media(max-width:768px)]:pl-[60px]">
       <div className="text-foreground flex min-w-0 items-center gap-2 overflow-hidden font-semibold">
-        <AgentStatusIndicator workspaceId={workspaceId} />
+        <WorkspaceStatusDot workspaceId={workspaceId} />
         <GitStatusIndicator
           gitStatus={gitStatus}
           workspaceId={workspaceId}

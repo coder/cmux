@@ -8,6 +8,7 @@ import type { Secret, SecretsConfig } from "./types/secrets";
 import type { Workspace, ProjectConfig, ProjectsConfig } from "./types/project";
 import { DEFAULT_RUNTIME_CONFIG } from "./constants/workspace";
 import { getMuxHome } from "./constants/paths";
+import { PlatformPaths } from "./utils/paths";
 
 // Re-export project types from dedicated types file (for preload usage)
 export type { Workspace, ProjectConfig, ProjectsConfig };
@@ -96,7 +97,7 @@ export class Config {
   }
 
   private getProjectName(projectPath: string): string {
-    return projectPath.split("/").pop() ?? projectPath.split("\\").pop() ?? "unknown";
+    return PlatformPaths.getProjectName(projectPath);
   }
 
   /**
@@ -120,8 +121,7 @@ export class Config {
    */
   generateLegacyId(projectPath: string, workspacePath: string): string {
     const projectBasename = this.getProjectName(projectPath);
-    const workspaceBasename =
-      workspacePath.split("/").pop() ?? workspacePath.split("\\").pop() ?? "unknown";
+    const workspaceBasename = PlatformPaths.basename(workspacePath);
     return `${projectBasename}-${workspaceBasename}`;
   }
 

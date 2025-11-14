@@ -11,7 +11,7 @@ import type { MuxFrontendMetadata, CompactionRequestData } from "@/types/message
 import type { FrontendWorkspaceMetadata } from "@/types/workspace";
 import type { RuntimeConfig } from "@/types/runtime";
 import { RUNTIME_MODE, SSH_RUNTIME_PREFIX } from "@/types/runtime";
-import { CUSTOM_EVENTS } from "@/constants/events";
+import { CUSTOM_EVENTS, createCustomEvent } from "@/constants/events";
 import type { Toast } from "@/components/ChatInputToast";
 import type { ParsedCommand } from "@/utils/slashCommands/types";
 import { applyCompactionOverrides } from "@/utils/messages/compactionOptions";
@@ -305,8 +305,26 @@ export async function handleNewCommand(
   // Open modal if no workspace name provided
   if (!parsed.workspaceName) {
     setInput("");
-    const event = new CustomEvent(CUSTOM_EVENTS.EXECUTE_COMMAND, {
-      detail: { commandId: "ws:new" },
+
+    // Get workspace info to extract projectPath for the modal
+    const workspaceInfo = await window.api.workspace.getInfo(workspaceId);
+    if (!workspaceInfo) {
+      setToast({
+        id: Date.now().toString(),
+        type: "error",
+        title: "Error",
+        message: "Failed to get workspace info",
+      });
+      return { clearInput: false, toastShown: true };
+    }
+
+    // Dispatch event with start message, model, and optional preferences
+    const event = createCustomEvent(CUSTOM_EVENTS.START_WORKSPACE_CREATION, {
+      projectPath: workspaceInfo.projectPath,
+      startMessage: parsed.startMessage ?? "",
+      model: sendMessageOptions.model,
+      trunkBranch: parsed.trunkBranch,
+      runtime: parsed.runtime,
     });
     window.dispatchEvent(event);
     return { clearInput: true, toastShown: false };

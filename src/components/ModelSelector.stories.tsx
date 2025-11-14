@@ -18,6 +18,10 @@ const meta = {
       control: false,
       description: "Callback when model changes",
     },
+    onRemoveModel: {
+      control: false,
+      description: "Callback when a model is removed",
+    },
     recentModels: {
       control: { type: "object" },
       description: "List of recently used models",
@@ -36,6 +40,7 @@ export const Default: Story = {
   args: {
     value: "anthropic:claude-sonnet-4-5",
     onChange: action("onChange"),
+    onRemoveModel: action("onRemoveModel"),
     recentModels: ["anthropic:claude-sonnet-4-5", "anthropic:claude-opus-4-1", "openai:gpt-5-pro"],
     onComplete: action("onComplete"),
   },
@@ -45,6 +50,7 @@ export const LongModelName: Story = {
   args: {
     value: "anthropic:claude-opus-4-20250514-preview-experimental",
     onChange: action("onChange"),
+    onRemoveModel: action("onRemoveModel"),
     recentModels: [
       "anthropic:claude-opus-4-20250514-preview-experimental",
       "anthropic:claude-sonnet-4-20250514-preview-experimental",
@@ -58,6 +64,7 @@ export const WithManyModels: Story = {
   args: {
     value: "anthropic:claude-sonnet-4-5",
     onChange: action("onChange"),
+    onRemoveModel: action("onRemoveModel"),
     recentModels: [
       "anthropic:claude-sonnet-4-5",
       "anthropic:claude-opus-4-1",

@@ -7,6 +7,7 @@ import type { Config } from "@/config";
 import { workspaceFileLocks } from "@/utils/concurrency/workspaceFileLocks";
 import { log } from "./log";
 import { getTokenizerForModel } from "@/utils/main/tokenizer";
+import { KNOWN_MODELS } from "@/constants/knownModels";
 
 /**
  * HistoryService - Manages chat history persistence and sequence numbering
@@ -340,7 +341,7 @@ export class HistoryService {
         }
 
         // Get tokenizer for counting (use a default model)
-        const tokenizer = await getTokenizerForModel("anthropic:claude-sonnet-4-5");
+        const tokenizer = await getTokenizerForModel(KNOWN_MODELS.SONNET.id);
 
         // Count tokens for each message
         // We stringify the entire message for simplicity - only relative weights matter

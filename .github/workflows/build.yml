@@ -17,11 +17,6 @@ jobs:
           fetch-depth: 0 # Required for git describe to find tags
 
       - uses: ./.github/actions/setup-mux
-        with:
-          install-imagemagick: true
-
-      - name: Build application
-        run: bun run build
 
       - name: Setup code signing
         run: ./scripts/setup-macos-signing.sh
@@ -73,8 +68,6 @@ jobs:
           fetch-depth: 0 # Required for git describe to find tags
 
       - uses: ./.github/actions/setup-mux
-        with:
-          install-imagemagick: true
 
       - name: Build application
         run: bun run build
@@ -107,6 +100,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: vscode-extension
-          path: vscode/cmux-*.vsix
+          path: vscode/mux-*.vsix
           retention-days: 30
           if-no-files-found: error

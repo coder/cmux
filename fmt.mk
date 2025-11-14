@@ -26,11 +26,11 @@ fmt-check: fmt-prettier-check fmt-shell-check fmt-python-check fmt-nix-check
 
 fmt-prettier:
 	@echo "Formatting TypeScript/JSON/Markdown files..."
-	@$(PRETTIER) --write $(PRETTIER_PATTERNS)
+	@$(PRETTIER) --log-level error --write $(PRETTIER_PATTERNS)
 
 fmt-prettier-check:
 	@echo "Checking TypeScript/JSON/Markdown formatting..."
-	@$(PRETTIER) --check $(PRETTIER_PATTERNS)
+	@$(PRETTIER) --log-level log --check $(PRETTIER_PATTERNS)
 
 fmt-shell:
 ifeq ($(SHFMT),)
@@ -38,7 +38,7 @@ ifeq ($(SHFMT),)
 	@exit 1
 else
 	@echo "Formatting shell scripts..."
-	@shfmt -i 2 -ci -bn -w $(SHELL_SCRIPTS)
+	@shfmt -i 2 -ci -bn -w $(SHELL_SCRIPTS) >/dev/null
 endif
 
 fmt-shell-check:
@@ -59,11 +59,11 @@ endif
 
 fmt-python: .check-uvx
 	@echo "Formatting Python files..."
-	@$(UVX) ruff format $(PYTHON_DIRS)
+	@$(UVX) ruff format --quiet $(PYTHON_DIRS)
 
 fmt-python-check: .check-uvx
 	@echo "Checking Python formatting..."
-	@$(UVX) ruff format --check $(PYTHON_DIRS)
+	@$(UVX) ruff format --quiet --check $(PYTHON_DIRS)
 
 fmt-nix:
 ifeq ($(NIX),)

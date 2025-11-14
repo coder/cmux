@@ -2,6 +2,8 @@
 *.swp
 *.swo
 *~
+# Font files (copied from node_modules during build)
+public/fonts/
 
 # OSX
 .DS_Store

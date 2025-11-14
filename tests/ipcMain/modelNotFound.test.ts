@@ -1,5 +1,5 @@
 import { setupWorkspace, shouldRunIntegrationTests, validateApiKeys } from "./setup";
-import { sendMessageWithModel, createEventCollector, waitFor } from "./helpers";
+import { sendMessageWithModel, createEventCollector, waitFor, modelString } from "./helpers";
 import { IPC_CHANNELS } from "../../src/constants/ipc-constants";
 import type { Result } from "../../src/types/result";
 import type { SendMessageError } from "../../src/types/errors";
@@ -30,8 +30,7 @@ describeIntegration("IpcMain model_not_found error handling", () => {
           env.mockIpcRenderer,
           workspaceId,
           "Hello",
-          "anthropic",
-          "invalid-model-that-does-not-exist-xyz123"
+          modelString("anthropic", "invalid-model-that-does-not-exist-xyz123")
         );
 
         // Collect events to verify error classification
@@ -69,8 +68,7 @@ describeIntegration("IpcMain model_not_found error handling", () => {
           env.mockIpcRenderer,
           workspaceId,
           "Hello",
-          "openai",
-          "gpt-nonexistent-model-xyz123"
+          modelString("openai", "gpt-nonexistent-model-xyz123")
         );
 
         // Collect events to verify error classification
