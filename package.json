@@ -69,13 +69,9 @@
     "lru-cache": "^11.2.2",
     "markdown-it": "^14.1.0",
     "minimist": "^1.2.8",
-<<<<<<< HEAD
-    "node-pty": "1.1.0-beta39",
-    "ollama-ai-provider-v2": "^1.5.3",
-=======
     "motion": "^12.23.24",
     "ollama-ai-provider-v2": "^1.5.4",
->>>>>>> main
+    "node-pty": "1.1.0-beta39",
     "rehype-harden": "^1.1.5",
     "shescape": "^2.1.6",
     "source-map-support": "^0.5.21",
@@ -213,15 +209,9 @@
       "artifactName": "${productName}-${version}-${arch}.${ext}"
     },
     "win": {
-<<<<<<< HEAD
-      "target": "nsis"
-    },
-    "npmRebuild": false
-=======
       "target": "nsis",
       "icon": "build/icon.png",
       "artifactName": "${productName}-${version}-${arch}.${ext}"
     }
->>>>>>> main
   }
 }

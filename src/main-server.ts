@@ -178,6 +178,18 @@ const httpIpcMain = new HttpIpcMainAdapter(app);
     return Promise.resolve(null);
   });
 
+  // Terminal window handlers for browser mode
+  // In browser mode, terminals open as new browser windows/tabs instead of Electron BrowserWindows
+  httpIpcMain.handle(IPC_CHANNELS.TERMINAL_WINDOW_OPEN, () => {
+    // In browser mode, the client will handle opening the window with window.open()
+    // The backend just needs to not error
+    return Promise.resolve(null);
+  });
+  httpIpcMain.handle(IPC_CHANNELS.TERMINAL_WINDOW_CLOSE, () => {
+    // In browser mode, closing is handled by the browser (user closes tab/window)
+    return Promise.resolve(null);
+  });
+
   // Serve static files from dist directory (built renderer)
   app.use(express.static(path.join(__dirname, ".")));
 

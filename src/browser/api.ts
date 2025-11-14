@@ -267,7 +267,12 @@ const webApi: IPCApi = {
       const channel = `terminal:exit:${sessionId}`;
       return wsManager.on(channel, callback as (data: unknown) => void);
     },
-    openWindow: (workspaceId) => invokeIPC(IPC_CHANNELS.TERMINAL_WINDOW_OPEN, workspaceId),
+    openWindow: (workspaceId) => {
+      // In browser mode, open a new window/tab with the terminal page
+      const url = `/terminal.html?workspaceId=${encodeURIComponent(workspaceId)}`;
+      window.open(url, `terminal-${workspaceId}`, "width=1000,height=600");
+      return invokeIPC(IPC_CHANNELS.TERMINAL_WINDOW_OPEN, workspaceId);
+    },
     closeWindow: (workspaceId) => invokeIPC(IPC_CHANNELS.TERMINAL_WINDOW_CLOSE, workspaceId),
   },
   update: {
