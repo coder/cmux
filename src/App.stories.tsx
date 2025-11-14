@@ -7,9 +7,9 @@ import type { IPCApi } from "./types/ipc";
 import type { ChatStats } from "./types/chatStats";
 import { DEFAULT_RUNTIME_CONFIG } from "@/constants/workspace";
 
-// Recent timestamp for testing active states (use current time minus small offsets)
-// This ensures workspaces don't show as "Older than 1 day"
-const NOW = Date.now();
+// Stable timestamp for testing active states (use fixed time minus small offsets)
+// This ensures workspaces don't show as "Older than 1 day" and keeps stories deterministic
+const NOW = 1700000000000; // Fixed timestamp: Nov 14, 2023
 const STABLE_TIMESTAMP = NOW - 60000; // 1 minute ago
 
 // Mock window.api for App component
@@ -830,7 +830,7 @@ export const ActiveWorkspaceWithChat: Story = {
                 } else if (wsId === streamingWorkspaceId) {
                   // Streaming workspace - show active work in progress
                   setTimeout(() => {
-                    const now = Date.now();
+                    const now = NOW; // Use stable timestamp
 
                     // Previous completed message with status_set (MUST be sent BEFORE caught-up)
                     callback({
@@ -932,7 +932,7 @@ export const ActiveWorkspaceWithChat: Story = {
                       messageId: "stream-msg-2",
                       delta: ".",
                       tokens: 1,
-                      timestamp: Date.now(),
+                      timestamp: NOW,
                     });
                   }, 2000);
 

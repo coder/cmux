@@ -103,7 +103,7 @@ const WorkspaceListItemInner: React.FC<WorkspaceListItemProps> = ({
     <React.Fragment>
       <div
         className={cn(
-          "py-1.5 px-2 cursor-pointer border-l-[3px] border-transparent transition-all duration-150 text-[13px] relative hover:bg-hover [&:hover_button]:opacity-100 flex gap-2",
+          "py-1.5 pl-8 pr-2 cursor-pointer border-l-[3px] border-transparent transition-all duration-150 text-[13px] relative hover:bg-hover [&:hover_button]:opacity-100 flex gap-2",
           isSelected && "bg-hover border-l-blue-400"
         )}
         onClick={() =>
@@ -139,12 +139,12 @@ const WorkspaceListItemInner: React.FC<WorkspaceListItemProps> = ({
             onClick={handleToggleUnread}
           />
         </div>
-        <div className="flex flex-1 flex-col gap-1">
+        <div className="flex min-w-0 flex-1 flex-col gap-1">
           <div className="flex min-w-0 items-center gap-1.5">
             <RuntimeBadge runtimeConfig={metadata.runtimeConfig} />
             {isEditing ? (
               <input
-                className="bg-input-bg text-input-text border-input-border font-inherit focus:border-input-border-focus -mx-1 min-w-0 rounded-sm border px-1 text-left text-[13px] outline-none"
+                className="bg-input-bg text-input-text border-input-border font-inherit focus:border-input-border-focus -mx-1 min-w-0 flex-1 rounded-sm border px-1 text-left text-[13px] outline-none"
                 value={editingName}
                 onChange={(e) => setEditingName(e.target.value)}
                 onKeyDown={handleRenameKeyDown}
@@ -156,7 +156,7 @@ const WorkspaceListItemInner: React.FC<WorkspaceListItemProps> = ({
               />
             ) : (
               <span
-                className="text-foreground -mx-1 min-w-0 cursor-pointer truncate rounded-sm px-1 text-left text-[14px] transition-colors duration-200 hover:bg-white/5"
+                className="text-foreground -mx-1 min-w-0 flex-1 cursor-pointer rounded-sm px-1 text-left text-[14px] transition-colors duration-200 hover:bg-white/5"
                 onDoubleClick={(e) => {
                   e.stopPropagation();
                   startRenaming();
@@ -164,7 +164,9 @@ const WorkspaceListItemInner: React.FC<WorkspaceListItemProps> = ({
                 title="Double-click to rename"
               >
                 {canInterrupt ? (
-                  <Shimmer colorClass="var(--color-foreground)">{displayName}</Shimmer>
+                  <Shimmer className="h-4 w-full truncate" colorClass="var(--color-foreground)">
+                    {displayName}
+                  </Shimmer>
                 ) : (
                   displayName
                 )}
@@ -196,13 +198,13 @@ const WorkspaceListItemInner: React.FC<WorkspaceListItemProps> = ({
               </TooltipWrapper>
             </div>
           </div>
-          <div>
+          <div className="min-w-0">
             <WorkspaceStatusIndicator workspaceId={workspaceId} />
           </div>
         </div>
       </div>
       {renameError && isEditing && (
-        <div className="bg-error-bg border-error text-error absolute top-full right-8 left-7 z-10 mt-1 rounded-sm border px-2 py-1.5 text-xs">
+        <div className="bg-error-bg border-error text-error absolute top-full right-8 left-8 z-10 mt-1 rounded-sm border px-2 py-1.5 text-xs">
           {renameError}
         </div>
       )}
