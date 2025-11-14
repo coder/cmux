@@ -119,18 +119,42 @@ export function buildProviderOptions(
     const reasoningEffort = OPENAI_REASONING_EFFORT[effectiveThinking];
 
     // Extract previousResponseId from last assistant message for persistence
+    // IMPORTANT: Only use previousResponseId if:
+    // 1. The previous message used the same model (prevents cross-model contamination)
+    // 2. That model uses reasoning (reasoning effort is set)
+    // 3. The response ID exists
     let previousResponseId: string | undefined;
-    if (messages && messages.length > 0) {
-      // Find last assistant message
+    if (messages && messages.length > 0 && reasoningEffort) {
+      // Parse current model name (without provider prefix)
+      const [, currentModelName] = modelString.split(":");
+      
+      // Find last assistant message from the same model
       for (let i = messages.length - 1; i >= 0; i--) {
-        if (messages[i].role === "assistant") {
-          const metadata = messages[i].metadata?.providerMetadata;
-          if (metadata && "openai" in metadata) {
-            const openaiData = metadata.openai as Record<string, unknown> | undefined;
-            previousResponseId = openaiData?.responseId as string | undefined;
-          }
-          if (previousResponseId) {
-            log.debug("buildProviderOptions: Found previousResponseId", { previousResponseId });
+        const msg = messages[i];
+        if (msg.role === "assistant") {
+          // Check if this message is from the same model
+          const msgModel = msg.metadata?.model;
+          const [, msgModelName] = msgModel?.split(":") ?? [];
+          
+          if (msgModelName === currentModelName) {
+            const metadata = msg.metadata?.providerMetadata;
+            if (metadata && "openai" in metadata) {
+              const openaiData = metadata.openai as Record<string, unknown> | undefined;
+              previousResponseId = openaiData?.responseId as string | undefined;
+            }
+            if (previousResponseId) {
+              log.debug("buildProviderOptions: Found previousResponseId from same model", {
+                previousResponseId,
+                model: currentModelName,
+              });
+              break;
+            }
+          } else if (msgModelName) {
+            // Found assistant message from different model, stop searching
+            log.debug("buildProviderOptions: Skipping previousResponseId - model changed", {
+              previousModel: msgModelName,
+              currentModel: currentModelName,
+            });
             break;
           }
         }
