@@ -74,12 +74,6 @@ export interface FileEditErrorResult {
 export interface FileEditInsertToolArgs {
   file_path: string;
   content: string;
-  /**
-   * Optional line offset fallback when guards are not provided.
-   * 1-indexed: 0 inserts at the top, 1 after line 1, etc.
-   */
-  line_offset?: number;
-  create?: boolean;
   /** Optional substring that must appear immediately before the insertion point */
   before?: string;
   /** Optional substring that must appear immediately after the insertion point */

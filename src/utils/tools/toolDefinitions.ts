@@ -110,26 +110,13 @@ export const TOOL_DEFINITIONS = {
   },
   file_edit_insert: {
     description:
-      "Insert content into a file using either a line offset or substring guards. " +
-      "Provide at least one of before/after/line_offset so the operation is anchored. " +
-      "When using guards, supply exactly one of before or after (not both). " +
+      "Insert content into a file using substring guards. " +
+      "Provide exactly one of before or after to anchor the operation. " +
       `Optional before/after substrings must uniquely match surrounding content. ${TOOL_EDIT_WARNING}`,
     schema: z
       .object({
         file_path: z.string().describe("The absolute path to the file to edit"),
         content: z.string().describe("The content to insert"),
-        line_offset: z
-          .number()
-          .int()
-          .min(0)
-          .optional()
-          .describe(
-            "Optional 1-indexed line position (0 = insert at top, 1 inserts after line 1, etc.)"
-          ),
-        create: z
-          .boolean()
-          .optional()
-          .describe("If true, create the file if it doesn't exist (default: false)"),
         before: z
           .string()
           .min(1)
@@ -141,15 +128,10 @@ export const TOOL_DEFINITIONS = {
           .optional()
           .describe("Optional substring that must appear immediately after the insertion point"),
       })
-      .refine(
-        (data) =>
-          data.line_offset !== undefined || data.before !== undefined || data.after !== undefined,
-        {
-          message:
-            "Provide at least one of line_offset, before, or after to anchor the insertion point.",
-          path: ["line_offset"],
-        }
-      )
+      .refine((data) => data.before !== undefined || data.after !== undefined, {
+        message: "Provide either before or after to anchor the insertion point.",
+        path: ["before"],
+      })
       .refine((data) => !(data.before !== undefined && data.after !== undefined), {
         message: "Provide only one of before or after (not both).",
         path: ["before"],

@@ -96,18 +96,18 @@ describe("file_edit_insert tool", () => {
     }
   });
 
-  it("creates new file when create flag and line_offset provided", async () => {
-    const newFile = path.join(testDir, "new.txt");
+  it("fails when no guards are provided", async () => {
     const tool = createTestTool(testDir);
     const args: FileEditInsertToolArgs = {
-      file_path: path.relative(testDir, newFile),
-      content: "Hello world!\n",
-      line_offset: 0,
-      create: true,
+      file_path: path.relative(testDir, testFilePath),
+      content: "noop",
     };
 
     const result = (await tool.execute!(args, mockToolCallOptions)) as FileEditInsertToolResult;
-    expect(result.success).toBe(true);
-    expect(await fs.readFile(newFile, "utf-8")).toBe("Hello world!\n");
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error).toContain("Provide either a before or after guard");
+    }
   });
+
 });

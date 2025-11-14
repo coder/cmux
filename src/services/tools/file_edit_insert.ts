@@ -1,13 +1,10 @@
 import { tool } from "ai";
-import { RuntimeError } from "@/runtime/Runtime";
 import type { FileEditInsertToolArgs, FileEditInsertToolResult } from "@/types/tools";
 import { EDIT_FAILED_NOTE_PREFIX, NOTE_READ_FILE_RETRY } from "@/types/tools";
 import type { ToolConfiguration, ToolFactory } from "@/utils/tools/tools";
 import { TOOL_DEFINITIONS } from "@/utils/tools/toolDefinitions";
 import { validateAndCorrectPath, validatePathInCwd } from "./fileCommon";
 import { executeFileEditOperation } from "./file_edit_operation";
-import { fileExists } from "@/utils/runtime/fileExists";
-import { writeFileString } from "@/utils/runtime/helpers";
 
 const READ_AND_RETRY_NOTE = `${EDIT_FAILED_NOTE_PREFIX} ${NOTE_READ_FILE_RETRY}`;
 
@@ -26,7 +23,6 @@ interface InsertOperationFailure {
 interface InsertContentOptions {
   before?: string;
   after?: string;
-  lineOffset?: number;
 }
 
 interface GuardResolutionSuccess {
@@ -49,7 +45,7 @@ export const createFileEditInsertTool: ToolFactory = (config: ToolConfiguration)
     description: TOOL_DEFINITIONS.file_edit_insert.description,
     inputSchema: TOOL_DEFINITIONS.file_edit_insert.schema,
     execute: async (
-      { file_path, content, line_offset, create, before, after }: FileEditInsertToolArgs,
+      { file_path, content, before, after }: FileEditInsertToolArgs,
       { abortSignal }
     ): Promise<FileEditInsertToolResult> => {
       try {
@@ -64,39 +60,6 @@ export const createFileEditInsertTool: ToolFactory = (config: ToolConfiguration)
           };
         }
 
-        if (line_offset !== undefined && line_offset < 0) {
-          return {
-            success: false,
-            error: `line_offset must be non-negative (got ${line_offset})`,
-            note: `${EDIT_FAILED_NOTE_PREFIX} The line_offset must be >= 0.`,
-          };
-        }
-
-        const resolvedPath = config.runtime.normalizePath(file_path, config.cwd);
-        const exists = await fileExists(config.runtime, resolvedPath, abortSignal);
-
-        if (!exists) {
-          if (!create) {
-            return {
-              success: false,
-              error: `File not found: ${file_path}. Set create: true to create it.`,
-              note: `${EDIT_FAILED_NOTE_PREFIX} File does not exist. Set create: true to create it, or check the file path.`,
-            };
-          }
-
-          try {
-            await writeFileString(config.runtime, resolvedPath, "", abortSignal);
-          } catch (err) {
-            if (err instanceof RuntimeError) {
-              return {
-                success: false,
-                error: err.message,
-              };
-            }
-            throw err;
-          }
-        }
-
         return executeFileEditOperation({
           config,
           filePath: file_path,
@@ -105,7 +68,6 @@ export const createFileEditInsertTool: ToolFactory = (config: ToolConfiguration)
             insertContent(originalContent, content, {
               before,
               after,
-              lineOffset: line_offset,
             }),
         });
       } catch (error) {
@@ -131,21 +93,17 @@ function insertContent(
   contentToInsert: string,
   options: InsertContentOptions
 ): InsertOperationSuccess | InsertOperationFailure {
-  const { before, after, lineOffset } = options;
+  const { before, after } = options;
 
   if (before !== undefined && after !== undefined) {
     return guardFailure("Provide only one of before or after (not both).");
   }
 
-  if (before !== undefined || after !== undefined) {
-    return insertWithGuards(originalContent, contentToInsert, { before, after });
+  if (before === undefined && after === undefined) {
+    return guardFailure("Provide either a before or after guard to anchor the insertion point.");
   }
 
-  if (lineOffset === undefined) {
-    return guardFailure("line_offset must be provided when before/after guards are omitted.");
-  }
-
-  return insertWithLineOffset(originalContent, contentToInsert, lineOffset);
+  return insertWithGuards(originalContent, contentToInsert, { before, after });
 }
 
 function insertWithGuards(
@@ -211,77 +169,4 @@ function resolveGuardAnchor(
   }
 
   return guardFailure("Unable to determine insertion point from guards.");
-}
-
-function insertWithLineOffset(
-  originalContent: string,
-  contentToInsert: string,
-  lineOffset: number
-): InsertOperationSuccess | InsertOperationFailure {
-  const lineCount = countLines(originalContent);
-  if (lineOffset > lineCount) {
-    return {
-      success: false,
-      error: `line_offset ${lineOffset} is beyond file length (${lineCount} lines)`,
-      note: `${EDIT_FAILED_NOTE_PREFIX} The file has ${lineCount} lines. ${NOTE_READ_FILE_RETRY}`,
-    };
-  }
-
-  const insertionIndex = getIndexForLineOffset(originalContent, lineOffset);
-  if (insertionIndex === null) {
-    return guardFailure(`Unable to compute insertion point for line_offset ${lineOffset}.`);
-  }
-
-  const newContent =
-    originalContent.slice(0, insertionIndex) +
-    contentToInsert +
-    originalContent.slice(insertionIndex);
-
-  return {
-    success: true,
-    newContent,
-    metadata: {},
-  };
-}
-
-function getIndexForLineOffset(content: string, lineOffset: number): number | null {
-  if (lineOffset === 0) {
-    return 0;
-  }
-
-  let linesAdvanced = 0;
-  let cursor = 0;
-
-  while (linesAdvanced < lineOffset) {
-    const nextNewline = content.indexOf("\n", cursor);
-    if (nextNewline === -1) {
-      if (linesAdvanced + 1 === lineOffset) {
-        return content.length;
-      }
-      return null;
-    }
-
-    linesAdvanced += 1;
-    cursor = nextNewline + 1;
-
-    if (linesAdvanced === lineOffset) {
-      return cursor;
-    }
-  }
-
-  return null;
-}
-
-function countLines(content: string): number {
-  if (content.length === 0) {
-    return 1;
-  }
-
-  let count = 1;
-  for (const char of content) {
-    if (char === "\n") {
-      count += 1;
-    }
-  }
-  return count;
 }
