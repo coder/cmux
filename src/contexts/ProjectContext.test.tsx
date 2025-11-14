@@ -42,7 +42,7 @@ describe("ProjectContext", () => {
     });
     expect(projectsApi.list.mock.calls.length).toBeGreaterThanOrEqual(2);
 
-    await act(async () => {
+    act(() => {
       ctx().addProject("/gamma", { workspaces: [] });
     });
     expect(ctx().projects.has("/gamma")).toBe(true);
@@ -360,14 +360,20 @@ function createMockAPI(overrides: Partial<IPCApi["projects"]>) {
           }))
     ),
     secrets: {
-      get: mock(overrides.secrets?.get ?? (() => Promise.resolve([]))),
+      get: mock(
+        overrides.secrets?.get
+          ? (...args: Parameters<typeof overrides.secrets.get>) => overrides.secrets.get(...args)
+          : () => Promise.resolve([])
+      ),
       update: mock(
-        overrides.secrets?.update ??
-          (() =>
-            Promise.resolve({
-              success: true as const,
-              data: undefined,
-            }))
+        overrides.secrets?.update
+          ? (...args: Parameters<typeof overrides.secrets.update>) =>
+              overrides.secrets.update(...args)
+          : () =>
+              Promise.resolve({
+                success: true as const,
+                data: undefined,
+              })
       ),
     },
   } satisfies IPCApi["projects"];

@@ -27,7 +27,7 @@ import { buildCoreSources, type BuildSourcesParams } from "./utils/commands/sour
 import type { ThinkingLevel } from "./types/thinking";
 import { CUSTOM_EVENTS } from "./constants/events";
 import { isWorkspaceForkSwitchEvent } from "./utils/workspaceFork";
-import { getThinkingLevelKey, getRuntimeKey } from "./constants/storage";
+import { getThinkingLevelKey } from "./constants/storage";
 import { useTelemetry } from "./hooks/useTelemetry";
 import { useStartWorkspaceCreation, getFirstProjectPath } from "./hooks/useStartWorkspaceCreation";
 
@@ -201,16 +201,6 @@ function AppInner() {
       selectedWorkspace,
       setSelectedWorkspace,
     ]
-  );
-
-  const handleAddWorkspace = useCallback(
-    (projectPath: string) => {
-      // Show FirstMessageInput for this project
-      beginWorkspaceCreation(projectPath);
-      // Clear any selected workspace so FirstMessageInput is shown
-      setSelectedWorkspace(null);
-    },
-    [beginWorkspaceCreation, setSelectedWorkspace]
   );
 
   // NEW: Get workspace recency from store
