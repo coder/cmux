@@ -134,9 +134,6 @@ export function TerminalView({ workspaceId, visible }: TerminalViewProps) {
     // They're used in callbacks, not during effect execution
   }, [visible, workspaceId]);
 
-  // Note: Terminal output and exit are now handled via callbacks passed to useTerminalSession
-  // (handleOutput and handleExit defined above)
-
   // Resize on container size change
   useEffect(() => {
     if (!visible || !fitAddonRef.current || !containerRef.current || !termRef.current) {
