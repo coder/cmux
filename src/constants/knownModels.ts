@@ -98,25 +98,25 @@ export const DEFAULT_WARM_MODELS = Object.values(KNOWN_MODELS)
   .filter((model) => model.warm)
   .map((model) => model.id);
 
-export const MODEL_ABBREVIATIONS = Object.fromEntries(
+export const MODEL_ABBREVIATIONS: Record<string, string> = Object.fromEntries(
   Object.values(KNOWN_MODELS)
-    .flatMap((model) => (model.aliases ?? []).map((alias) => [alias, model.id]))
+    .flatMap((model) => (model.aliases ?? []).map((alias) => [alias, model.id] as const))
     .sort(([a], [b]) => a.localeCompare(b))
-) as Record<string, string>;
+);
 
-export const TOKENIZER_MODEL_OVERRIDES = Object.fromEntries(
+export const TOKENIZER_MODEL_OVERRIDES: Record<string, string> = Object.fromEntries(
   Object.values(KNOWN_MODELS)
     .filter((model) => Boolean(model.tokenizerOverride))
-    .map((model) => [model.id, model.tokenizerOverride as string])
-) as Record<string, string>;
-
-export const MODEL_NAMES = Object.entries(KNOWN_MODELS).reduce(
-  (acc, [key, model]) => {
-    if (!acc[model.provider]) {
-      acc[model.provider] = {} as Record<string, string>;
-    }
-    acc[model.provider][key] = model.providerModelId;
-    return acc;
-  },
-  {} as Record<ModelProvider, Record<string, string>>
+    .map((model) => [model.id, model.tokenizerOverride!])
 );
+
+export const MODEL_NAMES: Record<ModelProvider, Record<string, string>> = Object.entries(
+  KNOWN_MODELS
+).reduce<Record<ModelProvider, Record<string, string>>>((acc, [key, model]) => {
+  if (!acc[model.provider]) {
+    const emptyRecord: Record<string, string> = {};
+    acc[model.provider] = emptyRecord;
+  }
+  acc[model.provider][key] = model.providerModelId;
+  return acc;
+}, {} as Record<ModelProvider, Record<string, string>>);
