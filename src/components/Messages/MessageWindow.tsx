@@ -48,24 +48,26 @@ export const MessageWindow: React.FC<MessageWindowProps> = ({
     [timestamp]
   );
 
-  // We do not want to display these on every message, otherwise it spams the UI
-  // with buttons and timestamps
-  const showMetaRow = useMemo(() => {
+  const isLastPartOfMessage = useMemo(() => {
     if ("isLastPartOfMessage" in message && message.isLastPartOfMessage && !message.isPartial) {
-      return true;
-    }
-    if (variant === "user") {
       return true;
     }
     return false;
   }, [message]);
 
+  // We do not want to display these on every message, otherwise it spams the UI
+  // with buttons and timestamps
+  const showMetaRow = useMemo(() => {
+    return variant === "user" || isLastPartOfMessage;
+  }, [variant, isLastPartOfMessage]);
+
   return (
     <div
       className={cn(
-        "my-4 flex w-full flex-col relative isolate w-fit",
+        "mt-4 mb-1 flex w-full flex-col relative isolate w-fit",
         variant === "user" && "ml-auto",
-        variant === "assistant" && "text-white"
+        variant === "assistant" && "text-white",
+        isLastPartOfMessage && "mb-4"        
       )}
       data-message-block
     >
