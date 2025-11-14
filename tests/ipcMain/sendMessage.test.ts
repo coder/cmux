@@ -1590,7 +1590,8 @@ describe.each(PROVIDER_CONFIGS)("%s:%s image support", (provider, model) => {
   );
 });
 
-  // Test multi-turn conversation specifically for reasoning models (codex)
+// Test multi-turn conversation specifically for reasoning models (codex)
+describeIntegration("Multi-turn conversation tests", () => {
   test.concurrent(
     "should handle multi-turn conversation with response ID persistence (openai reasoning models)",
     async () => {
@@ -1626,15 +1627,17 @@ describe.each(PROVIDER_CONFIGS)("%s:%s image support", (provider, model) => {
         assertStreamSuccess(collector2);
         
         // Verify history contains both messages
-        const history = await env.mockIpcRenderer.invoke(IPC_CHANNELS.HISTORY_GET, workspaceId);
-        expect(history.success).toBe(true);
-        expect(history.data.length).toBeGreaterThanOrEqual(4); // 2 user + 2 assistant
+        const history = await readChatHistory(env.tempDir, workspaceId);
+        expect(history.length).toBeGreaterThanOrEqual(4); // 2 user + 2 assistant
         
         // Verify assistant messages have responseId
-        const assistantMessages = history.data.filter((m: any) => m.role === "assistant");
+        const assistantMessages = history.filter((m) => m.role === "assistant");
         expect(assistantMessages.length).toBeGreaterThanOrEqual(2);
-        expect(assistantMessages[0].metadata?.providerMetadata?.openai?.responseId).toBeDefined();
-        expect(assistantMessages[1].metadata?.providerMetadata?.openai?.responseId).toBeDefined();
+        // Check that responseId exists (type is unknown from JSONL parsing)
+        const firstAssistant = assistantMessages[0] as any;
+        const secondAssistant = assistantMessages[1] as any;
+        expect(firstAssistant.metadata?.providerMetadata?.openai?.responseId).toBeDefined();
+        expect(secondAssistant.metadata?.providerMetadata?.openai?.responseId).toBeDefined();
       } finally {
         await cleanup();
       }
