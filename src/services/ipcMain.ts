@@ -1,6 +1,5 @@
 import assert from "@/utils/assert";
 import type { BrowserWindow, IpcMain as ElectronIpcMain } from "electron";
-import { BrowserWindow as ElectronBrowserWindow } from "electron";
 import { spawn, spawnSync } from "child_process";
 import * as fsPromises from "fs/promises";
 import * as path from "path";
@@ -32,7 +31,7 @@ import type { RuntimeConfig } from "@/types/runtime";
 import { isSSHRuntime } from "@/types/runtime";
 import { validateProjectPath } from "@/utils/pathUtils";
 import { PTYService } from "@/services/ptyService";
-import { TerminalWindowManager } from "@/services/terminalWindowManager";
+import type { TerminalWindowManager } from "@/services/terminalWindowManager";
 import type { TerminalCreateParams, TerminalResizeParams } from "@/types/terminal";
 import { ExtensionMetadataService } from "@/services/ExtensionMetadataService";
 import { generateWorkspaceName } from "./workspaceTitleGenerator";
@@ -375,7 +374,7 @@ export class IpcMain {
     this.registerWorkspaceHandlers(ipcMain);
     this.registerProviderHandlers(ipcMain);
     this.registerProjectHandlers(ipcMain);
-    this.registerTerminalHandlers(ipcMain);
+    this.registerTerminalHandlers(ipcMain, mainWindow);
     this.registerSubscriptionHandlers(ipcMain);
     this.registered = true;
   }
@@ -1476,11 +1475,12 @@ export class IpcMain {
     );
   }
 
-  private registerTerminalHandlers(ipcMain: ElectronIpcMain): void {
+  private registerTerminalHandlers(ipcMain: ElectronIpcMain, mainWindow: BrowserWindow): void {
     ipcMain.handle(IPC_CHANNELS.TERMINAL_CREATE, async (event, params: TerminalCreateParams) => {
       try {
         // Get the window that requested this terminal
-        const senderWindow = ElectronBrowserWindow.fromWebContents(event.sender);
+        // For now, all terminals use the main window (pop-out windows not yet implemented)
+        const senderWindow = mainWindow;
         if (!senderWindow) {
           throw new Error("Could not find sender window for terminal creation");
         }
