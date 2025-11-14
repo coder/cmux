@@ -71,6 +71,23 @@ export interface FileEditErrorResult {
   note?: string; // Agent-only message (not displayed in UI)
 }
 
+export interface FileEditInsertToolArgs {
+  file_path: string;
+  content: string;
+  /**
+   * Optional line offset fallback when guards are not provided.
+   * 1-indexed: 0 inserts at the top, 1 after line 1, etc.
+   */
+  line_offset?: number;
+  create?: boolean;
+  /** Optional substring that must appear immediately before the insertion point */
+  before?: string;
+  /** Optional substring that must appear immediately after the insertion point */
+  after?: string;
+}
+
+export type FileEditInsertToolResult = FileEditDiffSuccessBase | FileEditErrorResult;
+
 export interface FileEditReplaceStringToolArgs {
   file_path: string;
   old_string: string;
@@ -102,11 +119,13 @@ export type FileEditReplaceLinesToolResult =
 
 export type FileEditSharedToolResult =
   | FileEditReplaceStringToolResult
-  | FileEditReplaceLinesToolResult;
+  | FileEditReplaceLinesToolResult
+  | FileEditInsertToolResult;
 
 export const FILE_EDIT_TOOL_NAMES = [
   "file_edit_replace_string",
   "file_edit_replace_lines",
+  "file_edit_insert",
 ] as const;
 
 export type FileEditToolName = (typeof FILE_EDIT_TOOL_NAMES)[number];
@@ -137,7 +156,10 @@ export const NOTE_READ_FILE_AGAIN_RETRY = "Read the file again and retry.";
 export const TOOL_EDIT_WARNING =
   "Always check the tool result before proceeding with other operations.";
 
-export type FileEditToolArgs = FileEditReplaceStringToolArgs | FileEditReplaceLinesToolArgs;
+export type FileEditToolArgs =
+  | FileEditReplaceStringToolArgs
+  | FileEditReplaceLinesToolArgs
+  | FileEditInsertToolArgs;
 
 // Propose Plan Tool Types
 export interface ProposePlanToolArgs {

@@ -3,6 +3,7 @@ import { createFileReadTool } from "@/services/tools/file_read";
 import { createBashTool } from "@/services/tools/bash";
 import { createFileEditReplaceStringTool } from "@/services/tools/file_edit_replace_string";
 // DISABLED: import { createFileEditReplaceLinesTool } from "@/services/tools/file_edit_replace_lines";
+import { createFileEditInsertTool } from "@/services/tools/file_edit_insert";
 import { createProposePlanTool } from "@/services/tools/propose_plan";
 import { createTodoWriteTool, createTodoReadTool } from "@/services/tools/todo";
 import { createStatusSetTool } from "@/services/tools/status_set";
@@ -64,6 +65,7 @@ export async function getToolsForModel(
   const runtimeTools: Record<string, Tool> = {
     file_read: wrap(createFileReadTool(config)),
     file_edit_replace_string: wrap(createFileEditReplaceStringTool(config)),
+    file_edit_insert: wrap(createFileEditInsertTool(config)),
     // DISABLED: file_edit_replace_lines - causes models (particularly GPT-5-Codex)
     // to leave repository in broken state due to issues with concurrent file modifications
     // and line number miscalculations. Use file_edit_replace_string instead.

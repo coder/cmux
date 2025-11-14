@@ -13,6 +13,7 @@ import {
   BASH_MAX_TOTAL_BYTES,
   STATUS_MESSAGE_MAX_LENGTH,
 } from "@/constants/toolLimits";
+import { TOOL_EDIT_WARNING } from "@/types/tools";
 
 import { zodToJsonSchema } from "zod-to-json-schema";
 
@@ -106,6 +107,45 @@ export const TOOL_DEFINITIONS = {
           "Optional safety check. When provided, the current lines in the specified range must match exactly."
         ),
     }),
+  },
+  file_edit_insert: {
+    description:
+      "Insert content into a file using either a line offset or substring guards. " +
+      "Provide at least one of before/after/line_offset so the operation is anchored. " +
+      `Optional before/after substrings must uniquely match surrounding content. ${TOOL_EDIT_WARNING}`,
+    schema: z
+      .object({
+        file_path: z.string().describe("The absolute path to the file to edit"),
+        content: z.string().describe("The content to insert"),
+        line_offset: z
+          .number()
+          .int()
+          .min(0)
+          .optional()
+          .describe("Optional 1-indexed line position (0 = insert at top, 1 inserts after line 1, etc.)"),
+        create: z
+          .boolean()
+          .optional()
+          .describe("If true, create the file if it doesn't exist (default: false)"),
+        before: z
+          .string()
+          .min(1)
+          .optional()
+          .describe("Optional substring that must appear immediately before the insertion point"),
+        after: z
+          .string()
+          .min(1)
+          .optional()
+          .describe("Optional substring that must appear immediately after the insertion point"),
+      })
+      .refine(
+        (data) =>
+          data.line_offset !== undefined || data.before !== undefined || data.after !== undefined,
+        {
+          message: "Provide at least one of line_offset, before, or after to anchor the insertion point.",
+          path: ["line_offset"],
+        }
+      ),
   },
   propose_plan: {
     description:
@@ -232,6 +272,7 @@ export function getAvailableTools(modelString: string): string[] {
     "file_read",
     "file_edit_replace_string",
     // "file_edit_replace_lines", // DISABLED: causes models to break repo state
+    "file_edit_insert",
     "propose_plan",
     "todo_write",
     "todo_read",
