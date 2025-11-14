@@ -1559,12 +1559,11 @@ export class IpcMain {
     });
 
     ipcMain.handle(IPC_CHANNELS.TERMINAL_WINDOW_OPEN, async (_event, workspaceId: string) => {
-      // In server mode, terminalWindowManager is not available (window opening is handled by browser)
-      if (!this.terminalWindowManager) {
-        return; // No-op in server mode
-      }
-      
+      console.log(`[BACKEND] TERMINAL_WINDOW_OPEN handler called with: ${workspaceId}`);
       try {
+        if (!this.terminalWindowManager) {
+          throw new Error("Terminal window manager not available (desktop mode only)");
+        }
         log.info(`Opening terminal window for workspace: ${workspaceId}`);
         await this.terminalWindowManager.openTerminalWindow(workspaceId);
         log.info(`Terminal window opened successfully for workspace: ${workspaceId}`);
