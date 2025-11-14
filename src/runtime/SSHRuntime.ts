@@ -1,7 +1,6 @@
 import { spawn } from "child_process";
 import { Readable, Writable } from "stream";
 import * as path from "path";
-import { Shescape } from "shescape";
 import type {
   Runtime,
   ExecOptions,
@@ -25,12 +24,20 @@ import { getProjectName } from "../utils/runtime/helpers";
 import { getErrorMessage } from "../utils/errors";
 import { execAsync, DisposableProcess } from "../utils/disposableExec";
 import { getControlPath } from "./sshConnectionPool";
+import { getBashPath } from "../utils/main/bashPath";
 
 /**
- * Shescape instance for bash shell escaping.
+ * Shell-escape helper for remote bash.
  * Reused across all SSH runtime operations for performance.
  */
-const shescape = new Shescape({ shell: "bash" });
+const shescape = {
+  quote(value: unknown): string {
+    const s = String(value);
+    if (s.length === 0) return "''";
+    // Use POSIX-safe pattern to embed single quotes within single-quoted strings
+    return "'" + s.replace(/'/g, "'\"'\"'") + "'";
+  },
+};
 
 /**
  * SSH Runtime Configuration
@@ -574,7 +581,8 @@ export class SSHRuntime implements Runtime {
         const command = `cd ${shescape.quote(projectPath)} && git bundle create - --all | ssh ${sshArgs.join(" ")} "cat > ${bundleTempPath}"`;
 
         log.debug(`Creating bundle: ${command}`);
-        const proc = spawn("bash", ["-c", command]);
+        const bashPath = getBashPath();
+        const proc = spawn(bashPath, ["-c", command]);
 
         const cleanup = streamProcessToLogger(proc, initLogger, {
           logStdout: false,

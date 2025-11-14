@@ -8,8 +8,7 @@
  * For local paths, tildes should be expanded to actual file system paths.
  */
 
-import * as os from "os";
-import * as path from "path";
+import { PlatformPaths } from "../utils/paths.main";
 
 /**
  * Expand tilde to actual home directory path for local file system operations.
@@ -28,13 +27,7 @@ import * as path from "path";
  * expandTilde("/abs/path")   // => "/abs/path"
  */
 export function expandTilde(filePath: string): string {
-  if (filePath === "~") {
-    return os.homedir();
-  } else if (filePath.startsWith("~/")) {
-    return path.join(os.homedir(), filePath.slice(2));
-  } else {
-    return filePath;
-  }
+  return PlatformPaths.expandHome(filePath);
 }
 
 /**

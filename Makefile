@@ -24,6 +24,15 @@
 #   Branches reduce reproducibility - builds should fail fast with clear errors
 #   if dependencies are missing, not silently fall back to different behavior.
 
+# Use PATH-resolved bash on Windows to avoid hardcoded /usr/bin/bash which doesn't
+# exist in Chocolatey's make environment or on GitHub Actions windows-latest.
+ifeq ($(OS),Windows_NT)
+SHELL := bash
+else
+SHELL := /bin/bash
+endif
+.SHELLFLAGS := -eu -o pipefail -c
+
 # Enable parallel execution by default (only if user didn't specify -j)
 ifeq (,$(filter -j%,$(MAKEFLAGS)))
 MAKEFLAGS += -j
@@ -84,10 +93,6 @@ node_modules/.installed: package.json bun.lock
 # Legacy target for backwards compatibility
 ensure-deps: node_modules/.installed
 
-
-
-
-
 ## Help
 help: ## Show this help message
 	@echo 'Usage: make [target]'
@@ -96,11 +101,34 @@ help: ## Show this help message
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-20s\033[0m %s\n", $$1, $$2}'
 
 ## Development
+ifeq ($(OS),Windows_NT)
+dev: node_modules/.installed build-main ## Start development server (Vite + nodemon watcher for Windows compatibility)
+	@echo "Starting dev mode (2 watchers: nodemon for main process, vite for renderer)..."
+	# On Windows, use npm run because bunx doesn't correctly pass arguments to concurrently
+	# https://github.com/oven-sh/bun/issues/18275
+	@NODE_OPTIONS="--max-old-space-size=4096" npm x concurrently -k --raw \
+		"bun x nodemon --watch src --watch tsconfig.main.json --watch tsconfig.json --ext ts,tsx,json --ignore dist --ignore node_modules --exec node scripts/build-main-watch.js" \
+		"vite"
+else
 dev: node_modules/.installed build-main ## Start development server (Vite + tsgo watcher for 10x faster type checking)
 	@bun x concurrently -k \
 		"bun x concurrently \"$(TSGO) -w -p tsconfig.main.json\" \"bun x tsc-alias -w -p tsconfig.main.json\"" \
 		"vite"
+endif
 
+ifeq ($(OS),Windows_NT)
+dev-server: node_modules/.installed build-main ## Start server mode with hot reload (backend :3000 + frontend :5173). Use VITE_HOST=0.0.0.0 BACKEND_HOST=0.0.0.0 for remote access
+	@echo "Starting dev-server..."
+	@echo "  Backend (IPC/WebSocket): http://$(or $(BACKEND_HOST),localhost):$(or $(BACKEND_PORT),3000)"
+	@echo "  Frontend (with HMR):     http://$(or $(VITE_HOST),localhost):$(or $(VITE_PORT),5173)"
+	@echo ""
+	@echo "For remote access: make dev-server VITE_HOST=0.0.0.0 BACKEND_HOST=0.0.0.0"
+	@# On Windows, use npm run because bunx doesn't correctly pass arguments
+	@npmx concurrently -k \
+		"npmx nodemon --watch src --watch tsconfig.main.json --watch tsconfig.json --ext ts,tsx,json --ignore dist --ignore node_modules --exec node scripts/build-main-watch.js" \
+		"npmx nodemon --watch dist/main.js --watch dist/main-server.js --delay 500ms --exec \"node dist/main.js server --host $(or $(BACKEND_HOST),localhost) --port $(or $(BACKEND_PORT),3000)\"" \
+		"$(SHELL) -lc \"MUX_VITE_HOST=$(or $(VITE_HOST),127.0.0.1) MUX_VITE_PORT=$(or $(VITE_PORT),5173) VITE_BACKEND_URL=http://$(or $(BACKEND_HOST),localhost):$(or $(BACKEND_PORT),3000) vite\""
+else
 dev-server: node_modules/.installed build-main ## Start server mode with hot reload (backend :3000 + frontend :5173). Use VITE_HOST=0.0.0.0 BACKEND_HOST=0.0.0.0 for remote access
 	@echo "Starting dev-server..."
 	@echo "  Backend (IPC/WebSocket): http://$(or $(BACKEND_HOST),localhost):$(or $(BACKEND_PORT),3000)"
@@ -111,6 +139,7 @@ dev-server: node_modules/.installed build-main ## Start server mode with hot rel
 		"bun x concurrently \"$(TSGO) -w -p tsconfig.main.json\" \"bun x tsc-alias -w -p tsconfig.main.json\"" \
 		"bun x nodemon --watch dist/main.js --watch dist/main-server.js --delay 500ms --exec 'NODE_ENV=development node dist/main.js server --host $(or $(BACKEND_HOST),localhost) --port $(or $(BACKEND_PORT),3000)'" \
 		"MUX_VITE_HOST=$(or $(VITE_HOST),127.0.0.1) MUX_VITE_PORT=$(or $(VITE_PORT),5173) VITE_BACKEND_URL=http://$(or $(BACKEND_HOST),localhost):$(or $(BACKEND_PORT),3000) vite"
+endif
 
 
 
@@ -167,16 +196,16 @@ MAGICK_CMD := $(shell command -v magick 2>/dev/null || command -v convert 2>/dev
 build/icon.png: docs/img/logo.webp
 	@echo "Generating Linux icon..."
 	@mkdir -p build
-	@$(MAGICK_CMD) docs/img/logo.webp -resize 512x512 build/icon.png
+	@"$(MAGICK_CMD)" docs/img/logo.webp -resize 512x512 build/icon.png
 
 build/icon.icns: docs/img/logo.webp
 	@echo "Generating macOS icon..."
 	@mkdir -p build/icon.iconset
 	@for size in 16 32 64 128 256 512; do \
-		$(MAGICK_CMD) docs/img/logo.webp -resize $${size}x$${size} build/icon.iconset/icon_$${size}x$${size}.png; \
+		"$(MAGICK_CMD)" docs/img/logo.webp -resize $${size}x$${size} build/icon.iconset/icon_$${size}x$${size}.png; \
 		if [ $$size -le 256 ]; then \
 			double=$$((size * 2)); \
-			$(MAGICK_CMD) docs/img/logo.webp -resize $${double}x$${double} build/icon.iconset/icon_$${size}x$${size}@2x.png; \
+			"$(MAGICK_CMD)" docs/img/logo.webp -resize $${double}x$${double} build/icon.iconset/icon_$${size}x$${size}@2x.png; \
 		fi; \
 	done
 	@iconutil -c icns build/icon.iconset -o build/icon.icns
@@ -191,10 +220,18 @@ lint: node_modules/.installed ## Run ESLint (typecheck runs in separate target)
 lint-fix: node_modules/.installed ## Run linter with --fix
 	@./scripts/lint.sh --fix
 
+ifeq ($(OS),Windows_NT) 
 typecheck: node_modules/.installed src/version.ts ## Run TypeScript type checking (uses tsgo for 10x speedup)
+	@# On Windows, use npm run because bun x doesn't correctly pass arguments
+	@npmx concurrently -g \
+		"$(TSGO) --noEmit" \
+		"$(TSGO) --noEmit -p tsconfig.main.json"
+else
+typecheck: node_modules/.installed src/version.ts
 	@bun x concurrently -g \
 		"$(TSGO) --noEmit" \
 		"$(TSGO) --noEmit -p tsconfig.main.json"
+endif
 
 check-deadcode: node_modules/.installed ## Check for potential dead code (manual only, not in static-check)
 	@echo "Checking for potential dead code with ts-prune..."

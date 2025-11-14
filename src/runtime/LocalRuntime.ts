@@ -18,6 +18,7 @@ import type {
 } from "./Runtime";
 import { RuntimeError as RuntimeErrorClass } from "./Runtime";
 import { NON_INTERACTIVE_ENV_VARS } from "../constants/env";
+import { getBashPath } from "../utils/main/bashPath";
 import { EXIT_CODE_ABORTED, EXIT_CODE_TIMEOUT } from "../constants/exitCodes";
 import { listLocalBranches } from "../git";
 import {
@@ -61,11 +62,13 @@ export class LocalRuntime implements Runtime {
       );
     }
 
-    // If niceness is specified, spawn nice directly to avoid escaping issues
-    const spawnCommand = options.niceness !== undefined ? "nice" : "bash";
-    const bashPath = "bash";
+    // If niceness is specified on Unix/Linux, spawn nice directly to avoid escaping issues
+    // Windows doesn't have nice command, so just spawn bash directly
+    const isWindows = process.platform === "win32";
+    const bashPath = getBashPath();
+    const spawnCommand = options.niceness !== undefined && !isWindows ? "nice" : bashPath;
     const spawnArgs =
-      options.niceness !== undefined
+      options.niceness !== undefined && !isWindows
         ? ["-n", options.niceness.toString(), bashPath, "-c", command]
         : ["-c", command];
 
@@ -417,7 +420,8 @@ export class LocalRuntime implements Runtime {
     const loggers = createLineBufferedLoggers(initLogger);
 
     return new Promise<void>((resolve) => {
-      const proc = spawn("bash", ["-c", `"${hookPath}"`], {
+      const bashPath = getBashPath();
+      const proc = spawn(bashPath, ["-c", `"${hookPath}"`], {
         cwd: workspacePath,
         stdio: ["ignore", "pipe", "pipe"],
         env: {

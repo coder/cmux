@@ -62,3 +62,14 @@ runs:
           sudo apt-get install -y --no-install-recommends imagemagick
         fi
         convert --version | head -1
+    - name: Install ImageMagick (Windows)
+      if: inputs.install-imagemagick == 'true' && runner.os == 'Windows'
+      shell: powershell
+      run: |
+        if (Get-Command magick -ErrorAction SilentlyContinue) {
+          Write-Host "✅ ImageMagick already available"
+        } else {
+          Write-Host "📦 Installing ImageMagick..."
+          choco install -y imagemagick
+        }
+        magick --version | Select-Object -First 1

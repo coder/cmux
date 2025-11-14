@@ -87,6 +87,33 @@ export default defineConfig(({ mode }) => ({
     strictPort: true,
     allowedHosts: devServerHost === "0.0.0.0" ? undefined : ["localhost", "127.0.0.1"],
     sourcemapIgnoreList: () => false, // Show all sources in DevTools
+    
+    watch: {
+      // Ignore node_modules to drastically reduce file handle usage
+      ignored: ['**/node_modules/**', '**/dist/**', '**/.git/**'],
+      
+      // Use polling on Windows to avoid file handle exhaustion
+      // This is slightly less efficient but much more stable
+      usePolling: process.platform === 'win32',
+      
+      // If using polling, set a reasonable interval (in milliseconds)
+      interval: 1000,
+      
+      // Limit the depth of directory traversal
+      depth: 3,
+      
+      // Additional options for Windows specifically
+      ...(process.platform === 'win32' && {
+        // Increase the binary interval for better Windows performance
+        binaryInterval: 1000,
+        // Use a more conservative approach to watching
+        awaitWriteFinish: {
+          stabilityThreshold: 500,
+          pollInterval: 100
+        }
+      })
+    },
+    
     hmr: {
       // Configure HMR to use the correct host for remote access
       host: devServerHost,
@@ -104,5 +131,11 @@ export default defineConfig(({ mode }) => ({
     esbuildOptions: {
       target: "esnext",
     },
+    
+    // Include only what's actually imported to reduce scanning
+    entries: ['src/**/*.{ts,tsx}'],
+    
+    // Force re-optimize dependencies
+    force: false,
   },
 }));
