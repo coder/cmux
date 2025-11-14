@@ -1,7 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
-/* eslint-disable @typescript-eslint/no-unsafe-argument */
-/* eslint-disable @typescript-eslint/restrict-template-expressions */
 /* eslint-disable @typescript-eslint/prefer-optional-chain */
 /* eslint-disable @typescript-eslint/prefer-nullish-coalescing */
 
@@ -39,8 +35,6 @@ export function TerminalView({ workspaceId, visible }: TerminalViewProps) {
   };
 
   const {
-    connected,
-    sessionId,
     sendInput,
     resize,
     error: sessionError,

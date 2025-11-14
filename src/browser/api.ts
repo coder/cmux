@@ -253,7 +253,22 @@ const webApi: IPCApi = {
     create: (params) => invokeIPC(IPC_CHANNELS.TERMINAL_CREATE, params),
     close: (sessionId) => invokeIPC(IPC_CHANNELS.TERMINAL_CLOSE, sessionId),
     resize: (params) => invokeIPC(IPC_CHANNELS.TERMINAL_RESIZE, params),
-    getPort: () => invokeIPC(IPC_CHANNELS.TERMINAL_GET_PORT),
+    sendInput: (_sessionId: string, _data: string) => {
+      // Not implemented in browser mode - terminals use IPC events
+      throw new Error("Terminal input not supported in browser mode");
+    },
+    onOutput: (_sessionId: string, _callback: (data: string) => void) => {
+      // Not implemented in browser mode - terminals use IPC events
+      return () => {
+        // no-op cleanup
+      };
+    },
+    onExit: (_sessionId: string, _callback: (exitCode: number) => void) => {
+      // Not implemented in browser mode - terminals use IPC events
+      return () => {
+        // no-op cleanup
+      };
+    },
     openWindow: (workspaceId) => invokeIPC(IPC_CHANNELS.TERMINAL_WINDOW_OPEN, workspaceId),
     closeWindow: (workspaceId) => invokeIPC(IPC_CHANNELS.TERMINAL_WINDOW_CLOSE, workspaceId),
   },

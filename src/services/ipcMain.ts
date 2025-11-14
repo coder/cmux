@@ -1,6 +1,6 @@
 import assert from "@/utils/assert";
-import { BrowserWindow } from "electron";
-import type { IpcMain as ElectronIpcMain } from "electron";
+import type { BrowserWindow, IpcMain as ElectronIpcMain } from "electron";
+import { BrowserWindow as ElectronBrowserWindow } from "electron";
 import { spawn, spawnSync } from "child_process";
 import * as fsPromises from "fs/promises";
 import * as path from "path";
@@ -1480,7 +1480,7 @@ export class IpcMain {
     ipcMain.handle(IPC_CHANNELS.TERMINAL_CREATE, async (event, params: TerminalCreateParams) => {
       try {
         // Get the window that requested this terminal
-        const senderWindow = BrowserWindow.fromWebContents(event.sender);
+        const senderWindow = ElectronBrowserWindow.fromWebContents(event.sender);
         if (!senderWindow) {
           throw new Error("Could not find sender window for terminal creation");
         }
