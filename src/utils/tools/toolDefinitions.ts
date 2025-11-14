@@ -112,6 +112,7 @@ export const TOOL_DEFINITIONS = {
     description:
       "Insert content into a file using either a line offset or substring guards. " +
       "Provide at least one of before/after/line_offset so the operation is anchored. " +
+      "When using guards, supply exactly one of before or after (not both). " +
       `Optional before/after substrings must uniquely match surrounding content. ${TOOL_EDIT_WARNING}`,
     schema: z
       .object({
@@ -148,7 +149,11 @@ export const TOOL_DEFINITIONS = {
             "Provide at least one of line_offset, before, or after to anchor the insertion point.",
           path: ["line_offset"],
         }
-      ),
+      )
+      .refine((data) => !(data.before !== undefined && data.after !== undefined), {
+        message: "Provide only one of before or after (not both).",
+        path: ["before"],
+      }),
   },
   propose_plan: {
     description:

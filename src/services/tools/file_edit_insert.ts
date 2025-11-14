@@ -23,6 +23,27 @@ interface InsertOperationFailure {
   note?: string;
 }
 
+interface InsertContentOptions {
+  before?: string;
+  after?: string;
+  lineOffset?: number;
+}
+
+interface GuardResolutionSuccess {
+  success: true;
+  index: number;
+}
+
+function guardFailure(error: string): InsertOperationFailure {
+  return {
+    success: false,
+    error,
+    note: READ_AND_RETRY_NOTE,
+  };
+}
+
+type GuardAnchors = Pick<InsertContentOptions, "before" | "after">;
+
 export const createFileEditInsertTool: ToolFactory = (config: ToolConfiguration) => {
   return tool({
     description: TOOL_DEFINITIONS.file_edit_insert.description,
@@ -108,18 +129,20 @@ export const createFileEditInsertTool: ToolFactory = (config: ToolConfiguration)
 function insertContent(
   originalContent: string,
   contentToInsert: string,
-  { before, after, lineOffset }: { before?: string; after?: string; lineOffset?: number }
+  options: InsertContentOptions
 ): InsertOperationSuccess | InsertOperationFailure {
+  const { before, after, lineOffset } = options;
+
+  if (before !== undefined && after !== undefined) {
+    return guardFailure("Provide only one of before or after (not both).");
+  }
+
   if (before !== undefined || after !== undefined) {
     return insertWithGuards(originalContent, contentToInsert, { before, after });
   }
 
   if (lineOffset === undefined) {
-    return {
-      success: false,
-      error: "line_offset must be provided when before/after guards are omitted.",
-      note: READ_AND_RETRY_NOTE,
-    };
+    return guardFailure("line_offset must be provided when before/after guards are omitted.");
   }
 
   return insertWithLineOffset(originalContent, contentToInsert, lineOffset);
@@ -128,46 +151,17 @@ function insertContent(
 function insertWithGuards(
   originalContent: string,
   contentToInsert: string,
-  { before, after }: { before?: string; after?: string }
+  anchors: GuardAnchors
 ): InsertOperationSuccess | InsertOperationFailure {
-  let anchorIndex: number | undefined;
-
-  if (before !== undefined) {
-    const beforeIndexResult = findUniqueSubstringIndex(originalContent, before, "before");
-    if (!beforeIndexResult.success) {
-      return beforeIndexResult;
-    }
-    anchorIndex = beforeIndexResult.index + before.length;
-  }
-
-  if (after !== undefined) {
-    const afterIndexResult = findUniqueSubstringIndex(originalContent, after, "after");
-    if (!afterIndexResult.success) {
-      return afterIndexResult;
-    }
-
-    if (anchorIndex === undefined) {
-      anchorIndex = afterIndexResult.index;
-    } else if (anchorIndex !== afterIndexResult.index) {
-      return {
-        success: false,
-        error:
-          "Guard mismatch: before and after substrings do not point to the same insertion point.",
-        note: READ_AND_RETRY_NOTE,
-      };
-    }
-  }
-
-  if (anchorIndex === undefined) {
-    return {
-      success: false,
-      error: "Unable to determine insertion point from guards.",
-      note: READ_AND_RETRY_NOTE,
-    };
+  const anchorResult = resolveGuardAnchor(originalContent, anchors);
+  if (!anchorResult.success) {
+    return anchorResult;
   }
 
   const newContent =
-    originalContent.slice(0, anchorIndex) + contentToInsert + originalContent.slice(anchorIndex);
+    originalContent.slice(0, anchorResult.index) +
+    contentToInsert +
+    originalContent.slice(anchorResult.index);
 
   return {
     success: true,
@@ -180,26 +174,43 @@ function findUniqueSubstringIndex(
   haystack: string,
   needle: string,
   label: "before" | "after"
-): InsertOperationFailure | { success: true; index: number } {
+): GuardResolutionSuccess | InsertOperationFailure {
   const firstIndex = haystack.indexOf(needle);
   if (firstIndex === -1) {
-    return {
-      success: false,
-      error: `Guard mismatch: unable to find ${label} substring in the current file.`,
-      note: READ_AND_RETRY_NOTE,
-    };
+    return guardFailure(`Guard mismatch: unable to find ${label} substring in the current file.`);
   }
 
   const secondIndex = haystack.indexOf(needle, firstIndex + needle.length);
   if (secondIndex !== -1) {
-    return {
-      success: false,
-      error: `Guard mismatch: ${label} substring matched multiple times. Provide a more specific string.`,
-      note: READ_AND_RETRY_NOTE,
-    };
+    return guardFailure(
+      `Guard mismatch: ${label} substring matched multiple times. Provide a more specific string.`
+    );
   }
 
   return { success: true, index: firstIndex };
+}
+
+function resolveGuardAnchor(
+  originalContent: string,
+  { before, after }: GuardAnchors
+): GuardResolutionSuccess | InsertOperationFailure {
+  if (before !== undefined) {
+    const beforeIndexResult = findUniqueSubstringIndex(originalContent, before, "before");
+    if (!beforeIndexResult.success) {
+      return beforeIndexResult;
+    }
+    return { success: true, index: beforeIndexResult.index + before.length };
+  }
+
+  if (after !== undefined) {
+    const afterIndexResult = findUniqueSubstringIndex(originalContent, after, "after");
+    if (!afterIndexResult.success) {
+      return afterIndexResult;
+    }
+    return { success: true, index: afterIndexResult.index };
+  }
+
+  return guardFailure("Unable to determine insertion point from guards.");
 }
 
 function insertWithLineOffset(
@@ -207,22 +218,18 @@ function insertWithLineOffset(
   contentToInsert: string,
   lineOffset: number
 ): InsertOperationSuccess | InsertOperationFailure {
-  const lines = originalContent.split("\n");
-  if (lineOffset > lines.length) {
+  const lineCount = countLines(originalContent);
+  if (lineOffset > lineCount) {
     return {
       success: false,
-      error: `line_offset ${lineOffset} is beyond file length (${lines.length} lines)`,
-      note: `${EDIT_FAILED_NOTE_PREFIX} The file has ${lines.length} lines. ${NOTE_READ_FILE_RETRY}`,
+      error: `line_offset ${lineOffset} is beyond file length (${lineCount} lines)`,
+      note: `${EDIT_FAILED_NOTE_PREFIX} The file has ${lineCount} lines. ${NOTE_READ_FILE_RETRY}`,
     };
   }
 
   const insertionIndex = getIndexForLineOffset(originalContent, lineOffset);
   if (insertionIndex === null) {
-    return {
-      success: false,
-      error: `Unable to compute insertion point for line_offset ${lineOffset}.`,
-      note: READ_AND_RETRY_NOTE,
-    };
+    return guardFailure(`Unable to compute insertion point for line_offset ${lineOffset}.`);
   }
 
   const newContent =
@@ -263,4 +270,18 @@ function getIndexForLineOffset(content: string, lineOffset: number): number | nu
   }
 
   return null;
+}
+
+function countLines(content: string): number {
+  if (content.length === 0) {
+    return 1;
+  }
+
+  let count = 1;
+  for (const char of content) {
+    if (char === "\n") {
+      count += 1;
+    }
+  }
+  return count;
 }

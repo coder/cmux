@@ -80,7 +80,7 @@ describe("file_edit_insert tool", () => {
     }
   });
 
-  it("fails when before/after disagree", async () => {
+  it("fails when both before and after are provided", async () => {
     const tool = createTestTool(testDir);
     const args: FileEditInsertToolArgs = {
       file_path: path.relative(testDir, testFilePath),
@@ -92,7 +92,7 @@ describe("file_edit_insert tool", () => {
     const result = (await tool.execute!(args, mockToolCallOptions)) as FileEditInsertToolResult;
     expect(result.success).toBe(false);
     if (!result.success) {
-      expect(result.error).toContain("Guard mismatch");
+      expect(result.error).toContain("only one of before or after");
     }
   });
 
