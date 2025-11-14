@@ -156,7 +156,7 @@ const WorkspaceListItemInner: React.FC<WorkspaceListItemProps> = ({
               />
             ) : (
               <span
-                className="text-foreground -mx-1 min-w-0 flex-1 cursor-pointer rounded-sm px-1 text-left text-[14px] transition-colors duration-200 hover:bg-white/5 truncate"
+                className="text-foreground -mx-1 min-w-0 flex-1 cursor-pointer truncate rounded-sm px-1 text-left text-[14px] transition-colors duration-200 hover:bg-white/5"
                 onDoubleClick={(e) => {
                   e.stopPropagation();
                   startRenaming();
