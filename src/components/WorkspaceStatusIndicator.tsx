@@ -4,7 +4,7 @@ import { memo } from "react";
 import { Tooltip, TooltipWrapper } from "./Tooltip";
 import { Button } from "./ui/button";
 
-export const WorkspaceStatusIndicator = memo(({ workspaceId }: { workspaceId: string }) => {
+export const WorkspaceStatusIndicator = memo<{ workspaceId: string }>(({ workspaceId }) => {
   const { agentStatus } = useWorkspaceSidebarState(workspaceId);
 
   if (!agentStatus) {
@@ -12,11 +12,11 @@ export const WorkspaceStatusIndicator = memo(({ workspaceId }: { workspaceId: st
   }
 
   return (
-    <div className="text-muted flex gap-1.5 items-center text-xs">
+    <div className="text-muted flex items-center gap-1.5 text-xs">
       {agentStatus.emoji && (
         // Emojis do not visually center well, so we offset them
         // slightly with negative margin.
-        <span className="text-[10px] -mt-0.5">{agentStatus.emoji}</span>
+        <span className="-mt-0.5 text-[10px]">{agentStatus.emoji}</span>
       )}
       {agentStatus.message}
       {agentStatus.url && (
@@ -24,7 +24,7 @@ export const WorkspaceStatusIndicator = memo(({ workspaceId }: { workspaceId: st
           <Button
             variant="ghost"
             size="icon"
-            className="h-4 w-4 [&_svg]:size-3 flex items-center justify-center"
+            className="flex h-4 w-4 items-center justify-center [&_svg]:size-3"
           >
             <a href={agentStatus.url} target="_blank" rel="noopener noreferrer">
               <ExternalLinkIcon />
@@ -39,3 +39,4 @@ export const WorkspaceStatusIndicator = memo(({ workspaceId }: { workspaceId: st
     </div>
   );
 });
+WorkspaceStatusIndicator.displayName = "WorkspaceStatusIndicator";

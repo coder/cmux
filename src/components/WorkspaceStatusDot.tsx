@@ -4,18 +4,13 @@ import { getStatusTooltip } from "@/utils/ui/statusTooltip";
 import { memo, useMemo } from "react";
 import { Tooltip, TooltipWrapper } from "./Tooltip";
 
-export const WorkspaceStatusDot = memo(
-  ({
-    workspaceId,
-    lastReadTimestamp,
-    onClick,
-    size = 8,
-  }: {
-    workspaceId: string;
-    lastReadTimestamp?: number;
-    onClick?: (e: React.MouseEvent) => void;
-    size?: number;
-  }) => {
+export const WorkspaceStatusDot = memo<{
+  workspaceId: string;
+  lastReadTimestamp?: number;
+  onClick?: (e: React.MouseEvent) => void;
+  size?: number;
+}>(
+  ({ workspaceId, lastReadTimestamp, onClick, size = 8 }) => {
     const { canInterrupt, currentModel, agentStatus, recencyTimestamp } =
       useWorkspaceSidebarState(workspaceId);
 
@@ -64,5 +59,11 @@ export const WorkspaceStatusDot = memo(
         </Tooltip>
       </TooltipWrapper>
     );
-  }
+  },
+  (prevProps, nextProps) =>
+    prevProps.workspaceId === nextProps.workspaceId &&
+    prevProps.lastReadTimestamp === nextProps.lastReadTimestamp &&
+    prevProps.onClick === nextProps.onClick &&
+    prevProps.size === nextProps.size
 );
+WorkspaceStatusDot.displayName = "WorkspaceStatusDot";

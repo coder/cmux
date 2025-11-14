@@ -4,14 +4,14 @@ import { cn } from "@/lib/utils";
 import { motion } from "motion/react";
 import { type CSSProperties, type ElementType, type JSX, memo, useMemo } from "react";
 
-export type TextShimmerProps = {
+export interface TextShimmerProps {
   children: string;
   as?: ElementType;
   className?: string;
   duration?: number;
   spread?: number;
   colorClass?: string;
-};
+}
 
 const ShimmerComponent = ({
   children,

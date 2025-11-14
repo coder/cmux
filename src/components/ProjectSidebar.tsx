@@ -422,7 +422,7 @@ const ProjectSidebarInner: React.FC<ProjectSidebarProps> = ({
           {!collapsed && (
             <>
               <div className="border-dark flex items-center justify-between border-b p-4">
-                <h2 className="text-foreground m-0 text-md font-semibold">Agents</h2>
+                <h2 className="text-foreground text-md m-0 font-semibold">Agents</h2>
                 <TooltipWrapper inline>
                   <button
                     onClick={onAddProject}
