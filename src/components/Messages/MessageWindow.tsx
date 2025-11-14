@@ -67,7 +67,7 @@ export const MessageWindow: React.FC<MessageWindowProps> = ({
         "mt-4 mb-1 flex w-full flex-col relative isolate w-fit",
         variant === "user" && "ml-auto",
         variant === "assistant" && "text-white",
-        isLastPartOfMessage && "mb-4"        
+        isLastPartOfMessage && "mb-4"
       )}
       data-message-block
     >
@@ -82,7 +82,7 @@ export const MessageWindow: React.FC<MessageWindowProps> = ({
         <div className="relative z-10 flex flex-col gap-2">
           <div data-message-content>
             {showJson ? (
-              <pre className="m-0 overflow-x-auto rounded-xl border border-white/10 bg-black/30 p-3 text-[12px] leading-snug text-white/80 whitespace-pre-wrap">
+              <pre className="m-0 overflow-x-auto rounded-xl border border-white/10 bg-black/30 p-3 text-[12px] leading-snug whitespace-pre-wrap text-white/80">
                 {JSON.stringify(message, null, 2)}
               </pre>
             ) : (
@@ -114,7 +114,7 @@ export const MessageWindow: React.FC<MessageWindowProps> = ({
             />
           </div>
           <div
-            className="flex min-w-0 flex-1 flex-wrap items-center gap-2 text-xs text-muted"
+            className="text-muted flex min-w-0 flex-1 flex-wrap items-center gap-2 text-xs"
             data-message-meta-right
           >
             {rightLabel}
@@ -143,10 +143,10 @@ const IconActionButton: React.FC<IconActionButtonProps> = ({ button }) => {
       aria-label={button.label}
       variant="ghost"
       size="icon"
-      className="flex items-center justify-center [&_svg]:size-3.5 h-6 w-6 text-placeholder"
+      className="text-placeholder flex h-6 w-6 items-center justify-center [&_svg]:size-3.5"
     >
       {button.icon ?? (
-        <span className="text-[10px] font-semibold uppercase tracking-wide">{button.label}</span>
+        <span className="text-[10px] font-semibold tracking-wide uppercase">{button.label}</span>
       )}
     </Button>
   );

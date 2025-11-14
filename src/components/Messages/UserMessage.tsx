@@ -5,7 +5,6 @@ import { MessageWindow } from "./MessageWindow";
 import { TerminalOutput } from "./TerminalOutput";
 import { formatKeybind, KEYBINDS } from "@/utils/ui/keybinds";
 import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
-import type { KebabMenuItem } from "@/components/KebabMenu";
 import { copyToClipboard } from "@/utils/clipboard";
 import { usePersistedState } from "@/hooks/usePersistedState";
 import { VIM_ENABLED_KEY } from "@/constants/storage";
@@ -100,7 +99,7 @@ export const UserMessage: React.FC<UserMessageProps> = ({
       variant="user"
     >
       {content && (
-        <pre className="m-0 font-primary leading-6 text-slate-100 break-words whitespace-pre-wrap">
+        <pre className="font-primary m-0 leading-6 break-words whitespace-pre-wrap text-slate-100">
           {content}
         </pre>
       )}

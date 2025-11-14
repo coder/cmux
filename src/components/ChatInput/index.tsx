@@ -856,7 +856,7 @@ export const ChatInput: React.FC<ChatInputProps> = (props) => {
         className="bg-separator border-border-light relative flex flex-col gap-1 border-t px-[15px] pt-[5px] pb-[15px]"
         data-component="ChatInputSection"
       >
-        <div className="max-w-4xl mx-auto w-full">
+        <div className="mx-auto w-full max-w-4xl">
           {/* Creation error toast */}
           {variant === "creation" && creationState?.error && (
             <div className="mb-2 rounded border border-red-700 bg-red-900/20 px-3 py-2 text-sm text-red-400">
