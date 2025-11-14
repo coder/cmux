@@ -132,7 +132,7 @@ const WorkspaceListItemInner: React.FC<WorkspaceListItemProps> = ({
         data-workspace-path={namedWorkspacePath}
         data-workspace-id={workspaceId}
       >
-        <div>
+        <div className="pl-8">
           <WorkspaceStatusDot
             workspaceId={workspaceId}
             lastReadTimestamp={lastReadTimestamp}
@@ -202,7 +202,7 @@ const WorkspaceListItemInner: React.FC<WorkspaceListItemProps> = ({
         </div>
       </div>
       {renameError && isEditing && (
-        <div className="bg-error-bg border-error text-error absolute top-full right-8 left-7 z-10 mt-1 rounded-sm border px-2 py-1.5 text-xs">
+        <div className="bg-error-bg border-error text-error absolute top-full right-8 left-8 z-10 mt-1 rounded-sm border px-2 py-1.5 text-xs">
           {renameError}
         </div>
       )}
