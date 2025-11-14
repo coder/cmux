@@ -99,14 +99,22 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
           const collector = createEventCollector(env.sentEvents, workspaceId);
           await collector.waitForEvent("stream-start", 5000);
 
-          // Use interruptStream() to interrupt
-          const interruptResult = await env.mockIpcRenderer.invoke(
+          // Use interruptStream() to soft-interrupt
+          const softInterruptResult = await env.mockIpcRenderer.invoke(
             IPC_CHANNELS.WORKSPACE_INTERRUPT_STREAM,
             workspaceId
           );
 
           // Should succeed (interrupt is not an error)
-          expect(interruptResult.success).toBe(true);
+          expect(softInterruptResult.success).toBe(true);
+
+
+          // Then hard-interrupt
+          const hardInterruptResult = await env.mockIpcRenderer.invoke(
+            IPC_CHANNELS.WORKSPACE_INTERRUPT_STREAM,
+            workspaceId
+          )
+          expect(hardInterruptResult.success).toBe(true);
 
           // Wait for abort or end event
           const abortOrEndReceived = await waitFor(() => {
