@@ -1,4 +1,5 @@
 import { describe, it, expect } from "bun:test";
+import { KNOWN_MODELS } from "@/constants/knownModels";
 import { parseCommand } from "./parser";
 
 // Test helpers
@@ -122,11 +123,11 @@ describe("commandParser", () => {
     });
 
     it("should parse /model with abbreviation", () => {
-      expectModelSet("/model opus", "anthropic:claude-opus-4-1");
+      expectModelSet("/model opus", KNOWN_MODELS.OPUS.id);
     });
 
     it("should parse /model with full provider:model format", () => {
-      expectModelSet("/model anthropic:claude-sonnet-4-5", "anthropic:claude-sonnet-4-5");
+      expectModelSet("/model anthropic:claude-sonnet-4-5", KNOWN_MODELS.SONNET.id);
     });
 
     it("should parse /model help when no args", () => {

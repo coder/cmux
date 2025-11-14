@@ -1,5 +1,6 @@
 import type { ScenarioTurn } from "../scenarioTypes";
 import { STREAM_BASE_DELAY } from "../scenarioTypes";
+import { KNOWN_MODELS } from "@/constants/knownModels";
 
 export const LIST_PROGRAMMING_LANGUAGES = "List 3 programming languages";
 
@@ -12,7 +13,7 @@ const listProgrammingLanguagesTurn: ScenarioTurn = {
   assistant: {
     messageId: "msg-basic-1",
     events: [
-      { kind: "stream-start", delay: 0, messageId: "msg-basic-1", model: "openai:gpt-5" },
+      { kind: "stream-start", delay: 0, messageId: "msg-basic-1", model: KNOWN_MODELS.GPT.id },
       {
         kind: "stream-delta",
         delay: STREAM_BASE_DELAY,
@@ -37,7 +38,7 @@ const listProgrammingLanguagesTurn: ScenarioTurn = {
         kind: "stream-end",
         delay: STREAM_BASE_DELAY * 5,
         metadata: {
-          model: "openai:gpt-5",
+          model: KNOWN_MODELS.GPT.id,
           inputTokens: 64,
           outputTokens: 48,
           systemMessageTokens: 12,

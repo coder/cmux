@@ -1,6 +1,7 @@
 /**
  * Tests for compact command parser using minimist
  */
+import { KNOWN_MODELS } from "@/constants/knownModels";
 import { parseCommand } from "./parser";
 
 describe("compact command parser", () => {
@@ -127,7 +128,7 @@ describe("compact command parser", () => {
       type: "compact",
       maxOutputTokens: undefined,
       continueMessage: undefined,
-      model: "anthropic:claude-sonnet-4-5",
+      model: KNOWN_MODELS.SONNET.id,
     });
   });
 
@@ -137,7 +138,7 @@ describe("compact command parser", () => {
       type: "compact",
       maxOutputTokens: undefined,
       continueMessage: undefined,
-      model: "anthropic:claude-opus-4-1",
+      model: KNOWN_MODELS.OPUS.id,
     });
   });
 
@@ -147,7 +148,7 @@ describe("compact command parser", () => {
       type: "compact",
       maxOutputTokens: 5000,
       continueMessage: "Keep going",
-      model: "anthropic:claude-haiku-4-5",
+      model: KNOWN_MODELS.HAIKU.id,
     });
   });
 
@@ -157,7 +158,7 @@ describe("compact command parser", () => {
       type: "compact",
       maxOutputTokens: 3000,
       continueMessage: "Continue",
-      model: "anthropic:claude-opus-4-1",
+      model: KNOWN_MODELS.OPUS.id,
     });
   });
 
@@ -177,7 +178,7 @@ describe("compact command parser", () => {
       type: "compact",
       maxOutputTokens: undefined,
       continueMessage: undefined,
-      model: "openai:gpt-5-codex",
+      model: KNOWN_MODELS.GPT_CODEX.id,
     });
   });
 
@@ -328,7 +329,7 @@ describe("multiline continue messages", () => {
       type: "compact",
       maxOutputTokens: undefined,
       continueMessage: "Continue with the implementation",
-      model: "anthropic:claude-haiku-4-5",
+      model: KNOWN_MODELS.HAIKU.id,
     });
   });
 
@@ -338,7 +339,7 @@ describe("multiline continue messages", () => {
       type: "compact",
       maxOutputTokens: 5000,
       continueMessage: "Finish the refactoring",
-      model: "anthropic:claude-sonnet-4-5",
+      model: KNOWN_MODELS.SONNET.id,
     });
   });
 });

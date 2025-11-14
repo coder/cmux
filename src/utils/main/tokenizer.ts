@@ -5,6 +5,10 @@ import { getAvailableTools, getToolSchemas } from "@/utils/tools/toolDefinitions
 import type { CountTokensInput } from "./tokenizer.worker";
 import { models, type ModelName } from "ai-tokenizer";
 import { run } from "./workerPool";
+import {
+  TOKENIZER_MODEL_OVERRIDES,
+  DEFAULT_WARM_MODELS,
+} from "@/constants/knownModels";
 
 /**
  * Public tokenizer interface exposed to callers.
@@ -14,19 +18,6 @@ export interface Tokenizer {
   encoding: string;
   countTokens: (text: string) => Promise<number>;
 }
-
-const MODEL_KEY_OVERRIDES: Record<string, string> = {
-  "anthropic:claude-sonnet-4-5": "anthropic/claude-sonnet-4.5",
-  // FIXME(ThomasK33): Temporary workaround since ai-tokenizer does not yet
-  // claude-haiku-4.5
-  "anthropic:claude-haiku-4-5": "anthropic/claude-3.5-haiku",
-};
-
-const DEFAULT_WARM_MODELS = [
-  "openai:gpt-5",
-  "openai:gpt-5-codex",
-  "anthropic:claude-sonnet-4-5",
-] as const;
 
 const encodingPromises = new Map<ModelName, Promise<string>>();
 const inFlightCounts = new Map<string, Promise<number>>();
@@ -44,7 +35,7 @@ function normalizeModelKey(modelName: string): ModelName | null {
     "Model name must be a non-empty string"
   );
 
-  const override = MODEL_KEY_OVERRIDES[modelName];
+  const override = TOKENIZER_MODEL_OVERRIDES[modelName];
   const normalized =
     override ?? (modelName.includes(":") ? modelName.replace(":", "/") : modelName);
 

@@ -5,10 +5,11 @@
 import { applyCompactionOverrides } from "./compactionOptions";
 import type { SendMessageOptions } from "@/types/ipc";
 import type { CompactionRequestData } from "@/types/message";
+import { KNOWN_MODELS } from "@/constants/knownModels";
 
 describe("applyCompactionOverrides", () => {
   const baseOptions: SendMessageOptions = {
-    model: "anthropic:claude-sonnet-4-5",
+    model: KNOWN_MODELS.SONNET.id,
     thinkingLevel: "medium",
     toolPolicy: [],
     mode: "exec",
@@ -18,23 +19,23 @@ describe("applyCompactionOverrides", () => {
     const compactData: CompactionRequestData = {};
     const result = applyCompactionOverrides(baseOptions, compactData);
 
-    expect(result.model).toBe("anthropic:claude-sonnet-4-5");
+    expect(result.model).toBe(KNOWN_MODELS.SONNET.id);
     expect(result.mode).toBe("compact");
   });
 
   it("applies custom model override", () => {
     const compactData: CompactionRequestData = {
-      model: "anthropic:claude-haiku-4-5",
+      model: KNOWN_MODELS.HAIKU.id,
     };
     const result = applyCompactionOverrides(baseOptions, compactData);
 
-    expect(result.model).toBe("anthropic:claude-haiku-4-5");
+    expect(result.model).toBe(KNOWN_MODELS.HAIKU.id);
   });
 
   it("preserves workspace thinking level for all models", () => {
     // Test Anthropic model
     const anthropicData: CompactionRequestData = {
-      model: "anthropic:claude-haiku-4-5",
+      model: KNOWN_MODELS.HAIKU.id,
     };
     const anthropicResult = applyCompactionOverrides(baseOptions, anthropicData);
     expect(anthropicResult.thinkingLevel).toBe("medium");
@@ -78,12 +79,12 @@ describe("applyCompactionOverrides", () => {
 
   it("applies all overrides together", () => {
     const compactData: CompactionRequestData = {
-      model: "openai:gpt-5",
+      model: KNOWN_MODELS.GPT.id,
       maxOutputTokens: 5000,
     };
     const result = applyCompactionOverrides(baseOptions, compactData);
 
-    expect(result.model).toBe("openai:gpt-5");
+    expect(result.model).toBe(KNOWN_MODELS.GPT.id);
     expect(result.maxOutputTokens).toBe(5000);
     expect(result.mode).toBe("compact");
     expect(result.thinkingLevel).toBe("medium"); // Non-Anthropic preserves original
