@@ -1531,10 +1531,13 @@ export class IpcMain {
     });
 
     // Handle terminal input (keyboard, etc.)
-    ipcMain.on(IPC_CHANNELS.TERMINAL_INPUT, (_event, sessionId: string, data: string) => {
-      void this.ptyService.sendInput(sessionId, data).catch((err) => {
+    ipcMain.handle(IPC_CHANNELS.TERMINAL_INPUT, async (_event, sessionId: string, data: string) => {
+      try {
+        await this.ptyService.sendInput(sessionId, data);
+      } catch (err) {
         log.error(`Error sending input to terminal ${sessionId}:`, err);
-      });
+        throw err;
+      }
     });
 
     ipcMain.handle(IPC_CHANNELS.TERMINAL_CLOSE, async (_event, sessionId: string) => {
