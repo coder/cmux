@@ -24,7 +24,7 @@ interface KnownModel extends KnownModelDefinition {
   id: `${ModelProvider}:${string}`;
 }
 
-// Model definitions. Note we avoid listing legacy models here. These represent the focal models 
+// Model definitions. Note we avoid listing legacy models here. These represent the focal models
 // of the community.
 const MODEL_DEFINITIONS = {
   SONNET: {
@@ -112,11 +112,14 @@ export const TOKENIZER_MODEL_OVERRIDES: Record<string, string> = Object.fromEntr
 
 export const MODEL_NAMES: Record<ModelProvider, Record<string, string>> = Object.entries(
   KNOWN_MODELS
-).reduce<Record<ModelProvider, Record<string, string>>>((acc, [key, model]) => {
-  if (!acc[model.provider]) {
-    const emptyRecord: Record<string, string> = {};
-    acc[model.provider] = emptyRecord;
-  }
-  acc[model.provider][key] = model.providerModelId;
-  return acc;
-}, {} as Record<ModelProvider, Record<string, string>>);
+).reduce<Record<ModelProvider, Record<string, string>>>(
+  (acc, [key, model]) => {
+    if (!acc[model.provider]) {
+      const emptyRecord: Record<string, string> = {};
+      acc[model.provider] = emptyRecord;
+    }
+    acc[model.provider][key] = model.providerModelId;
+    return acc;
+  },
+  {} as Record<ModelProvider, Record<string, string>>
+);
