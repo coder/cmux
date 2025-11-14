@@ -28,16 +28,19 @@ if (!workspaceId) {
   // Set document title for browser tab
   // Fetch workspace metadata to get a better title
   if (window.api) {
-    window.api.workspace.list().then((workspaces: Array<{ id: string; projectName: string; name: string }>) => {
-      const workspace = workspaces.find((ws) => ws.id === workspaceId);
-      if (workspace) {
-        document.title = `Terminal — ${workspace.projectName}/${workspace.name}`;
-      } else {
+    window.api.workspace
+      .list()
+      .then((workspaces: Array<{ id: string; projectName: string; name: string }>) => {
+        const workspace = workspaces.find((ws) => ws.id === workspaceId);
+        if (workspace) {
+          document.title = `Terminal — ${workspace.projectName}/${workspace.name}`;
+        } else {
+          document.title = `Terminal — ${workspaceId}`;
+        }
+      })
+      .catch(() => {
         document.title = `Terminal — ${workspaceId}`;
-      }
-    }).catch(() => {
-      document.title = `Terminal — ${workspaceId}`;
-    });
+      });
   } else {
     document.title = `Terminal — ${workspaceId}`;
   }
