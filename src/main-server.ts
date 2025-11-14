@@ -163,6 +163,21 @@ const httpIpcMain = new HttpIpcMainAdapter(app);
     return Promise.resolve(launchProjectPath);
   });
 
+  // Register stub handlers for desktop-only features
+  // These prevent 404 errors in browser mode but don't actually do anything
+  httpIpcMain.handle(IPC_CHANNELS.UPDATE_CHECK, async () => {
+    // No-op: app updates don't apply in server mode
+    return null;
+  });
+  httpIpcMain.handle(IPC_CHANNELS.UPDATE_DOWNLOAD, async () => {
+    // No-op: app updates don't apply in server mode
+    return null;
+  });
+  httpIpcMain.handle(IPC_CHANNELS.UPDATE_INSTALL, async () => {
+    // No-op: app updates don't apply in server mode
+    return null;
+  });
+
   // Serve static files from dist directory (built renderer)
   app.use(express.static(path.join(__dirname, ".")));
 
