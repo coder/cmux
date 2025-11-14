@@ -53,13 +53,16 @@ export function TerminalView({ workspaceId, sessionId, visible }: TerminalViewPr
     if (!container || !visible) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Stop propagation in bubble phase (after terminal processes the event)
+      // This prevents the event from reaching window listeners but allows
+      // the terminal's canvas element to receive it first
       e.stopPropagation();
     };
 
-    // Use capture phase to stop events before they bubble
-    container.addEventListener("keydown", handleKeyDown, true);
+    // Don't use capture phase - let event reach terminal first
+    container.addEventListener("keydown", handleKeyDown, false);
     return () => {
-      container.removeEventListener("keydown", handleKeyDown, true);
+      container.removeEventListener("keydown", handleKeyDown, false);
     };
   }, [visible]);
 
