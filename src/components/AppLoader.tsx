@@ -77,7 +77,12 @@ function AppLoaderInner(props: {
     } else {
       setStoresSynced(false);
     }
-  }, [workspaceContext.loading, workspaceContext.workspaceMetadata, workspaceStore, gitStatusStore]);
+  }, [
+    workspaceContext.loading,
+    workspaceContext.workspaceMetadata,
+    workspaceStore,
+    gitStatusStore,
+  ]);
 
   // Restore workspace from URL hash (runs once when stores are synced)
   const [hasRestoredFromHash, setHasRestoredFromHash] = useState(false);

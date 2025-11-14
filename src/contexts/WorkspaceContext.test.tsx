@@ -514,10 +514,9 @@ describe("WorkspaceContext", () => {
   });
 
   test("reacts to metadata update events (new workspace)", async () => {
-    let metadataListener: ((event: {
-      workspaceId: string;
-      metadata: FrontendWorkspaceMetadata | null;
-    }) => void) | null = null;
+    let metadataListener:
+      | ((event: { workspaceId: string; metadata: FrontendWorkspaceMetadata | null }) => void)
+      | null = null;
 
     createMockAPI({
       list: () => Promise.resolve([]),
@@ -574,10 +573,9 @@ describe("WorkspaceContext", () => {
       createdAt: "2025-01-01T00:00:00.000Z",
     });
 
-    let metadataListener: ((event: {
-      workspaceId: string;
-      metadata: FrontendWorkspaceMetadata | null;
-    }) => void) | null = null;
+    let metadataListener:
+      | ((event: { workspaceId: string; metadata: FrontendWorkspaceMetadata | null }) => void)
+      | null = null;
 
     createMockAPI({
       list: () => Promise.resolve([workspace]),
