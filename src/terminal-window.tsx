@@ -10,6 +10,9 @@ import ReactDOM from "react-dom/client";
 import { TerminalView } from "./components/TerminalView";
 import "./styles/globals.css";
 
+// Shims the `window.api` object with the browser API if not running in Electron
+import "./browser/api";
+
 // Get workspace ID from query parameter
 const params = new URLSearchParams(window.location.search);
 const workspaceId = params.get("workspaceId");
