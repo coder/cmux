@@ -181,9 +181,8 @@ export class PlatformPaths {
       return filePath;
     }
 
-    // On Unix, replace home with tilde
-    // On Windows, show full path (no tilde convention)
-    if (!isWindowsPlatform() && filePath.startsWith(home)) {
+    // Replace home with tilde on all platforms for display purposes
+    if (filePath.startsWith(home)) {
       return filePath.replace(home, "~");
     }
 
