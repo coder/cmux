@@ -484,6 +484,14 @@ const ProjectSidebarInner: React.FC<ProjectSidebarProps> = ({
                           >
                             ⠿
                           </span>
+                          <span
+                            data-project-path={projectPath}
+                            aria-hidden="true"
+                            className="text-muted mr-2 shrink-0 text-xs transition-transform duration-200"
+                            style={{ transform: isExpanded ? "rotate(90deg)" : "rotate(0deg)" }}
+                          >
+                            ▶
+                          </span>
                           <div className="flex min-w-0 flex-1 items-center pr-2">
                             <TooltipWrapper inline>
                               <div className="text-muted-dark truncate text-sm">
