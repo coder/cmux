@@ -1509,19 +1509,22 @@ export class IpcMain {
         );
 
         // Create terminal session with callbacks that send IPC events
+        // Note: callbacks capture sessionId from returned session object
+        const capturedSessionId = { current: "" };
         const session = await this.ptyService.createSession(
           params,
           runtime,
           workspacePath,
           // onData callback - send output to the window that created the session
           (data: string) => {
-            senderWindow.webContents.send(`terminal:output:${session.sessionId}`, data);
+            senderWindow.webContents.send(`terminal:output:${capturedSessionId.current}`, data);
           },
           // onExit callback - send exit event and clean up
           (exitCode: number) => {
-            senderWindow.webContents.send(`terminal:exit:${session.sessionId}`, exitCode);
+            senderWindow.webContents.send(`terminal:exit:${capturedSessionId.current}`, exitCode);
           }
         );
+        capturedSessionId.current = session.sessionId;
 
         return session;
       } catch (err) {
@@ -1531,6 +1534,7 @@ export class IpcMain {
     });
 
     // Handle terminal input (keyboard, etc.)
+    // Use handle() for both Electron and browser mode
     ipcMain.handle(IPC_CHANNELS.TERMINAL_INPUT, async (_event, sessionId: string, data: string) => {
       try {
         await this.ptyService.sendInput(sessionId, data);

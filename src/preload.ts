@@ -152,8 +152,9 @@ const api: IPCApi = {
     create: (params) => ipcRenderer.invoke(IPC_CHANNELS.TERMINAL_CREATE, params),
     close: (sessionId) => ipcRenderer.invoke(IPC_CHANNELS.TERMINAL_CLOSE, sessionId),
     resize: (params) => ipcRenderer.invoke(IPC_CHANNELS.TERMINAL_RESIZE, params),
-    sendInput: (sessionId: string, data: string) =>
-      ipcRenderer.send(IPC_CHANNELS.TERMINAL_INPUT, sessionId, data),
+    sendInput: (sessionId: string, data: string) => {
+      void ipcRenderer.invoke(IPC_CHANNELS.TERMINAL_INPUT, sessionId, data);
+    },
     onOutput: (sessionId: string, callback: (data: string) => void) => {
       const channel = `terminal:output:${sessionId}`;
       const handler = (_event: unknown, data: string) => callback(data);
