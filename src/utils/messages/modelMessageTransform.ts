@@ -250,6 +250,7 @@ function splitMixedContentMessages(messages: ModelMessage[]): ModelMessage[] {
     for (const part of assistantMsg.content) {
       const partType = part.type === "tool-call" ? "tool-call" : "text";
 
+      // eslint-disable-next-line @typescript-eslint/prefer-optional-chain
       if (!currentGroup || currentGroup.type !== partType) {
         if (currentGroup) groups.push(currentGroup);
         currentGroup = { type: partType, parts: [] };
@@ -267,7 +268,7 @@ function splitMixedContentMessages(messages: ModelMessage[]): ModelMessage[] {
       continue;
     }
 
-    const toolResultsById = new Map<string, ToolModelMessage["content"][number][]>();
+    const toolResultsById = new Map<string, Array<ToolModelMessage["content"][number]>>();
     for (const content of toolMsg.content) {
       if (content.type === "tool-result") {
         const existing = toolResultsById.get(content.toolCallId);
