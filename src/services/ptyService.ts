@@ -5,15 +5,14 @@
  * Uses callbacks for output/exit events to avoid circular dependencies.
  */
 
-/* eslint-disable local/no-sync-fs-methods */
-
 import { log } from "@/services/log";
 import type { Runtime, ExecStream } from "@/runtime/Runtime";
 import type { TerminalSession, TerminalCreateParams, TerminalResizeParams } from "@/types/terminal";
 import type { IPty } from "node-pty";
 import { SSHRuntime } from "@/runtime/SSHRuntime";
 import { LocalRuntime } from "@/runtime/LocalRuntime";
-import * as fs from "fs";
+import { access } from "fs/promises";
+import { constants } from "fs";
 
 interface SessionData {
   pty?: IPty; // For local sessions
@@ -66,7 +65,9 @@ export class PTYService {
       }
 
       // Validate workspace path exists
-      if (!fs.existsSync(workspacePath)) {
+      try {
+        await access(workspacePath, constants.F_OK);
+      } catch {
         throw new Error(`Workspace path does not exist: ${workspacePath}`);
       }
 
