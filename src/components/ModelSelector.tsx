@@ -247,7 +247,7 @@ export const ModelSelector = forwardRef<ModelSelectorRef, ModelSelectorProps>(
                     <button
                       type="button"
                       onClick={(event) => handleRemoveModel(model, event)}
-                      className="text-muted-light border-border-light/40 rounded-sm border px-1 py-0.5 text-[9px] font-semibold uppercase tracking-wide transition-colors duration-150 hover:border-danger-soft/60 hover:text-danger-soft"
+                      className="text-muted-light border-border-light/40 hover:border-danger-soft/60 hover:text-danger-soft rounded-sm border px-1 py-0.5 text-[9px] font-semibold tracking-wide uppercase transition-colors duration-150"
                       aria-label={`Remove ${model} from recent models`}
                     >
                       ×
