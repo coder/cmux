@@ -152,7 +152,20 @@ const api: IPCApi = {
     create: (params) => ipcRenderer.invoke(IPC_CHANNELS.TERMINAL_CREATE, params),
     close: (sessionId) => ipcRenderer.invoke(IPC_CHANNELS.TERMINAL_CLOSE, sessionId),
     resize: (params) => ipcRenderer.invoke(IPC_CHANNELS.TERMINAL_RESIZE, params),
-    getPort: () => ipcRenderer.invoke(IPC_CHANNELS.TERMINAL_GET_PORT),
+    sendInput: (sessionId: string, data: string) =>
+      ipcRenderer.send(IPC_CHANNELS.TERMINAL_INPUT, sessionId, data),
+    onOutput: (sessionId: string, callback: (data: string) => void) => {
+      const channel = `terminal:output:${sessionId}`;
+      const handler = (_event: unknown, data: string) => callback(data);
+      ipcRenderer.on(channel, handler);
+      return () => ipcRenderer.removeListener(channel, handler);
+    },
+    onExit: (sessionId: string, callback: (exitCode: number) => void) => {
+      const channel = `terminal:exit:${sessionId}`;
+      const handler = (_event: unknown, exitCode: number) => callback(exitCode);
+      ipcRenderer.on(channel, handler);
+      return () => ipcRenderer.removeListener(channel, handler);
+    },
     openWindow: (workspaceId: string) => {
       console.log(
         `[Preload] terminal.openWindow called with workspaceId: ${workspaceId}, channel: ${IPC_CHANNELS.TERMINAL_WINDOW_OPEN}`

@@ -1,9 +1,8 @@
 /**
  * PTY Service - Manages terminal PTY sessions
  *
- * Note: Extensive eslint-disable rules below are due to the circular dependency
- * workaround with TerminalServer (using `any` type). Fixing this would require
- * significant refactoring of the PTY/SSH infrastructure.
+ * Handles both local (using node-pty) and remote (using SSH) terminal sessions.
+ * Uses callbacks for output/exit events to avoid circular dependencies.
  */
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -47,11 +46,6 @@ interface SessionData {
  */
 export class PTYService {
   private sessions = new Map<string, SessionData>();
-  private terminalServer?: any; // TerminalServer reference (circular dependency handled loosely)
-
-  setTerminalServer(server: any): void {
-    this.terminalServer = server;
-  }
 
   /**
    * Create a new terminal session for a workspace
@@ -59,7 +53,9 @@ export class PTYService {
   async createSession(
     params: TerminalCreateParams,
     runtime: Runtime,
-    workspacePath: string
+    workspacePath: string,
+    onData: (data: string) => void,
+    onExit: (exitCode: number) => void
   ): Promise<TerminalSession> {
     const sessionId = `${params.workspaceId}-${Date.now()}`;
 
@@ -115,7 +111,7 @@ export class PTYService {
         );
       }
 
-      // Forward PTY data to terminal server
+      // Forward PTY data via callback
       // Buffer to handle escape sequences split across chunks
       let buffer = "";
 
@@ -144,7 +140,7 @@ export class PTYService {
         // Send complete data
         if (sendUpTo > 0) {
           const toSend = buffer.substring(0, sendUpTo);
-          this.terminalServer?.sendOutput(sessionId, toSend);
+          onData(toSend);
           buffer = buffer.substring(sendUpTo);
         }
       });
@@ -153,7 +149,7 @@ export class PTYService {
       ptyProcess.onExit(({ exitCode }) => {
         log.info(`Terminal session ${sessionId} exited with code ${exitCode}`);
         this.sessions.delete(sessionId);
-        this.terminalServer?.sendExit(sessionId, exitCode);
+        onExit(exitCode);
       });
 
       this.sessions.set(sessionId, {
@@ -161,8 +157,8 @@ export class PTYService {
         workspaceId: params.workspaceId,
         workspacePath,
         runtime,
-        onData: (data) => this.terminalServer?.sendOutput(sessionId, data),
-        onExit: (exitCode) => this.terminalServer?.sendExit(sessionId, exitCode),
+        onData,
+        onExit,
       });
     } else if (runtime instanceof SSHRuntime) {
       // SSH: Use runtime.exec with PTY allocation
@@ -209,11 +205,11 @@ export class PTYService {
         workspaceId: params.workspaceId,
         workspacePath,
         runtime,
-        onData: (data) => this.terminalServer?.sendOutput(sessionId, data),
-        onExit: (exitCode) => this.terminalServer?.sendExit(sessionId, exitCode),
+        onData,
+        onExit,
       });
 
-      // Pipe stdout to terminal server
+      // Pipe stdout via callback
       const reader = stream.stdout.getReader();
       const decoder = new TextDecoder();
 
@@ -228,7 +224,7 @@ export class PTYService {
             }
             bytesRead += value.length;
             const text = decoder.decode(value, { stream: true });
-            this.terminalServer?.sendOutput(sessionId, text);
+            onData(text);
           }
         } catch (err) {
           log.error(`[PTY] Error reading from SSH terminal ${sessionId}:`, err);
@@ -244,7 +240,7 @@ export class PTYService {
             if (done) break;
             const text = decoder.decode(value, { stream: true });
             // Send stderr to terminal (shells often write prompts to stderr)
-            this.terminalServer?.sendOutput(sessionId, text);
+            onData(text);
           }
         } catch (err) {
           log.error(`[PTY] Error reading stderr for ${sessionId}:`, err);
@@ -259,12 +255,12 @@ export class PTYService {
             `[PTY] Session was alive for ${((Date.now() - parseInt(sessionId.split("-")[1])) / 1000).toFixed(1)}s`
           );
           this.sessions.delete(sessionId);
-          this.terminalServer?.sendExit(sessionId, exitCode);
+          onExit(exitCode);
         })
         .catch((err: unknown) => {
           log.error(`[PTY] SSH terminal session ${sessionId} error:`, err);
           this.sessions.delete(sessionId);
-          this.terminalServer?.sendExit(sessionId, 1);
+          onExit(1);
         });
     } else {
       throw new Error(`Unsupported runtime type: ${runtime.constructor.name}`);

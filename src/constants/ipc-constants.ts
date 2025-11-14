@@ -36,7 +36,7 @@ export const IPC_CHANNELS = {
   TERMINAL_CREATE: "terminal:create",
   TERMINAL_CLOSE: "terminal:close",
   TERMINAL_RESIZE: "terminal:resize",
-  TERMINAL_GET_PORT: "terminal:getPort",
+  TERMINAL_INPUT: "terminal:input",
   TERMINAL_WINDOW_OPEN: "terminal:window:open",
   TERMINAL_WINDOW_CLOSE: "terminal:window:close",
 

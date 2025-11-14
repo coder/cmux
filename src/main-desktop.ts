@@ -308,15 +308,21 @@ async function loadServices(): Promise<void> {
     { Config: ConfigClass },
     { IpcMain: IpcMainClass },
     { UpdaterService: UpdaterServiceClass },
+    { TerminalWindowManager: TerminalWindowManagerClass },
   ] = await Promise.all([
     import("./config"),
     import("./services/ipcMain"),
     import("./services/updater"),
+    import("./services/terminalWindowManager"),
   ]);
   /* eslint-enable no-restricted-syntax */
   config = new ConfigClass();
   ipcMain = new IpcMainClass(config);
   await ipcMain.initialize();
+
+  // Set TerminalWindowManager for desktop mode (pop-out terminal windows)
+  const terminalWindowManager = new TerminalWindowManagerClass(config);
+  ipcMain.setTerminalWindowManager(terminalWindowManager);
 
   loadTokenizerModules().catch((error) => {
     console.error("Failed to preload tokenizer modules:", error);

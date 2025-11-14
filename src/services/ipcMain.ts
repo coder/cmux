@@ -1,5 +1,6 @@
 import assert from "@/utils/assert";
-import type { BrowserWindow, IpcMain as ElectronIpcMain } from "electron";
+import { BrowserWindow } from "electron";
+import type { IpcMain as ElectronIpcMain } from "electron";
 import { spawn, spawnSync } from "child_process";
 import * as fsPromises from "fs/promises";
 import * as path from "path";
@@ -31,7 +32,6 @@ import type { RuntimeConfig } from "@/types/runtime";
 import { isSSHRuntime } from "@/types/runtime";
 import { validateProjectPath } from "@/utils/pathUtils";
 import { PTYService } from "@/services/ptyService";
-import { TerminalServer } from "@/services/terminalServer";
 import { TerminalWindowManager } from "@/services/terminalWindowManager";
 import type { TerminalCreateParams, TerminalResizeParams } from "@/types/terminal";
 import { ExtensionMetadataService } from "@/services/ExtensionMetadataService";
@@ -57,8 +57,7 @@ export class IpcMain {
   private readonly initStateManager: InitStateManager;
   private readonly extensionMetadata: ExtensionMetadataService;
   private readonly ptyService: PTYService;
-  private readonly terminalServer: TerminalServer;
-  private readonly terminalWindowManager: TerminalWindowManager;
+  private terminalWindowManager?: TerminalWindowManager;
   private readonly sessions = new Map<string, AgentSession>();
   private readonly sessionSubscriptions = new Map<
     string,
@@ -82,11 +81,8 @@ export class IpcMain {
       this.partialService,
       this.initStateManager
     );
-    // Terminal services - lazy initialization on first use
+    // Terminal services - PTYService is cross-platform
     this.ptyService = new PTYService();
-    this.terminalServer = new TerminalServer(this.ptyService);
-    this.ptyService.setTerminalServer(this.terminalServer);
-    this.terminalWindowManager = new TerminalWindowManager(config);
 
     // Listen to AIService events to update metadata
     this.setupMetadataListeners();
@@ -98,6 +94,14 @@ export class IpcMain {
    */
   async initialize(): Promise<void> {
     await this.extensionMetadata.initialize();
+  }
+
+  /**
+   * Set the terminal window manager (desktop mode only).
+   * Server mode doesn't use pop-out terminal windows.
+   */
+  setTerminalWindowManager(manager: TerminalWindowManager): void {
+    this.terminalWindowManager = manager;
   }
 
   /**
@@ -1473,8 +1477,14 @@ export class IpcMain {
   }
 
   private registerTerminalHandlers(ipcMain: ElectronIpcMain): void {
-    ipcMain.handle(IPC_CHANNELS.TERMINAL_CREATE, async (_event, params: TerminalCreateParams) => {
+    ipcMain.handle(IPC_CHANNELS.TERMINAL_CREATE, async (event, params: TerminalCreateParams) => {
       try {
+        // Get the window that requested this terminal
+        const senderWindow = BrowserWindow.fromWebContents(event.sender);
+        if (!senderWindow) {
+          throw new Error("Could not find sender window for terminal creation");
+        }
+
         // Get workspace metadata
         const allMetadata = await this.config.getAllWorkspaceMetadata();
         const workspaceMetadata = allMetadata.find((ws) => ws.id === params.workspaceId);
@@ -1494,14 +1504,33 @@ export class IpcMain {
           workspaceMetadata.name
         );
 
-        // Create terminal session
-        const session = await this.ptyService.createSession(params, runtime, workspacePath);
+        // Create terminal session with callbacks that send IPC events
+        const session = await this.ptyService.createSession(
+          params,
+          runtime,
+          workspacePath,
+          // onData callback - send output to the window that created the session
+          (data: string) => {
+            senderWindow.webContents.send(`terminal:output:${session.sessionId}`, data);
+          },
+          // onExit callback - send exit event and clean up
+          (exitCode: number) => {
+            senderWindow.webContents.send(`terminal:exit:${session.sessionId}`, exitCode);
+          }
+        );
 
         return session;
       } catch (err) {
         log.error("Error creating terminal session:", err);
         throw err;
       }
+    });
+
+    // Handle terminal input (keyboard, etc.)
+    ipcMain.on(IPC_CHANNELS.TERMINAL_INPUT, (_event, sessionId: string, data: string) => {
+      void this.ptyService.sendInput(sessionId, data).catch((err) => {
+        log.error(`Error sending input to terminal ${sessionId}:`, err);
+      });
     });
 
     ipcMain.handle(IPC_CHANNELS.TERMINAL_CLOSE, async (_event, sessionId: string) => {
@@ -1522,13 +1551,12 @@ export class IpcMain {
       }
     });
 
-    ipcMain.handle(IPC_CHANNELS.TERMINAL_GET_PORT, async () => {
-      return await this.terminalServer.getPort();
-    });
-
     ipcMain.handle(IPC_CHANNELS.TERMINAL_WINDOW_OPEN, async (_event, workspaceId: string) => {
       console.log(`[BACKEND] TERMINAL_WINDOW_OPEN handler called with: ${workspaceId}`);
       try {
+        if (!this.terminalWindowManager) {
+          throw new Error("Terminal window manager not available (desktop mode only)");
+        }
         log.info(`Opening terminal window for workspace: ${workspaceId}`);
         const devServerPort = process.env.CMUX_DEVSERVER_PORT ?? "5173";
         await this.terminalWindowManager.openTerminalWindow(workspaceId, devServerPort);
@@ -1541,6 +1569,9 @@ export class IpcMain {
 
     ipcMain.handle(IPC_CHANNELS.TERMINAL_WINDOW_CLOSE, (_event, workspaceId: string) => {
       try {
+        if (!this.terminalWindowManager) {
+          throw new Error("Terminal window manager not available (desktop mode only)");
+        }
         this.terminalWindowManager.closeTerminalWindow(workspaceId);
       } catch (err) {
         log.error("Error closing terminal window:", err);

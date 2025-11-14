@@ -1,18 +1,19 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 
 /**
- * Hook to manage terminal WebSocket connection and session lifecycle
+ * Hook to manage terminal IPC session lifecycle
  */
 export function useTerminalSession(
   workspaceId: string,
   enabled: boolean,
-  terminalSize?: { cols: number; rows: number } | null
+  terminalSize?: { cols: number; rows: number } | null,
+  onOutput?: (data: string) => void,
+  onExit?: (exitCode: number) => void
 ) {
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [connected, setConnected] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [shouldInit, setShouldInit] = useState(false);
-  const wsRef = useRef<WebSocket | null>(null);
 
   // Watch for terminalSize to become available
   useEffect(() => {
@@ -21,7 +22,7 @@ export function useTerminalSession(
     }
   }, [enabled, terminalSize, shouldInit]);
 
-  // Create terminal session and WebSocket connection
+  // Create terminal session and subscribe to IPC events
   // Only depends on workspaceId and shouldInit, NOT terminalSize
   useEffect(() => {
     if (!shouldInit || !terminalSize) {
@@ -29,8 +30,8 @@ export function useTerminalSession(
     }
 
     let mounted = true;
-    let ws: WebSocket | null = null;
     let createdSessionId: string | null = null; // Track session ID in closure
+    let cleanupFns: Array<() => void> = [];
 
     const initSession = async () => {
       try {
@@ -41,9 +42,6 @@ export function useTerminalSession(
         if (!window.api.terminal) {
           throw new Error("window.api.terminal is not available");
         }
-
-        // Get WebSocket port from backend
-        const port = await window.api.terminal.getPort();
 
         // Create terminal session with current terminal size
         const session = await window.api.terminal.create({
@@ -59,39 +57,26 @@ export function useTerminalSession(
         createdSessionId = session.sessionId; // Store in closure
         setSessionId(session.sessionId);
 
-        // Connect WebSocket
-        ws = new WebSocket(`ws://localhost:${port}/terminal`);
-        wsRef.current = ws;
-
-        ws.onopen = () => {
-          if (mounted && ws) {
-            // Send attach message to register this WebSocket with the session
-            ws.send(
-              JSON.stringify({
-                type: "attach",
-                sessionId: createdSessionId,
-              })
-            );
-            setConnected(true);
-            setError(null);
+        // Subscribe to output events
+        const unsubOutput = window.api.terminal.onOutput(session.sessionId, (data: string) => {
+          if (onOutput) {
+            onOutput(data);
           }
-        };
+        });
 
-        ws.onclose = () => {
+        // Subscribe to exit events
+        const unsubExit = window.api.terminal.onExit(session.sessionId, (exitCode: number) => {
           if (mounted) {
             setConnected(false);
           }
-        };
-
-        ws.onerror = (event) => {
-          console.error(
-            `[Terminal] WebSocket error for session ${createdSessionId ?? "unknown"}:`,
-            event
-          );
-          if (mounted) {
-            setError("WebSocket connection failed");
+          if (onExit) {
+            onExit(exitCode);
           }
-        };
+        });
+
+        cleanupFns = [unsubOutput, unsubExit];
+        setConnected(true);
+        setError(null);
       } catch (err) {
         console.error("[Terminal] Failed to create terminal session:", err);
         if (mounted) {
@@ -105,10 +90,8 @@ export function useTerminalSession(
     return () => {
       mounted = false;
 
-      // Close WebSocket
-      if (ws) {
-        ws.close();
-      }
+      // Unsubscribe from IPC events
+      cleanupFns.forEach((fn) => fn());
 
       // Close terminal session using the closure variable
       // This ensures we close the session created by this specific effect run
@@ -125,14 +108,8 @@ export function useTerminalSession(
   // Send input to terminal
   const sendInput = useCallback(
     (data: string) => {
-      if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN && sessionId) {
-        wsRef.current.send(
-          JSON.stringify({
-            type: "input",
-            sessionId,
-            data,
-          })
-        );
+      if (sessionId) {
+        window.api.terminal.sendInput(sessionId, data);
       }
     },
     [sessionId]
@@ -152,7 +129,6 @@ export function useTerminalSession(
     connected,
     sessionId,
     error,
-    wsRef,
     sendInput,
     resize,
   };

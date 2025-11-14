@@ -306,7 +306,9 @@ export interface IPCApi {
     create(params: TerminalCreateParams): Promise<TerminalSession>;
     close(sessionId: string): Promise<void>;
     resize(params: TerminalResizeParams): Promise<void>;
-    getPort(): Promise<number>;
+    sendInput(sessionId: string, data: string): void;
+    onOutput(sessionId: string, callback: (data: string) => void): () => void;
+    onExit(sessionId: string, callback: (exitCode: number) => void): () => void;
     openWindow(workspaceId: string): Promise<void>;
     closeWindow(workspaceId: string): Promise<void>;
   };

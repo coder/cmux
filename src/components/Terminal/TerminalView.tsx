@@ -22,14 +22,29 @@ export function TerminalView({ workspaceId, visible }: TerminalViewProps) {
   const [terminalReady, setTerminalReady] = useState(false);
   const [terminalSize, setTerminalSize] = useState<{ cols: number; rows: number } | null>(null);
 
+  // Handler for terminal output
+  const handleOutput = (data: string) => {
+    const term = termRef.current;
+    if (term) {
+      term.write(data);
+    }
+  };
+
+  // Handler for terminal exit
+  const handleExit = (exitCode: number) => {
+    const term = termRef.current;
+    if (term) {
+      term.write(`\r\n[Process exited with code ${exitCode}]\r\n`);
+    }
+  };
+
   const {
     connected,
     sessionId,
-    wsRef,
     sendInput,
     resize,
     error: sessionError,
-  } = useTerminalSession(workspaceId, visible, terminalSize);
+  } = useTerminalSession(workspaceId, visible, terminalSize, handleOutput, handleExit);
 
   // Keep refs to latest functions so callbacks always use current version
   const sendInputRef = useRef(sendInput);
@@ -96,7 +111,7 @@ export function TerminalView({ workspaceId, visible }: TerminalViewProps) {
           return { cols, rows };
         });
 
-        // User input → WebSocket (use ref to always get latest sendInput)
+        // User input → IPC (use ref to always get latest sendInput)
         terminal.onData((data: string) => {
           sendInputRef.current(data);
         });
@@ -125,41 +140,8 @@ export function TerminalView({ workspaceId, visible }: TerminalViewProps) {
     // They're used in callbacks, not during effect execution
   }, [visible, workspaceId]);
 
-  // WebSocket output → Terminal
-  useEffect(() => {
-    const ws = wsRef.current;
-    const term = termRef.current;
-
-    if (!ws || !term || !connected || !terminalReady) {
-      return;
-    }
-
-    const handleMessage = (event: MessageEvent) => {
-      try {
-        const msg = JSON.parse(event.data as string);
-
-        // Use termRef.current to get the latest terminal instance
-        const currentTerm = termRef.current;
-        if (!currentTerm) {
-          return;
-        }
-
-        if (msg.type === "output") {
-          currentTerm.write(msg.data);
-        } else if (msg.type === "exit") {
-          currentTerm.write(`\r\n[Process exited with code ${msg.exitCode}]\r\n`);
-        }
-      } catch (err) {
-        console.error("[TerminalView] Error handling WebSocket message:", err);
-      }
-    };
-
-    ws.addEventListener("message", handleMessage);
-    return () => {
-      ws.removeEventListener("message", handleMessage);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [connected, terminalReady, sessionId]);
+  // Note: Terminal output and exit are now handled via callbacks passed to useTerminalSession
+  // (handleOutput and handleExit defined above)
 
   // Resize on container size change
   useEffect(() => {
