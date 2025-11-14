@@ -1,10 +1,12 @@
 /**
- * Renderer-safe path utilities for cross-platform compatibility.
- * Handles differences between Unix-style paths (/) and Windows paths (\).
+ * Platform-aware path utilities for main process (Node) only.
+ * Safe to use Node globals like process and environment variables.
  *
- * This module is safe for BOTH main and renderer, but intentionally avoids any
- * Node globals (process/env). Main-only helpers live in './paths.main'.
+ * NOTE: Renderer should import from './paths' (renderer-safe subset)
+ * and use IPC for any operations that require environment access.
  */
+
+import { platform, env } from "node:process";
 
 export interface PathComponents {
   root: string; // "/" on Unix, "C:\\" on Windows, "" for relative paths
@@ -13,24 +15,27 @@ export interface PathComponents {
 }
 
 /**
- * Determine if current platform is Windows (renderer-safe)
+ * Determine if current platform is Windows (main process)
  */
 function isWindowsPlatform(): boolean {
-  if (typeof navigator !== "undefined" && navigator.platform) {
-    return navigator.platform.toLowerCase().includes("win");
-  }
-  // Default to Unix-style when navigator is unavailable (e.g., Node context)
-  return false;
+  return platform === "win32";
 }
 
 function getSeparator(): string {
   return isWindowsPlatform() ? "\\" : "/";
 }
 
+function getHomeDir(): string {
+  if (isWindowsPlatform()) {
+    return env.USERPROFILE ?? "";
+  }
+
+  return env.HOME ?? "";
+}
+
 /**
  * OS-aware path utilities that handle Windows and Unix paths correctly.
- * This class provides a single source of truth for path operations that need
- * to be aware of platform differences.
+ * Main-process version includes environment-aware helpers.
  */
 export class PlatformPaths {
   /**
@@ -42,16 +47,6 @@ export class PlatformPaths {
 
   /**
    * Extract basename from path (OS-aware)
-   *
-   * @param filePath - Path to extract basename from
-   * @returns The final component of the path
-   *
-   * @example
-   * // Unix
-   * basename("/home/user/project") // => "project"
-   *
-   * // Windows
-   * basename("C:\\Users\\user\\project") // => "project"
    */
   static basename(filePath: string): string {
     if (!filePath || typeof filePath !== "string") {
@@ -67,16 +62,6 @@ export class PlatformPaths {
 
   /**
    * Split path into components (OS-aware)
-   *
-   * @param filePath - Path to parse
-   * @returns Object with root, segments, and basename
-   *
-   * @example
-   * // Unix
-   * parse("/home/user/project") // => { root: "/", segments: ["home", "user"], basename: "project" }
-   *
-   * // Windows
-   * parse("C:\\Users\\user\\project") // => { root: "C:\\", segments: ["Users", "user"], basename: "project" }
    */
   static parse(filePath: string): PathComponents {
     if (!filePath || typeof filePath !== "string") {
@@ -140,16 +125,6 @@ export class PlatformPaths {
   /**
    * Format path for display with fish-style abbreviation (OS-aware)
    * Abbreviates all directory components except the last one to their first letter
-   *
-   * @param filePath - Path to abbreviate
-   * @returns Abbreviated path
-   *
-   * @example
-   * // Unix
-   * abbreviate("/home/user/Projects/cmux") // => "/h/u/P/cmux"
-   *
-   * // Windows
-   * abbreviate("C:\\Users\\john\\Documents\\project") // => "C:\\U\\j\\D\\project"
    */
   static abbreviate(filePath: string): string {
     if (!filePath || typeof filePath !== "string") {
@@ -177,12 +152,6 @@ export class PlatformPaths {
 
   /**
    * Split an abbreviated path into directory path and basename
-   *
-   * @param filePath - Abbreviated path
-   * @returns Object with dirPath (including trailing separator) and basename
-   *
-   * @example
-   * splitAbbreviated("/h/u/P/cmux") // => { dirPath: "/h/u/P/", basename: "cmux" }
    */
   static splitAbbreviated(filePath: string): { dirPath: string; basename: string } {
     if (!filePath || typeof filePath !== "string") {
@@ -200,22 +169,66 @@ export class PlatformPaths {
   }
 
   /**
-   * NOTE: Home expansion and formatting helpers are main-only.
-   * Use './paths.main' for expandHome/formatHome in Node contexts.
+   * Format home directory path for display (shows ~ on Unix, full path on Windows)
    */
+  static formatHome(filePath: string): string {
+    if (!filePath || typeof filePath !== "string") {
+      return filePath;
+    }
+
+    const home = getHomeDir();
+    if (!home) {
+      return filePath;
+    }
+
+    // On Unix, replace home with tilde
+    // On Windows, show full path (no tilde convention)
+    if (!isWindowsPlatform() && filePath.startsWith(home)) {
+      return filePath.replace(home, "~");
+    }
+
+    return filePath;
+  }
+
+  /**
+   * Expand user home in path (cross-platform)
+   * Handles ~ on Unix and %USERPROFILE% on Windows
+   */
+  static expandHome(filePath: string): string {
+    if (!filePath || typeof filePath !== "string") {
+      return filePath;
+    }
+
+    if (filePath === "~") {
+      return getHomeDir() || filePath;
+    }
+
+    // Handle Unix-style ~/path
+    if (filePath.startsWith("~/") || filePath.startsWith("~\\")) {
+      const home = getHomeDir();
+      if (!home) return filePath;
+      const sep = getSeparator();
+      const rest = filePath.slice(2);
+      return home + (rest ? sep + rest.replace(/[\\/]+/g, sep) : "");
+    }
+
+    // Handle Windows %USERPROFILE% environment variable
+    if (isWindowsPlatform() && filePath.includes("%USERPROFILE%")) {
+      const home = getHomeDir();
+      if (!home) return filePath;
+      return filePath.replace(/%USERPROFILE%/g, home);
+    }
+
+    return filePath;
+  }
 
   /**
    * Get project name from path (OS-aware)
    * Extracts the final directory name from a project path
-   *
-   * @param projectPath - Path to the project
-   * @returns Project name (final directory component)
-   *
-   * @example
-   * getProjectName("/home/user/projects/cmux") // => "cmux"
-   * getProjectName("C:\\Users\\john\\projects\\cmux") // => "cmux"
    */
   static getProjectName(projectPath: string): string {
     return this.basename(projectPath) || "unknown";
   }
 }
+
+

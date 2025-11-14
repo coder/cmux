@@ -1,6 +1,6 @@
 import * as fs from "fs/promises";
 import * as path from "path";
-import { PlatformPaths } from "./paths";
+import { PlatformPaths } from "./paths.main";
 
 /**
  * Result of path validation

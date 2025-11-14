@@ -1,5 +1,5 @@
 import { describe, test, expect } from "bun:test";
-import { PlatformPaths } from "./paths";
+import { PlatformPaths } from "./paths.main";
 import * as os from "os";
 import * as path from "path";
 
