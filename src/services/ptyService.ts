@@ -5,29 +5,18 @@
  * Uses callbacks for output/exit events to avoid circular dependencies.
  */
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
-/* eslint-disable @typescript-eslint/no-unsafe-call */
-/* eslint-disable @typescript-eslint/no-unsafe-argument */
-/* eslint-disable @typescript-eslint/no-require-imports */
-/* eslint-disable @typescript-eslint/consistent-type-imports */
-/* eslint-disable @typescript-eslint/prefer-nullish-coalescing */
-/* eslint-disable @typescript-eslint/restrict-template-expressions */
-/* eslint-disable @typescript-eslint/consistent-type-assertions */
-/* eslint-disable @typescript-eslint/require-await */
 /* eslint-disable local/no-sync-fs-methods */
 
 import { log } from "@/services/log";
-import type { Runtime } from "@/runtime/Runtime";
-import type { ExecStream } from "@/runtime/Runtime";
+import type { Runtime, ExecStream } from "@/runtime/Runtime";
 import type { TerminalSession, TerminalCreateParams, TerminalResizeParams } from "@/types/terminal";
+import type { IPty } from "node-pty";
 import { SSHRuntime } from "@/runtime/SSHRuntime";
 import { LocalRuntime } from "@/runtime/LocalRuntime";
 import * as fs from "fs";
 
 interface SessionData {
-  pty?: any; // For local sessions (IPty type)
+  pty?: IPty; // For local sessions
   stream?: ExecStream; // For SSH sessions
   stdinWriter?: WritableStreamDefaultWriter<Uint8Array>; // Persistent writer for SSH stdin
   workspaceId: string;
@@ -64,8 +53,10 @@ export class PTYService {
 
     if (runtime instanceof LocalRuntime) {
       // Local: Use node-pty (dynamically import to avoid crash if not available)
+      // eslint-disable-next-line @typescript-eslint/consistent-type-imports
       let pty: typeof import("node-pty");
       try {
+        // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-unsafe-assignment
         pty = require("node-pty");
       } catch (err) {
         log.error("node-pty not available - local terminals will not work:", err);
@@ -79,12 +70,12 @@ export class PTYService {
         throw new Error(`Workspace path does not exist: ${workspacePath}`);
       }
 
-      const shell = process.env.SHELL || "/bin/bash";
+      const shell = process.env.SHELL ?? "/bin/bash";
 
       log.info(
         `Spawning PTY with shell: ${shell}, cwd: ${workspacePath}, size: ${params.cols}x${params.rows}`
       );
-      log.debug(`PATH env: ${process.env.PATH}`);
+      log.debug(`PATH env: ${process.env.PATH ?? "undefined"}`);
 
       let ptyProcess;
       try {
@@ -97,14 +88,14 @@ export class PTYService {
             ...process.env,
             TERM: "xterm-256color",
             // Ensure PATH is set properly for shell to find commands
-            PATH: process.env.PATH || "/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin",
-          } as Record<string, string>,
+            PATH: process.env.PATH ?? "/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin",
+          },
         });
       } catch (err) {
-        log.error(`Failed to spawn PTY: ${err}`);
+        log.error(`Failed to spawn PTY: ${String(err)}`);
         log.error(`Shell: ${shell}, CWD: ${workspacePath}`);
-        log.error(`process.env.SHELL: ${process.env.SHELL}`);
-        log.error(`process.env.PATH: ${process.env.PATH}`);
+        log.error(`process.env.SHELL: ${process.env.SHELL ?? "undefined"}`);
+        log.error(`process.env.PATH: ${process.env.PATH ?? "undefined"}`);
         throw new Error(
           `Failed to spawn shell "${shell}": ${err instanceof Error ? err.message : String(err)}`
         );
@@ -172,12 +163,12 @@ export class PTYService {
       log.info(`[PTY] SSH terminal size: ${params.cols}x${params.rows}`);
       log.info(`[PTY] SSH working directory: ${workspacePath}`);
 
-      let stream;
+      let stream: ExecStream;
       try {
         log.info(`[PTY] Calling runtime.exec for ${sessionId}...`);
         // Execute shell with PTY allocation
         // Use a very long timeout (24 hours) instead of Infinity
-        stream = await (runtime as any).exec(command, {
+        stream = await runtime.exec(command, {
           cwd: workspacePath,
           timeout: 86400, // 24 hours in seconds
           env: {
@@ -299,7 +290,7 @@ export class PTYService {
   /**
    * Resize a terminal session
    */
-  async resize(params: TerminalResizeParams): Promise<void> {
+  resize(params: TerminalResizeParams): void {
     const session = this.sessions.get(params.sessionId);
     if (!session) {
       log.info(`Cannot resize terminal session ${params.sessionId}: not found`);

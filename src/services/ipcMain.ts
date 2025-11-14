@@ -1519,6 +1519,11 @@ export class IpcMain {
           }
         );
 
+        // Auto-open terminal window in desktop mode
+        if (this.terminalWindowManager) {
+          void this.terminalWindowManager.openTerminalWindow(params.workspaceId, session.sessionId);
+        }
+
         return session;
       } catch (err) {
         log.error("Error creating terminal session:", err);
@@ -1542,9 +1547,9 @@ export class IpcMain {
       }
     });
 
-    ipcMain.handle(IPC_CHANNELS.TERMINAL_RESIZE, async (_event, params: TerminalResizeParams) => {
+    ipcMain.handle(IPC_CHANNELS.TERMINAL_RESIZE, (_event, params: TerminalResizeParams) => {
       try {
-        await this.ptyService.resize(params);
+        this.ptyService.resize(params);
       } catch (err) {
         log.error("Error resizing terminal:", err);
         throw err;
@@ -1558,8 +1563,7 @@ export class IpcMain {
           throw new Error("Terminal window manager not available (desktop mode only)");
         }
         log.info(`Opening terminal window for workspace: ${workspaceId}`);
-        const devServerPort = process.env.CMUX_DEVSERVER_PORT ?? "5173";
-        await this.terminalWindowManager.openTerminalWindow(workspaceId, devServerPort);
+        await this.terminalWindowManager.openTerminalWindow(workspaceId);
         log.info(`Terminal window opened successfully for workspace: ${workspaceId}`);
       } catch (err) {
         log.error("Error opening terminal window:", err);

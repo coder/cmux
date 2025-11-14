@@ -1,16 +1,14 @@
-/* eslint-disable @typescript-eslint/prefer-optional-chain */
-/* eslint-disable @typescript-eslint/prefer-nullish-coalescing */
-
 import { useRef, useEffect, useState } from "react";
 import { Terminal, FitAddon } from "ghostty-web";
 import { useTerminalSession } from "@/hooks/useTerminalSession";
 
 interface TerminalViewProps {
   workspaceId: string;
+  sessionId?: string;
   visible: boolean;
 }
 
-export function TerminalView({ workspaceId, visible }: TerminalViewProps) {
+export function TerminalView({ workspaceId, sessionId, visible }: TerminalViewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const termRef = useRef<Terminal | null>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
@@ -38,7 +36,7 @@ export function TerminalView({ workspaceId, visible }: TerminalViewProps) {
     sendInput,
     resize,
     error: sessionError,
-  } = useTerminalSession(workspaceId, visible, terminalSize, handleOutput, handleExit);
+  } = useTerminalSession(workspaceId, sessionId, visible, terminalSize, handleOutput, handleExit);
 
   // Keep refs to latest functions so callbacks always use current version
   const sendInputRef = useRef(sendInput);
@@ -99,7 +97,7 @@ export function TerminalView({ workspaceId, visible }: TerminalViewProps) {
         // Set terminal size so PTY session can be created with matching dimensions
         // Use stable object reference to prevent unnecessary effect re-runs
         setTerminalSize((prev) => {
-          if (prev && prev.cols === cols && prev.rows === rows) {
+          if (prev?.cols === cols && prev?.rows === rows) {
             return prev;
           }
           return { cols, rows };
@@ -165,7 +163,7 @@ export function TerminalView({ workspaceId, visible }: TerminalViewProps) {
 
           // Update state (with stable reference to prevent unnecessary re-renders)
           setTerminalSize((prev) => {
-            if (prev && prev.cols === cols && prev.rows === rows) {
+            if (prev?.cols === cols && prev?.rows === rows) {
               return prev;
             }
             return { cols, rows };
@@ -220,7 +218,7 @@ export function TerminalView({ workspaceId, visible }: TerminalViewProps) {
 
   if (!visible) return null;
 
-  const errorMessage = terminalError || sessionError;
+  const errorMessage = terminalError ?? sessionError;
 
   return (
     <div

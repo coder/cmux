@@ -5,12 +5,13 @@ import { useState, useEffect, useCallback } from "react";
  */
 export function useTerminalSession(
   workspaceId: string,
+  existingSessionId: string | undefined,
   enabled: boolean,
   terminalSize?: { cols: number; rows: number } | null,
   onOutput?: (data: string) => void,
   onExit?: (exitCode: number) => void
 ) {
-  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [sessionId, setSessionId] = useState<string | null>(existingSessionId ?? null);
   const [connected, setConnected] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [shouldInit, setShouldInit] = useState(false);
@@ -23,14 +24,14 @@ export function useTerminalSession(
   }, [enabled, terminalSize, shouldInit]);
 
   // Create terminal session and subscribe to IPC events
-  // Only depends on workspaceId and shouldInit, NOT terminalSize
+  // Only depends on workspaceId, existingSessionId, and shouldInit, NOT terminalSize
   useEffect(() => {
     if (!shouldInit || !terminalSize) {
       return;
     }
 
     let mounted = true;
-    let createdSessionId: string | null = null; // Track session ID in closure
+    let createdSessionId: string | null = existingSessionId ?? null; // Use existing if provided
     let cleanupFns: Array<() => void> = [];
 
     const initSession = async () => {
@@ -43,29 +44,35 @@ export function useTerminalSession(
           throw new Error("window.api.terminal is not available");
         }
 
-        // Create terminal session with current terminal size
-        const session = await window.api.terminal.create({
-          workspaceId,
-          cols: terminalSize.cols,
-          rows: terminalSize.rows,
-        });
+        // Use existing session if provided, otherwise create new one
+        if (existingSessionId) {
+          createdSessionId = existingSessionId;
+        } else {
+          // Create terminal session with current terminal size
+          const session = await window.api.terminal.create({
+            workspaceId,
+            cols: terminalSize.cols,
+            rows: terminalSize.rows,
+          });
 
-        if (!mounted) {
-          return;
+          if (!mounted) {
+            return;
+          }
+
+          createdSessionId = session.sessionId; // Store in closure
         }
 
-        createdSessionId = session.sessionId; // Store in closure
-        setSessionId(session.sessionId);
+        setSessionId(createdSessionId);
 
         // Subscribe to output events
-        const unsubOutput = window.api.terminal.onOutput(session.sessionId, (data: string) => {
+        const unsubOutput = window.api.terminal.onOutput(createdSessionId, (data: string) => {
           if (onOutput) {
             onOutput(data);
           }
         });
 
         // Subscribe to exit events
-        const unsubExit = window.api.terminal.onExit(session.sessionId, (exitCode: number) => {
+        const unsubExit = window.api.terminal.onExit(createdSessionId, (exitCode: number) => {
           if (mounted) {
             setConnected(false);
           }
@@ -103,7 +110,7 @@ export function useTerminalSession(
       setShouldInit(false);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [workspaceId, shouldInit]); // DO NOT include terminalSize - changes should not recreate session
+  }, [workspaceId, existingSessionId, shouldInit]); // DO NOT include terminalSize - changes should not recreate session
 
   // Send input to terminal
   const sendInput = useCallback(
