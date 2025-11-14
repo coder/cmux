@@ -24,7 +24,10 @@
 #   Branches reduce reproducibility - builds should fail fast with clear errors
 #   if dependencies are missing, not silently fall back to different behavior.
 
-# Use PATH-resolved bash for portability across different systems (Windows, NixOS, etc.)
+# Use PATH-resolved bash for portability across different systems.
+# - Windows: /usr/bin/bash doesn't exist in Chocolatey's make environment or GitHub Actions
+# - NixOS: /bin/bash doesn't exist, bash is in /nix/store/...
+# - Other systems: /usr/bin/env bash resolves from PATH
 ifeq ($(OS),Windows_NT)
 SHELL := bash
 else
