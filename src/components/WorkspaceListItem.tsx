@@ -156,7 +156,7 @@ const WorkspaceListItemInner: React.FC<WorkspaceListItemProps> = ({
               />
             ) : (
               <span
-                className="text-foreground -mx-1 min-w-0 flex-1 cursor-pointer truncate rounded-sm px-1 text-left text-[14px] transition-colors duration-200 hover:bg-white/5"
+                className="text-foreground -mx-1 min-w-0 flex-1 cursor-pointer rounded-sm px-1 text-left text-[14px] transition-colors duration-200 hover:bg-white/5"
                 onDoubleClick={(e) => {
                   e.stopPropagation();
                   startRenaming();
@@ -164,7 +164,7 @@ const WorkspaceListItemInner: React.FC<WorkspaceListItemProps> = ({
                 title="Double-click to rename"
               >
                 {canInterrupt ? (
-                  <Shimmer colorClass="var(--color-foreground)">{displayName}</Shimmer>
+                  <Shimmer className="truncate w-full h-4" colorClass="var(--color-foreground)">{displayName}</Shimmer>
                 ) : (
                   displayName
                 )}
