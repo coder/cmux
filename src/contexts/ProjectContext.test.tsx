@@ -184,9 +184,7 @@ describe("ProjectContext", () => {
     const ctx = await setup();
 
     // Should not throw even when update fails
-    expect(
-      ctx().updateSecrets("/alpha", [{ key: "C", value: "3" }])
-    ).resolves.toBeUndefined();
+    expect(ctx().updateSecrets("/alpha", [{ key: "C", value: "3" }])).resolves.toBeUndefined();
     expect(projectsApi.secrets.update).toHaveBeenCalledWith("/alpha", [{ key: "C", value: "3" }]);
   });
 
@@ -351,8 +349,7 @@ function createMockAPI(overrides: Partial<IPCApi["projects"]>) {
     ),
     list: mock(overrides.list ?? (() => Promise.resolve([]))),
     listBranches: mock(
-      overrides.listBranches ??
-        (() => Promise.resolve({ branches: [], recommendedTrunk: "main" }))
+      overrides.listBranches ?? (() => Promise.resolve({ branches: [], recommendedTrunk: "main" }))
     ),
     remove: mock(
       overrides.remove ??
