@@ -96,13 +96,12 @@ describe("file_edit_insert tool", () => {
     }
   });
 
-  it("creates new file when create flag is provided", async () => {
+  it("creates a new file without requiring create flag or guards", async () => {
     const newFile = path.join(testDir, "new.txt");
     const tool = createTestTool(testDir);
     const args: FileEditInsertToolArgs = {
       file_path: path.relative(testDir, newFile),
       content: "Hello world!\n",
-      create: true,
     };
 
     const result = (await tool.execute!(args, mockToolCallOptions)) as FileEditInsertToolResult;
