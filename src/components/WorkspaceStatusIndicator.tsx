@@ -12,13 +12,13 @@ export const WorkspaceStatusIndicator = memo<{ workspaceId: string }>(({ workspa
   }
 
   return (
-    <div className="text-muted flex items-center gap-1.5 text-xs min-w-0">
+    <div className="text-muted flex min-w-0 items-center gap-1.5 text-xs">
       {agentStatus.emoji && (
         // Emojis do not visually center well, so we offset them
         // slightly with negative margin.
-        <span className="-mt-0.5 text-[10px] shrink-0">{agentStatus.emoji}</span>
+        <span className="-mt-0.5 shrink-0 text-[10px]">{agentStatus.emoji}</span>
       )}
-      <span className="truncate min-w-0">{agentStatus.message}</span>
+      <span className="min-w-0 truncate">{agentStatus.message}</span>
       {agentStatus.url && (
         <TooltipWrapper inline>
           <Button

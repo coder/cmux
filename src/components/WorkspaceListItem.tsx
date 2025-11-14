@@ -139,7 +139,7 @@ const WorkspaceListItemInner: React.FC<WorkspaceListItemProps> = ({
             onClick={handleToggleUnread}
           />
         </div>
-        <div className="flex flex-1 flex-col gap-1 min-w-0">
+        <div className="flex min-w-0 flex-1 flex-col gap-1">
           <div className="flex min-w-0 items-center gap-1.5">
             <RuntimeBadge runtimeConfig={metadata.runtimeConfig} />
             {isEditing ? (
