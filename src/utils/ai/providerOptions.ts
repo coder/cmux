@@ -127,7 +127,7 @@ export function buildProviderOptions(
     if (messages && messages.length > 0 && reasoningEffort) {
       // Parse current model name (without provider prefix)
       const [, currentModelName] = modelString.split(":");
-      
+
       // Find last assistant message from the same model
       for (let i = messages.length - 1; i >= 0; i--) {
         const msg = messages[i];
@@ -135,7 +135,7 @@ export function buildProviderOptions(
           // Check if this message is from the same model
           const msgModel = msg.metadata?.model;
           const [, msgModelName] = msgModel?.split(":") ?? [];
-          
+
           if (msgModelName === currentModelName) {
             const metadata = msg.metadata?.providerMetadata;
             if (metadata && "openai" in metadata) {

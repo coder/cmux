@@ -1604,12 +1604,12 @@ describe.each(PROVIDER_CONFIGS)("%s:%s image support", (provider, model) => {
           KNOWN_MODELS.GPT_CODEX.providerModelId
         );
         expect(result1.success).toBe(true);
-        
+
         const collector1 = createEventCollector(env.sentEvents, workspaceId);
         await collector1.waitForEvent("stream-end", 30000);
         assertStreamSuccess(collector1);
         env.sentEvents.length = 0; // Clear events
-        
+
         // Second message - should use previousResponseId from first
         const result2 = await sendMessageWithModel(
           env.mockIpcRenderer,
@@ -1619,15 +1619,15 @@ describe.each(PROVIDER_CONFIGS)("%s:%s image support", (provider, model) => {
           KNOWN_MODELS.GPT_CODEX.providerModelId
         );
         expect(result2.success).toBe(true);
-        
+
         const collector2 = createEventCollector(env.sentEvents, workspaceId);
         await collector2.waitForEvent("stream-end", 30000);
         assertStreamSuccess(collector2);
-        
+
         // Verify history contains both messages
         const history = await readChatHistory(env.tempDir, workspaceId);
         expect(history.length).toBeGreaterThanOrEqual(4); // 2 user + 2 assistant
-        
+
         // Verify assistant messages have responseId
         const assistantMessages = history.filter((m) => m.role === "assistant");
         expect(assistantMessages.length).toBeGreaterThanOrEqual(2);

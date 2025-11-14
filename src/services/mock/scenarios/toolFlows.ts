@@ -20,7 +20,12 @@ const fileReadTurn: ScenarioTurn = {
   assistant: {
     messageId: "msg-tool-file-read",
     events: [
-      { kind: "stream-start", delay: 0, messageId: "msg-tool-file-read", model: KNOWN_MODELS.GPT.id },
+      {
+        kind: "stream-start",
+        delay: 0,
+        messageId: "msg-tool-file-read",
+        model: KNOWN_MODELS.GPT.id,
+      },
       {
         kind: "tool-start",
         delay: STREAM_BASE_DELAY,
