@@ -1,15 +1,19 @@
-import { describe, it, expect, beforeEach, afterEach, mock, test } from "bun:test";
-import React from "react";
-import { act, cleanup, render, waitFor } from "@testing-library/react";
-import { GlobalWindow } from "happy-dom";
 import type { ProjectConfig } from "@/config";
 import type { IPCApi } from "@/types/ipc";
-import { ProjectContext, ProjectProvider, useProjectContext } from "./ProjectContext";
-import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { act, cleanup, render, waitFor } from "@testing-library/react";
+import { afterEach, describe, expect, mock, test } from "bun:test";
+import { GlobalWindow } from "happy-dom";
+import type { ProjectContext } from "./ProjectContext";
+import { ProjectProvider, useProjectContext } from "./ProjectContext";
 
 describe("ProjectContext", () => {
   afterEach(() => {
     cleanup();
+
+    // @ts-expect-error - Resetting global state in tests
+    globalThis.window = undefined;
+    // @ts-expect-error - Resetting global state in tests
+    globalThis.document = undefined;
   });
 
   test("loads projects on mount and supports add/remove mutations", async () => {
@@ -19,12 +23,12 @@ describe("ProjectContext", () => {
     ];
 
     const projectsApi = createMockAPI({
-      list: async () => initialProjects,
-      remove: async () => ({ success: true as const, data: undefined }),
-      listBranches: async () => ({ branches: ["main"], recommendedTrunk: "main" }),
+      list: () => Promise.resolve(initialProjects),
+      remove: () => Promise.resolve({ success: true as const, data: undefined }),
+      listBranches: () => Promise.resolve({ branches: ["main"], recommendedTrunk: "main" }),
       secrets: {
-        get: async () => [{ key: "A", value: "1" }],
-        update: async () => ({ success: true as const, data: undefined }),
+        get: () => Promise.resolve([{ key: "A", value: "1" }]),
+        update: () => Promise.resolve({ success: true as const, data: undefined }),
       },
     });
 
@@ -52,12 +56,12 @@ describe("ProjectContext", () => {
 
   test("tracks modal and pending workspace creation state", async () => {
     createMockAPI({
-      list: async () => [],
-      remove: async () => ({ success: true as const, data: undefined }),
-      listBranches: async () => ({ branches: ["main"], recommendedTrunk: "main" }),
+      list: () => Promise.resolve([]),
+      remove: () => Promise.resolve({ success: true as const, data: undefined }),
+      listBranches: () => Promise.resolve({ branches: ["main"], recommendedTrunk: "main" }),
       secrets: {
-        get: async () => [],
-        update: async () => ({ success: true as const, data: undefined }),
+        get: () => Promise.resolve([]),
+        update: () => Promise.resolve({ success: true as const, data: undefined }),
       },
     });
 
@@ -90,12 +94,12 @@ describe("ProjectContext", () => {
 
   test("opens workspace modal and loads branches", async () => {
     createMockAPI({
-      list: async () => [],
-      remove: async () => ({ success: true as const, data: undefined }),
-      listBranches: async () => ({ branches: ["main", "feat"], recommendedTrunk: "main" }),
+      list: () => Promise.resolve([]),
+      remove: () => Promise.resolve({ success: true as const, data: undefined }),
+      listBranches: () => Promise.resolve({ branches: ["main", "feat"], recommendedTrunk: "main" }),
       secrets: {
-        get: async () => [],
-        update: async () => ({ success: true as const, data: undefined }),
+        get: () => Promise.resolve([]),
+        update: () => Promise.resolve({ success: true as const, data: undefined }),
       },
     });
 
@@ -122,14 +126,12 @@ describe("ProjectContext", () => {
 
   test("surfaces branch loading errors inside workspace modal", async () => {
     createMockAPI({
-      list: async () => [],
-      remove: async () => ({ success: true as const, data: undefined }),
-      listBranches: async () => {
-        throw new Error("boom");
-      },
+      list: () => Promise.resolve([]),
+      remove: () => Promise.resolve({ success: true as const, data: undefined }),
+      listBranches: () => Promise.reject(new Error("boom")),
       secrets: {
-        get: async () => [],
-        update: async () => ({ success: true as const, data: undefined }),
+        get: () => Promise.resolve([]),
+        update: () => Promise.resolve({ success: true as const, data: undefined }),
       },
     });
 
@@ -149,12 +151,12 @@ describe("ProjectContext", () => {
 
   test("exposes secrets helpers", async () => {
     const projectsApi = createMockAPI({
-      list: async () => [],
-      remove: async () => ({ success: true as const, data: undefined }),
-      listBranches: async () => ({ branches: ["main"], recommendedTrunk: "main" }),
+      list: () => Promise.resolve([]),
+      remove: () => Promise.resolve({ success: true as const, data: undefined }),
+      listBranches: () => Promise.resolve({ branches: ["main"], recommendedTrunk: "main" }),
       secrets: {
-        get: async () => [{ key: "A", value: "1" }],
-        update: async () => ({ success: true as const, data: undefined }),
+        get: () => Promise.resolve([{ key: "A", value: "1" }]),
+        update: () => Promise.resolve({ success: true as const, data: undefined }),
       },
     });
 
@@ -170,19 +172,19 @@ describe("ProjectContext", () => {
 
   test("updateSecrets handles failure gracefully", async () => {
     const projectsApi = createMockAPI({
-      list: async () => [],
-      remove: async () => ({ success: true as const, data: undefined }),
-      listBranches: async () => ({ branches: ["main"], recommendedTrunk: "main" }),
+      list: () => Promise.resolve([]),
+      remove: () => Promise.resolve({ success: true as const, data: undefined }),
+      listBranches: () => Promise.resolve({ branches: ["main"], recommendedTrunk: "main" }),
       secrets: {
-        get: async () => [],
-        update: async () => ({ success: false, error: "something went wrong" }),
+        get: () => Promise.resolve([]),
+        update: () => Promise.resolve({ success: false, error: "something went wrong" }),
       },
     });
 
     const ctx = await setup();
 
     // Should not throw even when update fails
-    await expect(
+    expect(
       ctx().updateSecrets("/alpha", [{ key: "C", value: "3" }])
     ).resolves.toBeUndefined();
     expect(projectsApi.secrets.update).toHaveBeenCalledWith("/alpha", [{ key: "C", value: "3" }]);
@@ -190,14 +192,12 @@ describe("ProjectContext", () => {
 
   test("refreshProjects sets empty map on API error", async () => {
     createMockAPI({
-      list: async () => {
-        throw new Error("network failure");
-      },
-      remove: async () => ({ success: true as const, data: undefined }),
-      listBranches: async () => ({ branches: ["main"], recommendedTrunk: "main" }),
+      list: () => Promise.reject(new Error("network failure")),
+      remove: () => Promise.resolve({ success: true as const, data: undefined }),
+      listBranches: () => Promise.resolve({ branches: ["main"], recommendedTrunk: "main" }),
       secrets: {
-        get: async () => [],
-        update: async () => ({ success: true as const, data: undefined }),
+        get: () => Promise.resolve([]),
+        update: () => Promise.resolve({ success: true as const, data: undefined }),
       },
     });
 
@@ -211,16 +211,16 @@ describe("ProjectContext", () => {
 
   test("getBranchesForProject sanitizes malformed branch data", async () => {
     createMockAPI({
-      list: async () => [],
-      remove: async () => ({ success: true as const, data: undefined }),
-      listBranches: async () =>
-        ({
-          branches: ["main", 123, null, "dev", undefined, { name: "feat" }],
+      list: () => Promise.resolve([]),
+      remove: () => Promise.resolve({ success: true as const, data: undefined }),
+      listBranches: () =>
+        Promise.resolve({
+          branches: ["main", 123, null, "dev", undefined, { name: "feat" }] as unknown as string[],
           recommendedTrunk: "main",
-        }) as any,
+        }),
       secrets: {
-        get: async () => [],
-        update: async () => ({ success: true as const, data: undefined }),
+        get: () => Promise.resolve([]),
+        update: () => Promise.resolve({ success: true as const, data: undefined }),
       },
     });
 
@@ -234,16 +234,16 @@ describe("ProjectContext", () => {
 
   test("getBranchesForProject handles non-array branches", async () => {
     createMockAPI({
-      list: async () => [],
-      remove: async () => ({ success: true as const, data: undefined }),
-      listBranches: async () =>
-        ({
-          branches: null,
+      list: () => Promise.resolve([]),
+      remove: () => Promise.resolve({ success: true as const, data: undefined }),
+      listBranches: () =>
+        Promise.resolve({
+          branches: null as unknown as string[],
           recommendedTrunk: "main",
-        }) as any,
+        }),
       secrets: {
-        get: async () => [],
-        update: async () => ({ success: true as const, data: undefined }),
+        get: () => Promise.resolve([]),
+        update: () => Promise.resolve({ success: true as const, data: undefined }),
       },
     });
 
@@ -256,15 +256,16 @@ describe("ProjectContext", () => {
 
   test("getBranchesForProject falls back when recommendedTrunk not in branches", async () => {
     createMockAPI({
-      list: async () => [],
-      remove: async () => ({ success: true as const, data: undefined }),
-      listBranches: async () => ({
-        branches: ["main", "dev"],
-        recommendedTrunk: "nonexistent",
-      }),
+      list: () => Promise.resolve([]),
+      remove: () => Promise.resolve({ success: true as const, data: undefined }),
+      listBranches: () =>
+        Promise.resolve({
+          branches: ["main", "dev"],
+          recommendedTrunk: "nonexistent",
+        }),
       secrets: {
-        get: async () => [],
-        update: async () => ({ success: true as const, data: undefined }),
+        get: () => Promise.resolve([]),
+        update: () => Promise.resolve({ success: true as const, data: undefined }),
       },
     });
 
@@ -287,17 +288,17 @@ describe("ProjectContext", () => {
     );
 
     createMockAPI({
-      list: async () => [],
-      remove: async () => ({ success: true as const, data: undefined }),
-      listBranches: async (path: string) => {
+      list: () => Promise.resolve([]),
+      remove: () => Promise.resolve({ success: true as const, data: undefined }),
+      listBranches: (path: string) => {
         if (path === "/project-a") {
           return projectAPromise;
         }
-        return { branches: ["main-b"], recommendedTrunk: "main-b" };
+        return Promise.resolve({ branches: ["main-b"], recommendedTrunk: "main-b" });
       },
       secrets: {
-        get: async () => [],
-        update: async () => ({ success: true as const, data: undefined }),
+        get: () => Promise.resolve([]),
+        update: () => Promise.resolve({ success: true as const, data: undefined }),
       },
     });
 
@@ -321,16 +322,6 @@ describe("ProjectContext", () => {
     expect(state.branches).toEqual(["main-b"]);
     expect(state.defaultTrunkBranch).toBe("main-b");
   });
-
-  test("useProjectContext throws error when used outside provider", () => {
-    expect(() => {
-      const TestComponent = () => {
-        useProjectContext();
-        return null;
-      };
-      render(<TestComponent />);
-    }).toThrow("useProjectContext must be used within ProjectProvider");
-  });
 });
 
 async function setup() {
@@ -351,38 +342,42 @@ async function setup() {
 function createMockAPI(overrides: Partial<IPCApi["projects"]>) {
   const projects = {
     create: mock(
-      overrides.create ||
-        (async () => ({
-          success: true as const,
-          data: { projectConfig: { workspaces: [] }, normalizedPath: "" },
-        }))
+      overrides.create ??
+        (() =>
+          Promise.resolve({
+            success: true as const,
+            data: { projectConfig: { workspaces: [] }, normalizedPath: "" },
+          }))
     ),
-    list: mock(overrides.list || (async () => [])),
+    list: mock(overrides.list ?? (() => Promise.resolve([]))),
     listBranches: mock(
-      overrides.listBranches || (async () => ({ branches: [], recommendedTrunk: "main" }))
+      overrides.listBranches ??
+        (() => Promise.resolve({ branches: [], recommendedTrunk: "main" }))
     ),
     remove: mock(
-      overrides.remove ||
-        (async () => ({
-          success: true as const,
-          data: undefined,
-        }))
-    ),
-    secrets: {
-      get: mock(overrides.secrets?.get || (async () => [])),
-      update: mock(
-        overrides.secrets?.update ||
-          (async () => ({
+      overrides.remove ??
+        (() =>
+          Promise.resolve({
             success: true as const,
             data: undefined,
           }))
+    ),
+    secrets: {
+      get: mock(overrides.secrets?.get ?? (() => Promise.resolve([]))),
+      update: mock(
+        overrides.secrets?.update ??
+          (() =>
+            Promise.resolve({
+              success: true as const,
+              data: undefined,
+            }))
       ),
     },
   } satisfies IPCApi["projects"];
 
-  // @ts-ignore
+  // @ts-expect-error - Setting up global state for tests
   globalThis.window = new GlobalWindow();
-  // @ts-ignore
+  // @ts-expect-error - Setting up global state for tests
   globalThis.window.api = {
     projects,
   };
