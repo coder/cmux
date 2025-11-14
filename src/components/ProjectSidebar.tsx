@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { createPortal } from "react-dom";
 import { cn } from "@/lib/utils";
-import type { ProjectConfig } from "@/config";
 import type { FrontendWorkspaceMetadata } from "@/types/workspace";
 import { usePersistedState } from "@/hooks/usePersistedState";
 import { DndProvider } from "react-dnd";
@@ -20,6 +19,10 @@ import type { Secret } from "@/types/secrets";
 import { ForceDeleteModal } from "./ForceDeleteModal";
 import { WorkspaceListItem, type WorkspaceSelection } from "./WorkspaceListItem";
 import { RenameProvider } from "@/contexts/WorkspaceRenameContext";
+import { useProjectContext } from "@/contexts/ProjectContext";
+import { useSortedWorkspacesByProject } from "@/hooks/useSortedWorkspacesByProject";
+import { useApp } from "@/contexts/AppContext";
+import { useWorkspaceRecency } from "@/stores/WorkspaceStore";
 
 // Re-export WorkspaceSelection for backwards compatibility
 export type { WorkspaceSelection } from "./WorkspaceListItem";
@@ -153,49 +156,38 @@ const ProjectDragLayer: React.FC = () => {
 };
 
 interface ProjectSidebarProps {
-  projects: Map<string, ProjectConfig>;
-  workspaceMetadata: Map<string, FrontendWorkspaceMetadata>;
-  selectedWorkspace: WorkspaceSelection | null;
   onSelectWorkspace: (selection: WorkspaceSelection) => void;
-  onAddProject: () => void;
-  onAddWorkspace: (projectPath: string) => void;
-  onRemoveProject: (path: string) => void;
-  onRemoveWorkspace: (
-    workspaceId: string,
-    options?: { force?: boolean }
-  ) => Promise<{ success: boolean; error?: string }>;
-  onRenameWorkspace: (
-    workspaceId: string,
-    newName: string
-  ) => Promise<{ success: boolean; error?: string }>;
   lastReadTimestamps: Record<string, number>;
   onToggleUnread: (workspaceId: string) => void;
   collapsed: boolean;
   onToggleCollapsed: () => void;
-  onGetSecrets: (projectPath: string) => Promise<Secret[]>;
-  onUpdateSecrets: (projectPath: string, secrets: Secret[]) => Promise<void>;
-  sortedWorkspacesByProject: Map<string, FrontendWorkspaceMetadata[]>;
-  workspaceRecency: Record<string, number>;
 }
 
 const ProjectSidebarInner: React.FC<ProjectSidebarProps> = ({
-  projects,
-  selectedWorkspace,
   onSelectWorkspace,
-  onAddProject,
-  onAddWorkspace,
-  onRemoveProject,
-  onRemoveWorkspace,
-  onRenameWorkspace,
   lastReadTimestamps,
   onToggleUnread: _onToggleUnread,
   collapsed,
   onToggleCollapsed,
-  onGetSecrets,
-  onUpdateSecrets,
-  sortedWorkspacesByProject,
-  workspaceRecency,
 }) => {
+  const {
+    projects,
+    openProjectCreateModal,
+    beginWorkspaceCreation,
+    clearPendingWorkspaceCreation,
+    pendingNewWorkspaceProject,
+    removeProject: removeProjectFromContext,
+    getSecrets,
+    updateSecrets,
+  } = useProjectContext();
+  const {
+    selectedWorkspace,
+    setSelectedWorkspace,
+    removeWorkspace: removeWorkspaceFromApp,
+    renameWorkspace,
+  } = useApp();
+  const sortedWorkspacesByProject = useSortedWorkspacesByProject();
+  const workspaceRecency = useWorkspaceRecency();
   // Workspace-specific subscriptions moved to WorkspaceListItem component
 
   // Store as array in localStorage, convert to Set for usage
@@ -233,6 +225,36 @@ const ProjectSidebarInner: React.FC<ProjectSidebarProps> = ({
     error: string;
     anchor: { top: number; left: number } | null;
   } | null>(null);
+  const handleAddProject = useCallback(() => {
+    openProjectCreateModal();
+  }, [openProjectCreateModal]);
+
+  const handleAddWorkspace = useCallback(
+    (projectPath: string) => {
+      beginWorkspaceCreation(projectPath);
+      setSelectedWorkspace(null);
+    },
+    [beginWorkspaceCreation, setSelectedWorkspace]
+  );
+
+  const handleRemoveProject = useCallback(
+    async (projectPath: string) => {
+      if (selectedWorkspace?.projectPath === projectPath) {
+        setSelectedWorkspace(null);
+      }
+      if (pendingNewWorkspaceProject === projectPath) {
+        clearPendingWorkspaceCreation();
+      }
+      await removeProjectFromContext(projectPath);
+    },
+    [
+      clearPendingWorkspaceCreation,
+      pendingNewWorkspaceProject,
+      removeProjectFromContext,
+      selectedWorkspace,
+      setSelectedWorkspace,
+    ]
+  );
 
   const getProjectName = (path: string) => {
     if (!path || typeof path !== "string") {
@@ -293,7 +315,7 @@ const ProjectSidebarInner: React.FC<ProjectSidebarProps> = ({
 
   const handleRemoveWorkspace = useCallback(
     async (workspaceId: string, buttonElement: HTMLElement) => {
-      const result = await onRemoveWorkspace(workspaceId);
+      const result = await removeWorkspaceFromApp(workspaceId);
       if (!result.success) {
         const error = result.error ?? "Failed to remove workspace";
         const rect = buttonElement.getBoundingClientRect();
@@ -312,11 +334,11 @@ const ProjectSidebarInner: React.FC<ProjectSidebarProps> = ({
         });
       }
     },
-    [onRemoveWorkspace]
+    [removeWorkspaceFromApp]
   );
 
   const handleOpenSecrets = async (projectPath: string) => {
-    const secrets = await onGetSecrets(projectPath);
+    const secrets = await getSecrets(projectPath);
     setSecretsModalState({
       isOpen: true,
       projectPath,
@@ -331,7 +353,7 @@ const ProjectSidebarInner: React.FC<ProjectSidebarProps> = ({
     setForceDeleteModal(null);
 
     // Use the same state update logic as regular removal
-    const result = await onRemoveWorkspace(workspaceId, { force: true });
+    const result = await removeWorkspaceFromApp(workspaceId, { force: true });
     if (!result.success) {
       const errorMessage = result.error ?? "Failed to remove workspace";
       console.error("Force delete failed:", result.error);
@@ -342,7 +364,7 @@ const ProjectSidebarInner: React.FC<ProjectSidebarProps> = ({
 
   const handleSaveSecrets = async (secrets: Secret[]) => {
     if (secretsModalState) {
-      await onUpdateSecrets(secretsModalState.projectPath, secrets);
+      await updateSecrets(secretsModalState.projectPath, secrets);
     }
   };
 
@@ -402,16 +424,16 @@ const ProjectSidebarInner: React.FC<ProjectSidebarProps> = ({
       // Create new workspace for the project of the selected workspace
       if (matchesKeybind(e, KEYBINDS.NEW_WORKSPACE) && selectedWorkspace) {
         e.preventDefault();
-        onAddWorkspace(selectedWorkspace.projectPath);
+        handleAddWorkspace(selectedWorkspace.projectPath);
       }
     };
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [selectedWorkspace, onAddWorkspace]);
+  }, [selectedWorkspace, handleAddWorkspace]);
 
   return (
-    <RenameProvider onRenameWorkspace={onRenameWorkspace}>
+    <RenameProvider onRenameWorkspace={renameWorkspace}>
       <DndProvider backend={HTML5Backend}>
         <ProjectDragLayer />
         <div
@@ -425,7 +447,7 @@ const ProjectSidebarInner: React.FC<ProjectSidebarProps> = ({
                 <h2 className="text-foreground text-md m-0 font-semibold">Agents</h2>
                 <TooltipWrapper inline>
                   <button
-                    onClick={onAddProject}
+                    onClick={handleAddProject}
                     aria-label="Add project"
                     className="text-foreground hover:bg-hover hover:border-border-light flex h-6 w-6 cursor-pointer items-center justify-center rounded border border-transparent bg-transparent p-0 text-lg transition-all duration-200"
                   >
@@ -441,7 +463,7 @@ const ProjectSidebarInner: React.FC<ProjectSidebarProps> = ({
                   <div className="px-4 py-8 text-center">
                     <p className="text-muted mb-4 text-[13px]">No projects</p>
                     <button
-                      onClick={onAddProject}
+                      onClick={handleAddProject}
                       className="bg-accent hover:bg-accent-dark cursor-pointer rounded border-none px-4 py-2 text-[13px] text-white transition-colors duration-200"
                     >
                       Add Project
@@ -534,7 +556,7 @@ const ProjectSidebarInner: React.FC<ProjectSidebarProps> = ({
                             <button
                               onClick={(event) => {
                                 event.stopPropagation();
-                                onRemoveProject(projectPath);
+                                void handleRemoveProject(projectPath);
                               }}
                               title="Remove project"
                               aria-label={`Remove project ${projectName}`}
@@ -557,7 +579,7 @@ const ProjectSidebarInner: React.FC<ProjectSidebarProps> = ({
                           >
                             <div className="border-hover border-b px-3 py-2 pl-[22px]">
                               <button
-                                onClick={() => onAddWorkspace(projectPath)}
+                                onClick={() => handleAddWorkspace(projectPath)}
                                 data-project-path={projectPath}
                                 aria-label={`Add workspace to ${projectName}`}
                                 className="text-muted border-border-medium hover:bg-hover hover:border-border-darker hover:text-foreground w-full cursor-pointer rounded border border-dashed bg-transparent px-3 py-1.5 text-left text-[13px] transition-all duration-200"

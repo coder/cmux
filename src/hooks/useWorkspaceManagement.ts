@@ -1,13 +1,12 @@
 import { useState, useEffect, useCallback } from "react";
 import type { FrontendWorkspaceMetadata } from "@/types/workspace";
 import type { WorkspaceSelection } from "@/components/ProjectSidebar";
-import type { ProjectConfig } from "@/config";
 import type { RuntimeConfig } from "@/types/runtime";
 import { deleteWorkspaceStorage } from "@/constants/storage";
 
 interface UseWorkspaceManagementProps {
   selectedWorkspace: WorkspaceSelection | null;
-  onProjectsUpdate: (projects: Map<string, ProjectConfig>) => void;
+  onProjectsRefresh: () => Promise<void>;
   onSelectedWorkspaceUpdate: (workspace: WorkspaceSelection | null) => void;
 }
 
@@ -30,7 +29,7 @@ function ensureCreatedAt(metadata: FrontendWorkspaceMetadata): void {
  */
 export function useWorkspaceManagement({
   selectedWorkspace,
-  onProjectsUpdate,
+  onProjectsRefresh,
   onSelectedWorkspaceUpdate,
 }: UseWorkspaceManagementProps) {
   const [workspaceMetadata, setWorkspaceMetadata] = useState<
@@ -59,12 +58,10 @@ export function useWorkspaceManagement({
       await loadWorkspaceMetadata();
       // After loading metadata (which may trigger migration), reload projects
       // to ensure frontend has the updated config with workspace IDs
-      const projectsList = await window.api.projects.list();
-      const loadedProjects = new Map<string, ProjectConfig>(projectsList);
-      onProjectsUpdate(loadedProjects);
+      await onProjectsRefresh();
       setLoading(false);
     })();
-  }, [loadWorkspaceMetadata, onProjectsUpdate]);
+  }, [loadWorkspaceMetadata, onProjectsRefresh]);
 
   // Subscribe to metadata updates (for create/rename/delete operations)
   useEffect(() => {
@@ -85,11 +82,7 @@ export function useWorkspaceManagement({
           // If this is a new workspace (e.g., from fork), reload projects
           // to ensure the sidebar shows the updated workspace list
           if (isNewWorkspace) {
-            void (async () => {
-              const projectsList = await window.api.projects.list();
-              const loadedProjects = new Map<string, ProjectConfig>(projectsList);
-              onProjectsUpdate(loadedProjects);
-            })();
+            void onProjectsRefresh();
           }
 
           return updated;
@@ -100,7 +93,7 @@ export function useWorkspaceManagement({
     return () => {
       unsubscribe();
     };
-  }, [onProjectsUpdate]);
+  }, [onProjectsRefresh]);
 
   const createWorkspace = async (
     projectPath: string,
@@ -120,9 +113,7 @@ export function useWorkspaceManagement({
     );
     if (result.success) {
       // Backend has already updated the config - reload projects to get updated state
-      const projectsList = await window.api.projects.list();
-      const loadedProjects = new Map<string, ProjectConfig>(projectsList);
-      onProjectsUpdate(loadedProjects);
+      await onProjectsRefresh();
 
       // Reload workspace metadata to get the new workspace ID
       await loadWorkspaceMetadata();
@@ -151,9 +142,7 @@ export function useWorkspaceManagement({
           deleteWorkspaceStorage(workspaceId);
 
           // Backend has already updated the config - reload projects to get updated state
-          const projectsList = await window.api.projects.list();
-          const loadedProjects = new Map<string, ProjectConfig>(projectsList);
-          onProjectsUpdate(loadedProjects);
+          await onProjectsRefresh();
 
           // Reload workspace metadata
           await loadWorkspaceMetadata();
@@ -173,7 +162,7 @@ export function useWorkspaceManagement({
         return { success: false, error: errorMessage };
       }
     },
-    [loadWorkspaceMetadata, onProjectsUpdate, onSelectedWorkspaceUpdate, selectedWorkspace]
+    [loadWorkspaceMetadata, onProjectsRefresh, onSelectedWorkspaceUpdate, selectedWorkspace]
   );
 
   const renameWorkspace = useCallback(
@@ -182,9 +171,7 @@ export function useWorkspaceManagement({
         const result = await window.api.workspace.rename(workspaceId, newName);
         if (result.success) {
           // Backend has already updated the config - reload projects to get updated state
-          const projectsList = await window.api.projects.list();
-          const loadedProjects = new Map<string, ProjectConfig>(projectsList);
-          onProjectsUpdate(loadedProjects);
+          await onProjectsRefresh();
 
           // Reload workspace metadata
           await loadWorkspaceMetadata();
@@ -216,7 +203,7 @@ export function useWorkspaceManagement({
         return { success: false, error: errorMessage };
       }
     },
-    [loadWorkspaceMetadata, onProjectsUpdate, onSelectedWorkspaceUpdate, selectedWorkspace]
+    [loadWorkspaceMetadata, onProjectsRefresh, onSelectedWorkspaceUpdate, selectedWorkspace]
   );
 
   return {

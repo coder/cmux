@@ -1,13 +1,13 @@
 import { useState, useEffect } from "react";
 import App from "../App";
 import { LoadingScreen } from "./LoadingScreen";
-import { useProjectManagement } from "../hooks/useProjectManagement";
 import { useWorkspaceManagement } from "../hooks/useWorkspaceManagement";
 import { useWorkspaceStoreRaw } from "../stores/WorkspaceStore";
 import { useGitStatusStoreRaw } from "../stores/GitStatusStore";
 import { usePersistedState } from "../hooks/usePersistedState";
 import type { WorkspaceSelection } from "./ProjectSidebar";
 import { AppProvider } from "../contexts/AppContext";
+import { ProjectProvider, useProjectContext } from "../contexts/ProjectContext";
 
 /**
  * AppLoader handles all initialization before rendering the main App:
@@ -20,20 +20,27 @@ import { AppProvider } from "../contexts/AppContext";
  * the need for conditional guards in effects.
  */
 export function AppLoader() {
+  return (
+    <ProjectProvider>
+      <AppLoaderInner />
+    </ProjectProvider>
+  );
+}
+
+function AppLoaderInner() {
   // Workspace selection - restored from localStorage immediately
   const [selectedWorkspace, setSelectedWorkspace] = usePersistedState<WorkspaceSelection | null>(
     "selectedWorkspace",
     null
   );
 
-  // Load projects
-  const projectManagement = useProjectManagement();
+  const { refreshProjects } = useProjectContext();
 
   // Load workspace metadata
   // Pass empty callbacks for now - App will provide the actual handlers
   const workspaceManagement = useWorkspaceManagement({
     selectedWorkspace,
-    onProjectsUpdate: projectManagement.setProjects,
+    onProjectsRefresh: refreshProjects,
     onSelectedWorkspaceUpdate: setSelectedWorkspace,
   });
 
@@ -149,10 +156,6 @@ export function AppLoader() {
   // Render App with all initialized data via context
   return (
     <AppProvider
-      projects={projectManagement.projects}
-      setProjects={projectManagement.setProjects}
-      addProject={projectManagement.addProject}
-      removeProject={projectManagement.removeProject}
       workspaceMetadata={workspaceManagement.workspaceMetadata}
       setWorkspaceMetadata={workspaceManagement.setWorkspaceMetadata}
       createWorkspace={workspaceManagement.createWorkspace}
