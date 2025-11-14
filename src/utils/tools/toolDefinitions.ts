@@ -122,7 +122,9 @@ export const TOOL_DEFINITIONS = {
           .int()
           .min(0)
           .optional()
-          .describe("Optional 1-indexed line position (0 = insert at top, 1 inserts after line 1, etc.)"),
+          .describe(
+            "Optional 1-indexed line position (0 = insert at top, 1 inserts after line 1, etc.)"
+          ),
         create: z
           .boolean()
           .optional()
@@ -142,7 +144,8 @@ export const TOOL_DEFINITIONS = {
         (data) =>
           data.line_offset !== undefined || data.before !== undefined || data.after !== undefined,
         {
-          message: "Provide at least one of line_offset, before, or after to anchor the insertion point.",
+          message:
+            "Provide at least one of line_offset, before, or after to anchor the insertion point.",
           path: ["line_offset"],
         }
       ),

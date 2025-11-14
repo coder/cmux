@@ -11,17 +11,17 @@ import { writeFileString } from "@/utils/runtime/helpers";
 
 const READ_AND_RETRY_NOTE = `${EDIT_FAILED_NOTE_PREFIX} ${NOTE_READ_FILE_RETRY}`;
 
-type InsertOperationSuccess = {
+interface InsertOperationSuccess {
   success: true;
   newContent: string;
   metadata: Record<string, never>;
-};
+}
 
-type InsertOperationFailure = {
+interface InsertOperationFailure {
   success: false;
   error: string;
   note?: string;
-};
+}
 
 export const createFileEditInsertTool: ToolFactory = (config: ToolConfiguration) => {
   return tool({
@@ -108,11 +108,7 @@ export const createFileEditInsertTool: ToolFactory = (config: ToolConfiguration)
 function insertContent(
   originalContent: string,
   contentToInsert: string,
-  {
-    before,
-    after,
-    lineOffset,
-  }: { before?: string; after?: string; lineOffset?: number }
+  { before, after, lineOffset }: { before?: string; after?: string; lineOffset?: number }
 ): InsertOperationSuccess | InsertOperationFailure {
   if (before !== undefined || after !== undefined) {
     return insertWithGuards(originalContent, contentToInsert, { before, after });
@@ -132,10 +128,7 @@ function insertContent(
 function insertWithGuards(
   originalContent: string,
   contentToInsert: string,
-  {
-    before,
-    after,
-  }: { before?: string; after?: string }
+  { before, after }: { before?: string; after?: string }
 ): InsertOperationSuccess | InsertOperationFailure {
   let anchorIndex: number | undefined;
 
@@ -174,9 +167,7 @@ function insertWithGuards(
   }
 
   const newContent =
-    originalContent.slice(0, anchorIndex) +
-    contentToInsert +
-    originalContent.slice(anchorIndex);
+    originalContent.slice(0, anchorIndex) + contentToInsert + originalContent.slice(anchorIndex);
 
   return {
     success: true,
