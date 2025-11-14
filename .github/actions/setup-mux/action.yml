@@ -14,6 +14,7 @@ runs:
       run: echo "version=$(bun --version)" >> $GITHUB_OUTPUT
 
     - name: Cache node_modules
+      id: cache-node-modules
       uses: actions/cache@v4
       with:
         path: node_modules
@@ -22,6 +23,7 @@ runs:
           ${{ runner.os }}-${{ runner.arch }}-bun-${{ steps.bun-version.outputs.version }}-node-modules-
 
     - name: Cache bun install cache
+      id: cache-bun-install
       uses: actions/cache@v4
       with:
         path: ~/.bun/install/cache
@@ -30,6 +32,7 @@ runs:
           ${{ runner.os }}-bun-cache-
 
     - name: Install dependencies
+      if: steps.cache-node-modules.outputs.cache-hit != 'true'
       shell: bash
       run: bun install --frozen-lockfile
 
