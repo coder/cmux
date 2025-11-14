@@ -253,7 +253,7 @@ describe("WorkspaceStore", () => {
 
       expect(state).toMatchObject({
         messages: [],
-        canInterrupt: false,
+        interruptType: "none",
         isCompacting: false,
         loading: true, // loading because not caught up
         cmuxMessages: [],
