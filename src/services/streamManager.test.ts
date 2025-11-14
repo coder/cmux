@@ -1,9 +1,11 @@
 import { describe, test, expect, beforeEach, mock } from "bun:test";
 import { KNOWN_MODELS } from "@/constants/knownModels";
 import { StreamManager } from "./streamManager";
+import type { LanguageModel } from "ai";
 import type { HistoryService } from "./historyService";
 import type { PartialService } from "./partialService";
 import { createAnthropic } from "@ai-sdk/anthropic";
+import type { Runtime } from "@/runtime/Runtime";
 import { shouldRunIntegrationTests, validateApiKeys } from "../../tests/testUtils";
 import { createRuntime } from "@/runtime/runtimeFactory";
 
@@ -405,5 +407,88 @@ describe("StreamManager - Unavailable Tool Handling", () => {
     // Verify error result
     const errorResult = events[1].result as { error?: string };
     expect(errorResult?.error).toBe("Tool not found");
+  });
+});
+
+
+describe("StreamManager - previousResponseId recovery", () => {
+  test("retries once when OpenAI drops previousResponseId", async () => {
+    const mockHistoryService = createMockHistoryService();
+    const mockPartialService = createMockPartialService();
+    const streamManager = new StreamManager(mockHistoryService, mockPartialService);
+    streamManager.on("error", () => undefined);
+
+    const runtime = {} as Runtime;
+
+    const ensureStreamSafetyMock = mock(async () => "token");
+    Reflect.set(streamManager, "ensureStreamSafety", ensureStreamSafetyMock);
+
+    const createTempDirMock = mock(async () => "/tmp/token");
+    Reflect.set(streamManager, "createTempDirForStream", createTempDirMock);
+
+    const processStreamMock = mock(() => Promise.resolve());
+    Reflect.set(streamManager, "processStreamWithCleanup", processStreamMock);
+
+    const streamInfoStub = {
+      state: "starting",
+      streamResult: {
+        fullStream: (async function* () { /* noop */ })(),
+        usage: Promise.resolve(undefined),
+        providerMetadata: Promise.resolve(undefined),
+      },
+      abortController: new AbortController(),
+      messageId: "assistant-test",
+      token: "token",
+      startTime: Date.now(),
+      model: "openai:gpt-test",
+      historySequence: 1,
+      parts: [],
+      lastPartialWriteTime: 0,
+      processingPromise: Promise.resolve(),
+      runtimeTempDir: "/tmp/token",
+      runtime,
+    };
+
+    let attempt = 0;
+    const createStreamAtomicallyMock = mock((...args: unknown[]) => {
+      const optionsArg = args[12] as Record<string, unknown> | undefined;
+      attempt += 1;
+      if (attempt === 1) {
+        throw { data: { error: { code: "previous_response_not_found" } } };
+      }
+      const openaiOptions =
+        optionsArg && (optionsArg as { openai?: Record<string, unknown> }).openai;
+      expect(openaiOptions).toBeDefined();
+      if (openaiOptions) {
+        expect((openaiOptions as Record<string, unknown>).previousResponseId).toBeUndefined();
+      }
+      return streamInfoStub;
+    });
+
+    Reflect.set(streamManager, "createStreamAtomically", createStreamAtomicallyMock);
+
+    const providerOptions = { openai: { previousResponseId: "resp_123" } };
+
+    const result = await streamManager.startStream(
+      "workspace-prev-retry",
+      [{ role: "user", content: "test" }],
+      {} as unknown as LanguageModel,
+      "openai:gpt-test",
+      1,
+      "system",
+      runtime,
+      undefined,
+      {},
+      undefined,
+      providerOptions,
+      undefined,
+      undefined,
+      undefined
+    );
+
+
+    expect(result.success).toBe(true);
+    expect(createStreamAtomicallyMock.mock.calls.length).toBe(2);
+    expect(processStreamMock.mock.calls.length).toBe(1);
   });
 });

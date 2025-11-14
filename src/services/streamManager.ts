@@ -1156,35 +1156,55 @@ export class StreamManager extends EventEmitter {
       // Step 3: Create temp directory for this stream using runtime
       // If token was provided, temp dir might already exist - mkdir -p handles this
       const runtimeTempDir = await this.createTempDirForStream(streamToken, runtime);
+      const providerOptionsClone = providerOptions ? structuredClone(providerOptions) : undefined;
 
-      // Step 4: Atomic stream creation and registration
-      const streamInfo = this.createStreamAtomically(
-        typedWorkspaceId,
-        streamToken,
-        runtimeTempDir,
-        runtime,
-        messages,
-        model,
-        modelString,
-        abortSignal,
-        system,
-        historySequence,
-        tools,
-        initialMetadata,
-        providerOptions,
-        maxOutputTokens,
-        toolPolicy
-      );
+      const startWithOptions = (options?: Record<string, unknown>) => {
+        const streamInfo = this.createStreamAtomically(
+          typedWorkspaceId,
+          streamToken,
+          runtimeTempDir,
+          runtime,
+          messages,
+          model,
+          modelString,
+          abortSignal,
+          system,
+          historySequence,
+          tools,
+          initialMetadata,
+          options,
+          maxOutputTokens,
+          toolPolicy
+        );
 
-      // Step 5: Track the processing promise for guaranteed cleanup
-      // This allows cancelStreamSafely to wait for full exit
-      streamInfo.processingPromise = this.processStreamWithCleanup(
-        typedWorkspaceId,
-        streamInfo,
-        historySequence
-      ).catch((error) => {
-        console.error("Unexpected error in stream processing:", error);
-      });
+        streamInfo.processingPromise = this.processStreamWithCleanup(
+          typedWorkspaceId,
+          streamInfo,
+          historySequence
+        ).catch((error) => {
+          console.error("Unexpected error in stream processing:", error);
+        });
+      };
+
+      try {
+        startWithOptions(providerOptionsClone);
+      } catch (error) {
+        if (this.shouldRetryMissingPreviousResponse(error, providerOptionsClone)) {
+          const previous = this.getOpenAIPreviousResponse(providerOptionsClone);
+          log.info(
+            "Retrying without previousResponseId after OpenAI invalidated stored response metadata",
+            {
+              workspaceId,
+              model: modelString,
+              previousResponseId: previous?.value,
+            }
+          );
+          this.removePreviousResponseId(providerOptionsClone);
+          startWithOptions(providerOptionsClone);
+        } else {
+          throw error;
+        }
+      }
 
       return Ok(streamToken);
     } catch (error) {
@@ -1193,6 +1213,84 @@ export class StreamManager extends EventEmitter {
       // Convert to strongly-typed error
       return Err(this.convertToSendMessageError(error));
     }
+  }
+
+  private shouldRetryMissingPreviousResponse(
+    error: unknown,
+    providerOptions?: Record<string, unknown>
+  ): boolean {
+    if (!this.getOpenAIPreviousResponse(providerOptions)) {
+      return false;
+    }
+    return this.extractErrorCode(error) === "previous_response_not_found";
+  }
+
+  private removePreviousResponseId(providerOptions?: Record<string, unknown>): void {
+    const previous = this.getOpenAIPreviousResponse(providerOptions);
+    if (previous) {
+      delete previous.openaiOptions.previousResponseId;
+    }
+  }
+
+  private getOpenAIPreviousResponse(
+    providerOptions?: Record<string, unknown>
+  ): { value: string; openaiOptions: Record<string, unknown> } | undefined {
+    if (!providerOptions || typeof providerOptions !== "object") {
+      return undefined;
+    }
+    const rawOpenAI = (providerOptions as Record<string, unknown>).openai;
+    if (!rawOpenAI || typeof rawOpenAI !== "object") {
+      return undefined;
+    }
+    const previousResponseId = (rawOpenAI as Record<string, unknown>).previousResponseId;
+    if (typeof previousResponseId !== "string" || previousResponseId.length === 0) {
+      return undefined;
+    }
+    return { value: previousResponseId, openaiOptions: rawOpenAI as Record<string, unknown> };
+  }
+
+  private extractErrorCode(error: unknown): string | undefined {
+    const candidates: unknown[] = [];
+    if (APICallError.isInstance(error)) {
+      candidates.push(error.data);
+    }
+    candidates.push(error);
+    for (const candidate of candidates) {
+      const directCode = this.getStructuredErrorCode(candidate);
+      if (directCode) {
+        return directCode;
+      }
+      if (
+        candidate &&
+        typeof candidate === "object" &&
+        "data" in candidate
+      ) {
+        const dataCandidate = (candidate as { data?: unknown }).data;
+        const nestedCode = this.getStructuredErrorCode(dataCandidate);
+        if (nestedCode) {
+          return nestedCode;
+        }
+      }
+    }
+    return undefined;
+  }
+
+  private getStructuredErrorCode(candidate: unknown): string | undefined {
+    if (
+      typeof candidate === "object" &&
+      candidate !== null &&
+      "error" in candidate
+    ) {
+      const withError = candidate as { error?: unknown };
+      if (withError.error && typeof withError.error === "object") {
+        const nested = withError.error as Record<string, unknown>;
+        const code = nested.code;
+        if (typeof code === "string") {
+          return code;
+        }
+      }
+    }
+    return undefined;
   }
 
   /**
