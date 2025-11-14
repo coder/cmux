@@ -163,21 +163,6 @@ const httpIpcMain = new HttpIpcMainAdapter(app);
     return Promise.resolve(launchProjectPath);
   });
 
-  // Register stub handlers for desktop-only features
-  // These prevent 404 errors in browser mode but don't actually do anything
-  httpIpcMain.handle(IPC_CHANNELS.UPDATE_CHECK, () => {
-    // No-op: app updates don't apply in server mode
-    return Promise.resolve(null);
-  });
-  httpIpcMain.handle(IPC_CHANNELS.UPDATE_DOWNLOAD, () => {
-    // No-op: app updates don't apply in server mode
-    return Promise.resolve(null);
-  });
-  httpIpcMain.handle(IPC_CHANNELS.UPDATE_INSTALL, () => {
-    // No-op: app updates don't apply in server mode
-    return Promise.resolve(null);
-  });
-
   // Terminal window handlers for browser mode
   // In browser mode, terminals open as new browser windows/tabs instead of Electron BrowserWindows
   httpIpcMain.handle(IPC_CHANNELS.TERMINAL_WINDOW_OPEN, () => {

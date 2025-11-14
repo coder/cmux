@@ -290,6 +290,9 @@ const webApi: IPCApi = {
   server: {
     getLaunchProject: () => invokeIPC("server:getLaunchProject"),
   },
+  // In browser mode, set platform to "browser" to differentiate from Electron
+  platform: "browser" as const,
+  versions: {},
 };
 
 if (typeof window.api === "undefined") {
