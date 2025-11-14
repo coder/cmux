@@ -305,7 +305,7 @@ export async function handleNewCommand(
   // Open modal if no workspace name provided
   if (!parsed.workspaceName) {
     setInput("");
-    
+
     // Get workspace info to extract projectPath for the modal
     const workspaceInfo = await window.api.workspace.getInfo(workspaceId);
     if (!workspaceInfo) {

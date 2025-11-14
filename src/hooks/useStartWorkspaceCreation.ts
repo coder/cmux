@@ -87,7 +87,10 @@ interface UseStartWorkspaceCreationOptions {
   setSelectedWorkspace: (selection: WorkspaceSelection | null) => void;
 }
 
-function resolveProjectPath(projects: Map<string, ProjectConfig>, requestedPath: string): string | null {
+function resolveProjectPath(
+  projects: Map<string, ProjectConfig>,
+  requestedPath: string
+): string | null {
   if (projects.has(requestedPath)) {
     return requestedPath;
   }

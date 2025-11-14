@@ -61,7 +61,6 @@ function AppInner() {
     setSelectedWorkspace,
   });
 
-
   const handleToggleSidebar = useCallback(() => {
     setSidebarCollapsed((prev) => !prev);
   }, [setSidebarCollapsed]);
@@ -194,7 +193,6 @@ function AppInner() {
     },
     [handleRemoveProject]
   );
-
 
   const handleGetSecrets = useCallback(async (projectPath: string) => {
     return await window.api.projects.secrets.get(projectPath);
