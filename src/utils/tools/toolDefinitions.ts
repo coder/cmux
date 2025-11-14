@@ -116,13 +116,16 @@ export const TOOL_DEFINITIONS = {
     description:
       "Insert content into a file using substring guards. " +
       "Provide exactly one of before or after to anchor the operation when editing an existing file. " +
-      "Set create: true to write a brand new file without guards. " +
+      "Missing files are created automatically, so guards are optional when creating new files. " +
       `Optional before/after substrings must uniquely match surrounding content. ${TOOL_EDIT_WARNING}`,
     schema: z
       .object({
         file_path: FILE_EDIT_FILE_PATH,
         content: z.string().describe("The content to insert"),
-        create: z.boolean().optional().describe("If true, create the file if it does not exist"),
+        create: z
+          .boolean()
+          .optional()
+          .describe("Legacy compatibility; files are created automatically when missing, so this flag is ignored."),
         before: z
           .string()
           .min(1)
@@ -134,14 +137,6 @@ export const TOOL_DEFINITIONS = {
           .optional()
           .describe("Optional substring that must appear immediately after the insertion point"),
       })
-      .refine(
-        (data) => data.create === true || data.before !== undefined || data.after !== undefined,
-        {
-          message:
-            "Provide before or after when editing existing files, or set create: true to write a new file.",
-          path: ["before"],
-        }
-      )
       .refine((data) => !(data.before !== undefined && data.after !== undefined), {
         message: "Provide only one of before or after (not both).",
         path: ["before"],

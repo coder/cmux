@@ -74,7 +74,7 @@ export interface FileEditErrorResult {
 export interface FileEditInsertToolArgs {
   file_path: string;
   content: string;
-  /** When true, create the file if it doesn't exist */
+  /** @deprecated Legacy no-op. Files are created automatically when missing. */
   create?: boolean;
   /** Optional substring that must appear immediately before the insertion point */
   before?: string;

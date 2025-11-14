@@ -96,18 +96,31 @@ describe("file_edit_insert tool", () => {
     }
   });
 
-  it("creates new file when create flag is provided", async () => {
+  it("creates a new file without requiring create flag or guards", async () => {
     const newFile = path.join(testDir, "new.txt");
     const tool = createTestTool(testDir);
     const args: FileEditInsertToolArgs = {
       file_path: path.relative(testDir, newFile),
       content: "Hello world!\n",
-      create: true,
     };
 
     const result = (await tool.execute!(args, mockToolCallOptions)) as FileEditInsertToolResult;
     expect(result.success).toBe(true);
     expect(await fs.readFile(newFile, "utf-8")).toBe("Hello world!\n");
+  });
+
+  it("still supports the legacy create flag for backwards compatibility", async () => {
+    const newFile = path.join(testDir, "legacy.txt");
+    const tool = createTestTool(testDir);
+    const args: FileEditInsertToolArgs = {
+      file_path: path.relative(testDir, newFile),
+      content: "Legacy\n",
+      create: true,
+    };
+
+    const result = (await tool.execute!(args, mockToolCallOptions)) as FileEditInsertToolResult;
+    expect(result.success).toBe(true);
+    expect(await fs.readFile(newFile, "utf-8")).toBe("Legacy\n");
   });
 
   it("fails when no guards are provided", async () => {
