@@ -109,20 +109,6 @@ describe("file_edit_insert tool", () => {
     expect(await fs.readFile(newFile, "utf-8")).toBe("Hello world!\n");
   });
 
-  it("still supports the legacy create flag for backwards compatibility", async () => {
-    const newFile = path.join(testDir, "legacy.txt");
-    const tool = createTestTool(testDir);
-    const args: FileEditInsertToolArgs = {
-      file_path: path.relative(testDir, newFile),
-      content: "Legacy\n",
-      create: true,
-    };
-
-    const result = (await tool.execute!(args, mockToolCallOptions)) as FileEditInsertToolResult;
-    expect(result.success).toBe(true);
-    expect(await fs.readFile(newFile, "utf-8")).toBe("Legacy\n");
-  });
-
   it("fails when no guards are provided", async () => {
     const tool = createTestTool(testDir);
     const args: FileEditInsertToolArgs = {

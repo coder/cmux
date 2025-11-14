@@ -74,8 +74,6 @@ export interface FileEditErrorResult {
 export interface FileEditInsertToolArgs {
   file_path: string;
   content: string;
-  /** @deprecated Legacy no-op. Files are created automatically when missing. */
-  create?: boolean;
   /** Optional substring that must appear immediately before the insertion point */
   before?: string;
   /** Optional substring that must appear immediately after the insertion point */

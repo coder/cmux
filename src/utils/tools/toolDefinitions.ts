@@ -116,18 +116,12 @@ export const TOOL_DEFINITIONS = {
     description:
       "Insert content into a file using substring guards. " +
       "Provide exactly one of before or after to anchor the operation when editing an existing file. " +
-      "Missing files are created automatically, so guards are optional when creating new files. " +
+      "When the file does not exist, it is created automatically without guards. " +
       `Optional before/after substrings must uniquely match surrounding content. ${TOOL_EDIT_WARNING}`,
     schema: z
       .object({
         file_path: FILE_EDIT_FILE_PATH,
         content: z.string().describe("The content to insert"),
-        create: z
-          .boolean()
-          .optional()
-          .describe(
-            "Legacy compatibility; files are created automatically when missing, so this flag is ignored."
-          ),
         before: z
           .string()
           .min(1)
