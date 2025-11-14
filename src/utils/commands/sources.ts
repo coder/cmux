@@ -23,7 +23,7 @@ export interface BuildSourcesParams {
   getThinkingLevel: (workspaceId: string) => ThinkingLevel;
   onSetThinkingLevel: (workspaceId: string, level: ThinkingLevel) => void;
 
-  onOpenNewWorkspaceModal: (projectPath: string) => void;
+  onStartWorkspaceCreation: (projectPath: string) => void;
   getBranchesForProject: (projectPath: string) => Promise<BranchListResult>;
   onSelectWorkspace: (sel: {
     projectPath: string;
@@ -70,10 +70,9 @@ const section = {
 export function buildCoreSources(p: BuildSourcesParams): Array<() => CommandAction[]> {
   const actions: Array<() => CommandAction[]> = [];
 
-  // NOTE: We intentionally just open the NewWorkspaceModal instead of implementing
-  // an interactive prompt in the CommandPalette. This avoids duplicating UI logic
-  // and ensures consistency - both `/new` command and the command palette use the
-  // same modal for workspace creation.
+  // NOTE: We intentionally route to the chat-based creation flow instead of
+  // building a separate prompt. This keeps `/new`, keybinds, and the command
+  // palette perfectly aligned on one experience.
   const createWorkspaceForSelectedProjectAction = (
     selected: NonNullable<BuildSourcesParams["selectedWorkspace"]>
   ): CommandAction => {
@@ -83,7 +82,7 @@ export function buildCoreSources(p: BuildSourcesParams): Array<() => CommandActi
       subtitle: `for ${selected.projectName}`,
       section: section.workspaces,
       shortcutHint: formatKeybind(KEYBINDS.NEW_WORKSPACE),
-      run: () => p.onOpenNewWorkspaceModal(selected.projectPath),
+      run: () => p.onStartWorkspaceCreation(selected.projectPath),
     };
   };
 
@@ -476,8 +475,8 @@ export function buildCoreSources(p: BuildSourcesParams): Array<() => CommandActi
           ],
           onSubmit: (vals) => {
             const projectPath = vals.projectPath;
-            // Open the New Workspace Modal for the selected project
-            p.onOpenNewWorkspaceModal(projectPath);
+            // Reuse the chat-based creation flow for the selected project
+            p.onStartWorkspaceCreation(projectPath);
           },
         },
       },

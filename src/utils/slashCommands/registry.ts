@@ -539,12 +539,24 @@ const newCommandDefinition: SlashCommandDefinition = {
 
     // No workspace name provided - return undefined to open modal
     if (parsed._.length === 0) {
+      // Get trunk branch from -t flag
+      let trunkBranch: string | undefined;
+      if (parsed.t !== undefined && typeof parsed.t === "string" && parsed.t.trim().length > 0) {
+        trunkBranch = parsed.t.trim();
+      }
+
+      // Get runtime from -r flag
+      let runtime: string | undefined;
+      if (parsed.r !== undefined && typeof parsed.r === "string" && parsed.r.trim().length > 0) {
+        runtime = parsed.r.trim();
+      }
+
       return {
         type: "new",
         workspaceName: undefined,
-        trunkBranch: undefined,
-        runtime: undefined,
-        startMessage: undefined,
+        trunkBranch,
+        runtime,
+        startMessage: remainingLines,
       };
     }
 
