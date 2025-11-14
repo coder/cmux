@@ -74,6 +74,8 @@ export interface FileEditErrorResult {
 export interface FileEditInsertToolArgs {
   file_path: string;
   content: string;
+  /** When true, create the file if it doesn't exist */
+  create?: boolean;
   /** Optional substring that must appear immediately before the insertion point */
   before?: string;
   /** Optional substring that must appear immediately after the insertion point */

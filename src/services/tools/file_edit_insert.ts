@@ -3,8 +3,11 @@ import type { FileEditInsertToolArgs, FileEditInsertToolResult } from "@/types/t
 import { EDIT_FAILED_NOTE_PREFIX, NOTE_READ_FILE_RETRY } from "@/types/tools";
 import type { ToolConfiguration, ToolFactory } from "@/utils/tools/tools";
 import { TOOL_DEFINITIONS } from "@/utils/tools/toolDefinitions";
-import { validateAndCorrectPath, validatePathInCwd } from "./fileCommon";
+import { generateDiff, validateAndCorrectPath, validatePathInCwd } from "./fileCommon";
 import { executeFileEditOperation } from "./file_edit_operation";
+import { fileExists } from "@/utils/runtime/fileExists";
+import { writeFileString } from "@/utils/runtime/helpers";
+import { RuntimeError } from "@/runtime/Runtime";
 
 const READ_AND_RETRY_NOTE = `${EDIT_FAILED_NOTE_PREFIX} ${NOTE_READ_FILE_RETRY}`;
 
@@ -45,11 +48,15 @@ export const createFileEditInsertTool: ToolFactory = (config: ToolConfiguration)
     description: TOOL_DEFINITIONS.file_edit_insert.description,
     inputSchema: TOOL_DEFINITIONS.file_edit_insert.schema,
     execute: async (
-      { file_path, content, before, after }: FileEditInsertToolArgs,
+      { file_path, content, before, after, create }: FileEditInsertToolArgs,
       { abortSignal }
     ): Promise<FileEditInsertToolResult> => {
       try {
-        const { correctedPath } = validateAndCorrectPath(file_path, config.cwd, config.runtime);
+        const { correctedPath, warning: pathWarning } = validateAndCorrectPath(
+          file_path,
+          config.cwd,
+          config.runtime
+        );
         file_path = correctedPath;
 
         const pathValidation = validatePathInCwd(file_path, config.cwd, config.runtime);
@@ -57,6 +64,38 @@ export const createFileEditInsertTool: ToolFactory = (config: ToolConfiguration)
           return {
             success: false,
             error: pathValidation.error,
+          };
+        }
+
+        const resolvedPath = config.runtime.normalizePath(file_path, config.cwd);
+        const exists = await fileExists(config.runtime, resolvedPath, abortSignal);
+
+        if (!exists) {
+          if (!create) {
+            return {
+              success: false,
+              error: `File not found: ${file_path}. Set create: true to create it.`,
+              note: `${EDIT_FAILED_NOTE_PREFIX} File does not exist. Set create: true to create it, or check the file path.`,
+            };
+          }
+
+          try {
+            await writeFileString(config.runtime, resolvedPath, content, abortSignal);
+          } catch (err) {
+            if (err instanceof RuntimeError) {
+              return {
+                success: false,
+                error: err.message,
+              };
+            }
+            throw err;
+          }
+
+          const diff = generateDiff(resolvedPath, "", content);
+          return {
+            success: true,
+            diff,
+            ...(pathWarning && { warning: pathWarning }),
           };
         }
 
