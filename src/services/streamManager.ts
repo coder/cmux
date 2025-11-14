@@ -129,6 +129,9 @@ export class StreamManager extends EventEmitter {
   private readonly partialService: PartialService;
   // Token tracker for live streaming statistics
   private tokenTracker = new StreamingTokenTracker();
+  // Track OpenAI previousResponseIds that have been invalidated
+  // When frontend retries, buildProviderOptions will omit these IDs
+  private lostResponseIds = new Set<string>();
 
   constructor(historyService: HistoryService, partialService: PartialService) {
     super();
@@ -888,6 +891,10 @@ export class StreamManager extends EventEmitter {
       // Log the actual error for debugging
       console.error("Stream processing error:", error);
 
+      // Check if this is a lost previousResponseId error and record it
+      // Frontend will automatically retry, and buildProviderOptions will filter it out
+      this.recordLostResponseIdIfApplicable(error, streamInfo);
+
       // Extract error message (errors thrown from 'error' parts already have the correct message)
       let errorMessage: string = error instanceof Error ? error.message : String(error);
       let actualError: unknown = error;
@@ -1156,55 +1163,35 @@ export class StreamManager extends EventEmitter {
       // Step 3: Create temp directory for this stream using runtime
       // If token was provided, temp dir might already exist - mkdir -p handles this
       const runtimeTempDir = await this.createTempDirForStream(streamToken, runtime);
-      const providerOptionsClone = providerOptions ? structuredClone(providerOptions) : undefined;
 
-      const startWithOptions = (options?: Record<string, unknown>) => {
-        const streamInfo = this.createStreamAtomically(
-          typedWorkspaceId,
-          streamToken,
-          runtimeTempDir,
-          runtime,
-          messages,
-          model,
-          modelString,
-          abortSignal,
-          system,
-          historySequence,
-          tools,
-          initialMetadata,
-          options,
-          maxOutputTokens,
-          toolPolicy
-        );
+      // Step 4: Atomic stream creation and registration
+      const streamInfo = this.createStreamAtomically(
+        typedWorkspaceId,
+        streamToken,
+        runtimeTempDir,
+        runtime,
+        messages,
+        model,
+        modelString,
+        abortSignal,
+        system,
+        historySequence,
+        tools,
+        initialMetadata,
+        providerOptions,
+        maxOutputTokens,
+        toolPolicy
+      );
 
-        streamInfo.processingPromise = this.processStreamWithCleanup(
-          typedWorkspaceId,
-          streamInfo,
-          historySequence
-        ).catch((error) => {
-          console.error("Unexpected error in stream processing:", error);
-        });
-      };
-
-      try {
-        startWithOptions(providerOptionsClone);
-      } catch (error) {
-        if (this.shouldRetryMissingPreviousResponse(error, providerOptionsClone)) {
-          const previous = this.getOpenAIPreviousResponse(providerOptionsClone);
-          log.info(
-            "Retrying without previousResponseId after OpenAI invalidated stored response metadata",
-            {
-              workspaceId,
-              model: modelString,
-              previousResponseId: previous?.value,
-            }
-          );
-          this.removePreviousResponseId(providerOptionsClone);
-          startWithOptions(providerOptionsClone);
-        } else {
-          throw error;
-        }
-      }
+      // Step 5: Track the processing promise for guaranteed cleanup
+      // This allows cancelStreamSafely to wait for full exit
+      streamInfo.processingPromise = this.processStreamWithCleanup(
+        typedWorkspaceId,
+        streamInfo,
+        historySequence
+      ).catch((error) => {
+        console.error("Unexpected error in stream processing:", error);
+      });
 
       return Ok(streamToken);
     } catch (error) {
@@ -1215,38 +1202,60 @@ export class StreamManager extends EventEmitter {
     }
   }
 
-  private shouldRetryMissingPreviousResponse(
-    error: unknown,
-    providerOptions?: Record<string, unknown>
-  ): boolean {
-    if (!this.getOpenAIPreviousResponse(providerOptions)) {
-      return false;
+  /**
+   * Record a previousResponseId as lost if the error indicates OpenAI no longer has it
+   * Frontend will automatically retry, and buildProviderOptions will filter it out
+   */
+  private recordLostResponseIdIfApplicable(error: unknown, streamInfo: WorkspaceStreamInfo): void {
+    const errorCode = this.extractErrorCode(error);
+    if (errorCode !== "previous_response_not_found") {
+      return;
     }
-    return this.extractErrorCode(error) === "previous_response_not_found";
+
+    // Extract previousResponseId from the stream's initial provider options
+    // We need to check streamInfo.streamResult.providerOptions, but that's not exposed
+    // Instead, we can extract it from the error response body if it contains it
+    const responseId = this.extractPreviousResponseIdFromError(error);
+    if (responseId) {
+      log.info("Recording lost previousResponseId for future filtering", {
+        previousResponseId: responseId,
+        workspaceId: streamInfo.messageId,
+        model: streamInfo.model,
+      });
+      this.lostResponseIds.add(responseId);
+    }
   }
 
-  private removePreviousResponseId(providerOptions?: Record<string, unknown>): void {
-    const previous = this.getOpenAIPreviousResponse(providerOptions);
-    if (previous) {
-      delete previous.openaiOptions.previousResponseId;
+  /**
+   * Extract previousResponseId from error response body
+   * OpenAI's error message includes the ID: "Previous response with id 'resp_...' not found."
+   */
+  private extractPreviousResponseIdFromError(error: unknown): string | undefined {
+    // Check APICallError.responseBody first
+    if (APICallError.isInstance(error) && typeof error.responseBody === "string") {
+      const match = /'(resp_[a-f0-9]+)'/.exec(error.responseBody);
+      if (match) {
+        return match[1];
+      }
     }
+
+    // Check error message
+    if (error instanceof Error) {
+      const match = /'(resp_[a-f0-9]+)'/.exec(error.message);
+      if (match) {
+        return match[1];
+      }
+    }
+
+    return undefined;
   }
 
-  private getOpenAIPreviousResponse(
-    providerOptions?: Record<string, unknown>
-  ): { value: string; openaiOptions: Record<string, unknown> } | undefined {
-    if (!providerOptions || typeof providerOptions !== "object") {
-      return undefined;
-    }
-    const rawOpenAI = (providerOptions as Record<string, unknown>).openai;
-    if (!rawOpenAI || typeof rawOpenAI !== "object") {
-      return undefined;
-    }
-    const previousResponseId = (rawOpenAI as Record<string, unknown>).previousResponseId;
-    if (typeof previousResponseId !== "string" || previousResponseId.length === 0) {
-      return undefined;
-    }
-    return { value: previousResponseId, openaiOptions: rawOpenAI as Record<string, unknown> };
+  /**
+   * Check if a previousResponseId has been marked as lost
+   * Called by buildProviderOptions to filter out invalid IDs
+   */
+  public isResponseIdLost(responseId: string): boolean {
+    return this.lostResponseIds.has(responseId);
   }
 
   private extractErrorCode(error: unknown): string | undefined {
@@ -1260,11 +1269,7 @@ export class StreamManager extends EventEmitter {
       if (directCode) {
         return directCode;
       }
-      if (
-        candidate &&
-        typeof candidate === "object" &&
-        "data" in candidate
-      ) {
+      if (candidate && typeof candidate === "object" && "data" in candidate) {
         const dataCandidate = (candidate as { data?: unknown }).data;
         const nestedCode = this.getStructuredErrorCode(dataCandidate);
         if (nestedCode) {
@@ -1276,11 +1281,7 @@ export class StreamManager extends EventEmitter {
   }
 
   private getStructuredErrorCode(candidate: unknown): string | undefined {
-    if (
-      typeof candidate === "object" &&
-      candidate !== null &&
-      "error" in candidate
-    ) {
+    if (typeof candidate === "object" && candidate !== null && "error" in candidate) {
       const withError = candidate as { error?: unknown };
       if (withError.error && typeof withError.error === "object") {
         const nested = withError.error as Record<string, unknown>;

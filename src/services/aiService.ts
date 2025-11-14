@@ -826,10 +826,12 @@ export class AIService extends EventEmitter {
 
       // Build provider options based on thinking level and message history
       // Pass filtered messages so OpenAI can extract previousResponseId for persistence
+      // Also pass callback to filter out lost responseIds (OpenAI invalidated them)
       const providerOptions = buildProviderOptions(
         modelString,
         thinkingLevel ?? "off",
-        filteredMessages
+        filteredMessages,
+        (id) => this.streamManager.isResponseIdLost(id)
       );
 
       // Delegate to StreamManager with model instance, system message, tools, historySequence, and initial metadata

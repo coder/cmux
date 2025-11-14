@@ -410,13 +410,17 @@ describe("StreamManager - Unavailable Tool Handling", () => {
   });
 });
 
-
 describe("StreamManager - previousResponseId recovery", () => {
-  test("retries once when OpenAI drops previousResponseId", async () => {
+  test("records lost previousResponseId when OpenAI rejects it", async () => {
     const mockHistoryService = createMockHistoryService();
     const mockPartialService = createMockPartialService();
     const streamManager = new StreamManager(mockHistoryService, mockPartialService);
-    streamManager.on("error", () => undefined);
+
+    // Don't suppress error events - we need to verify the error is handled
+    let errorEventReceived = false;
+    streamManager.on("error", () => {
+      errorEventReceived = true;
+    });
 
     const runtime = {} as Runtime;
 
@@ -426,13 +430,21 @@ describe("StreamManager - previousResponseId recovery", () => {
     const createTempDirMock = mock(async () => "/tmp/token");
     Reflect.set(streamManager, "createTempDirForStream", createTempDirMock);
 
-    const processStreamMock = mock(() => Promise.resolve());
-    Reflect.set(streamManager, "processStreamWithCleanup", processStreamMock);
+    // Verify the ID is not lost initially
+    expect(streamManager.isResponseIdLost("resp_123abc")).toBe(false);
 
+    // Simulate stream creation that will fail during processing
     const streamInfoStub = {
       state: "starting",
       streamResult: {
-        fullStream: (async function* () { /* noop */ })(),
+        fullStream: (async function* () {
+          // Simulate OpenAI rejecting the previousResponseId during streaming
+          throw {
+            responseBody:
+              '{"error":{"message":"Previous response with id \'resp_123abc\' not found.","code":"previous_response_not_found"}}',
+            data: { error: { code: "previous_response_not_found" } },
+          };
+        })(),
         usage: Promise.resolve(undefined),
         providerMetadata: Promise.resolve(undefined),
       },
@@ -449,28 +461,16 @@ describe("StreamManager - previousResponseId recovery", () => {
       runtime,
     };
 
-    let attempt = 0;
-    const createStreamAtomicallyMock = mock((...args: unknown[]) => {
-      const optionsArg = args[12] as Record<string, unknown> | undefined;
-      attempt += 1;
-      if (attempt === 1) {
-        throw { data: { error: { code: "previous_response_not_found" } } };
-      }
-      const openaiOptions =
-        optionsArg && (optionsArg as { openai?: Record<string, unknown> }).openai;
-      expect(openaiOptions).toBeDefined();
-      if (openaiOptions) {
-        expect((openaiOptions as Record<string, unknown>).previousResponseId).toBeUndefined();
-      }
+    const createStreamAtomicallyMock = mock(() => {
       return streamInfoStub;
     });
 
     Reflect.set(streamManager, "createStreamAtomically", createStreamAtomicallyMock);
 
-    const providerOptions = { openai: { previousResponseId: "resp_123" } };
+    const providerOptions = { openai: { previousResponseId: "resp_123abc" } };
 
     const result = await streamManager.startStream(
-      "workspace-prev-retry",
+      "workspace-lost-id",
       [{ role: "user", content: "test" }],
       {} as unknown as LanguageModel,
       "openai:gpt-test",
@@ -486,9 +486,16 @@ describe("StreamManager - previousResponseId recovery", () => {
       undefined
     );
 
-
+    // Stream should be created successfully (error happens during processing)
     expect(result.success).toBe(true);
-    expect(createStreamAtomicallyMock.mock.calls.length).toBe(2);
-    expect(processStreamMock.mock.calls.length).toBe(1);
+
+    // Wait for processing to complete and emit error event
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
+    // Verify error event was emitted
+    expect(errorEventReceived).toBe(true);
+
+    // Verify the ID was recorded as lost
+    expect(streamManager.isResponseIdLost("resp_123abc")).toBe(true);
   });
 });
