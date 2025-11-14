@@ -360,13 +360,8 @@ export const ChatInput: React.FC<ChatInputProps> = (props) => {
     if (variant !== "workspace") return;
 
     // Small delay to ensure DOM is ready and other components have settled
-    // Don't auto-focus if the terminal has focus (user is typing in terminal)
     const timer = setTimeout(() => {
-      const activeElement = document.activeElement;
-      const terminalHasFocus = activeElement?.closest(".terminal-view") !== null;
-      if (!terminalHasFocus) {
-        focusMessageInput();
-      }
+      focusMessageInput();
     }, 100);
     return () => clearTimeout(timer);
   }, [variant, workspaceIdForFocus, focusMessageInput]);

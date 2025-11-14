@@ -47,25 +47,6 @@ export function TerminalView({ workspaceId, sessionId, visible }: TerminalViewPr
     resizeRef.current = resize;
   }, [sendInput, resize]);
 
-  // Stop keyboard event propagation to prevent global keybinds from interfering
-  useEffect(() => {
-    const container = containerRef.current;
-    if (!container || !visible) return;
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // Stop propagation in bubble phase (after terminal processes the event)
-      // This prevents the event from reaching window listeners but allows
-      // the terminal's canvas element to receive it first
-      e.stopPropagation();
-    };
-
-    // Don't use capture phase - let event reach terminal first
-    container.addEventListener("keydown", handleKeyDown, false);
-    return () => {
-      container.removeEventListener("keydown", handleKeyDown, false);
-    };
-  }, [visible]);
-
   // Initialize terminal when visible
   useEffect(() => {
     if (!containerRef.current || !visible) {
@@ -246,10 +227,6 @@ export function TerminalView({ workspaceId, sessionId, visible }: TerminalViewPr
         width: "100%",
         height: "100%",
         backgroundColor: "#1e1e1e",
-      }}
-      onKeyDown={(e) => {
-        // Stop propagation so global keybinds don't interfere with terminal input
-        e.stopPropagation();
       }}
     >
       {errorMessage && (
