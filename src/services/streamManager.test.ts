@@ -329,6 +329,8 @@ describe("StreamManager - Unavailable Tool Handling", () => {
     mockHistoryService = createMockHistoryService();
     mockPartialService = createMockPartialService();
     streamManager = new StreamManager(mockHistoryService, mockPartialService);
+    // Suppress error events - processStreamWithCleanup may throw due to tokenizer worker issues in test env
+    streamManager.on("error", () => undefined);
   });
 
   test("should handle tool-error events from SDK", async () => {
