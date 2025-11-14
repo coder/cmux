@@ -13,9 +13,9 @@ import type {
   BashToolResult,
   FileReadToolArgs,
   FileReadToolResult,
+  FileEditReplaceStringToolArgs,
   FileEditInsertToolArgs,
   FileEditInsertToolResult,
-  FileEditReplaceStringToolArgs,
   FileEditReplaceStringToolResult,
   FileEditReplaceLinesToolArgs,
   FileEditReplaceLinesToolResult,
@@ -121,19 +121,6 @@ export const ToolMessage: React.FC<ToolMessageProps> = ({ message, className, wo
     );
   }
 
-  if (isFileEditReplaceLinesTool(message.toolName, message.args)) {
-    return (
-      <div className={className}>
-        <FileEditToolCall
-          toolName="file_edit_replace_lines"
-          args={message.args}
-          result={message.result as FileEditReplaceLinesToolResult | undefined}
-          status={message.status}
-        />
-      </div>
-    );
-  }
-
   if (isFileEditInsertTool(message.toolName, message.args)) {
     return (
       <div className={className}>
@@ -141,6 +128,19 @@ export const ToolMessage: React.FC<ToolMessageProps> = ({ message, className, wo
           toolName="file_edit_insert"
           args={message.args}
           result={message.result as FileEditInsertToolResult | undefined}
+          status={message.status}
+        />
+      </div>
+    );
+  }
+
+  if (isFileEditReplaceLinesTool(message.toolName, message.args)) {
+    return (
+      <div className={className}>
+        <FileEditToolCall
+          toolName="file_edit_replace_lines"
+          args={message.args}
+          result={message.result as FileEditReplaceLinesToolResult | undefined}
           status={message.status}
         />
       </div>

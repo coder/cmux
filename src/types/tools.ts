@@ -71,6 +71,19 @@ export interface FileEditErrorResult {
   note?: string; // Agent-only message (not displayed in UI)
 }
 
+export interface FileEditInsertToolArgs {
+  file_path: string;
+  content: string;
+  /** When true, create the file if it doesn't exist */
+  create?: boolean;
+  /** Optional substring that must appear immediately before the insertion point */
+  before?: string;
+  /** Optional substring that must appear immediately after the insertion point */
+  after?: string;
+}
+
+export type FileEditInsertToolResult = FileEditDiffSuccessBase | FileEditErrorResult;
+
 export interface FileEditReplaceStringToolArgs {
   file_path: string;
   old_string: string;
@@ -112,15 +125,6 @@ export const FILE_EDIT_TOOL_NAMES = [
 ] as const;
 
 export type FileEditToolName = (typeof FILE_EDIT_TOOL_NAMES)[number];
-
-export interface FileEditInsertToolArgs {
-  file_path: string;
-  line_offset: number;
-  content: string;
-  create?: boolean;
-}
-
-export type FileEditInsertToolResult = FileEditDiffSuccessBase | FileEditErrorResult;
 
 /**
  * Prefix for file write denial error messages.
