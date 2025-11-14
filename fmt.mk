@@ -30,7 +30,7 @@ fmt-prettier:
 
 fmt-prettier-check:
 	@echo "Checking TypeScript/JSON/Markdown formatting..."
-	@$(PRETTIER) --log-level warn --check $(PRETTIER_PATTERNS)
+	@$(PRETTIER) --log-level log --check $(PRETTIER_PATTERNS)
 
 fmt-shell:
 ifeq ($(SHFMT),)
