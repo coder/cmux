@@ -253,21 +253,19 @@ const webApi: IPCApi = {
     create: (params) => invokeIPC(IPC_CHANNELS.TERMINAL_CREATE, params),
     close: (sessionId) => invokeIPC(IPC_CHANNELS.TERMINAL_CLOSE, sessionId),
     resize: (params) => invokeIPC(IPC_CHANNELS.TERMINAL_RESIZE, params),
-    sendInput: (_sessionId: string, _data: string) => {
-      // Not implemented in browser mode - terminals use IPC events
-      throw new Error("Terminal input not supported in browser mode");
+    sendInput: (sessionId: string, data: string) => {
+      // Send via IPC - in browser mode this becomes an HTTP POST
+      void invokeIPC(IPC_CHANNELS.TERMINAL_INPUT, sessionId, data);
     },
-    onOutput: (_sessionId: string, _callback: (data: string) => void) => {
-      // Not implemented in browser mode - terminals use IPC events
-      return () => {
-        // no-op cleanup
-      };
+    onOutput: (sessionId: string, callback: (data: string) => void) => {
+      // Subscribe to terminal output events via WebSocket
+      const channel = `terminal:output:${sessionId}`;
+      return wsManager.on(channel, callback as (data: unknown) => void);
     },
-    onExit: (_sessionId: string, _callback: (exitCode: number) => void) => {
-      // Not implemented in browser mode - terminals use IPC events
-      return () => {
-        // no-op cleanup
-      };
+    onExit: (sessionId: string, callback: (exitCode: number) => void) => {
+      // Subscribe to terminal exit events via WebSocket
+      const channel = `terminal:exit:${sessionId}`;
+      return wsManager.on(channel, callback as (data: unknown) => void);
     },
     openWindow: (workspaceId) => invokeIPC(IPC_CHANNELS.TERMINAL_WINDOW_OPEN, workspaceId),
     closeWindow: (workspaceId) => invokeIPC(IPC_CHANNELS.TERMINAL_WINDOW_CLOSE, workspaceId),
