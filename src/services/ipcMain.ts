@@ -1480,9 +1480,9 @@ export class IpcMain {
     ipcMain.handle(IPC_CHANNELS.TERMINAL_CREATE, async (event, params: TerminalCreateParams) => {
       try {
         // Get the window that requested this terminal
-        // In Electron, use the actual sender window. In browser mode, event.sender is null,
-        // so we use the mockWindow which broadcasts to all WebSocket clients
-        const senderWindow = event.sender ? BrowserWindow.fromWebContents(event.sender) : mainWindow;
+        // In Electron, use the actual sender window. In browser mode, event is null,
+        // so we use the mainWindow (mockWindow) which broadcasts to all WebSocket clients
+        const senderWindow = event?.sender ? BrowserWindow.fromWebContents(event.sender) : mainWindow;
         if (!senderWindow) {
           throw new Error("Could not find sender window for terminal creation");
         }
