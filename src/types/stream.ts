@@ -27,6 +27,7 @@ export interface StreamDeltaEvent {
   delta: string;
   tokens: number; // Token count for this delta
   timestamp: number; // When delta was received (Date.now())
+  softInterruptPending?: boolean; // Set to true when soft interrupt is triggered
 }
 
 export interface StreamEndEvent {

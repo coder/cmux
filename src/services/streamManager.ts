@@ -106,6 +106,8 @@ interface WorkspaceStreamInfo {
   partialWritePromise?: Promise<void>;
   // Track background processing promise for guaranteed cleanup
   processingPromise: Promise<void>;
+  // Flag for soft-interrupt: when true, stream will end at next block boundary
+  softInterruptPending: boolean;
   // Temporary directory for tool outputs (auto-cleaned when stream ends)
   runtimeTempDir: string;
   // Runtime for temp directory cleanup
@@ -414,29 +416,61 @@ export class StreamManager extends EventEmitter {
 
       streamInfo.abortController.abort();
 
-      // CRITICAL: Wait for processing to fully complete before cleanup
-      // This prevents race conditions where the old stream is still running
-      // while a new stream starts (e.g., old stream writing to partial.json)
-      await streamInfo.processingPromise;
-
-      // Get usage and duration metadata (usage may be undefined if aborted early)
-      const { usage, duration } = await this.getStreamMetadata(streamInfo);
-
-      // Emit abort event with usage if available
-      this.emit("stream-abort", {
-        type: "stream-abort",
-        workspaceId: workspaceId as string,
-        messageId: streamInfo.messageId,
-        metadata: { usage, duration },
-      });
-
-      // Clean up immediately
-      this.workspaceStreams.delete(workspaceId);
+      await this.cleanupStream(workspaceId, streamInfo);
     } catch (error) {
       console.error("Error during stream cancellation:", error);
       // Force cleanup even if cancellation fails
       this.workspaceStreams.delete(workspaceId);
     }
+  }
+
+  // Checks if a soft interrupt is necessary, and performs one if so
+  // Similar to cancelStreamSafely but performs cleanup without blocking
+  private async checkSoftCancelStream(
+    workspaceId: WorkspaceId,
+    streamInfo: WorkspaceStreamInfo
+  ): Promise<void> {
+    if (!streamInfo.softInterruptPending) return;
+    try {
+      streamInfo.state = StreamState.STOPPING;
+
+      // Flush any pending partial write immediately (preserves work on interruption)
+      await this.flushPartialWrite(workspaceId, streamInfo);
+
+      streamInfo.abortController.abort();
+
+      // Return back to the stream loop so we can wait for it to finish before
+      // sending the stream abort event.
+      void this.cleanupStream(workspaceId, streamInfo);
+    } catch (error) {
+      console.error("Error during stream cancellation:", error);
+      // Force cleanup even if cancellation fails
+      this.workspaceStreams.delete(workspaceId);
+    }
+  }
+
+  private async cleanupStream(
+    workspaceId: WorkspaceId,
+    streamInfo: WorkspaceStreamInfo
+  ): Promise<void> {
+    // CRITICAL: Wait for processing to fully complete before cleanup
+    // This prevents race conditions where the old stream is still running
+    // while a new stream starts (e.g., old stream writing to partial.json)
+    await streamInfo.processingPromise;
+
+    // Get usage and duration metadata (usage may be undefined if aborted early)
+    const { usage, duration } = await this.getStreamMetadata(streamInfo);
+
+    // Emit abort event with usage if available
+    this.emit("stream-abort", {
+      type: "stream-abort",
+      workspaceId: workspaceId as string,
+      messageId: streamInfo.messageId,
+      metadata: { usage, duration },
+    });
+
+    // Clean up immediately
+    this.workspaceStreams.delete(workspaceId);
   }
 
   /**
@@ -525,6 +559,7 @@ export class StreamManager extends EventEmitter {
       lastPartialWriteTime: 0, // Initialize to 0 to allow immediate first write
       partialWritePromise: undefined, // No write in flight initially
       processingPromise: Promise.resolve(), // Placeholder, overwritten in startStream
+      softInterruptPending: false, // Initialize to false
       runtimeTempDir, // Stream-scoped temp directory for tool outputs
       runtime, // Runtime for temp directory cleanup
     };
@@ -688,6 +723,7 @@ export class StreamManager extends EventEmitter {
               workspaceId: workspaceId as string,
               messageId: streamInfo.messageId,
             });
+            await this.checkSoftCancelStream(workspaceId, streamInfo);
             break;
           }
 
@@ -742,6 +778,7 @@ export class StreamManager extends EventEmitter {
                 strippedOutput
               );
             }
+            await this.checkSoftCancelStream(workspaceId, streamInfo);
             break;
           }
 
@@ -778,6 +815,7 @@ export class StreamManager extends EventEmitter {
               toolErrorPart.toolName,
               errorOutput
             );
+            await this.checkSoftCancelStream(workspaceId, streamInfo);
             break;
           }
 
@@ -823,8 +861,13 @@ export class StreamManager extends EventEmitter {
           case "start-step":
           case "text-start":
           case "finish":
-          case "finish-step":
             // These events can be logged or handled if needed
+            break;
+
+          case "finish-step":
+          case "text-end":
+          case "tool-input-end":
+            await this.checkSoftCancelStream(workspaceId, streamInfo);
             break;
         }
       }
@@ -1196,14 +1239,32 @@ export class StreamManager extends EventEmitter {
 
   /**
    * Stops an active stream for a workspace
+   * First call: Sets soft interrupt and emits delta event → frontend shows "Interrupting..."
+   * Second call: Hard aborts the stream immediately
    */
   async stopStream(workspaceId: string): Promise<Result<void>> {
     const typedWorkspaceId = workspaceId as WorkspaceId;
 
     try {
       const streamInfo = this.workspaceStreams.get(typedWorkspaceId);
-      if (streamInfo) {
+      if (!streamInfo) {
+        return Ok(undefined); // No active stream
+      }
+
+      if (streamInfo.softInterruptPending) {
         await this.cancelStreamSafely(typedWorkspaceId, streamInfo);
+      } else {
+        // First Escape: Soft interrupt - emit delta to notify frontend
+        streamInfo.softInterruptPending = true;
+        this.emit("stream-delta", {
+          type: "stream-delta",
+          workspaceId: workspaceId,
+          messageId: streamInfo.messageId,
+          delta: "",
+          tokens: 0,
+          timestamp: Date.now(),
+          softInterruptPending: true, // Signal to frontend
+        });
       }
       return Ok(undefined);
     } catch (error) {

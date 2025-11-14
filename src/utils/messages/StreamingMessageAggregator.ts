@@ -32,6 +32,7 @@ interface StreamingContext {
   startTime: number;
   isComplete: boolean;
   isCompacting: boolean;
+  softInterruptPending: boolean;
   model: string;
 }
 
@@ -287,6 +288,15 @@ export class StreamingMessageAggregator {
     return false;
   }
 
+  getSoftInterruptPending(): boolean {
+    for (const context of this.activeStreams.values()) {
+      if (context.softInterruptPending) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   getCurrentModel(): string | undefined {
     // If there's an active stream, return its model
     for (const context of this.activeStreams.values()) {
@@ -352,6 +362,7 @@ export class StreamingMessageAggregator {
       startTime: Date.now(),
       isComplete: false,
       isCompacting,
+      softInterruptPending: false,
       model: data.model,
     };
 
@@ -374,12 +385,22 @@ export class StreamingMessageAggregator {
     const message = this.messages.get(data.messageId);
     if (!message) return;
 
-    // Append each delta as a new part (merging happens at display time)
-    message.parts.push({
-      type: "text",
-      text: data.delta,
-      timestamp: data.timestamp,
-    });
+    // Handle soft interrupt signal from backend
+    if (data.softInterruptPending !== undefined) {
+      const context = this.activeStreams.get(data.messageId);
+      if (context) {
+        context.softInterruptPending = data.softInterruptPending;
+      }
+    }
+
+    // Skip appending if this is an empty delta (e.g., just signaling interrupt)
+    if (data.delta) {
+      message.parts.push({
+        type: "text",
+        text: data.delta,
+        timestamp: data.timestamp,
+      });
+    }
 
     // Track delta for token counting and TPS calculation
     this.trackDelta(data.messageId, data.tokens, data.timestamp, "text");

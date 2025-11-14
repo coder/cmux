@@ -1,7 +1,7 @@
 import React, { useCallback, useMemo } from "react";
 import { cn } from "@/lib/utils";
 import { TooltipWrapper, Tooltip } from "./Tooltip";
-import { useWorkspaceSidebarState } from "@/stores/WorkspaceStore";
+import { canInterrupt, useWorkspaceSidebarState } from "@/stores/WorkspaceStore";
 import { getStatusTooltip } from "@/utils/ui/statusTooltip";
 
 interface AgentStatusIndicatorProps {
@@ -22,10 +22,10 @@ export const AgentStatusIndicator: React.FC<AgentStatusIndicatorProps> = ({
   className,
 }) => {
   // Get workspace state
-  const { canInterrupt, currentModel, agentStatus, recencyTimestamp } =
+  const { interruptType, currentModel, agentStatus, recencyTimestamp } =
     useWorkspaceSidebarState(workspaceId);
 
-  const streaming = canInterrupt;
+  const streaming = canInterrupt(interruptType);
 
   // Compute unread status if lastReadTimestamp provided (sidebar only)
   const unread = useMemo(() => {
