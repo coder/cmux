@@ -109,5 +109,4 @@ describe("file_edit_insert tool", () => {
       expect(result.error).toContain("Provide either a before or after guard");
     }
   });
-
 });
