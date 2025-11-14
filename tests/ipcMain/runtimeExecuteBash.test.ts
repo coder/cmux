@@ -33,6 +33,7 @@ import {
   type SSHServerConfig,
 } from "../runtime/ssh-fixture";
 import type { RuntimeConfig } from "../../src/types/runtime";
+import type { WorkspaceChatMessage } from "../../src/types/ipc";
 import type { ToolPolicy } from "../../src/utils/tools/toolPolicy";
 
 // Tool policy: Only allow bash tool
@@ -40,6 +41,16 @@ const BASH_ONLY: ToolPolicy = [
   { regex_match: "bash", action: "enable" },
   { regex_match: "file_.*", action: "disable" },
 ];
+
+function collectToolOutputs(events: WorkspaceChatMessage[], toolName: string): string {
+  return events
+    .filter((event: any) => event.type === "tool-call-end" && event.toolName === toolName)
+    .map((event: any) => {
+      const output = event.result?.output;
+      return typeof output === "string" ? output : "";
+    })
+    .join("\n");
+}
 
 // Skip all tests if TEST_INTEGRATION is not set
 const describeIntegration = shouldRunIntegrationTests() ? describe : describe.skip;
@@ -264,7 +275,8 @@ describeIntegration("Runtime Bash Execution", () => {
 
               // Verify command completed successfully (not timeout)
               expect(responseText).toContain("test");
-              expect(responseText).toContain("data");
+              const bashOutput = collectToolOutputs(events, "bash");
+              expect(bashOutput).toContain('"test": "data"');
 
               // Verify command completed quickly (not hanging until timeout)
               // With tokenizer preloading, both local and SSH complete in ~8s total

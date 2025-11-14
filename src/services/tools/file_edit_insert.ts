@@ -48,7 +48,7 @@ export const createFileEditInsertTool: ToolFactory = (config: ToolConfiguration)
     description: TOOL_DEFINITIONS.file_edit_insert.description,
     inputSchema: TOOL_DEFINITIONS.file_edit_insert.schema,
     execute: async (
-      { file_path, content, before, after, create }: FileEditInsertToolArgs,
+      { file_path, content, before, after }: FileEditInsertToolArgs,
       { abortSignal }
     ): Promise<FileEditInsertToolResult> => {
       try {
@@ -71,14 +71,6 @@ export const createFileEditInsertTool: ToolFactory = (config: ToolConfiguration)
         const exists = await fileExists(config.runtime, resolvedPath, abortSignal);
 
         if (!exists) {
-          if (!create) {
-            return {
-              success: false,
-              error: `File not found: ${file_path}. Set create: true to create it.`,
-              note: `${EDIT_FAILED_NOTE_PREFIX} File does not exist. Set create: true to create it, or check the file path.`,
-            };
-          }
-
           try {
             await writeFileString(config.runtime, resolvedPath, content, abortSignal);
           } catch (err) {
@@ -139,7 +131,7 @@ function insertContent(
   }
 
   if (before === undefined && after === undefined) {
-    return guardFailure("Provide either a before or after guard to anchor the insertion point.");
+    return guardFailure("Provide either a before or after guard when editing existing files.");
   }
 
   return insertWithGuards(originalContent, contentToInsert, { before, after });
