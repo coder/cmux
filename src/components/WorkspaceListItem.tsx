@@ -164,7 +164,9 @@ const WorkspaceListItemInner: React.FC<WorkspaceListItemProps> = ({
                 title="Double-click to rename"
               >
                 {canInterrupt ? (
-                  <Shimmer className="h-4 w-full truncate" colorClass="var(--color-foreground)">{displayName}</Shimmer>
+                  <Shimmer className="h-4 w-full truncate" colorClass="var(--color-foreground)">
+                    {displayName}
+                  </Shimmer>
                 ) : (
                   displayName
                 )}
