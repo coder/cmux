@@ -362,13 +362,13 @@ function createMockAPI(overrides: Partial<IPCApi["projects"]>) {
     secrets: {
       get: mock(
         overrides.secrets?.get
-          ? (...args: Parameters<typeof overrides.secrets.get>) => overrides.secrets.get(...args)
+          ? (...args: Parameters<typeof overrides.secrets.get>) => overrides.secrets!.get(...args)
           : () => Promise.resolve([])
       ),
       update: mock(
         overrides.secrets?.update
           ? (...args: Parameters<typeof overrides.secrets.update>) =>
-              overrides.secrets.update(...args)
+              overrides.secrets!.update(...args)
           : () =>
               Promise.resolve({
                 success: true as const,
