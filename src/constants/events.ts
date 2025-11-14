@@ -50,6 +50,11 @@ export const CUSTOM_EVENTS = {
    * Detail: { commandId: string }
    */
   EXECUTE_COMMAND: "cmux:executeCommand",
+  /**
+   * Event to enter the chat-based workspace creation experience.
+   * Detail: { projectPath: string, startMessage?: string, model?: string, trunkBranch?: string, runtime?: string }
+   */
+  START_WORKSPACE_CREATION: "cmux:startWorkspaceCreation",
 } as const;
 
 /**
@@ -78,6 +83,13 @@ export interface CustomEventPayloads {
   };
   [CUSTOM_EVENTS.EXECUTE_COMMAND]: {
     commandId: string;
+  };
+  [CUSTOM_EVENTS.START_WORKSPACE_CREATION]: {
+    projectPath: string;
+    startMessage?: string;
+    model?: string;
+    trunkBranch?: string;
+    runtime?: string;
   };
 }
 
