@@ -1,5 +1,10 @@
 import { setupWorkspace, shouldRunIntegrationTests, validateApiKeys } from "./setup";
-import { sendMessageWithModel, createEventCollector, assertStreamSuccess } from "./helpers";
+import {
+  sendMessageWithModel,
+  createEventCollector,
+  assertStreamSuccess,
+  modelString,
+} from "./helpers";
 
 // Skip all tests if TEST_INTEGRATION is not set
 const describeIntegration = shouldRunIntegrationTests() ? describe : describe.skip;
@@ -32,8 +37,7 @@ describeIntegration("OpenAI web_search integration tests", () => {
           workspaceId,
           "Use web search to find the current weather in San Francisco. " +
             "Then tell me if it's a good day for a picnic.",
-          "openai",
-          "gpt-5-codex",
+          modelString("openai", "gpt-5.1-codex-mini"),
           {
             thinkingLevel: "medium", // Ensure reasoning without excessive deliberation
           }
