@@ -177,10 +177,12 @@ function AppInner() {
 
   const handleAddWorkspace = useCallback(
     (projectPath: string) => {
+      console.log("[App] handleAddWorkspace called with projectPath:", projectPath);
       // Show FirstMessageInput for this project
       setPendingNewWorkspaceProject(projectPath);
       // Clear any selected workspace so FirstMessageInput is shown
       setSelectedWorkspace(null);
+      console.log("[App] Set pendingNewWorkspaceProject to:", projectPath);
     },
     [setSelectedWorkspace]
   );

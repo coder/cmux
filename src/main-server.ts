@@ -165,17 +165,17 @@ const httpIpcMain = new HttpIpcMainAdapter(app);
 
   // Register stub handlers for desktop-only features
   // These prevent 404 errors in browser mode but don't actually do anything
-  httpIpcMain.handle(IPC_CHANNELS.UPDATE_CHECK, async () => {
+  httpIpcMain.handle(IPC_CHANNELS.UPDATE_CHECK, () => {
     // No-op: app updates don't apply in server mode
-    return null;
+    return Promise.resolve(null);
   });
-  httpIpcMain.handle(IPC_CHANNELS.UPDATE_DOWNLOAD, async () => {
+  httpIpcMain.handle(IPC_CHANNELS.UPDATE_DOWNLOAD, () => {
     // No-op: app updates don't apply in server mode
-    return null;
+    return Promise.resolve(null);
   });
-  httpIpcMain.handle(IPC_CHANNELS.UPDATE_INSTALL, async () => {
+  httpIpcMain.handle(IPC_CHANNELS.UPDATE_INSTALL, () => {
     // No-op: app updates don't apply in server mode
-    return null;
+    return Promise.resolve(null);
   });
 
   // Serve static files from dist directory (built renderer)
