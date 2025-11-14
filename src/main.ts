@@ -1,5 +1,7 @@
 #!/usr/bin/env node
 
+// this is a test
+
 const isServer = process.argv.length > 2 && process.argv[2] === "server";
 
 if (isServer) {
