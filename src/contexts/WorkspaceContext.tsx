@@ -53,6 +53,9 @@ export interface WorkspaceContext {
     newName: string
   ) => Promise<{ success: boolean; error?: string }>;
   refreshWorkspaceMetadata: () => Promise<void>;
+  setWorkspaceMetadata: React.Dispatch<
+    React.SetStateAction<Map<string, FrontendWorkspaceMetadata>>
+  >;
 
   // Selection
   selectedWorkspace: WorkspaceSelection | null;
@@ -173,8 +176,13 @@ export function WorkspaceProvider(props: WorkspaceProviderProps) {
         const loadedProjects = new Map<string, ProjectConfig>(projectsList);
         props.onProjectsUpdate(loadedProjects);
 
-        // Reload workspace metadata to get the new workspace ID
-        await loadWorkspaceMetadata();
+        // Update metadata immediately to avoid race condition with validation effect
+        ensureCreatedAt(result.metadata);
+        setWorkspaceMetadata((prev) => {
+          const updated = new Map(prev);
+          updated.set(result.metadata.id, result.metadata);
+          return updated;
+        });
 
         // Return the new workspace selection
         return {
@@ -187,7 +195,7 @@ export function WorkspaceProvider(props: WorkspaceProviderProps) {
         throw new Error(result.error);
       }
     },
-    [loadWorkspaceMetadata, props]
+    [props]
   );
 
   const removeWorkspace = useCallback(
@@ -298,6 +306,7 @@ export function WorkspaceProvider(props: WorkspaceProviderProps) {
       removeWorkspace,
       renameWorkspace,
       refreshWorkspaceMetadata,
+      setWorkspaceMetadata,
       selectedWorkspace: props.selectedWorkspace,
       setSelectedWorkspace: props.onSelectedWorkspaceUpdate,
       pendingNewWorkspaceProject,

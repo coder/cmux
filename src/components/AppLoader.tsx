@@ -164,9 +164,7 @@ function AppLoaderInner(props: {
       addProject={props.addProject}
       removeProject={props.removeProject}
       workspaceMetadata={workspaceContext.workspaceMetadata}
-      setWorkspaceMetadata={() => {
-        /* no-op now since WorkspaceContext handles it */
-      }}
+      setWorkspaceMetadata={workspaceContext.setWorkspaceMetadata}
       createWorkspace={workspaceContext.createWorkspace}
       removeWorkspace={workspaceContext.removeWorkspace}
       renameWorkspace={workspaceContext.renameWorkspace}
