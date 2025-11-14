@@ -101,19 +101,21 @@ export function WorkspaceProvider(props: WorkspaceProviderProps) {
 
   // Load metadata once on mount
   useEffect(() => {
+    const { onProjectsUpdate } = props;
     void (async () => {
       await loadWorkspaceMetadata();
       // After loading metadata (which may trigger migration), reload projects
       // to ensure frontend has the updated config with workspace IDs
       const projectsList = await window.api.projects.list();
       const loadedProjects = new Map<string, ProjectConfig>(projectsList);
-      props.onProjectsUpdate(loadedProjects);
+      onProjectsUpdate(loadedProjects);
       setLoading(false);
     })();
-  }, [loadWorkspaceMetadata, props.onProjectsUpdate]);
+  }, [loadWorkspaceMetadata, props]);
 
   // Subscribe to metadata updates (for create/rename/delete operations)
   useEffect(() => {
+    const { onProjectsUpdate } = props;
     const unsubscribe = window.api.workspace.onMetadata(
       (event: { workspaceId: string; metadata: FrontendWorkspaceMetadata | null }) => {
         setWorkspaceMetadata((prev) => {
@@ -134,7 +136,7 @@ export function WorkspaceProvider(props: WorkspaceProviderProps) {
             void (async () => {
               const projectsList = await window.api.projects.list();
               const loadedProjects = new Map<string, ProjectConfig>(projectsList);
-              props.onProjectsUpdate(loadedProjects);
+              onProjectsUpdate(loadedProjects);
             })();
           }
 
@@ -146,7 +148,7 @@ export function WorkspaceProvider(props: WorkspaceProviderProps) {
     return () => {
       unsubscribe();
     };
-  }, [props.onProjectsUpdate]);
+  }, [props]);
 
   const createWorkspace = useCallback(
     async (
@@ -185,7 +187,7 @@ export function WorkspaceProvider(props: WorkspaceProviderProps) {
         throw new Error(result.error);
       }
     },
-    [loadWorkspaceMetadata, props.onProjectsUpdate]
+    [loadWorkspaceMetadata, props]
   );
 
   const removeWorkspace = useCallback(

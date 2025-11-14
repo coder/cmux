@@ -1,12 +1,12 @@
 import { useState, useEffect } from "react";
 import App from "../App";
 import { LoadingScreen } from "./LoadingScreen";
+import { useProjectManagement } from "../hooks/useProjectManagement";
 import { useWorkspaceStoreRaw } from "../stores/WorkspaceStore";
 import { useGitStatusStoreRaw } from "../stores/GitStatusStore";
 import { usePersistedState } from "../hooks/usePersistedState";
 import type { WorkspaceSelection } from "./ProjectSidebar";
 import { AppProvider } from "../contexts/AppContext";
-import { ProjectProvider, useProjectContext } from "../contexts/ProjectContext";
 import { WorkspaceProvider, useWorkspaceContext } from "../contexts/WorkspaceContext";
 
 /**
@@ -20,30 +20,27 @@ import { WorkspaceProvider, useWorkspaceContext } from "../contexts/WorkspaceCon
  * the need for conditional guards in effects.
  */
 export function AppLoader() {
-  return (
-    <ProjectProvider>
-      <AppLoaderMiddle />
-    </ProjectProvider>
-  );
-}
-
-function AppLoaderMiddle() {
   // Workspace selection - restored from localStorage immediately
   const [selectedWorkspace, setSelectedWorkspace] = usePersistedState<WorkspaceSelection | null>(
     "selectedWorkspace",
     null
   );
 
-  const { refreshProjects } = useProjectContext();
+  // Load projects
+  const projectManagement = useProjectManagement();
 
-  // Wrap with WorkspaceProvider
+  // Render App with WorkspaceProvider wrapping it
   return (
     <WorkspaceProvider
       selectedWorkspace={selectedWorkspace}
       onSelectedWorkspaceUpdate={setSelectedWorkspace}
-      onProjectsUpdate={refreshProjects}
+      onProjectsUpdate={projectManagement.setProjects}
     >
       <AppLoaderInner
+        projects={projectManagement.projects}
+        setProjects={projectManagement.setProjects}
+        addProject={projectManagement.addProject}
+        removeProject={projectManagement.removeProject}
         selectedWorkspace={selectedWorkspace}
         setSelectedWorkspace={setSelectedWorkspace}
       />
@@ -51,7 +48,14 @@ function AppLoaderMiddle() {
   );
 }
 
+/**
+ * Inner component that has access to WorkspaceContext
+ */
 function AppLoaderInner(props: {
+  projects: ReturnType<typeof useProjectManagement>["projects"];
+  setProjects: ReturnType<typeof useProjectManagement>["setProjects"];
+  addProject: ReturnType<typeof useProjectManagement>["addProject"];
+  removeProject: ReturnType<typeof useProjectManagement>["removeProject"];
   selectedWorkspace: WorkspaceSelection | null;
   setSelectedWorkspace: (workspace: WorkspaceSelection | null) => void;
 }) {
@@ -73,17 +77,13 @@ function AppLoaderInner(props: {
     } else {
       setStoresSynced(false);
     }
-  }, [
-    workspaceContext.loading,
-    workspaceContext.workspaceMetadata,
-    workspaceStore,
-    gitStatusStore,
-  ]);
+  }, [workspaceContext.loading, workspaceContext.workspaceMetadata, workspaceStore, gitStatusStore]);
 
   // Restore workspace from URL hash (runs once when stores are synced)
   const [hasRestoredFromHash, setHasRestoredFromHash] = useState(false);
 
   useEffect(() => {
+    const { setSelectedWorkspace } = props;
     // Wait until stores are synced before attempting restoration
     if (!storesSynced) return;
 
@@ -99,7 +99,7 @@ function AppLoaderInner(props: {
 
       if (metadata) {
         // Restore from hash (overrides localStorage)
-        props.setSelectedWorkspace({
+        setSelectedWorkspace({
           workspaceId: metadata.id,
           projectPath: metadata.projectPath,
           projectName: metadata.projectName,
@@ -114,11 +114,12 @@ function AppLoaderInner(props: {
   // Check for launch project from server (for --add-project flag)
   // This only applies in server mode
   useEffect(() => {
+    const { selectedWorkspace, setSelectedWorkspace } = props;
     // Wait until stores are synced and hash restoration is complete
     if (!storesSynced || !hasRestoredFromHash) return;
 
     // Skip if we already have a selected workspace (from localStorage or URL hash)
-    if (props.selectedWorkspace) return;
+    if (selectedWorkspace) return;
 
     // Only check once
     const checkLaunchProject = async () => {
@@ -136,7 +137,7 @@ function AppLoaderInner(props: {
       if (projectWorkspaces.length > 0) {
         // Select the first workspace in the project
         const metadata = projectWorkspaces[0];
-        props.setSelectedWorkspace({
+        setSelectedWorkspace({
           workspaceId: metadata.id,
           projectPath: metadata.projectPath,
           projectName: metadata.projectName,
@@ -158,8 +159,14 @@ function AppLoaderInner(props: {
   // Render App with all initialized data via context
   return (
     <AppProvider
+      projects={props.projects}
+      setProjects={props.setProjects}
+      addProject={props.addProject}
+      removeProject={props.removeProject}
       workspaceMetadata={workspaceContext.workspaceMetadata}
-      setWorkspaceMetadata={workspaceContext.setWorkspaceMetadata}
+      setWorkspaceMetadata={() => {
+        /* no-op now since WorkspaceContext handles it */
+      }}
       createWorkspace={workspaceContext.createWorkspace}
       removeWorkspace={workspaceContext.removeWorkspace}
       renameWorkspace={workspaceContext.renameWorkspace}
