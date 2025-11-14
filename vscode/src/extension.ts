@@ -47,7 +47,7 @@ function createWorkspaceQuickPickItem(
 }
 
 /**
- * Command: Open a cmux workspace
+ * Command: Open a mux workspace
  */
 async function openWorkspaceCommand() {
   // Get all workspaces, this is intentionally not cached.
@@ -55,14 +55,14 @@ async function openWorkspaceCommand() {
 
   if (workspaces.length === 0) {
     const selection = await vscode.window.showInformationMessage(
-      "No cmux workspaces found. Create a workspace in cmux first.",
-      "Open cmux"
+      "No mux workspaces found. Create a workspace in mux first.",
+      "Open mux"
     );
 
-    // User can't easily open cmux from VS Code, so just inform them
-    if (selection === "Open cmux") {
+    // User can't easily open mux from VS Code, so just inform them
+    if (selection === "Open mux") {
       vscode.window.showInformationMessage(
-        "Please open the cmux application to create workspaces."
+        "Please open the mux application to create workspaces."
       );
     }
     return;
@@ -75,7 +75,7 @@ async function openWorkspaceCommand() {
   const quickPick = vscode.window.createQuickPick<
     vscode.QuickPickItem & { workspace: WorkspaceWithContext }
   >();
-  quickPick.placeholder = "Select a cmux workspace to open";
+  quickPick.placeholder = "Select a mux workspace to open";
   quickPick.matchOnDescription = true;
   quickPick.matchOnDetail = false;
   quickPick.items = allItems;
@@ -126,7 +126,7 @@ async function openWorkspaceCommand() {
  */
 export function activate(context: vscode.ExtensionContext) {
   // Register the openWorkspace command
-  const disposable = vscode.commands.registerCommand("cmux.openWorkspace", openWorkspaceCommand);
+  const disposable = vscode.commands.registerCommand("mux.openWorkspace", openWorkspaceCommand);
 
   context.subscriptions.push(disposable);
 }

@@ -77,8 +77,16 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           gh release upload ${{ github.event.release.tag_name }} \
-            vscode/cmux-*.vsix \
+            vscode/mux-*.vsix \
             --clobber
+
+      - name: Publish to VS Code Marketplace
+        if: secrets.VSCE_PAT != ''
+        working-directory: vscode
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}
+        run: |
+          bunx vsce publish -p $VSCE_PAT
 
   build-windows:
     name: Build and Release Windows
