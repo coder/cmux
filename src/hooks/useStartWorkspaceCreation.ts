@@ -16,7 +16,7 @@ import { RUNTIME_MODE, SSH_RUNTIME_PREFIX } from "@/types/runtime";
 export type StartWorkspaceCreationDetail =
   CustomEventPayloads[typeof CUSTOM_EVENTS.START_WORKSPACE_CREATION];
 
-function normalizeRuntimePreference(runtime: string | undefined): string | undefined {
+export function normalizeRuntimePreference(runtime: string | undefined): string | undefined {
   if (!runtime) {
     return undefined;
   }
@@ -43,10 +43,56 @@ function normalizeRuntimePreference(runtime: string | undefined): string | undef
   return trimmed;
 }
 
+export function getFirstProjectPath(projects: Map<string, ProjectConfig>): string | null {
+  const iterator = projects.keys().next();
+  return iterator.done ? null : iterator.value;
+}
+
+type PersistFn = typeof updatePersistedState;
+
+export function persistWorkspaceCreationPrefill(
+  projectPath: string,
+  detail: StartWorkspaceCreationDetail | undefined,
+  persist: PersistFn = updatePersistedState
+): void {
+  if (!detail) {
+    return;
+  }
+
+  if (detail.startMessage !== undefined) {
+    persist(getInputKey(getPendingScopeId(projectPath)), detail.startMessage);
+  }
+
+  if (detail.model !== undefined) {
+    persist(getModelKey(getProjectScopeId(projectPath)), detail.model);
+  }
+
+  if (detail.trunkBranch !== undefined) {
+    const normalizedTrunk = detail.trunkBranch.trim();
+    persist(
+      getTrunkBranchKey(projectPath),
+      normalizedTrunk.length > 0 ? normalizedTrunk : undefined
+    );
+  }
+
+  if (detail.runtime !== undefined) {
+    const normalizedRuntime = normalizeRuntimePreference(detail.runtime);
+    persist(getRuntimeKey(projectPath), normalizedRuntime);
+  }
+}
+
 interface UseStartWorkspaceCreationOptions {
   projects: Map<string, ProjectConfig>;
   setPendingNewWorkspaceProject: (projectPath: string | null) => void;
   setSelectedWorkspace: (selection: WorkspaceSelection | null) => void;
+}
+
+function resolveProjectPath(projects: Map<string, ProjectConfig>, requestedPath: string): string | null {
+  if (projects.has(requestedPath)) {
+    return requestedPath;
+  }
+
+  return getFirstProjectPath(projects);
 }
 
 export function useStartWorkspaceCreation({
@@ -54,61 +100,33 @@ export function useStartWorkspaceCreation({
   setPendingNewWorkspaceProject,
   setSelectedWorkspace,
 }: UseStartWorkspaceCreationOptions) {
-  const applyWorkspaceCreationPrefill = useCallback(
-    (projectPath: string, detail?: StartWorkspaceCreationDetail) => {
-      if (!detail) {
-        return;
-      }
-
-      if (detail.startMessage !== undefined) {
-        updatePersistedState(getInputKey(getPendingScopeId(projectPath)), detail.startMessage);
-      }
-
-      if (detail.model) {
-        updatePersistedState(getModelKey(getProjectScopeId(projectPath)), detail.model);
-      }
-
-      if (detail.trunkBranch) {
-        const normalizedTrunk = detail.trunkBranch.trim();
-        updatePersistedState(
-          getTrunkBranchKey(projectPath),
-          normalizedTrunk.length > 0 ? normalizedTrunk : undefined
-        );
-      }
-
-      if (detail.runtime !== undefined) {
-        const normalizedRuntime = normalizeRuntimePreference(detail.runtime);
-        updatePersistedState(getRuntimeKey(projectPath), normalizedRuntime);
-      }
-    },
-    []
-  );
-
   const startWorkspaceCreation = useCallback(
     (projectPath: string, detail?: StartWorkspaceCreationDetail) => {
-      const hasProject = projects.has(projectPath);
-      const resolvedProjectPath = hasProject
-        ? projectPath
-        : projects.size > 0
-          ? Array.from(projects.keys())[0]
-          : null;
+      const resolvedProjectPath = resolveProjectPath(projects, projectPath);
 
       if (!resolvedProjectPath) {
         console.warn("No projects available for workspace creation");
         return;
       }
 
-      applyWorkspaceCreationPrefill(resolvedProjectPath, detail);
+      persistWorkspaceCreationPrefill(resolvedProjectPath, detail);
       setPendingNewWorkspaceProject(resolvedProjectPath);
       setSelectedWorkspace(null);
     },
-    [projects, applyWorkspaceCreationPrefill, setPendingNewWorkspaceProject, setSelectedWorkspace]
+    [projects, setPendingNewWorkspaceProject, setSelectedWorkspace]
   );
 
   useEffect(() => {
     const handleStartCreation = (event: Event) => {
-      const customEvent = event as CustomEvent<StartWorkspaceCreationDetail>;
-      startWorkspaceCreation(customEvent.detail.projectPath, customEvent.detail);
+      const customEvent = event as CustomEvent<StartWorkspaceCreationDetail | undefined>;
+      const detail = customEvent.detail;
+
+      if (!detail?.projectPath) {
+        console.warn("START_WORKSPACE_CREATION event missing projectPath detail");
+        return;
+      }
+
+      startWorkspaceCreation(detail.projectPath, detail);
     };
 
     window.addEventListener(

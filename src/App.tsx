@@ -37,7 +37,7 @@ import {
 } from "./constants/storage";
 import type { BranchListResult } from "./types/ipc";
 import { useTelemetry } from "./hooks/useTelemetry";
-import { useStartWorkspaceCreation } from "./hooks/useStartWorkspaceCreation";
+import { useStartWorkspaceCreation, getFirstProjectPath } from "./hooks/useStartWorkspaceCreation";
 
 const THINKING_LEVELS: ThinkingLevel[] = ["off", "low", "medium", "high"];
 
@@ -62,6 +62,7 @@ function AppInner() {
   // Auto-collapse sidebar on mobile by default
   const isMobile = typeof window !== "undefined" && window.innerWidth <= 768;
   const [sidebarCollapsed, setSidebarCollapsed] = usePersistedState("sidebarCollapsed", isMobile);
+  const defaultProjectPath = getFirstProjectPath(projects);
   const startWorkspaceCreation = useStartWorkspaceCreation({
     projects,
     setPendingNewWorkspaceProject,
@@ -578,9 +579,12 @@ function AppInner() {
                   }
                 />
               </ErrorBoundary>
-            ) : pendingNewWorkspaceProject || projects.size === 1 ? (
+            ) : pendingNewWorkspaceProject || (projects.size === 1 && defaultProjectPath) ? (
               (() => {
-                const projectPath = pendingNewWorkspaceProject ?? Array.from(projects.keys())[0];
+                const projectPath = pendingNewWorkspaceProject ?? defaultProjectPath;
+                if (!projectPath) {
+                  return null;
+                }
                 const projectName =
                   projectPath.split("/").pop() ?? projectPath.split("\\").pop() ?? "Project";
                 return (
