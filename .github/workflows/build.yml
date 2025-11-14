@@ -17,11 +17,6 @@ jobs:
           fetch-depth: 0 # Required for git describe to find tags
 
       - uses: ./.github/actions/setup-mux
-        with:
-          install-imagemagick: true
-
-      - name: Build application
-        run: bun run build
 
       - name: Setup code signing
         run: ./scripts/setup-macos-signing.sh
@@ -73,8 +68,6 @@ jobs:
           fetch-depth: 0 # Required for git describe to find tags
 
       - uses: ./.github/actions/setup-mux
-        with:
-          install-imagemagick: true
 
       - name: Build application
         run: bun run build

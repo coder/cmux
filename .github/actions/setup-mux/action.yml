@@ -1,10 +1,5 @@
 name: "Setup Mux"
 description: "Setup Bun and install dependencies with caching"
-inputs:
-  install-imagemagick:
-    description: "Install ImageMagick (needed for electron-builder icon generation)"
-    required: false
-    default: "false"
 runs:
   using: "composite"
   steps:
@@ -38,38 +33,3 @@ runs:
       shell: bash
       run: bun install --frozen-lockfile
 
-    - name: Install ImageMagick (macOS)
-      if: inputs.install-imagemagick == 'true' && runner.os == 'macOS'
-      shell: bash
-      run: |
-        if command -v magick &>/dev/null; then
-          echo "✅ ImageMagick already available"
-        else
-          echo "📦 Installing ImageMagick..."
-          HOMEBREW_NO_AUTO_UPDATE=1 brew install imagemagick
-        fi
-        magick --version | head -1
-
-    - name: Install ImageMagick (Linux)
-      if: inputs.install-imagemagick == 'true' && runner.os == 'Linux'
-      shell: bash
-      run: |
-        if command -v convert &>/dev/null; then
-          echo "✅ ImageMagick already available"
-        else
-          echo "📦 Installing ImageMagick..."
-          sudo apt-get update -qq
-          sudo apt-get install -y --no-install-recommends imagemagick
-        fi
-        convert --version | head -1
-    - name: Install ImageMagick (Windows)
-      if: inputs.install-imagemagick == 'true' && runner.os == 'Windows'
-      shell: powershell
-      run: |
-        if (Get-Command magick -ErrorAction SilentlyContinue) {
-          Write-Host "✅ ImageMagick already available"
-        } else {
-          Write-Host "📦 Installing ImageMagick..."
-          choco install -y imagemagick
-        }
-        magick --version | Select-Object -First 1

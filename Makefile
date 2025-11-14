@@ -188,30 +188,17 @@ src/version.ts: version
 # Platform-specific icon targets
 ifeq ($(shell uname), Darwin)
 build-icons: build/icon.icns build/icon.png ## Generate Electron app icons from logo (macOS builds both)
+
+build/icon.icns: docs/img/logo.webp scripts/generate-icons.ts
+	@echo "Generating macOS ICNS icon..."
+	@bun scripts/generate-icons.ts icns
 else
 build-icons: build/icon.png ## Generate Electron app icons from logo (Linux builds PNG only)
 endif
 
-# Detect ImageMagick command (magick on v7+, convert on older versions)
-MAGICK_CMD := $(shell command -v magick 2>/dev/null || command -v convert 2>/dev/null || echo "magick")
-
-build/icon.png: docs/img/logo.webp
-	@echo "Generating Linux icon..."
-	@mkdir -p build
-	@"$(MAGICK_CMD)" docs/img/logo.webp -resize 512x512 build/icon.png
-
-build/icon.icns: docs/img/logo.webp
-	@echo "Generating macOS icon..."
-	@mkdir -p build/icon.iconset
-	@for size in 16 32 64 128 256 512; do \
-		"$(MAGICK_CMD)" docs/img/logo.webp -resize $${size}x$${size} build/icon.iconset/icon_$${size}x$${size}.png; \
-		if [ $$size -le 256 ]; then \
-			double=$$((size * 2)); \
-			"$(MAGICK_CMD)" docs/img/logo.webp -resize $${double}x$${double} build/icon.iconset/icon_$${size}x$${size}@2x.png; \
-		fi; \
-	done
-	@iconutil -c icns build/icon.iconset -o build/icon.icns
-	@rm -rf build/icon.iconset
+build/icon.png: docs/img/logo.webp scripts/generate-icons.ts
+	@echo "Generating PNG icon..."
+	@bun scripts/generate-icons.ts png
 
 ## Quality checks (can run in parallel)
 static-check: lint typecheck fmt-check check-eager-imports ## Run all static checks (includes startup performance checks)
