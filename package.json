@@ -16,7 +16,6 @@
     "access": "public"
   },
   "scripts": {
-    "postinstall": "npm exec --yes -- electron-builder install-app-deps",
     "dev": "make dev",
     "prebuild:main": "./scripts/generate-version.sh",
     "build": "make build",
@@ -213,6 +212,7 @@
       "target": "nsis",
       "icon": "build/icon.png",
       "artifactName": "${productName}-${version}-${arch}.${ext}"
-    }
+    },
+    "npmRebuild": false
   }
 }
