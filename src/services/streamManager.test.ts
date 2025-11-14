@@ -422,12 +422,14 @@ describe("StreamManager - previousResponseId recovery", () => {
       errorEventReceived = true;
     });
 
-    const runtime = {} as Runtime;
+    const runtime: Runtime = {
+      exec: () => Promise.resolve({} as never),
+    } as Runtime;
 
-    const ensureStreamSafetyMock = mock(async () => "token");
+    const ensureStreamSafetyMock = mock(() => Promise.resolve("token"));
     Reflect.set(streamManager, "ensureStreamSafety", ensureStreamSafetyMock);
 
-    const createTempDirMock = mock(async () => "/tmp/token");
+    const createTempDirMock = mock(() => Promise.resolve("/tmp/token"));
     Reflect.set(streamManager, "createTempDirForStream", createTempDirMock);
 
     // Verify the ID is not lost initially
@@ -437,13 +439,17 @@ describe("StreamManager - previousResponseId recovery", () => {
     const streamInfoStub = {
       state: "starting",
       streamResult: {
-        fullStream: (async function* () {
+        fullStream: (async function* (): AsyncGenerator<never, void, unknown> {
           // Simulate OpenAI rejecting the previousResponseId during streaming
-          throw {
+          const error = new Error(
+            '{"error":{"message":"Previous response with id \'resp_123abc\' not found.","code":"previous_response_not_found"}}'
+          );
+          Object.assign(error, {
             responseBody:
               '{"error":{"message":"Previous response with id \'resp_123abc\' not found.","code":"previous_response_not_found"}}',
             data: { error: { code: "previous_response_not_found" } },
-          };
+          });
+          throw error;
         })(),
         usage: Promise.resolve(undefined),
         providerMetadata: Promise.resolve(undefined),

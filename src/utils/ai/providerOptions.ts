@@ -147,7 +147,7 @@ export function buildProviderOptions(
             }
             if (previousResponseId) {
               // Check if this responseId has been invalidated by OpenAI
-              if (lostResponseIds && lostResponseIds(previousResponseId)) {
+              if (lostResponseIds?.(previousResponseId)) {
                 log.info("buildProviderOptions: Filtering out lost previousResponseId", {
                   previousResponseId,
                   model: currentModelName,
