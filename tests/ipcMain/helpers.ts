@@ -14,6 +14,7 @@ import * as os from "os";
 import { detectDefaultTrunkBranch } from "../../src/git";
 import type { TestEnvironment } from "./setup";
 import type { RuntimeConfig } from "../../src/types/runtime";
+import { KNOWN_MODELS } from "../../src/constants/knownModels";
 import type { ToolPolicy } from "../../src/utils/tools/toolPolicy";
 
 // Test constants - centralized for consistency across all tests
@@ -46,6 +47,13 @@ export function modelString(provider: string, model: string): string {
 /**
  * Send a message via IPC
  */
+type SendMessageWithModelOptions = Omit<SendMessageOptions, "model"> & {
+  imageParts?: Array<{ url: string; mediaType: string }>;
+};
+
+const DEFAULT_MODEL_ID = KNOWN_MODELS.SONNET.id;
+const DEFAULT_PROVIDER = KNOWN_MODELS.SONNET.provider;
+
 export async function sendMessage(
   mockIpcRenderer: IpcRenderer,
   workspaceId: string,
@@ -61,19 +69,20 @@ export async function sendMessage(
 }
 
 /**
- * Send a message with a provider and model (convenience wrapper)
+ * Send a message with an explicit model id (defaults to SONNET).
  */
 export async function sendMessageWithModel(
   mockIpcRenderer: IpcRenderer,
   workspaceId: string,
   message: string,
-  provider = "anthropic",
-  model = "claude-sonnet-4-5",
-  options?: Omit<SendMessageOptions, "model">
+  modelId: string = DEFAULT_MODEL_ID,
+  options?: SendMessageWithModelOptions
 ): Promise<Result<void, SendMessageError>> {
+  const resolvedModel = modelId.includes(":") ? modelId : modelString(DEFAULT_PROVIDER, modelId);
+
   return sendMessage(mockIpcRenderer, workspaceId, message, {
     ...options,
-    model: modelString(provider, model),
+    model: resolvedModel,
   });
 }
 

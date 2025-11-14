@@ -1,5 +1,5 @@
 import { setupWorkspace, shouldRunIntegrationTests, validateApiKeys } from "./setup";
-import { sendMessageWithModel, createEventCollector, waitFor } from "./helpers";
+import { sendMessageWithModel, createEventCollector, waitFor, modelString } from "./helpers";
 import { IPC_CHANNELS } from "../../src/constants/ipc-constants";
 import type { Result } from "../../src/types/result";
 import type { SendMessageError } from "../../src/types/errors";
@@ -31,8 +31,7 @@ describeIntegration("IpcMain resumeStream integration tests", () => {
           env.mockIpcRenderer,
           workspaceId,
           `Run this bash command: for i in 1 2 3; do sleep 0.5; done && echo '${expectedWord}'`,
-          "anthropic",
-          "claude-sonnet-4-5"
+          modelString("anthropic", "claude-sonnet-4-5")
         );
 
         // Wait for stream to start

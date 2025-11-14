@@ -4,6 +4,7 @@ import {
   createEventCollector,
   assertStreamSuccess,
   extractTextFromEvents,
+  modelString,
 } from "./helpers";
 import { spawn } from "child_process";
 
@@ -105,8 +106,7 @@ describeOllama("IpcMain Ollama integration tests", () => {
         env.mockIpcRenderer,
         workspaceId,
         "Say 'hello' and nothing else",
-        "ollama",
-        OLLAMA_MODEL
+        modelString("ollama", OLLAMA_MODEL)
       );
 
       // Verify the IPC call succeeded
@@ -139,8 +139,7 @@ describeOllama("IpcMain Ollama integration tests", () => {
         env.mockIpcRenderer,
         workspaceId,
         "What is the current date and time? Use the bash tool to find out.",
-        "ollama",
-        OLLAMA_MODEL
+        modelString("ollama", OLLAMA_MODEL)
       );
 
       expect(result.success).toBe(true);
@@ -178,8 +177,7 @@ describeOllama("IpcMain Ollama integration tests", () => {
         env.mockIpcRenderer,
         workspaceId,
         "Read the README.md file and tell me what the first heading says.",
-        "ollama",
-        OLLAMA_MODEL
+        modelString("ollama", OLLAMA_MODEL)
       );
 
       expect(result.success).toBe(true);
@@ -216,8 +214,7 @@ describeOllama("IpcMain Ollama integration tests", () => {
         env.mockIpcRenderer,
         workspaceId,
         "This should fail",
-        "ollama",
-        OLLAMA_MODEL,
+        modelString("ollama", OLLAMA_MODEL),
         {
           providerOptions: {
             ollama: {},

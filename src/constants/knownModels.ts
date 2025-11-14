@@ -66,20 +66,30 @@ const MODEL_DEFINITIONS = {
   GPT_MINI: {
     provider: "openai",
     providerModelId: "gpt-5.1-codex-mini",
+    aliases: ["codex-mini"],
   },
 } as const satisfies Record<string, KnownModelDefinition>;
 
 export type KnownModelKey = keyof typeof MODEL_DEFINITIONS;
+const MODEL_DEFINITION_ENTRIES = Object.entries(MODEL_DEFINITIONS) as Array<
+  [KnownModelKey, KnownModelDefinition]
+>;
 
 export const KNOWN_MODELS = Object.fromEntries(
-  Object.entries(MODEL_DEFINITIONS).map(([key, definition]) => [
+  MODEL_DEFINITION_ENTRIES.map(([key, definition]) => toKnownModelEntry(key, definition))
+);
+function toKnownModelEntry<K extends KnownModelKey>(
+  key: K,
+  definition: KnownModelDefinition
+): [K, KnownModel] {
+  return [
     key,
     {
       ...definition,
-      id: `${definition.provider}:${definition.providerModelId}` as `${ModelProvider}:${string}`,
+      id: `${definition.provider}:${definition.providerModelId}`,
     },
-  ])
-) as Record<KnownModelKey, KnownModel>;
+  ];
+}
 
 export function getKnownModel(key: KnownModelKey): KnownModel {
   return KNOWN_MODELS[key];

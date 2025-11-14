@@ -4,6 +4,7 @@ import {
   createEventCollector,
   assertStreamSuccess,
   buildLargeHistory,
+  modelString,
 } from "./helpers";
 
 // Skip all tests if TEST_INTEGRATION is not set
@@ -42,8 +43,7 @@ describeIntegration("IpcMain anthropic 1M context integration tests", () => {
           env.mockIpcRenderer,
           workspaceId,
           "Summarize the context above in one word.",
-          "anthropic",
-          "claude-sonnet-4-5",
+          modelString("anthropic", "claude-sonnet-4-5"),
           {
             providerOptions: {
               anthropic: {
@@ -76,8 +76,7 @@ describeIntegration("IpcMain anthropic 1M context integration tests", () => {
           env.mockIpcRenderer,
           workspaceId,
           "Summarize the context above in one word.",
-          "anthropic",
-          "claude-sonnet-4-5",
+          modelString("anthropic", "claude-sonnet-4-5"),
           {
             providerOptions: {
               anthropic: {

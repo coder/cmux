@@ -34,7 +34,7 @@ import { KNOWN_MODELS } from "@/constants/knownModels";
 
 // Test both providers with their respective models
 const PROVIDER_CONFIGS: Array<[string, string]> = [
-  ["openai", KNOWN_MODELS.GPT_CODEX.providerModelId],
+  ["openai", KNOWN_MODELS.GPT_MINI.providerModelId],
   ["anthropic", KNOWN_MODELS.SONNET.providerModelId],
 ];
 
@@ -63,8 +63,7 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
             env.mockIpcRenderer,
             workspaceId,
             "Say 'hello' and nothing else",
-            provider,
-            model
+            modelString(provider, model)
           );
 
           // Verify the IPC call succeeded
@@ -95,7 +94,12 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
         try {
           // Start a long-running stream with a bash command that takes time
           const longMessage = "Run this bash command: while true; do sleep 1; done";
-          void sendMessageWithModel(env.mockIpcRenderer, workspaceId, longMessage, provider, model);
+          void sendMessageWithModel(
+            env.mockIpcRenderer,
+            workspaceId,
+            longMessage,
+            modelString(provider, model)
+          );
 
           // Wait for stream to start
           const collector = createEventCollector(env.sentEvents, workspaceId);
@@ -137,7 +141,12 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
           // Ask the model to run a long-running bash command
           // Use explicit instruction to ensure tool call happens
           const message = "Use the bash tool to run: sleep 60";
-          void sendMessageWithModel(env.mockIpcRenderer, workspaceId, message, provider, model);
+          void sendMessageWithModel(
+            env.mockIpcRenderer,
+            workspaceId,
+            message,
+            modelString(provider, model)
+          );
 
           // Wait for stream to start (more reliable than waiting for tool-call-start)
           const collector = createEventCollector(env.sentEvents, workspaceId);
@@ -195,8 +204,7 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
             env.mockIpcRenderer,
             workspaceId,
             "Write a short paragraph about TypeScript",
-            provider,
-            model,
+            modelString(provider, model),
             { thinkingLevel: "off" }
           );
 
@@ -267,7 +275,12 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
         try {
           // Start a stream that will generate some tokens
           const message = "Write a haiku about coding";
-          void sendMessageWithModel(env.mockIpcRenderer, workspaceId, message, provider, model);
+          void sendMessageWithModel(
+            env.mockIpcRenderer,
+            workspaceId,
+            message,
+            modelString(provider, model)
+          );
 
           // Wait for stream to start and get some deltas
           const collector = createEventCollector(env.sentEvents, workspaceId);
@@ -331,8 +344,7 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
             env.mockIpcRenderer,
             workspaceId,
             "Run this bash command: while true; do sleep 0.1; done",
-            provider,
-            model
+            modelString(provider, model)
           );
 
           // Wait for tool-call-start (which means model is executing bash)
@@ -426,8 +438,7 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
             env.mockIpcRenderer,
             workspaceId,
             "",
-            provider,
-            model
+            modelString(provider, model)
           );
 
           // Should fail - empty messages not allowed
@@ -464,8 +475,7 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
             env.mockIpcRenderer,
             workspaceId,
             "Say 'first message' and nothing else",
-            provider,
-            model
+            modelString(provider, model)
           );
           expect(result1.success).toBe(true);
 
@@ -485,8 +495,7 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
             env.mockIpcRenderer,
             workspaceId,
             "Say 'edited message' and nothing else",
-            provider,
-            model,
+            modelString(provider, model),
             { editMessageId: (firstUserMessage as { id: string }).id }
           );
           expect(result2.success).toBe(true);
@@ -512,8 +521,7 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
             env.mockIpcRenderer,
             workspaceId,
             "Run this bash command: for i in {1..20}; do sleep 0.5; done && echo done",
-            provider,
-            model
+            modelString(provider, model)
           );
           expect(result1.success).toBe(true);
 
@@ -531,8 +539,7 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
             env.mockIpcRenderer,
             workspaceId,
             "Run this bash command: for i in {1..10}; do sleep 0.5; done && echo second",
-            provider,
-            model,
+            modelString(provider, model),
             { editMessageId: (firstUserMessage as { id: string }).id }
           );
           expect(result2.success).toBe(true);
@@ -552,8 +559,7 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
             env.mockIpcRenderer,
             workspaceId,
             "Say 'third edit' and nothing else",
-            provider,
-            model,
+            modelString(provider, model),
             { editMessageId: (secondUserMessage as { id: string }).id }
           );
           expect(result3.success).toBe(true);
@@ -597,8 +603,7 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
             env.mockIpcRenderer,
             workspaceId,
             "Read the file test-file.txt and tell me its contents verbatim. Do not add any extra text.",
-            provider,
-            model
+            modelString(provider, model)
           );
 
           expect(result.success).toBe(true);
@@ -635,8 +640,7 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
             env.mockIpcRenderer,
             workspaceId,
             "Generate a random uncommon word and only say that word, nothing else.",
-            provider,
-            model
+            modelString(provider, model)
           );
           expect(result1.success).toBe(true);
 
@@ -670,8 +674,7 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
             env.mockIpcRenderer,
             workspaceId,
             "What was the word you just said? Reply with only that word.",
-            provider,
-            model
+            modelString(provider, model)
           );
           expect(result2.success).toBe(true);
 
@@ -776,8 +779,7 @@ These are general instructions that apply to all modes.
             env.mockIpcRenderer,
             workspaceId,
             "Please respond.",
-            provider,
-            model,
+            modelString(provider, model),
             { mode: "plan" }
           );
           expect(resultPlan.success).toBe(true);
@@ -800,8 +802,7 @@ These are general instructions that apply to all modes.
             env.mockIpcRenderer,
             workspaceId,
             "Please respond.",
-            provider,
-            model,
+            modelString(provider, model),
             { mode: "exec" }
           );
           expect(resultExec.success).toBe(true);
@@ -849,8 +850,7 @@ These are general instructions that apply to all modes.
             env.mockIpcRenderer,
             workspaceId,
             "Say 'parity test' and nothing else",
-            provider,
-            model
+            modelString(provider, model)
           );
 
           // Collect response
@@ -891,8 +891,7 @@ These are general instructions that apply to all modes.
             env.mockIpcRenderer,
             workspaceId,
             "Hello",
-            provider,
-            model
+            modelString(provider, model)
           );
 
           // Should fail with api_key_not_found error
@@ -920,8 +919,7 @@ These are general instructions that apply to all modes.
             env.mockIpcRenderer,
             workspaceId,
             "Hello, world!",
-            provider,
-            nonExistentModel
+            modelString(provider, nonExistentModel)
           );
 
           // IPC call should succeed (errors come through stream events)
@@ -988,8 +986,7 @@ These are general instructions that apply to all modes.
             env.mockIpcRenderer,
             workspaceId,
             "What is the weather?",
-            provider,
-            model,
+            modelString(provider, model),
             sendOptions
           );
 
@@ -1108,8 +1105,7 @@ These are general instructions that apply to all modes.
             env.mockIpcRenderer,
             workspaceId,
             "Delete the file bash-test-file.txt using bash rm command",
-            provider,
-            model,
+            modelString(provider, model),
             {
               toolPolicy: [{ regex_match: "bash", action: "disable" }],
               ...(provider === "openai"
@@ -1181,8 +1177,7 @@ These are general instructions that apply to all modes.
             env.mockIpcRenderer,
             workspaceId,
             "Edit the file edit-test-file.txt and replace 'original' with 'modified'",
-            provider,
-            model,
+            modelString(provider, model),
             {
               toolPolicy: [
                 { regex_match: "file_edit_.*", action: "disable" },
@@ -1301,8 +1296,7 @@ These are general instructions that apply to all modes.
             env.mockIpcRenderer,
             workspaceId,
             "This should trigger a context error",
-            provider,
-            model,
+            modelString(provider, model),
             {
               providerOptions: {
                 openai: {
@@ -1349,8 +1343,7 @@ These are general instructions that apply to all modes.
             env.mockIpcRenderer,
             workspaceId,
             "This should succeed with auto-truncation",
-            provider,
-            model
+            modelString(provider, model)
             // disableAutoTruncation defaults to false (auto-truncation enabled)
           );
 
@@ -1381,8 +1374,7 @@ These are general instructions that apply to all modes.
             env.mockIpcRenderer,
             workspaceId,
             `Open and replace 'line2' with 'LINE2' in ${path.basename(testFilePath)} using file_edit_replace, then confirm the change was successfully applied.`,
-            provider,
-            model
+            modelString(provider, model)
           );
           expect(result1.success).toBe(true);
 
@@ -1425,8 +1417,7 @@ These are general instructions that apply to all modes.
             env.mockIpcRenderer,
             workspaceId,
             "Confirm the previous edit was applied.",
-            provider,
-            model
+            modelString(provider, model)
           );
           expect(result2.success).toBe(true);
 
@@ -1589,7 +1580,7 @@ describe.each(PROVIDER_CONFIGS)("%s:%s image support", (provider, model) => {
     40000
   );
 
-  // Test multi-turn conversation specifically for reasoning models (codex)
+  // Test multi-turn conversation specifically for reasoning models (codex mini)
   test.concurrent(
     "should handle multi-turn conversation with response ID persistence (openai reasoning models)",
     async () => {
@@ -1600,8 +1591,7 @@ describe.each(PROVIDER_CONFIGS)("%s:%s image support", (provider, model) => {
           env.mockIpcRenderer,
           workspaceId,
           "What is 2+2?",
-          "openai",
-          KNOWN_MODELS.GPT_CODEX.providerModelId
+          modelString("openai", KNOWN_MODELS.GPT_MINI.providerModelId)
         );
         expect(result1.success).toBe(true);
 
@@ -1615,8 +1605,7 @@ describe.each(PROVIDER_CONFIGS)("%s:%s image support", (provider, model) => {
           env.mockIpcRenderer,
           workspaceId,
           "Now add 3 to that",
-          "openai",
-          KNOWN_MODELS.GPT_CODEX.providerModelId
+          modelString("openai", KNOWN_MODELS.GPT_MINI.providerModelId)
         );
         expect(result2.success).toBe(true);
 
