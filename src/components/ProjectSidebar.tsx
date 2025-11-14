@@ -421,10 +421,8 @@ const ProjectSidebarInner: React.FC<ProjectSidebarProps> = ({
         >
           {!collapsed && (
             <>
-              <div className="border-dark bg-separator flex items-center justify-between border-b p-4">
-                <h2 className="text-foreground m-0 text-[13px] font-semibold tracking-[0.8px] uppercase">
-                  Projects
-                </h2>
+              <div className="border-dark flex items-center justify-between border-b p-4">
+                <h2 className="text-foreground text-md m-0 font-semibold">Agents</h2>
                 <TooltipWrapper inline>
                   <button
                     onClick={onAddProject}
@@ -496,7 +494,7 @@ const ProjectSidebarInner: React.FC<ProjectSidebarProps> = ({
                           </span>
                           <div className="flex min-w-0 flex-1 items-center pr-2">
                             <TooltipWrapper inline>
-                              <div className="text-muted-dark font-monospace truncate text-sm leading-tight">
+                              <div className="text-muted-dark truncate text-sm">
                                 {(() => {
                                   const abbrevPath = PlatformPaths.abbreviate(projectPath);
                                   const { dirPath, basename } =
