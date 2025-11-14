@@ -49,6 +49,7 @@
   --color-background-secondary: hsl(60 1% 15%);
   --color-border: hsl(240 2% 25%);
   --color-foreground: hsl(0 0% 83%);
+  --color-muted-foreground: hsl(0 0% 60%);
   --color-secondary: hsl(0 0% 42%);
 
   /* Code */
