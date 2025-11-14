@@ -25,13 +25,13 @@ export async function getAllWorkspaces(): Promise<WorkspaceWithContext[]> {
   const workspaces = await config.getAllWorkspaceMetadata();
   const extensionMeta = readExtensionMetadata();
 
-  console.log(`[cmux] Read ${extensionMeta.size} entries from extension metadata`);
+  console.log(`[mux] Read ${extensionMeta.size} entries from extension metadata`);
 
   // Enrich with extension metadata
   const enriched: WorkspaceWithContext[] = workspaces.map((ws) => {
     const meta = extensionMeta.get(ws.id);
     if (meta) {
-      console.log(`[cmux]   ${ws.id}: recency=${meta.recency}, streaming=${meta.streaming}`);
+      console.log(`[mux]   ${ws.id}: recency=${meta.recency}, streaming=${meta.streaming}`);
     }
     return {
       ...ws,

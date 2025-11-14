@@ -29,7 +29,7 @@ export async function openWorkspace(workspace: WorkspaceWithContext) {
   // Check if Remote-SSH is installed
   if (!isRemoteSshInstalled()) {
     const selection = await vscode.window.showErrorMessage(
-      'cmux: The "Remote - SSH" extension is required to open SSH workspaces. ' +
+      'mux: The "Remote - SSH" extension is required to open SSH workspaces. ' +
         "Please install it from the Extensions marketplace.",
       "Open Extensions"
     );
@@ -45,7 +45,7 @@ export async function openWorkspace(workspace: WorkspaceWithContext) {
   }
 
   if (workspace.runtimeConfig.type !== "ssh") {
-    vscode.window.showErrorMessage("cmux: Workspace is not configured for SSH.");
+    vscode.window.showErrorMessage("mux: Workspace is not configured for SSH.");
     return;
   }
 
@@ -63,7 +63,7 @@ export async function openWorkspace(workspace: WorkspaceWithContext) {
     });
   } catch (error) {
     const selection = await vscode.window.showErrorMessage(
-      `cmux: Failed to open SSH workspace on host "${host}". ` +
+      `mux: Failed to open SSH workspace on host "${host}". ` +
         `Make sure the host is configured in your ~/.ssh/config or in the Remote-SSH extension. ` +
         `Error: ${error instanceof Error ? error.message : String(error)}`,
       "Open SSH Config"

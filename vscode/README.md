@@ -1,18 +1,18 @@
-# cmux VS Code Extension
+# mux VS Code Extension
 
-Open [cmux](https://cmux.io) workspaces from VS Code or Cursor.
+Open [mux](https://cmux.io) workspaces from VS Code or Cursor.
 
 ## Installation
 
-Download the latest `.vsix` from [cmux releases](https://github.com/coder/cmux/releases) and install:
+Download the latest `.vsix` from [mux releases](https://github.com/coder/mux/releases) and install:
 
 ```bash
-code --install-extension cmux-0.1.0.vsix
+code --install-extension mux-0.1.0.vsix
 ```
 
 ## Usage
 
-`Cmd+Shift+P` → "cmux: Open Workspace" → Select workspace
+`Cmd+Shift+P` → "mux: Open Workspace" → Select workspace
 
 ## Requirements
 

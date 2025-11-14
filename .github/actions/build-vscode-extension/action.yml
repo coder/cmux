@@ -1,5 +1,5 @@
 name: "Build VS Code Extension"
-description: "Build the cmux VS Code extension"
+description: "Build the mux VS Code extension"
 
 runs:
   using: "composite"
