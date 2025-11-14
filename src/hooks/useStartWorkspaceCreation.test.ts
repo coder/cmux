@@ -15,7 +15,9 @@ import {
 } from "@/constants/storage";
 import type { ProjectConfig } from "@/config";
 
-type PersistFn = typeof import("@/hooks/usePersistedState").updatePersistedState;
+import type { updatePersistedState } from "@/hooks/usePersistedState";
+
+type PersistFn = typeof updatePersistedState;
 type PersistCall = [string, unknown, unknown?];
 
 describe("normalizeRuntimePreference", () => {

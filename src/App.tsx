@@ -26,15 +26,7 @@ import { buildCoreSources, type BuildSourcesParams } from "./utils/commands/sour
 import type { ThinkingLevel } from "./types/thinking";
 import { CUSTOM_EVENTS } from "./constants/events";
 import { isWorkspaceForkSwitchEvent } from "./utils/workspaceFork";
-import {
-  getThinkingLevelKey,
-  getRuntimeKey,
-  getInputKey,
-  getPendingScopeId,
-  getModelKey,
-  getProjectScopeId,
-  getTrunkBranchKey,
-} from "./constants/storage";
+import { getThinkingLevelKey } from "./constants/storage";
 import type { BranchListResult } from "./types/ipc";
 import { useTelemetry } from "./hooks/useTelemetry";
 import { useStartWorkspaceCreation, getFirstProjectPath } from "./hooks/useStartWorkspaceCreation";
