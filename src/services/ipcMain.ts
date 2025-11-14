@@ -1513,12 +1513,10 @@ export class IpcMain {
           workspacePath,
           // onData callback - send output to the window that created the session
           (data: string) => {
-            console.log(`[Terminal] Sending output for session ${session.sessionId}, length: ${data.length}`);
             senderWindow.webContents.send(`terminal:output:${session.sessionId}`, data);
           },
           // onExit callback - send exit event and clean up
           (exitCode: number) => {
-            console.log(`[Terminal] Sending exit for session ${session.sessionId}, code: ${exitCode}`);
             senderWindow.webContents.send(`terminal:exit:${session.sessionId}`, exitCode);
           }
         );
