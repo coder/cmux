@@ -1,13 +1,13 @@
 import { useState, useEffect } from "react";
 import App from "../App";
 import { LoadingScreen } from "./LoadingScreen";
-import { useWorkspaceManagement } from "../hooks/useWorkspaceManagement";
 import { useWorkspaceStoreRaw } from "../stores/WorkspaceStore";
 import { useGitStatusStoreRaw } from "../stores/GitStatusStore";
 import { usePersistedState } from "../hooks/usePersistedState";
 import type { WorkspaceSelection } from "./ProjectSidebar";
 import { AppProvider } from "../contexts/AppContext";
 import { ProjectProvider, useProjectContext } from "../contexts/ProjectContext";
+import { WorkspaceProvider, useWorkspaceContext } from "../contexts/WorkspaceContext";
 
 /**
  * AppLoader handles all initialization before rendering the main App:
@@ -22,12 +22,12 @@ import { ProjectProvider, useProjectContext } from "../contexts/ProjectContext";
 export function AppLoader() {
   return (
     <ProjectProvider>
-      <AppLoaderInner />
+      <AppLoaderMiddle />
     </ProjectProvider>
   );
 }
 
-function AppLoaderInner() {
+function AppLoaderMiddle() {
   // Workspace selection - restored from localStorage immediately
   const [selectedWorkspace, setSelectedWorkspace] = usePersistedState<WorkspaceSelection | null>(
     "selectedWorkspace",
@@ -36,13 +36,26 @@ function AppLoaderInner() {
 
   const { refreshProjects } = useProjectContext();
 
-  // Load workspace metadata
-  // Pass empty callbacks for now - App will provide the actual handlers
-  const workspaceManagement = useWorkspaceManagement({
-    selectedWorkspace,
-    onProjectsRefresh: refreshProjects,
-    onSelectedWorkspaceUpdate: setSelectedWorkspace,
-  });
+  // Wrap with WorkspaceProvider
+  return (
+    <WorkspaceProvider
+      selectedWorkspace={selectedWorkspace}
+      onSelectedWorkspaceUpdate={setSelectedWorkspace}
+      onProjectsUpdate={refreshProjects}
+    >
+      <AppLoaderInner
+        selectedWorkspace={selectedWorkspace}
+        setSelectedWorkspace={setSelectedWorkspace}
+      />
+    </WorkspaceProvider>
+  );
+}
+
+function AppLoaderInner(props: {
+  selectedWorkspace: WorkspaceSelection | null;
+  setSelectedWorkspace: (workspace: WorkspaceSelection | null) => void;
+}) {
+  const workspaceContext = useWorkspaceContext();
 
   // Get store instances
   const workspaceStore = useWorkspaceStoreRaw();
@@ -53,16 +66,16 @@ function AppLoaderInner() {
 
   // Sync stores when metadata finishes loading
   useEffect(() => {
-    if (!workspaceManagement.loading) {
-      workspaceStore.syncWorkspaces(workspaceManagement.workspaceMetadata);
-      gitStatusStore.syncWorkspaces(workspaceManagement.workspaceMetadata);
+    if (!workspaceContext.loading) {
+      workspaceStore.syncWorkspaces(workspaceContext.workspaceMetadata);
+      gitStatusStore.syncWorkspaces(workspaceContext.workspaceMetadata);
       setStoresSynced(true);
     } else {
       setStoresSynced(false);
     }
   }, [
-    workspaceManagement.loading,
-    workspaceManagement.workspaceMetadata,
+    workspaceContext.loading,
+    workspaceContext.workspaceMetadata,
     workspaceStore,
     gitStatusStore,
   ]);
@@ -82,11 +95,11 @@ function AppLoaderInner() {
       const workspaceId = decodeURIComponent(hash.substring("#workspace=".length));
 
       // Find workspace in metadata
-      const metadata = workspaceManagement.workspaceMetadata.get(workspaceId);
+      const metadata = workspaceContext.workspaceMetadata.get(workspaceId);
 
       if (metadata) {
         // Restore from hash (overrides localStorage)
-        setSelectedWorkspace({
+        props.setSelectedWorkspace({
           workspaceId: metadata.id,
           projectPath: metadata.projectPath,
           projectName: metadata.projectName,
@@ -96,12 +109,7 @@ function AppLoaderInner() {
     }
 
     setHasRestoredFromHash(true);
-  }, [
-    storesSynced,
-    workspaceManagement.workspaceMetadata,
-    hasRestoredFromHash,
-    setSelectedWorkspace,
-  ]);
+  }, [storesSynced, workspaceContext.workspaceMetadata, hasRestoredFromHash, props]);
 
   // Check for launch project from server (for --add-project flag)
   // This only applies in server mode
@@ -110,7 +118,7 @@ function AppLoaderInner() {
     if (!storesSynced || !hasRestoredFromHash) return;
 
     // Skip if we already have a selected workspace (from localStorage or URL hash)
-    if (selectedWorkspace) return;
+    if (props.selectedWorkspace) return;
 
     // Only check once
     const checkLaunchProject = async () => {
@@ -121,14 +129,14 @@ function AppLoaderInner() {
       if (!launchProjectPath) return;
 
       // Find first workspace in this project
-      const projectWorkspaces = Array.from(workspaceManagement.workspaceMetadata.values()).filter(
+      const projectWorkspaces = Array.from(workspaceContext.workspaceMetadata.values()).filter(
         (meta) => meta.projectPath === launchProjectPath
       );
 
       if (projectWorkspaces.length > 0) {
         // Select the first workspace in the project
         const metadata = projectWorkspaces[0];
-        setSelectedWorkspace({
+        props.setSelectedWorkspace({
           workspaceId: metadata.id,
           projectPath: metadata.projectPath,
           projectName: metadata.projectName,
@@ -140,29 +148,23 @@ function AppLoaderInner() {
     };
 
     void checkLaunchProject();
-  }, [
-    storesSynced,
-    hasRestoredFromHash,
-    selectedWorkspace,
-    workspaceManagement.workspaceMetadata,
-    setSelectedWorkspace,
-  ]);
+  }, [storesSynced, hasRestoredFromHash, workspaceContext.workspaceMetadata, props]);
 
   // Show loading screen until stores are synced
-  if (workspaceManagement.loading || !storesSynced) {
+  if (workspaceContext.loading || !storesSynced) {
     return <LoadingScreen />;
   }
 
   // Render App with all initialized data via context
   return (
     <AppProvider
-      workspaceMetadata={workspaceManagement.workspaceMetadata}
-      setWorkspaceMetadata={workspaceManagement.setWorkspaceMetadata}
-      createWorkspace={workspaceManagement.createWorkspace}
-      removeWorkspace={workspaceManagement.removeWorkspace}
-      renameWorkspace={workspaceManagement.renameWorkspace}
-      selectedWorkspace={selectedWorkspace}
-      setSelectedWorkspace={setSelectedWorkspace}
+      workspaceMetadata={workspaceContext.workspaceMetadata}
+      setWorkspaceMetadata={workspaceContext.setWorkspaceMetadata}
+      createWorkspace={workspaceContext.createWorkspace}
+      removeWorkspace={workspaceContext.removeWorkspace}
+      renameWorkspace={workspaceContext.renameWorkspace}
+      selectedWorkspace={props.selectedWorkspace}
+      setSelectedWorkspace={props.setSelectedWorkspace}
     >
       <App />
     </AppProvider>
