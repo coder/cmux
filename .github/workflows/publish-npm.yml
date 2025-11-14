@@ -23,8 +23,6 @@ jobs:
           fetch-depth: 0 # Required for git describe to find tags
 
       - uses: ./.github/actions/setup-mux
-        with:
-          install-imagemagick: "true"
 
       # Sets up .npmrc with the auth token
       - uses: actions/setup-node@v4

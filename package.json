@@ -143,6 +143,7 @@
     "rehype-raw": "^7.0.0",
     "remark-gfm": "^4.0.1",
     "remark-math": "^6.0.0",
+    "sharp": "^0.34.5",
     "shiki": "^3.13.0",
     "storybook": "^10.0.0",
     "tailwind-merge": "^3.3.1",
