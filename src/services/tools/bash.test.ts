@@ -664,7 +664,7 @@ describe("bash tool", () => {
 
     const args: BashToolArgs = {
       script:
-        "python3 -c \"import os,stat;mode=os.fstat(0).st_mode;print(stat.S_IFMT(mode)==stat.S_IFIFO)\"",
+        'python3 -c "import os,stat;mode=os.fstat(0).st_mode;print(stat.S_IFMT(mode)==stat.S_IFIFO)"',
       timeout_secs: 5,
     };
 

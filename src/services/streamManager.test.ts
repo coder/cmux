@@ -428,10 +428,9 @@ describe("StreamManager - previousResponseId recovery", () => {
     const streamManager = new StreamManager(mockHistoryService, mockPartialService);
 
     // Get the private method via reflection
-    const extractMethod = Reflect.get(
-      streamManager,
-      "extractPreviousResponseIdFromError"
-    ) as (error: unknown) => string | undefined;
+    const extractMethod = Reflect.get(streamManager, "extractPreviousResponseIdFromError") as (
+      error: unknown
+    ) => string | undefined;
     expect(typeof extractMethod).toBe("function");
 
     // Test extraction from APICallError with responseBody
@@ -449,9 +448,7 @@ describe("StreamManager - previousResponseId recovery", () => {
     expect(extractMethod.call(streamManager, apiError)).toBe("resp_abc123");
 
     // Test extraction from error message
-    const errorWithMessage = new Error(
-      "Previous response with id 'resp_def456' not found."
-    );
+    const errorWithMessage = new Error("Previous response with id 'resp_def456' not found.");
     expect(extractMethod.call(streamManager, errorWithMessage)).toBe("resp_def456");
 
     // Test when no ID is present
