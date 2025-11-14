@@ -108,12 +108,11 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
           // Should succeed (interrupt is not an error)
           expect(softInterruptResult.success).toBe(true);
 
-
           // Then hard-interrupt
           const hardInterruptResult = await env.mockIpcRenderer.invoke(
             IPC_CHANNELS.WORKSPACE_INTERRUPT_STREAM,
             workspaceId
-          )
+          );
           expect(hardInterruptResult.success).toBe(true);
 
           // Wait for abort or end event
