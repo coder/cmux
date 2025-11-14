@@ -14,6 +14,7 @@ import { useUnreadTracking } from "./hooks/useUnreadTracking";
 import { useAutoCompactContinue } from "./hooks/useAutoCompactContinue";
 import { useWorkspaceStoreRaw, useWorkspaceRecency } from "./stores/WorkspaceStore";
 import { ChatInput } from "./components/ChatInput/index";
+import type { ChatInputAPI } from "./components/ChatInput/types";
 
 import { useStableReference, compareMaps } from "./hooks/useStableReference";
 import { CommandRegistryProvider, useCommandRegistry } from "./contexts/CommandRegistryContext";
@@ -55,11 +56,26 @@ function AppInner() {
   const isMobile = typeof window !== "undefined" && window.innerWidth <= 768;
   const [sidebarCollapsed, setSidebarCollapsed] = usePersistedState("sidebarCollapsed", isMobile);
   const defaultProjectPath = getFirstProjectPath(projects);
+  const creationChatInputRef = useRef<ChatInputAPI | null>(null);
+  const creationProjectPath = !selectedWorkspace
+    ? (pendingNewWorkspaceProject ?? (projects.size === 1 ? defaultProjectPath : null))
+    : null;
+  const handleCreationChatReady = useCallback((api: ChatInputAPI) => {
+    creationChatInputRef.current = api;
+    api.focus();
+  }, []);
+
   const startWorkspaceCreation = useStartWorkspaceCreation({
     projects,
     setPendingNewWorkspaceProject,
     setSelectedWorkspace,
   });
+
+  useEffect(() => {
+    if (creationProjectPath) {
+      creationChatInputRef.current?.focus();
+    }
+  }, [creationProjectPath]);
 
   const handleToggleSidebar = useCallback(() => {
     setSidebarCollapsed((prev) => !prev);
@@ -569,12 +585,9 @@ function AppInner() {
                   }
                 />
               </ErrorBoundary>
-            ) : pendingNewWorkspaceProject || (projects.size === 1 && defaultProjectPath) ? (
+            ) : creationProjectPath ? (
               (() => {
-                const projectPath = pendingNewWorkspaceProject ?? defaultProjectPath;
-                if (!projectPath) {
-                  return null;
-                }
+                const projectPath = creationProjectPath;
                 const projectName =
                   projectPath.split("/").pop() ?? projectPath.split("\\").pop() ?? "Project";
                 return (
@@ -584,6 +597,7 @@ function AppInner() {
                         variant="creation"
                         projectPath={projectPath}
                         projectName={projectName}
+                        onReady={handleCreationChatReady}
                         onWorkspaceCreated={(metadata) => {
                           // Add to workspace metadata map
                           setWorkspaceMetadata((prev) => new Map(prev).set(metadata.id, metadata));
