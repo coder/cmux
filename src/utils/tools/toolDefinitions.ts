@@ -125,7 +125,9 @@ export const TOOL_DEFINITIONS = {
         create: z
           .boolean()
           .optional()
-          .describe("Legacy compatibility; files are created automatically when missing, so this flag is ignored."),
+          .describe(
+            "Legacy compatibility; files are created automatically when missing, so this flag is ignored."
+          ),
         before: z
           .string()
           .min(1)
