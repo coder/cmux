@@ -658,6 +658,23 @@ describe("bash tool", () => {
     }
   });
 
+  it("should present stdin as a non-pipe for search tools", async () => {
+    using testEnv = createTestBashTool();
+    const tool = testEnv.tool;
+
+    const args: BashToolArgs = {
+      script:
+        'python3 -c "import os,stat;mode=os.fstat(0).st_mode;print(stat.S_IFMT(mode)==stat.S_IFIFO)"',
+      timeout_secs: 5,
+    };
+
+    const result = (await tool.execute!(args, mockToolCallOptions)) as BashToolResult;
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.output.trim()).toBe("False");
+    }
+  });
+
   it("should not hang on git rebase --continue", async () => {
     using testEnv = createTestBashTool();
     const tool = testEnv.tool;

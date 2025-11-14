@@ -66,12 +66,14 @@ type ProviderOptions =
  * @param modelString - Full model string (e.g., "anthropic:claude-opus-4-1")
  * @param thinkingLevel - Unified thinking level
  * @param messages - Conversation history to extract previousResponseId from
+ * @param lostResponseIds - Optional callback to check if a responseId has been invalidated by OpenAI
  * @returns Provider options object for AI SDK
  */
 export function buildProviderOptions(
   modelString: string,
   thinkingLevel: ThinkingLevel,
-  messages?: MuxMessage[]
+  messages?: MuxMessage[],
+  lostResponseIds?: (id: string) => boolean
 ): ProviderOptions {
   // Always clamp to the model's supported thinking policy (e.g., gpt-5-pro = HIGH only)
   const effectiveThinking = enforceThinkingPolicy(modelString, thinkingLevel);
@@ -123,6 +125,7 @@ export function buildProviderOptions(
     // 1. The previous message used the same model (prevents cross-model contamination)
     // 2. That model uses reasoning (reasoning effort is set)
     // 3. The response ID exists
+    // 4. The response ID hasn't been invalidated by OpenAI
     let previousResponseId: string | undefined;
     if (messages && messages.length > 0 && reasoningEffort) {
       // Parse current model name (without provider prefix)
@@ -143,10 +146,19 @@ export function buildProviderOptions(
               previousResponseId = openaiData?.responseId as string | undefined;
             }
             if (previousResponseId) {
-              log.debug("buildProviderOptions: Found previousResponseId from same model", {
-                previousResponseId,
-                model: currentModelName,
-              });
+              // Check if this responseId has been invalidated by OpenAI
+              if (lostResponseIds?.(previousResponseId)) {
+                log.info("buildProviderOptions: Filtering out lost previousResponseId", {
+                  previousResponseId,
+                  model: currentModelName,
+                });
+                previousResponseId = undefined;
+              } else {
+                log.debug("buildProviderOptions: Found previousResponseId from same model", {
+                  previousResponseId,
+                  model: currentModelName,
+                });
+              }
               break;
             }
           } else if (msgModelName) {

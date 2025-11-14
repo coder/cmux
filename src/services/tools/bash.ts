@@ -241,7 +241,9 @@ export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
       const truncationState = { displayTruncated: false, fileTruncated: false };
 
       // Execute using runtime interface (works for both local and SSH)
-      const execStream = await config.runtime.exec(script, {
+      const scriptWithClosedStdin = `exec </dev/null
+${script}`;
+      const execStream = await config.runtime.exec(scriptWithClosedStdin, {
         cwd: config.cwd,
         env: config.secrets,
         timeout: effectiveTimeout,

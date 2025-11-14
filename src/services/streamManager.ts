@@ -129,6 +129,9 @@ export class StreamManager extends EventEmitter {
   private readonly partialService: PartialService;
   // Token tracker for live streaming statistics
   private tokenTracker = new StreamingTokenTracker();
+  // Track OpenAI previousResponseIds that have been invalidated
+  // When frontend retries, buildProviderOptions will omit these IDs
+  private lostResponseIds = new Set<string>();
 
   constructor(historyService: HistoryService, partialService: PartialService) {
     super();
@@ -888,6 +891,10 @@ export class StreamManager extends EventEmitter {
       // Log the actual error for debugging
       console.error("Stream processing error:", error);
 
+      // Check if this is a lost previousResponseId error and record it
+      // Frontend will automatically retry, and buildProviderOptions will filter it out
+      this.recordLostResponseIdIfApplicable(error, streamInfo);
+
       // Extract error message (errors thrown from 'error' parts already have the correct message)
       let errorMessage: string = error instanceof Error ? error.message : String(error);
       let actualError: unknown = error;
@@ -1193,6 +1200,98 @@ export class StreamManager extends EventEmitter {
       // Convert to strongly-typed error
       return Err(this.convertToSendMessageError(error));
     }
+  }
+
+  /**
+   * Record a previousResponseId as lost if the error indicates OpenAI no longer has it
+   * Frontend will automatically retry, and buildProviderOptions will filter it out
+   */
+  private recordLostResponseIdIfApplicable(error: unknown, streamInfo: WorkspaceStreamInfo): void {
+    const errorCode = this.extractErrorCode(error);
+    if (errorCode !== "previous_response_not_found") {
+      return;
+    }
+
+    // Extract previousResponseId from the stream's initial provider options
+    // We need to check streamInfo.streamResult.providerOptions, but that's not exposed
+    // Instead, we can extract it from the error response body if it contains it
+    const responseId = this.extractPreviousResponseIdFromError(error);
+    if (responseId) {
+      log.info("Recording lost previousResponseId for future filtering", {
+        previousResponseId: responseId,
+        workspaceId: streamInfo.messageId,
+        model: streamInfo.model,
+      });
+      this.lostResponseIds.add(responseId);
+    }
+  }
+
+  /**
+   * Extract previousResponseId from error response body
+   * OpenAI's error message includes the ID: "Previous response with id 'resp_...' not found."
+   */
+  private extractPreviousResponseIdFromError(error: unknown): string | undefined {
+    // Check APICallError.responseBody first
+    if (APICallError.isInstance(error) && typeof error.responseBody === "string") {
+      const match = /'(resp_[a-f0-9]+)'/.exec(error.responseBody);
+      if (match) {
+        return match[1];
+      }
+    }
+
+    // Check error message
+    if (error instanceof Error) {
+      const match = /'(resp_[a-f0-9]+)'/.exec(error.message);
+      if (match) {
+        return match[1];
+      }
+    }
+
+    return undefined;
+  }
+
+  /**
+   * Check if a previousResponseId has been marked as lost
+   * Called by buildProviderOptions to filter out invalid IDs
+   */
+  public isResponseIdLost(responseId: string): boolean {
+    return this.lostResponseIds.has(responseId);
+  }
+
+  private extractErrorCode(error: unknown): string | undefined {
+    const candidates: unknown[] = [];
+    if (APICallError.isInstance(error)) {
+      candidates.push(error.data);
+    }
+    candidates.push(error);
+    for (const candidate of candidates) {
+      const directCode = this.getStructuredErrorCode(candidate);
+      if (directCode) {
+        return directCode;
+      }
+      if (candidate && typeof candidate === "object" && "data" in candidate) {
+        const dataCandidate = (candidate as { data?: unknown }).data;
+        const nestedCode = this.getStructuredErrorCode(dataCandidate);
+        if (nestedCode) {
+          return nestedCode;
+        }
+      }
+    }
+    return undefined;
+  }
+
+  private getStructuredErrorCode(candidate: unknown): string | undefined {
+    if (typeof candidate === "object" && candidate !== null && "error" in candidate) {
+      const withError = candidate as { error?: unknown };
+      if (withError.error && typeof withError.error === "object") {
+        const nested = withError.error as Record<string, unknown>;
+        const code = nested.code;
+        if (typeof code === "string") {
+          return code;
+        }
+      }
+    }
+    return undefined;
   }
 
   /**
