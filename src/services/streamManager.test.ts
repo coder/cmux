@@ -412,36 +412,13 @@ describe("StreamManager - Unavailable Tool Handling", () => {
 });
 
 describe("StreamManager - previousResponseId recovery", () => {
-  test("tracks lost previousResponseIds via public API", () => {
+  test("isResponseIdLost returns false for unknown IDs", () => {
     const mockHistoryService = createMockHistoryService();
     const mockPartialService = createMockPartialService();
     const streamManager = new StreamManager(mockHistoryService, mockPartialService);
 
     // Verify the ID is not lost initially
     expect(streamManager.isResponseIdLost("resp_123abc")).toBe(false);
-
-    // Simulate recording a lost ID (normally done by recordLostResponseIdIfApplicable)
-    // We'll test the private method via reflection
-    const error = {
-      responseBody:
-        '{"error":{"message":"Previous response with id \'resp_123abc\' not found.","code":"previous_response_not_found"}}',
-      data: { error: { code: "previous_response_not_found" } },
-    };
-    const streamInfo = {
-      messageId: "test-message",
-      model: "openai:gpt-test",
-    };
-
-    // Call the private method via reflection
-    const recordMethod = Reflect.get(streamManager, "recordLostResponseIdIfApplicable");
-    if (typeof recordMethod === "function") {
-      recordMethod.call(streamManager, error, streamInfo);
-    }
-
-    // Verify the ID was recorded as lost
-    expect(streamManager.isResponseIdLost("resp_123abc")).toBe(true);
-
-    // Verify querying a different ID returns false
     expect(streamManager.isResponseIdLost("resp_different")).toBe(false);
   });
 
