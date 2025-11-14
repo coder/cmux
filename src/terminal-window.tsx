@@ -28,9 +28,10 @@ if (!workspaceId) {
   // Set document title for browser tab
   // Fetch workspace metadata to get a better title
   if (window.api) {
-    window.api.workspace.getMetadata(workspaceId).then((metadata) => {
-      if (metadata) {
-        document.title = `Terminal — ${metadata.projectName}/${metadata.name}`;
+    window.api.workspace.list().then((workspaces: Array<{ id: string; projectName: string; name: string }>) => {
+      const workspace = workspaces.find((ws) => ws.id === workspaceId);
+      if (workspace) {
+        document.title = `Terminal — ${workspace.projectName}/${workspace.name}`;
       } else {
         document.title = `Terminal — ${workspaceId}`;
       }
