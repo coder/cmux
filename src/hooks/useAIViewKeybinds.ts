@@ -102,13 +102,7 @@ export function useAIViewKeybinds({
       }
 
       // Focus chat input works anywhere (even in input fields)
-      // BUT not when typing in the terminal
       if (matchesKeybind(e, KEYBINDS.FOCUS_CHAT)) {
-        // Don't steal focus from terminal
-        const terminalHasFocus = (e.target as HTMLElement)?.closest(".terminal-view") !== null;
-        if (terminalHasFocus) {
-          return;
-        }
         e.preventDefault();
         chatInputAPI.current?.focus();
         return;

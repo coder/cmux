@@ -228,6 +228,10 @@ export function TerminalView({ workspaceId, sessionId, visible }: TerminalViewPr
         height: "100%",
         backgroundColor: "#1e1e1e",
       }}
+      onKeyDown={(e) => {
+        // Stop propagation so global keybinds don't interfere with terminal input
+        e.stopPropagation();
+      }}
     >
       {errorMessage && (
         <div className="border-b border-red-900/30 bg-red-900/20 p-2 text-sm text-red-400">
