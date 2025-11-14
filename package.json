@@ -16,7 +16,7 @@
     "access": "public"
   },
   "scripts": {
-    "postinstall": "electron-builder install-app-deps",
+    "postinstall": "npm exec --yes -- electron-builder install-app-deps",
     "dev": "make dev",
     "prebuild:main": "./scripts/generate-version.sh",
     "build": "make build",

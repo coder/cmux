@@ -321,6 +321,12 @@ export interface IPCApi {
   server?: {
     getLaunchProject(): Promise<string | null>;
   };
+  platform?: "electron" | "browser";
+  versions?: {
+    node?: string;
+    chrome?: string;
+    electron?: string;
+  };
 }
 
 // Update status type (matches updater service)
