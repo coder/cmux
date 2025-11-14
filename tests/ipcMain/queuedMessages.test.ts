@@ -25,10 +25,7 @@ if (shouldRunIntegrationTests()) {
 }
 
 // Helper: Get queued messages from latest queued-message-changed event
-async function getQueuedMessages(
-  collector: EventCollector,
-  timeoutMs = 5000
-): Promise<string[]> {
+async function getQueuedMessages(collector: EventCollector, timeoutMs = 5000): Promise<string[]> {
   await waitForQueuedMessageEvent(collector, timeoutMs);
 
   collector.collect();

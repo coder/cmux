@@ -315,7 +315,11 @@ export const ChatInput: React.FC<ChatInputProps> = (props) => {
   // Allow external components (e.g., CommandPalette, Queued message edits) to insert text
   useEffect(() => {
     const handler = (e: Event) => {
-      const customEvent = e as CustomEvent<{ text: string; mode?: "append" | "replace"; imageParts?: ImagePart[] }>;
+      const customEvent = e as CustomEvent<{
+        text: string;
+        mode?: "append" | "replace";
+        imageParts?: ImagePart[];
+      }>;
 
       const { text, mode = "append", imageParts } = customEvent.detail;
 

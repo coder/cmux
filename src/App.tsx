@@ -13,7 +13,7 @@ import { matchesKeybind, KEYBINDS } from "./utils/ui/keybinds";
 import { useResumeManager } from "./hooks/useResumeManager";
 import { useUnreadTracking } from "./hooks/useUnreadTracking";
 import { useAutoCompactContinue } from "./hooks/useAutoCompactContinue";
-import { useWorkspaceStoreRaw, useWorkspaceRecency } from "./stores/WorkspaceStore";
+import { useWorkspaceStoreRaw, useWorkspaceRecency, canInterrupt } from "./stores/WorkspaceStore";
 import { ChatInput } from "./components/ChatInput/index";
 
 import { useStableReference, compareMaps } from "./hooks/useStableReference";
@@ -490,7 +490,7 @@ function AppInner() {
       const allStates = workspaceStore.getAllStates();
       const streamingModels = new Map<string, string>();
       for (const [workspaceId, state] of allStates) {
-        if (state.canInterrupt && state.currentModel) {
+        if (canInterrupt(state.interruptType) && state.currentModel) {
           streamingModels.set(workspaceId, state.currentModel);
         }
       }

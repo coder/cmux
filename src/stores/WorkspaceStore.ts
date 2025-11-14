@@ -31,7 +31,7 @@ export interface WorkspaceState {
   name: string; // User-facing workspace name (e.g., "feature-branch")
   messages: DisplayedMessage[];
   queuedMessage: QueuedMessage | null;
-  canInterrupt: boolean;
+  interruptType: InterruptType; // Whether an interrupt is soft/hard or not possible
   isCompacting: boolean;
   loading: boolean;
   cmuxMessages: MuxMessage[];
@@ -42,12 +42,18 @@ export interface WorkspaceState {
   pendingStreamStartTime: number | null;
 }
 
+export type InterruptType = "soft" | "hard" | "none";
+
+export function canInterrupt(interruptible: InterruptType): boolean {
+  return interruptible === "soft" || interruptible === "hard";
+}
+
 /**
  * Subset of WorkspaceState needed for sidebar display.
  * Subscribing to only these fields prevents re-renders when messages update.
  */
 export interface WorkspaceSidebarState {
-  canInterrupt: boolean;
+  interruptType: InterruptType;
   currentModel: string | null;
   recencyTimestamp: number | null;
   agentStatus: { emoji: string; message: string; url?: string } | undefined;
@@ -337,11 +343,16 @@ export class WorkspaceStore {
 
       const queuedMessage = this.queuedMessages.get(workspaceId) ?? null;
 
+      const hasHardInterrupt = activeStreams.some((c) => c.softInterruptPending);
+      const hasSoftInterrupt = activeStreams.length > 0;
+
+      const interruptible = hasHardInterrupt ? "hard" : hasSoftInterrupt ? "soft" : "none";
+
       return {
         name: metadata?.name ?? workspaceId, // Fall back to ID if metadata missing
         messages: displayedMessages,
         queuedMessage: queuedMessage,
-        canInterrupt: activeStreams.length > 0,
+        interruptType: interruptible,
         isCompacting: aggregator.isCompacting(),
         loading: !hasMessages && !isCaughtUp,
         cmuxMessages: messages,
@@ -369,7 +380,7 @@ export class WorkspaceStore {
     // Return cached if values match
     if (
       cached &&
-      cached.canInterrupt === fullState.canInterrupt &&
+      cached.interruptType === fullState.interruptType &&
       cached.currentModel === fullState.currentModel &&
       cached.recencyTimestamp === fullState.recencyTimestamp &&
       cached.agentStatus === fullState.agentStatus
@@ -379,7 +390,7 @@ export class WorkspaceStore {
 
     // Create and cache new state
     const newState: WorkspaceSidebarState = {
-      canInterrupt: fullState.canInterrupt,
+      interruptType: fullState.interruptType,
       currentModel: fullState.currentModel,
       recencyTimestamp: fullState.recencyTimestamp,
       agentStatus: fullState.agentStatus,

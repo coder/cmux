@@ -273,7 +273,7 @@ describe("WorkspaceStore", () => {
       // Object.is() comparison and skip re-renders for primitive values.
       // TODO: Optimize aggregator caching in Phase 2
       expect(state1).toEqual(state2);
-      expect(state1.canInterrupt).toBe(state2.canInterrupt);
+      expect(state1.interruptType).toBe(state2.interruptType);
       expect(state1.loading).toBe(state2.loading);
     });
   });
@@ -428,7 +428,7 @@ describe("WorkspaceStore", () => {
 
       const state2 = store.getWorkspaceState("test-workspace");
       expect(state1).not.toBe(state2); // Cache should be invalidated
-      expect(state2.canInterrupt).toBe(true); // Stream started, so can interrupt
+      expect(state2.interruptType).toBeTruthy(); // Stream started, so can interrupt
     });
 
     it("invalidates getAllStates() cache when workspace changes", async () => {
