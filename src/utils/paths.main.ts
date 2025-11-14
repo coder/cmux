@@ -235,5 +235,3 @@ export class PlatformPaths {
     return this.basename(projectPath) || "unknown";
   }
 }
-
-
