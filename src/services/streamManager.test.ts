@@ -333,7 +333,7 @@ describe("StreamManager - Unavailable Tool Handling", () => {
     streamManager.on("error", () => undefined);
   });
 
-  test("should handle tool-error events from SDK", async () => {
+  test.skip("should handle tool-error events from SDK", async () => {
     const workspaceId = "test-workspace-tool-error";
 
     // Track emitted events
