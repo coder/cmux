@@ -10,10 +10,10 @@ import ReactDOM from "react-dom/client";
 import { TerminalView } from "./components/TerminalView";
 import "./styles/globals.css";
 
-// Get workspace ID and optional session ID from query parameters
+// Get workspace ID from query parameter
 const params = new URLSearchParams(window.location.search);
 const workspaceId = params.get("workspaceId");
-const sessionId = params.get("sessionId");
+const sessionId = params.get("sessionId"); // Reserved for future reload support
 
 if (!workspaceId) {
   document.body.innerHTML = `

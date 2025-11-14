@@ -5,13 +5,13 @@ import { useState, useEffect, useCallback } from "react";
  */
 export function useTerminalSession(
   workspaceId: string,
-  existingSessionId: string | undefined,
+  _existingSessionId: string | undefined, // Reserved for future use (session reload support)
   enabled: boolean,
   terminalSize?: { cols: number; rows: number } | null,
   onOutput?: (data: string) => void,
   onExit?: (exitCode: number) => void
 ) {
-  const [sessionId, setSessionId] = useState<string | null>(existingSessionId ?? null);
+  const [sessionId, setSessionId] = useState<string | null>(null);
   const [connected, setConnected] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [shouldInit, setShouldInit] = useState(false);
@@ -24,14 +24,14 @@ export function useTerminalSession(
   }, [enabled, terminalSize, shouldInit]);
 
   // Create terminal session and subscribe to IPC events
-  // Only depends on workspaceId, existingSessionId, and shouldInit, NOT terminalSize
+  // Only depends on workspaceId and shouldInit, NOT terminalSize
   useEffect(() => {
     if (!shouldInit || !terminalSize) {
       return;
     }
 
     let mounted = true;
-    let createdSessionId: string | null = existingSessionId ?? null; // Use existing if provided
+    let createdSessionId: string | null = null; // Track session ID in closure
     let cleanupFns: Array<() => void> = [];
 
     const initSession = async () => {
@@ -44,25 +44,19 @@ export function useTerminalSession(
           throw new Error("window.api.terminal is not available");
         }
 
-        // Use existing session if provided, otherwise create new one
-        if (existingSessionId) {
-          createdSessionId = existingSessionId;
-        } else {
-          // Create terminal session with current terminal size
-          const session = await window.api.terminal.create({
-            workspaceId,
-            cols: terminalSize.cols,
-            rows: terminalSize.rows,
-          });
+        // Create terminal session with current terminal size
+        const session = await window.api.terminal.create({
+          workspaceId,
+          cols: terminalSize.cols,
+          rows: terminalSize.rows,
+        });
 
-          if (!mounted) {
-            return;
-          }
-
-          createdSessionId = session.sessionId; // Store in closure
+        if (!mounted) {
+          return;
         }
 
-        setSessionId(createdSessionId);
+        createdSessionId = session.sessionId; // Store in closure
+        setSessionId(session.sessionId);
 
         // Subscribe to output events
         const unsubOutput = window.api.terminal.onOutput(createdSessionId, (data: string) => {
@@ -110,7 +104,7 @@ export function useTerminalSession(
       setShouldInit(false);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [workspaceId, existingSessionId, shouldInit]); // DO NOT include terminalSize - changes should not recreate session
+  }, [workspaceId, shouldInit]); // DO NOT include terminalSize - changes should not recreate session
 
   // Send input to terminal
   const sendInput = useCallback(

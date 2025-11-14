@@ -1519,11 +1519,6 @@ export class IpcMain {
           }
         );
 
-        // Auto-open terminal window in desktop mode
-        if (this.terminalWindowManager) {
-          void this.terminalWindowManager.openTerminalWindow(params.workspaceId, session.sessionId);
-        }
-
         return session;
       } catch (err) {
         log.error("Error creating terminal session:", err);

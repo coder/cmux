@@ -23,7 +23,7 @@ export class TerminalWindowManager {
    * Open a new terminal window for a workspace
    * Multiple windows can be open for the same workspace
    */
-  async openTerminalWindow(workspaceId: string, sessionId?: string): Promise<void> {
+  async openTerminalWindow(workspaceId: string): Promise<void> {
     this.windowCount++;
     const windowId = this.windowCount;
 
@@ -73,21 +73,16 @@ export class TerminalWindowManager {
     // Load the terminal page
     const isDev = !process.env.NODE_ENV || process.env.NODE_ENV === "development";
 
-    // Build query params
-    const queryParams: Record<string, string> = { workspaceId };
-    if (sessionId) {
-      queryParams.sessionId = sessionId;
-    }
-
     if (isDev) {
       // Development mode - load from Vite dev server
-      const queryString = new URLSearchParams(queryParams).toString();
-      await terminalWindow.loadURL(`http://localhost:5173/terminal.html?${queryString}`);
+      await terminalWindow.loadURL(
+        `http://localhost:5173/terminal.html?workspaceId=${encodeURIComponent(workspaceId)}`
+      );
       terminalWindow.webContents.openDevTools();
     } else {
       // Production mode - load from built files
       await terminalWindow.loadFile(path.join(__dirname, "../terminal.html"), {
-        query: queryParams,
+        query: { workspaceId },
       });
     }
 
