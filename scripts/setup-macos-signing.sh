@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Sets up macOS code signing and notarization from GitHub secrets
 # Usage: ./scripts/setup-macos-signing.sh
 #
