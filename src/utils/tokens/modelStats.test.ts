@@ -1,17 +1,18 @@
 import { describe, expect, test, it } from "bun:test";
 import { getModelStats } from "./modelStats";
+import { KNOWN_MODELS } from "@/constants/knownModels";
 
 describe("getModelStats", () => {
   describe("direct model lookups", () => {
     test("should find anthropic models by direct name", () => {
-      const stats = getModelStats("anthropic:claude-opus-4-1");
+      const stats = getModelStats(KNOWN_MODELS.OPUS.id);
       expect(stats).not.toBeNull();
       expect(stats?.max_input_tokens).toBeGreaterThan(0);
       expect(stats?.input_cost_per_token).toBeGreaterThan(0);
     });
 
     test("should find openai models by direct name", () => {
-      const stats = getModelStats("openai:gpt-5");
+      const stats = getModelStats(KNOWN_MODELS.GPT.id);
       expect(stats).not.toBeNull();
       expect(stats?.max_input_tokens).toBeGreaterThan(0);
     });
@@ -89,7 +90,7 @@ describe("getModelStats", () => {
 
   describe("model without provider prefix", () => {
     test("should handle model string without provider", () => {
-      const stats = getModelStats("gpt-5");
+      const stats = getModelStats("gpt-5.1");
       expect(stats).not.toBeNull();
       expect(stats?.max_input_tokens).toBeGreaterThan(0);
     });
@@ -97,7 +98,7 @@ describe("getModelStats", () => {
 
   describe("existing test cases", () => {
     it("should return model stats for claude-sonnet-4-5", () => {
-      const stats = getModelStats("anthropic:claude-sonnet-4-5");
+      const stats = getModelStats(KNOWN_MODELS.SONNET.id);
 
       expect(stats).not.toBeNull();
       expect(stats?.input_cost_per_token).toBe(0.000003);
@@ -113,7 +114,7 @@ describe("getModelStats", () => {
     });
 
     it("should return cache pricing when available", () => {
-      const stats = getModelStats("anthropic:claude-sonnet-4-5");
+      const stats = getModelStats(KNOWN_MODELS.SONNET.id);
 
       expect(stats?.cache_creation_input_token_cost).toBe(0.00000375);
       expect(stats?.cache_read_input_token_cost).toBe(3e-7);
@@ -128,7 +129,7 @@ describe("getModelStats", () => {
 
   describe("model data validation", () => {
     test("should include cache costs when available", () => {
-      const stats = getModelStats("anthropic:claude-opus-4-1");
+      const stats = getModelStats(KNOWN_MODELS.OPUS.id);
       // Anthropic models have cache costs
       if (stats) {
         expect(stats.cache_creation_input_token_cost).toBeDefined();

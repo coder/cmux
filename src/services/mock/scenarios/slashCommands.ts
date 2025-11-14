@@ -1,4 +1,5 @@
 import type { ScenarioTurn } from "../scenarioTypes";
+import { KNOWN_MODELS } from "@/constants/knownModels";
 import { STREAM_BASE_DELAY } from "../scenarioTypes";
 
 export const SLASH_COMMAND_PROMPTS = {
@@ -24,7 +25,7 @@ const compactConversationTurn: ScenarioTurn = {
         kind: "stream-start",
         delay: 0,
         messageId: "msg-slash-compact-1",
-        model: "openai:gpt-5",
+        model: KNOWN_MODELS.GPT.id,
       },
       {
         kind: "stream-delta",
@@ -35,7 +36,7 @@ const compactConversationTurn: ScenarioTurn = {
         kind: "stream-end",
         delay: STREAM_BASE_DELAY * 2,
         metadata: {
-          model: "openai:gpt-5",
+          model: KNOWN_MODELS.GPT.id,
           inputTokens: 220,
           outputTokens: 96,
           systemMessageTokens: 18,

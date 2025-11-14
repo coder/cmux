@@ -1,4 +1,5 @@
 import type { ScenarioTurn } from "../scenarioTypes";
+import { KNOWN_MODELS } from "@/constants/knownModels";
 import { STREAM_BASE_DELAY } from "../scenarioTypes";
 
 export const TOOL_FLOW_PROMPTS = {
@@ -19,7 +20,12 @@ const fileReadTurn: ScenarioTurn = {
   assistant: {
     messageId: "msg-tool-file-read",
     events: [
-      { kind: "stream-start", delay: 0, messageId: "msg-tool-file-read", model: "openai:gpt-5" },
+      {
+        kind: "stream-start",
+        delay: 0,
+        messageId: "msg-tool-file-read",
+        model: KNOWN_MODELS.GPT.id,
+      },
       {
         kind: "tool-start",
         delay: STREAM_BASE_DELAY,
@@ -55,7 +61,7 @@ const fileReadTurn: ScenarioTurn = {
         kind: "stream-end",
         delay: STREAM_BASE_DELAY * 3,
         metadata: {
-          model: "openai:gpt-5",
+          model: KNOWN_MODELS.GPT.id,
           inputTokens: 92,
           outputTokens: 64,
           systemMessageTokens: 18,
@@ -78,7 +84,7 @@ const listDirectoryTurn: ScenarioTurn = {
   assistant: {
     messageId: "msg-tool-bash-ls",
     events: [
-      { kind: "stream-start", delay: 0, messageId: "msg-tool-bash-ls", model: "openai:gpt-5" },
+      { kind: "stream-start", delay: 0, messageId: "msg-tool-bash-ls", model: KNOWN_MODELS.GPT.id },
       {
         kind: "tool-start",
         delay: STREAM_BASE_DELAY,
@@ -122,7 +128,7 @@ const listDirectoryTurn: ScenarioTurn = {
         kind: "stream-end",
         delay: STREAM_BASE_DELAY * 3 + 500,
         metadata: {
-          model: "openai:gpt-5",
+          model: KNOWN_MODELS.GPT.id,
           inputTokens: 74,
           outputTokens: 58,
           systemMessageTokens: 16,
@@ -151,7 +157,7 @@ const createTestFileTurn: ScenarioTurn = {
         kind: "stream-start",
         delay: 0,
         messageId: "msg-tool-create-test-file",
-        model: "openai:gpt-5",
+        model: KNOWN_MODELS.GPT.id,
       },
       {
         kind: "tool-start",
@@ -181,7 +187,7 @@ const createTestFileTurn: ScenarioTurn = {
         kind: "stream-end",
         delay: STREAM_BASE_DELAY * 3,
         metadata: {
-          model: "openai:gpt-5",
+          model: KNOWN_MODELS.GPT.id,
           inputTokens: 80,
           outputTokens: 40,
           systemMessageTokens: 12,
@@ -205,7 +211,7 @@ const readTestFileTurn: ScenarioTurn = {
         kind: "stream-start",
         delay: 0,
         messageId: "msg-tool-read-test-file",
-        model: "openai:gpt-5",
+        model: KNOWN_MODELS.GPT.id,
       },
       {
         kind: "tool-start",
@@ -242,7 +248,7 @@ const readTestFileTurn: ScenarioTurn = {
         kind: "stream-end",
         delay: STREAM_BASE_DELAY * 3,
         metadata: {
-          model: "openai:gpt-5",
+          model: KNOWN_MODELS.GPT.id,
           inputTokens: 76,
           outputTokens: 52,
           systemMessageTokens: 12,
@@ -269,7 +275,7 @@ const recallTestFileTurn: ScenarioTurn = {
         kind: "stream-start",
         delay: 0,
         messageId: "msg-tool-recall-test-file",
-        model: "openai:gpt-5",
+        model: KNOWN_MODELS.GPT.id,
       },
       {
         kind: "stream-delta",
@@ -280,7 +286,7 @@ const recallTestFileTurn: ScenarioTurn = {
         kind: "stream-end",
         delay: STREAM_BASE_DELAY * 2,
         metadata: {
-          model: "openai:gpt-5",
+          model: KNOWN_MODELS.GPT.id,
           inputTokens: 60,
           outputTokens: 34,
           systemMessageTokens: 10,

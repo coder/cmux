@@ -30,10 +30,12 @@ if (shouldRunIntegrationTests()) {
   validateApiKeys(["OPENAI_API_KEY", "ANTHROPIC_API_KEY"]);
 }
 
+import { KNOWN_MODELS } from "@/constants/knownModels";
+
 // Test both providers with their respective models
 const PROVIDER_CONFIGS: Array<[string, string]> = [
-  ["openai", "gpt-5-codex"],
-  ["anthropic", "claude-sonnet-4-5"],
+  ["openai", KNOWN_MODELS.GPT_CODEX.providerModelId],
+  ["anthropic", KNOWN_MODELS.SONNET.providerModelId],
 ];
 
 // Integration test timeout guidelines:
@@ -1585,5 +1587,59 @@ describe.each(PROVIDER_CONFIGS)("%s:%s image support", (provider, model) => {
       }
     },
     40000
+  );
+
+  // Test multi-turn conversation specifically for reasoning models (codex)
+  test.concurrent(
+    "should handle multi-turn conversation with response ID persistence (openai reasoning models)",
+    async () => {
+      const { env, workspaceId, cleanup } = await setupWorkspace("openai");
+      try {
+        // First message
+        const result1 = await sendMessageWithModel(
+          env.mockIpcRenderer,
+          workspaceId,
+          "What is 2+2?",
+          "openai",
+          KNOWN_MODELS.GPT_CODEX.providerModelId
+        );
+        expect(result1.success).toBe(true);
+
+        const collector1 = createEventCollector(env.sentEvents, workspaceId);
+        await collector1.waitForEvent("stream-end", 30000);
+        assertStreamSuccess(collector1);
+        env.sentEvents.length = 0; // Clear events
+
+        // Second message - should use previousResponseId from first
+        const result2 = await sendMessageWithModel(
+          env.mockIpcRenderer,
+          workspaceId,
+          "Now add 3 to that",
+          "openai",
+          KNOWN_MODELS.GPT_CODEX.providerModelId
+        );
+        expect(result2.success).toBe(true);
+
+        const collector2 = createEventCollector(env.sentEvents, workspaceId);
+        await collector2.waitForEvent("stream-end", 30000);
+        assertStreamSuccess(collector2);
+
+        // Verify history contains both messages
+        const history = await readChatHistory(env.tempDir, workspaceId);
+        expect(history.length).toBeGreaterThanOrEqual(4); // 2 user + 2 assistant
+
+        // Verify assistant messages have responseId
+        const assistantMessages = history.filter((m) => m.role === "assistant");
+        expect(assistantMessages.length).toBeGreaterThanOrEqual(2);
+        // Check that responseId exists (type is unknown from JSONL parsing)
+        const firstAssistant = assistantMessages[0] as any;
+        const secondAssistant = assistantMessages[1] as any;
+        expect(firstAssistant.metadata?.providerMetadata?.openai?.responseId).toBeDefined();
+        expect(secondAssistant.metadata?.providerMetadata?.openai?.responseId).toBeDefined();
+      } finally {
+        await cleanup();
+      }
+    },
+    60000
   );
 });

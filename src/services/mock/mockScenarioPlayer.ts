@@ -18,8 +18,9 @@ import type { StreamStartEvent, StreamDeltaEvent, StreamEndEvent } from "@/types
 import type { ToolCallStartEvent, ToolCallEndEvent } from "@/types/stream";
 import type { ReasoningDeltaEvent } from "@/types/stream";
 import { getTokenizerForModel } from "@/utils/main/tokenizer";
+import { KNOWN_MODELS } from "@/constants/knownModels";
 
-const MOCK_TOKENIZER_MODEL = "openai:gpt-5";
+const MOCK_TOKENIZER_MODEL = KNOWN_MODELS.GPT.id;
 const TOKENIZE_TIMEOUT_MS = 150;
 let tokenizerFallbackLogged = false;
 

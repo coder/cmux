@@ -1,4 +1,5 @@
 import { describe, test, expect, beforeEach, mock } from "bun:test";
+import { KNOWN_MODELS } from "@/constants/knownModels";
 import { StreamManager } from "./streamManager";
 import type { HistoryService } from "./historyService";
 import type { PartialService } from "./partialService";
@@ -84,7 +85,7 @@ describe("StreamManager - Concurrent Stream Prevention", () => {
         workspaceId,
         [{ role: "user", content: "Say hello and nothing else" }],
         model,
-        "anthropic:claude-sonnet-4-5",
+        KNOWN_MODELS.SONNET.id,
         1,
         "You are a helpful assistant",
         runtime,
@@ -102,7 +103,7 @@ describe("StreamManager - Concurrent Stream Prevention", () => {
         workspaceId,
         [{ role: "user", content: "Say goodbye and nothing else" }],
         model,
-        "anthropic:claude-sonnet-4-5",
+        KNOWN_MODELS.SONNET.id,
         2,
         "You are a helpful assistant",
         runtime,
@@ -274,7 +275,7 @@ describe("StreamManager - Concurrent Stream Prevention", () => {
         workspaceId,
         [{ role: "user", content: "test 1" }],
         model,
-        "anthropic:claude-sonnet-4-5",
+        KNOWN_MODELS.SONNET.id,
         1,
         "system",
         runtime,
@@ -285,7 +286,7 @@ describe("StreamManager - Concurrent Stream Prevention", () => {
         workspaceId,
         [{ role: "user", content: "test 2" }],
         model,
-        "anthropic:claude-sonnet-4-5",
+        KNOWN_MODELS.SONNET.id,
         2,
         "system",
         runtime,
@@ -296,7 +297,7 @@ describe("StreamManager - Concurrent Stream Prevention", () => {
         workspaceId,
         [{ role: "user", content: "test 3" }],
         model,
-        "anthropic:claude-sonnet-4-5",
+        KNOWN_MODELS.SONNET.id,
         3,
         "system",
         runtime,
@@ -379,7 +380,7 @@ describe("StreamManager - Unavailable Tool Handling", () => {
       messageId: "test-message-1",
       token: "test-token",
       startTime: Date.now(),
-      model: "anthropic:claude-sonnet-4-5",
+      model: KNOWN_MODELS.SONNET.id,
       historySequence: 1,
       parts: [],
       lastPartialWriteTime: 0,

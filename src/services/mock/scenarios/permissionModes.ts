@@ -1,4 +1,5 @@
 import type { ScenarioTurn } from "../scenarioTypes";
+import { KNOWN_MODELS } from "@/constants/knownModels";
 import { STREAM_BASE_DELAY } from "../scenarioTypes";
 
 export const PERMISSION_MODE_PROMPTS = {
@@ -19,7 +20,7 @@ const planRefactorTurn: ScenarioTurn = {
         kind: "stream-start",
         delay: 0,
         messageId: "msg-plan-refactor",
-        model: "openai:gpt-5",
+        model: KNOWN_MODELS.GPT.id,
       },
       {
         kind: "stream-delta",
@@ -45,7 +46,7 @@ const planRefactorTurn: ScenarioTurn = {
         kind: "stream-end",
         delay: STREAM_BASE_DELAY * 5,
         metadata: {
-          model: "openai:gpt-5",
+          model: KNOWN_MODELS.GPT.id,
           inputTokens: 180,
           outputTokens: 130,
           systemMessageTokens: 24,
@@ -74,7 +75,7 @@ const executePlanTurn: ScenarioTurn = {
         kind: "stream-start",
         delay: 0,
         messageId: "msg-exec-refactor",
-        model: "openai:gpt-5",
+        model: KNOWN_MODELS.GPT.id,
       },
       {
         kind: "tool-start",
@@ -118,7 +119,7 @@ const executePlanTurn: ScenarioTurn = {
         kind: "stream-end",
         delay: STREAM_BASE_DELAY * 3,
         metadata: {
-          model: "openai:gpt-5",
+          model: KNOWN_MODELS.GPT.id,
           inputTokens: 220,
           outputTokens: 110,
           systemMessageTokens: 18,
