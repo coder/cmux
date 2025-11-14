@@ -1,11 +1,10 @@
 import { describe, test, expect, beforeEach, mock } from "bun:test";
 import { KNOWN_MODELS } from "@/constants/knownModels";
 import { StreamManager } from "./streamManager";
-import type { LanguageModel } from "ai";
+import { APICallError } from "ai";
 import type { HistoryService } from "./historyService";
 import type { PartialService } from "./partialService";
 import { createAnthropic } from "@ai-sdk/anthropic";
-import type { Runtime } from "@/runtime/Runtime";
 import { shouldRunIntegrationTests, validateApiKeys } from "../../tests/testUtils";
 import { createRuntime } from "@/runtime/runtimeFactory";
 
@@ -450,17 +449,25 @@ describe("StreamManager - previousResponseId recovery", () => {
     const streamManager = new StreamManager(mockHistoryService, mockPartialService);
 
     // Get the private method via reflection
-    const extractMethod = Reflect.get(streamManager, "extractPreviousResponseIdFromError");
+    const extractMethod = Reflect.get(
+      streamManager,
+      "extractPreviousResponseIdFromError"
+    ) as (error: unknown) => string | undefined;
     expect(typeof extractMethod).toBe("function");
 
-    if (typeof extractMethod !== "function") return;
-
-    // Test extraction from responseBody
-    const errorWithBody = {
+    // Test extraction from APICallError with responseBody
+    const apiError = new APICallError({
+      message: "Previous response with id 'resp_abc123' not found.",
+      url: "https://api.openai.com/v1/responses",
+      requestBodyValues: {},
+      statusCode: 400,
+      responseHeaders: {},
       responseBody:
         '{"error":{"message":"Previous response with id \'resp_abc123\' not found.","code":"previous_response_not_found"}}',
-    };
-    expect(extractMethod.call(streamManager, errorWithBody)).toBe("resp_abc123");
+      isRetryable: false,
+      data: { error: { code: "previous_response_not_found" } },
+    });
+    expect(extractMethod.call(streamManager, apiError)).toBe("resp_abc123");
 
     // Test extraction from error message
     const errorWithMessage = new Error(
