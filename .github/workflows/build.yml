@@ -20,9 +20,6 @@ jobs:
         with:
           install-imagemagick: true
 
-      - name: Build application
-        run: bun run build
-
       - name: Setup code signing
         run: ./scripts/setup-macos-signing.sh
         env:
