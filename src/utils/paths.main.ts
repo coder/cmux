@@ -53,7 +53,9 @@ export class PlatformPaths {
       return filePath;
     }
 
-    const lastSlash = Math.max(filePath.lastIndexOf("/"), filePath.lastIndexOf("\\"));
+    const lastSlash = isWindowsPlatform()
+      ? Math.max(filePath.lastIndexOf("/"), filePath.lastIndexOf("\\"))
+      : filePath.lastIndexOf("/");
     if (lastSlash === -1) {
       return filePath;
     }
@@ -74,7 +76,9 @@ export class PlatformPaths {
     let base = "";
 
     // Determine basename and directory
-    const lastSlash = Math.max(original.lastIndexOf("/"), original.lastIndexOf("\\"));
+    const lastSlash = isWindowsPlatform()
+      ? Math.max(original.lastIndexOf("/"), original.lastIndexOf("\\"))
+      : original.lastIndexOf("/");
     if (lastSlash === -1) {
       base = original;
       dir = "";
@@ -113,7 +117,8 @@ export class PlatformPaths {
       }
     }
 
-    const segments = dir ? dir.split(/[\\/]+/).filter(Boolean) : [];
+    const separatorRegex = isWindowsPlatform() ? /[\\/]+/ : /\/+/;
+    const segments = dir ? dir.split(separatorRegex).filter(Boolean) : [];
 
     return {
       root,
@@ -141,7 +146,7 @@ export class PlatformPaths {
       return basename;
     }
 
-    const sep = filePath.includes("\\") ? "\\" : "/";
+    const sep = isWindowsPlatform() ? (filePath.includes("\\") ? "\\" : "/") : "/";
     const joined = [...abbreviated, basename].filter(Boolean).join(sep);
     if (!root) {
       return joined;
@@ -158,7 +163,8 @@ export class PlatformPaths {
       return { dirPath: "", basename: filePath };
     }
 
-    const lastSlash = Math.max(filePath.lastIndexOf("/"), filePath.lastIndexOf("\\"));
+    const sep = isWindowsPlatform() ? (filePath.includes("\\") ? "\\" : "/") : "/";
+    const lastSlash = filePath.lastIndexOf(sep);
     if (lastSlash === -1) {
       return { dirPath: "", basename: filePath };
     }
