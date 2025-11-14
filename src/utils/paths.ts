@@ -14,8 +14,16 @@ export interface PathComponents {
 
 /**
  * Determine if current platform is Windows
+ * Safe for both main and renderer processes
  */
 function isWindowsPlatform(): boolean {
+  // In renderer, navigator.platform is available
+  // In main process, process.platform is available
+  if (typeof navigator !== "undefined" && navigator.platform) {
+    return navigator.platform.toLowerCase().includes("win");
+  }
+  // Main process only - safe because of typeof check
+  // eslint-disable-next-line no-restricted-globals
   return typeof process !== "undefined" && process.platform === "win32";
 }
 
@@ -24,11 +32,20 @@ function getSeparator(): string {
 }
 
 function getHomeDir(): string {
-  if (isWindowsPlatform()) {
-    return (typeof process !== "undefined" ? process.env?.USERPROFILE : undefined) ?? "";
+  // This function should only be called in main process context
+  // Renderer should use IPC to get paths from main
+  // eslint-disable-next-line no-restricted-globals, no-restricted-syntax
+  if (typeof process === "undefined" || !process.env) {
+    return "";
   }
 
-  return (typeof process !== "undefined" ? process.env?.HOME : undefined) ?? "";
+  if (isWindowsPlatform()) {
+    // eslint-disable-next-line no-restricted-globals, no-restricted-syntax
+    return process.env.USERPROFILE ?? "";
+  }
+
+  // eslint-disable-next-line no-restricted-globals, no-restricted-syntax
+  return process.env.HOME ?? "";
 }
 
 /**

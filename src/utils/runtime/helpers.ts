@@ -1,4 +1,3 @@
-import path from "path";
 import type { Runtime, ExecOptions } from "@/runtime/Runtime";
 import { PlatformPaths } from "../paths";
 

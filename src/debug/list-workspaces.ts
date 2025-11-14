@@ -1,5 +1,4 @@
 import { defaultConfig } from "@/config";
-import * as path from "path";
 import { PlatformPaths } from "../utils/paths";
 import * as fs from "fs";
 import { getMuxSessionsDir } from "@/constants/paths";
