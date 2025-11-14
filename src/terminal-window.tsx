@@ -25,6 +25,22 @@ if (!workspaceId) {
     </div>
   `;
 } else {
+  // Set document title for browser tab
+  // Fetch workspace metadata to get a better title
+  if (window.api) {
+    window.api.workspace.getMetadata(workspaceId).then((metadata) => {
+      if (metadata) {
+        document.title = `Terminal — ${metadata.projectName}/${metadata.name}`;
+      } else {
+        document.title = `Terminal — ${workspaceId}`;
+      }
+    }).catch(() => {
+      document.title = `Terminal — ${workspaceId}`;
+    });
+  } else {
+    document.title = `Terminal — ${workspaceId}`;
+  }
+
   // Don't use StrictMode for terminal windows to avoid double-mounting issues
   // StrictMode intentionally double-mounts components in dev, which causes
   // race conditions with WebSocket connections and terminal lifecycle
