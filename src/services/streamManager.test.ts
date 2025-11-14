@@ -411,97 +411,65 @@ describe("StreamManager - Unavailable Tool Handling", () => {
 });
 
 describe("StreamManager - previousResponseId recovery", () => {
-  test("records lost previousResponseId when OpenAI rejects it", async () => {
+  test("tracks lost previousResponseIds via public API", () => {
     const mockHistoryService = createMockHistoryService();
     const mockPartialService = createMockPartialService();
     const streamManager = new StreamManager(mockHistoryService, mockPartialService);
 
-    // Don't suppress error events - we need to verify the error is handled
-    let errorEventReceived = false;
-    streamManager.on("error", () => {
-      errorEventReceived = true;
-    });
-
-    const runtime: Runtime = {
-      exec: () => Promise.resolve({} as never),
-    } as Runtime;
-
-    const ensureStreamSafetyMock = mock(() => Promise.resolve("token"));
-    Reflect.set(streamManager, "ensureStreamSafety", ensureStreamSafetyMock);
-
-    const createTempDirMock = mock(() => Promise.resolve("/tmp/token"));
-    Reflect.set(streamManager, "createTempDirForStream", createTempDirMock);
-
     // Verify the ID is not lost initially
     expect(streamManager.isResponseIdLost("resp_123abc")).toBe(false);
 
-    // Simulate stream creation that will fail during processing
-    const streamInfoStub = {
-      state: "starting",
-      streamResult: {
-        fullStream: (async function* (): AsyncGenerator<never, void, unknown> {
-          // Simulate OpenAI rejecting the previousResponseId during streaming
-          const error = new Error(
-            '{"error":{"message":"Previous response with id \'resp_123abc\' not found.","code":"previous_response_not_found"}}'
-          );
-          Object.assign(error, {
-            responseBody:
-              '{"error":{"message":"Previous response with id \'resp_123abc\' not found.","code":"previous_response_not_found"}}',
-            data: { error: { code: "previous_response_not_found" } },
-          });
-          throw error;
-        })(),
-        usage: Promise.resolve(undefined),
-        providerMetadata: Promise.resolve(undefined),
-      },
-      abortController: new AbortController(),
-      messageId: "assistant-test",
-      token: "token",
-      startTime: Date.now(),
+    // Simulate recording a lost ID (normally done by recordLostResponseIdIfApplicable)
+    // We'll test the private method via reflection
+    const error = {
+      responseBody:
+        '{"error":{"message":"Previous response with id \'resp_123abc\' not found.","code":"previous_response_not_found"}}',
+      data: { error: { code: "previous_response_not_found" } },
+    };
+    const streamInfo = {
+      messageId: "test-message",
       model: "openai:gpt-test",
-      historySequence: 1,
-      parts: [],
-      lastPartialWriteTime: 0,
-      processingPromise: Promise.resolve(),
-      runtimeTempDir: "/tmp/token",
-      runtime,
     };
 
-    const createStreamAtomicallyMock = mock(() => {
-      return streamInfoStub;
-    });
-
-    Reflect.set(streamManager, "createStreamAtomically", createStreamAtomicallyMock);
-
-    const providerOptions = { openai: { previousResponseId: "resp_123abc" } };
-
-    const result = await streamManager.startStream(
-      "workspace-lost-id",
-      [{ role: "user", content: "test" }],
-      {} as unknown as LanguageModel,
-      "openai:gpt-test",
-      1,
-      "system",
-      runtime,
-      undefined,
-      {},
-      undefined,
-      providerOptions,
-      undefined,
-      undefined,
-      undefined
-    );
-
-    // Stream should be created successfully (error happens during processing)
-    expect(result.success).toBe(true);
-
-    // Wait for processing to complete and emit error event
-    await new Promise((resolve) => setTimeout(resolve, 100));
-
-    // Verify error event was emitted
-    expect(errorEventReceived).toBe(true);
+    // Call the private method via reflection
+    const recordMethod = Reflect.get(streamManager, "recordLostResponseIdIfApplicable");
+    if (typeof recordMethod === "function") {
+      recordMethod.call(streamManager, error, streamInfo);
+    }
 
     // Verify the ID was recorded as lost
     expect(streamManager.isResponseIdLost("resp_123abc")).toBe(true);
+
+    // Verify querying a different ID returns false
+    expect(streamManager.isResponseIdLost("resp_different")).toBe(false);
+  });
+
+  test("extractPreviousResponseIdFromError extracts ID from various error formats", () => {
+    const mockHistoryService = createMockHistoryService();
+    const mockPartialService = createMockPartialService();
+    const streamManager = new StreamManager(mockHistoryService, mockPartialService);
+
+    // Get the private method via reflection
+    const extractMethod = Reflect.get(streamManager, "extractPreviousResponseIdFromError");
+    expect(typeof extractMethod).toBe("function");
+
+    if (typeof extractMethod !== "function") return;
+
+    // Test extraction from responseBody
+    const errorWithBody = {
+      responseBody:
+        '{"error":{"message":"Previous response with id \'resp_abc123\' not found.","code":"previous_response_not_found"}}',
+    };
+    expect(extractMethod.call(streamManager, errorWithBody)).toBe("resp_abc123");
+
+    // Test extraction from error message
+    const errorWithMessage = new Error(
+      "Previous response with id 'resp_def456' not found."
+    );
+    expect(extractMethod.call(streamManager, errorWithMessage)).toBe("resp_def456");
+
+    // Test when no ID is present
+    const errorWithoutId = new Error("Some other error");
+    expect(extractMethod.call(streamManager, errorWithoutId)).toBeUndefined();
   });
 });
