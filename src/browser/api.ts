@@ -269,8 +269,9 @@ const webApi: IPCApi = {
     },
     openWindow: (workspaceId) => {
       // In browser mode, open a new window/tab with the terminal page
+      // Use a unique name with timestamp to create a new window each time
       const url = `/terminal.html?workspaceId=${encodeURIComponent(workspaceId)}`;
-      window.open(url, `terminal-${workspaceId}`, "width=1000,height=600");
+      window.open(url, `terminal-${workspaceId}-${Date.now()}`, "width=1000,height=600");
       return invokeIPC(IPC_CHANNELS.TERMINAL_WINDOW_OPEN, workspaceId);
     },
     closeWindow: (workspaceId) => invokeIPC(IPC_CHANNELS.TERMINAL_WINDOW_CLOSE, workspaceId),
