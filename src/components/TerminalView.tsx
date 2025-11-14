@@ -47,6 +47,22 @@ export function TerminalView({ workspaceId, sessionId, visible }: TerminalViewPr
     resizeRef.current = resize;
   }, [sendInput, resize]);
 
+  // Stop keyboard event propagation to prevent global keybinds from interfering
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container || !visible) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      e.stopPropagation();
+    };
+
+    // Use capture phase to stop events before they bubble
+    container.addEventListener("keydown", handleKeyDown, true);
+    return () => {
+      container.removeEventListener("keydown", handleKeyDown, true);
+    };
+  }, [visible]);
+
   // Initialize terminal when visible
   useEffect(() => {
     if (!containerRef.current || !visible) {
