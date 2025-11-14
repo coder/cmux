@@ -179,3 +179,32 @@ describe("commandParser", () => {
     });
   });
 });
+it("should preserve start message when no workspace name provided", () => {
+  expectParse("/new\nBuild authentication system", {
+    type: "new",
+    workspaceName: undefined,
+    trunkBranch: undefined,
+    runtime: undefined,
+    startMessage: "Build authentication system",
+  });
+});
+
+it("should preserve start message and flags when no workspace name", () => {
+  expectParse("/new -t develop\nImplement feature X", {
+    type: "new",
+    workspaceName: undefined,
+    trunkBranch: "develop",
+    runtime: undefined,
+    startMessage: "Implement feature X",
+  });
+});
+
+it("should preserve start message with runtime flag when no workspace name", () => {
+  expectParse('/new -r "ssh dev.example.com"\nDeploy to staging', {
+    type: "new",
+    workspaceName: undefined,
+    trunkBranch: undefined,
+    runtime: "ssh dev.example.com",
+    startMessage: "Deploy to staging",
+  });
+});
