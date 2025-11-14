@@ -7,7 +7,11 @@ const MAX_LRU_SIZE = 8;
 const LRU_KEY = "model-lru";
 
 // Default models from abbreviations (for initial LRU population)
-const DEFAULT_MODELS = Object.values(MODEL_ABBREVIATIONS);
+// Ensure defaultModel is first, then fill with other abbreviations
+const DEFAULT_MODELS = [
+  defaultModel,
+  ...Object.values(MODEL_ABBREVIATIONS).filter((m) => m !== defaultModel),
+].slice(0, MAX_LRU_SIZE);
 
 /**
  * Get the default model from LRU (non-hook version for use outside React)
