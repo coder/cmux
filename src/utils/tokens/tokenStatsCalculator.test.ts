@@ -1,4 +1,4 @@
-import { describe, test, expect, mock, jest } from "bun:test";
+import { beforeAll, afterAll, describe, test, expect, mock, jest } from "bun:test";
 
 import {
   createDisplayUsage,
@@ -13,12 +13,18 @@ import {
 import type { LanguageModelV2Usage } from "@ai-sdk/provider";
 import type { MuxMessage } from "@/types/message";
 
-// Mock the tokenizer module before importing tokenStatsCalculator
-mock.module("@/utils/main/tokenizer", () => ({
-  getTokenizerForModel: jest.fn(),
-  countTokensForData: jest.fn(),
-  getToolDefinitionTokens: jest.fn(),
-}));
+beforeAll(() => {
+  // Mock the tokenizer module before importing tokenStatsCalculator
+  mock.module("@/utils/main/tokenizer", () => ({
+    getTokenizerForModel: jest.fn(),
+    countTokensForData: jest.fn(),
+    getToolDefinitionTokens: jest.fn(),
+  }));
+});
+
+afterAll(() => {
+  mock.restore();
+});
 
 describe("createDisplayUsage", () => {
   test("uses usage.reasoningTokens when available", () => {
