@@ -37,8 +37,22 @@ const THINKING_LEVELS: ThinkingLevel[] = ["off", "low", "medium", "high"];
 
 function AppInner() {
   // Get app-level state from context
-  const { workspaceMetadata, setWorkspaceMetadata, removeWorkspace, renameWorkspace, selectedWorkspace, setSelectedWorkspace } = useApp();
-  const { projects } = useProjectContext();
+  const {
+    workspaceMetadata,
+    setWorkspaceMetadata,
+    removeWorkspace,
+    renameWorkspace,
+    selectedWorkspace,
+    setSelectedWorkspace,
+  } = useApp();
+  const {
+    projects,
+    removeProject,
+    openProjectCreateModal,
+    isProjectCreateModalOpen,
+    closeProjectCreateModal,
+    addProject,
+  } = useProjectContext();
 
   // Track when we're in "new workspace creation" mode (show FirstMessageInput)
   const [pendingNewWorkspaceProject, setPendingNewWorkspaceProject] = useState<string | null>(null);
@@ -77,8 +91,6 @@ function AppInner() {
 
   // Get workspace store for command palette
   const workspaceStore = useWorkspaceStoreRaw();
-
-
 
   // Track telemetry when workspace selection changes
   const prevWorkspaceRef = useRef<WorkspaceSelection | null>(null);
@@ -167,13 +179,11 @@ function AppInner() {
       }
       await removeProject(path);
     },
-    [removeProject, selectedWorkspace, setSelectedWorkspace]
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [selectedWorkspace, setSelectedWorkspace]
   );
 
-
-
   // Memoize callbacks to prevent LeftSidebar/ProjectSidebar re-renders
-
 
   // NEW: Get workspace recency from store
   const workspaceRecency = useWorkspaceRecency();
@@ -357,8 +367,8 @@ function AppInner() {
   );
 
   const addProjectFromPalette = useCallback(() => {
-    setProjectCreateModalOpen(true);
-  }, []);
+    openProjectCreateModal();
+  }, [openProjectCreateModal]);
 
   const removeProjectFromPalette = useCallback(
     (path: string) => {
@@ -596,7 +606,11 @@ function AppInner() {
             workspaceId: selectedWorkspace?.workspaceId,
           })}
         />
-        <ProjectCreateModal />
+        <ProjectCreateModal
+          isOpen={isProjectCreateModalOpen}
+          onClose={closeProjectCreateModal}
+          onSuccess={addProject}
+        />
       </div>
     </>
   );

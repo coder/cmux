@@ -1,7 +1,6 @@
 import React from "react";
 import { cn } from "@/lib/utils";
 import type { FrontendWorkspaceMetadata } from "@/types/workspace";
-import type { Secret } from "@/types/secrets";
 import ProjectSidebar from "./ProjectSidebar";
 import { TitleBar } from "./TitleBar";
 
@@ -58,7 +57,11 @@ export function LeftSidebar(props: LeftSidebarProps) {
         )}
       >
         {!collapsed && <TitleBar />}
-        <ProjectSidebar {...projectSidebarProps} collapsed={collapsed} onToggleCollapsed={onToggleCollapsed} />
+        <ProjectSidebar
+          {...projectSidebarProps}
+          collapsed={collapsed}
+          onToggleCollapsed={onToggleCollapsed}
+        />
       </div>
     </>
   );
