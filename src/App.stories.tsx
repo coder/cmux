@@ -590,7 +590,7 @@ export const ActiveWorkspaceWithChat: Story = {
                       metadata: {
                         historySequence: 2,
                         timestamp: STABLE_TIMESTAMP - 290000,
-                        model: "claude-sonnet-4-20250514",
+                        model: "anthropic:claude-sonnet-4-5",
                         usage: {
                           inputTokens: 1250,
                           outputTokens: 450,
@@ -640,7 +640,7 @@ export const ActiveWorkspaceWithChat: Story = {
                       metadata: {
                         historySequence: 4,
                         timestamp: STABLE_TIMESTAMP - 270000,
-                        model: "claude-sonnet-4-20250514",
+                        model: "anthropic:claude-sonnet-4-5",
                         usage: {
                           inputTokens: 2100,
                           outputTokens: 680,
@@ -663,7 +663,7 @@ export const ActiveWorkspaceWithChat: Story = {
                       metadata: {
                         historySequence: 5,
                         timestamp: STABLE_TIMESTAMP - 260000,
-                        model: "claude-sonnet-4-20250514",
+                        model: "anthropic:claude-sonnet-4-5",
                         usage: {
                           inputTokens: 1800,
                           outputTokens: 520,
@@ -715,7 +715,7 @@ export const ActiveWorkspaceWithChat: Story = {
                       metadata: {
                         historySequence: 7,
                         timestamp: STABLE_TIMESTAMP - 230000,
-                        model: "claude-sonnet-4-20250514",
+                        model: "anthropic:claude-sonnet-4-5",
                         usage: {
                           inputTokens: 2800,
                           outputTokens: 420,
@@ -775,7 +775,7 @@ export const ActiveWorkspaceWithChat: Story = {
                       metadata: {
                         historySequence: 9,
                         timestamp: STABLE_TIMESTAMP - 170000,
-                        model: "claude-sonnet-4-20250514",
+                        model: "anthropic:claude-sonnet-4-5",
                         usage: {
                           inputTokens: 3500,
                           outputTokens: 520,
@@ -816,7 +816,7 @@ export const ActiveWorkspaceWithChat: Story = {
                       metadata: {
                         historySequence: 10,
                         timestamp: STABLE_TIMESTAMP - 160000,
-                        model: "claude-sonnet-4-20250514",
+                        model: "anthropic:claude-sonnet-4-5",
                         usage: {
                           inputTokens: 800,
                           outputTokens: 150,
@@ -826,12 +826,60 @@ export const ActiveWorkspaceWithChat: Story = {
                       },
                     });
 
+                    // User follow-up asking about documentation
+                    callback({
+                      id: "msg-11",
+                      role: "user",
+                      parts: [
+                        {
+                          type: "text",
+                          text: "Should we add documentation for the authentication changes?",
+                        },
+                      ],
+                      metadata: {
+                        historySequence: 11,
+                        timestamp: STABLE_TIMESTAMP - 150000,
+                      },
+                    });
+
                     // Mark as caught up
                     callback({ type: "caught-up" });
+
+                    // Now start streaming assistant response with reasoning
+                    callback({
+                      type: "stream-start",
+                      workspaceId: workspaceId,
+                      messageId: "msg-12",
+                      model: "anthropic:claude-sonnet-4-5",
+                      historySequence: 12,
+                    });
+
+                    // Send reasoning delta
+                    callback({
+                      type: "reasoning-delta",
+                      workspaceId: workspaceId,
+                      messageId: "msg-12",
+                      delta:
+                        "The user is asking about documentation. This is important because the authentication changes introduce a breaking change for API clients. They'll need to know how to include JWT tokens in their requests. I should suggest adding both inline code comments and updating the API documentation to explain the new authentication requirements, including examples of how to obtain and use tokens.",
+                      tokens: 65,
+                      timestamp: STABLE_TIMESTAMP - 140000,
+                    });
                   }, 100);
 
+                  // Keep sending reasoning deltas to maintain streaming state
+                  const intervalId = setInterval(() => {
+                    callback({
+                      type: "reasoning-delta",
+                      workspaceId: workspaceId,
+                      messageId: "msg-12",
+                      delta: ".",
+                      tokens: 1,
+                      timestamp: NOW,
+                    });
+                  }, 2000);
+
                   return () => {
-                    // Cleanup
+                    clearInterval(intervalId);
                   };
                 } else if (wsId === streamingWorkspaceId) {
                   // Streaming workspace - show active work in progress
@@ -866,7 +914,7 @@ export const ActiveWorkspaceWithChat: Story = {
                       metadata: {
                         historySequence: 0,
                         timestamp: now - 5000, // 5 seconds ago
-                        model: "claude-sonnet-4-20250514",
+                        model: "anthropic:claude-sonnet-4-5",
                         usage: {
                           inputTokens: 200,
                           outputTokens: 50,
@@ -902,7 +950,7 @@ export const ActiveWorkspaceWithChat: Story = {
                       type: "stream-start",
                       workspaceId: streamingWorkspaceId,
                       messageId: "stream-msg-2",
-                      model: "claude-sonnet-4-20250514",
+                      model: "anthropic:claude-sonnet-4-5",
                       historySequence: 2,
                     });
 
@@ -1227,7 +1275,7 @@ These tables should render cleanly without any disruptive copy or download actio
                     metadata: {
                       historySequence: 2,
                       timestamp: STABLE_TIMESTAMP + 1000,
-                      model: "claude-sonnet-4-20250514",
+                      model: "anthropic:claude-sonnet-4-5",
                       usage: {
                         inputTokens: 100,
                         outputTokens: 500,
