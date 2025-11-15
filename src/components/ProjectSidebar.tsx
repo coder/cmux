@@ -23,6 +23,7 @@ import { useProjectContext } from "@/contexts/ProjectContext";
 import { useSortedWorkspacesByProject } from "@/hooks/useSortedWorkspacesByProject";
 import { useApp } from "@/contexts/AppContext";
 import { useWorkspaceRecency } from "@/stores/WorkspaceStore";
+import { ChevronRight, KeyRound } from "lucide-react";
 
 // Re-export WorkspaceSelection for backwards compatibility
 export type { WorkspaceSelection } from "./WorkspaceListItem";
@@ -141,7 +142,6 @@ const ProjectDragLayer: React.FC = () => {
     <div className="pointer-events-none fixed inset-0 z-[9999] cursor-grabbing">
       <div style={{ transform: `translate(${currentOffset.x + 10}px, ${currentOffset.y + 10}px)` }}>
         <div className="bg-hover/95 text-foreground border-l-accent flex w-fit max-w-72 min-w-44 items-center rounded border-l-[3px] px-3 py-1.5 shadow-[0_6px_24px_rgba(0,0,0,0.4)]">
-          <span className="text-dim mr-1.5 text-xs">⠿</span>
           <span className="text-muted mr-2 text-xs">▶</span>
           <div className="min-w-0 flex-1">
             <div className="text-muted-dark font-monospace truncate text-sm leading-tight">
@@ -500,19 +500,12 @@ const ProjectSidebarInner: React.FC<ProjectSidebarProps> = ({
                           data-project-path={projectPath}
                         >
                           <span
-                            data-drag-handle
-                            aria-hidden
-                            className="text-dim mr-1.5 cursor-grab text-xs opacity-0 transition-opacity duration-150 select-none"
-                          >
-                            ⠿
-                          </span>
-                          <span
                             data-project-path={projectPath}
                             aria-hidden="true"
                             className="text-muted mr-2 shrink-0 text-xs transition-transform duration-200"
                             style={{ transform: isExpanded ? "rotate(90deg)" : "rotate(0deg)" }}
                           >
-                            ▶
+                            <ChevronRight size={12} />
                           </span>
                           <div className="flex min-w-0 flex-1 items-center pr-2">
                             <TooltipWrapper inline>
@@ -544,9 +537,9 @@ const ProjectSidebarInner: React.FC<ProjectSidebarProps> = ({
                               }}
                               aria-label={`Manage secrets for ${projectName}`}
                               data-project-path={projectPath}
-                              className="text-muted-dark hover:text-accent hover:bg-accent/10 mr-1 flex h-5 w-5 shrink-0 cursor-pointer items-center justify-center rounded-[3px] border-none bg-transparent text-sm opacity-0 transition-all duration-200"
+                              className="text-muted-dark mr-1 flex h-5 w-5 shrink-0 cursor-pointer items-center justify-center rounded-[3px] border-none bg-transparent text-sm opacity-0 transition-all duration-200 hover:bg-yellow-500/10 hover:text-yellow-500"
                             >
-                              🔑
+                              <KeyRound size={12} />
                             </button>
                             <Tooltip className="tooltip" align="right">
                               Manage secrets
@@ -577,7 +570,7 @@ const ProjectSidebarInner: React.FC<ProjectSidebarProps> = ({
                             role="region"
                             aria-label={`Workspaces for ${projectName}`}
                           >
-                            <div className="border-hover border-b px-3 py-2 pl-[22px]">
+                            <div className="border-hover border-b px-3 py-2">
                               <button
                                 onClick={() => handleAddWorkspace(projectPath)}
                                 data-project-path={projectPath}
@@ -641,7 +634,7 @@ const ProjectSidebarInner: React.FC<ProjectSidebarProps> = ({
                                               : "rotate(0deg)",
                                           }}
                                         >
-                                          ▶
+                                          <ChevronRight size={12} />
                                         </span>
                                       </button>
                                       {showOldWorkspaces && old.map(renderWorkspace)}
