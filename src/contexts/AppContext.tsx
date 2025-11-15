@@ -1,6 +1,5 @@
 import type { ReactNode, Dispatch, SetStateAction } from "react";
 import { createContext, useContext } from "react";
-import type { ProjectConfig } from "@/config";
 import type { FrontendWorkspaceMetadata } from "@/types/workspace";
 import type { WorkspaceSelection } from "@/components/ProjectSidebar";
 import type { RuntimeConfig } from "@/types/runtime";
@@ -10,12 +9,6 @@ import type { RuntimeConfig } from "@/types/runtime";
  * Eliminates prop drilling for common data like projects, workspaces, and selection.
  */
 interface AppContextType {
-  // Projects
-  projects: Map<string, ProjectConfig>;
-  setProjects: Dispatch<SetStateAction<Map<string, ProjectConfig>>>;
-  addProject: (normalizedPath: string, projectConfig: ProjectConfig) => void;
-  removeProject: (path: string) => Promise<void>;
-
   // Workspaces
   workspaceMetadata: Map<string, FrontendWorkspaceMetadata>;
   setWorkspaceMetadata: Dispatch<SetStateAction<Map<string, FrontendWorkspaceMetadata>>>;

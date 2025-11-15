@@ -1,8 +1,9 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useEffect, useCallback, useRef } from "react";
 import "./styles/globals.css";
 import { useApp } from "./contexts/AppContext";
+import { useProjectContext } from "./contexts/ProjectContext";
+import { useSortedWorkspacesByProject } from "./hooks/useSortedWorkspacesByProject";
 import type { WorkspaceSelection } from "./components/ProjectSidebar";
-import type { FrontendWorkspaceMetadata } from "./types/workspace";
 import { LeftSidebar } from "./components/LeftSidebar";
 import { ProjectCreateModal } from "./components/ProjectCreateModal";
 import { AIView } from "./components/AIView";
@@ -12,11 +13,10 @@ import { matchesKeybind, KEYBINDS } from "./utils/ui/keybinds";
 import { useResumeManager } from "./hooks/useResumeManager";
 import { useUnreadTracking } from "./hooks/useUnreadTracking";
 import { useAutoCompactContinue } from "./hooks/useAutoCompactContinue";
-import { useWorkspaceStoreRaw, useWorkspaceRecency } from "./stores/WorkspaceStore";
+import { useWorkspaceStoreRaw } from "./stores/WorkspaceStore";
 import { ChatInput } from "./components/ChatInput/index";
 import type { ChatInputAPI } from "./components/ChatInput/types";
 
-import { useStableReference, compareMaps } from "./hooks/useStableReference";
 import { CommandRegistryProvider, useCommandRegistry } from "./contexts/CommandRegistryContext";
 import type { CommandAction } from "./contexts/CommandRegistryContext";
 import { ModeProvider } from "./contexts/ModeContext";
@@ -28,7 +28,6 @@ import type { ThinkingLevel } from "./types/thinking";
 import { CUSTOM_EVENTS } from "./constants/events";
 import { isWorkspaceForkSwitchEvent } from "./utils/workspaceFork";
 import { getThinkingLevelKey } from "./constants/storage";
-import type { BranchListResult } from "./types/ipc";
 import { useTelemetry } from "./hooks/useTelemetry";
 import { useStartWorkspaceCreation, getFirstProjectPath } from "./hooks/useStartWorkspaceCreation";
 
@@ -37,9 +36,6 @@ const THINKING_LEVELS: ThinkingLevel[] = ["off", "low", "medium", "high"];
 function AppInner() {
   // Get app-level state from context
   const {
-    projects,
-    addProject,
-    removeProject,
     workspaceMetadata,
     setWorkspaceMetadata,
     removeWorkspace,
@@ -47,10 +43,18 @@ function AppInner() {
     selectedWorkspace,
     setSelectedWorkspace,
   } = useApp();
-  const [projectCreateModalOpen, setProjectCreateModalOpen] = useState(false);
-
-  // Track when we're in "new workspace creation" mode (show FirstMessageInput)
-  const [pendingNewWorkspaceProject, setPendingNewWorkspaceProject] = useState<string | null>(null);
+  const {
+    projects,
+    addProject,
+    removeProject: removeProjectFromContext,
+    isProjectCreateModalOpen,
+    openProjectCreateModal,
+    closeProjectCreateModal,
+    pendingNewWorkspaceProject,
+    beginWorkspaceCreation,
+    clearPendingWorkspaceCreation,
+    getBranchesForProject,
+  } = useProjectContext();
 
   // Auto-collapse sidebar on mobile by default
   const isMobile = typeof window !== "undefined" && window.innerWidth <= 768;
@@ -67,7 +71,13 @@ function AppInner() {
 
   const startWorkspaceCreation = useStartWorkspaceCreation({
     projects,
-    setPendingNewWorkspaceProject,
+    setPendingNewWorkspaceProject: (projectPath: string | null) => {
+      if (projectPath) {
+        beginWorkspaceCreation(projectPath);
+      } else {
+        clearPendingWorkspaceCreation();
+      }
+    },
     setSelectedWorkspace,
   });
 
@@ -179,96 +189,22 @@ function AppInner() {
       if (selectedWorkspace?.projectPath === path) {
         setSelectedWorkspace(null);
       }
-      await removeProject(path);
-    },
-    [removeProject, selectedWorkspace, setSelectedWorkspace]
-  );
-
-  const handleAddWorkspace = useCallback(
-    (projectPath: string) => {
-      startWorkspaceCreation(projectPath);
-    },
-    [startWorkspaceCreation]
-  );
-
-  // Memoize callbacks to prevent LeftSidebar/ProjectSidebar re-renders
-  const handleAddProjectCallback = useCallback(() => {
-    setProjectCreateModalOpen(true);
-  }, []);
-
-  const handleAddWorkspaceCallback = useCallback(
-    (projectPath: string) => {
-      void handleAddWorkspace(projectPath);
-    },
-    [handleAddWorkspace]
-  );
-
-  const handleRemoveProjectCallback = useCallback(
-    (path: string) => {
-      void handleRemoveProject(path);
-    },
-    [handleRemoveProject]
-  );
-
-  const handleGetSecrets = useCallback(async (projectPath: string) => {
-    return await window.api.projects.secrets.get(projectPath);
-  }, []);
-
-  const handleUpdateSecrets = useCallback(
-    async (projectPath: string, secrets: Array<{ key: string; value: string }>) => {
-      const result = await window.api.projects.secrets.update(projectPath, secrets);
-      if (!result.success) {
-        console.error("Failed to update secrets:", result.error);
+      if (pendingNewWorkspaceProject === path) {
+        clearPendingWorkspaceCreation();
       }
+      await removeProjectFromContext(path);
     },
-    []
+    [
+      clearPendingWorkspaceCreation,
+      pendingNewWorkspaceProject,
+      removeProjectFromContext,
+      selectedWorkspace,
+      setSelectedWorkspace,
+    ]
   );
 
   // NEW: Get workspace recency from store
-  const workspaceRecency = useWorkspaceRecency();
-
-  // Sort workspaces by recency (most recent first)
-  // Returns Map<projectPath, FrontendWorkspaceMetadata[]> for direct component use
-  // Use stable reference to prevent sidebar re-renders when sort order hasn't changed
-  const sortedWorkspacesByProject = useStableReference(
-    () => {
-      const result = new Map<string, FrontendWorkspaceMetadata[]>();
-      for (const [projectPath, config] of projects) {
-        // Transform Workspace[] to FrontendWorkspaceMetadata[] using workspace ID
-        const metadataList = config.workspaces
-          .map((ws) => (ws.id ? workspaceMetadata.get(ws.id) : undefined))
-          .filter((meta): meta is FrontendWorkspaceMetadata => meta !== undefined && meta !== null);
-
-        // Sort by recency
-        metadataList.sort((a, b) => {
-          const aTimestamp = workspaceRecency[a.id] ?? 0;
-          const bTimestamp = workspaceRecency[b.id] ?? 0;
-          return bTimestamp - aTimestamp;
-        });
-
-        result.set(projectPath, metadataList);
-      }
-      return result;
-    },
-    (prev, next) => {
-      // Compare Maps: check if size, workspace order, and metadata content are the same
-      if (
-        !compareMaps(prev, next, (a, b) => {
-          if (a.length !== b.length) return false;
-          // Check both ID and name to detect renames
-          return a.every((metadata, i) => {
-            const bMeta = b[i];
-            if (!bMeta || !metadata) return false; // Null-safe
-            return metadata.id === bMeta.id && metadata.name === bMeta.name;
-          });
-        })
-      ) {
-        return false;
-      }
-      return true;
-    },
-    [projects, workspaceMetadata, workspaceRecency]
-  );
+  const sortedWorkspacesByProject = useSortedWorkspacesByProject();
 
   const handleNavigateWorkspace = useCallback(
     (direction: "next" | "prev") => {
@@ -367,27 +303,6 @@ function AppInner() {
     [startWorkspaceCreation]
   );
 
-  const getBranchesForProject = useCallback(
-    async (projectPath: string): Promise<BranchListResult> => {
-      const branchResult = await window.api.projects.listBranches(projectPath);
-      const sanitizedBranches = Array.isArray(branchResult?.branches)
-        ? branchResult.branches.filter((branch): branch is string => typeof branch === "string")
-        : [];
-
-      const recommended =
-        typeof branchResult?.recommendedTrunk === "string" &&
-        sanitizedBranches.includes(branchResult.recommendedTrunk)
-          ? branchResult.recommendedTrunk
-          : (sanitizedBranches[0] ?? "");
-
-      return {
-        branches: sanitizedBranches,
-        recommendedTrunk: recommended,
-      };
-    },
-    []
-  );
-
   const selectWorkspaceFromPalette = useCallback(
     (selection: WorkspaceSelection) => {
       handleWorkspaceSwitch(selection);
@@ -406,8 +321,8 @@ function AppInner() {
   );
 
   const addProjectFromPalette = useCallback(() => {
-    setProjectCreateModalOpen(true);
-  }, []);
+    openProjectCreateModal();
+  }, [openProjectCreateModal]);
 
   const removeProjectFromPalette = useCallback(
     (path: string) => {
@@ -553,17 +468,10 @@ function AppInner() {
       <div className="bg-bg-dark mobile-layout flex h-screen overflow-hidden">
         <LeftSidebar
           onSelectWorkspace={handleWorkspaceSwitch}
-          onAddProject={handleAddProjectCallback}
-          onAddWorkspace={handleAddWorkspaceCallback}
-          onRemoveProject={handleRemoveProjectCallback}
           lastReadTimestamps={lastReadTimestamps}
           onToggleUnread={onToggleUnread}
           collapsed={sidebarCollapsed}
           onToggleCollapsed={handleToggleSidebar}
-          onGetSecrets={handleGetSecrets}
-          onUpdateSecrets={handleUpdateSecrets}
-          sortedWorkspacesByProject={sortedWorkspacesByProject}
-          workspaceRecency={workspaceRecency}
         />
         <div className="mobile-main-content flex min-w-0 flex-1 flex-col overflow-hidden">
           <div className="mobile-layout flex flex-1 overflow-hidden">
@@ -614,13 +522,13 @@ function AppInner() {
                           telemetry.workspaceCreated(metadata.id);
 
                           // Clear pending state
-                          setPendingNewWorkspaceProject(null);
+                          clearPendingWorkspaceCreation();
                         }}
                         onCancel={
                           pendingNewWorkspaceProject
                             ? () => {
                                 // User cancelled workspace creation - clear pending state
-                                setPendingNewWorkspaceProject(null);
+                                clearPendingWorkspaceCreation();
                               }
                             : undefined
                         }
@@ -652,8 +560,8 @@ function AppInner() {
           })}
         />
         <ProjectCreateModal
-          isOpen={projectCreateModalOpen}
-          onClose={() => setProjectCreateModalOpen(false)}
+          isOpen={isProjectCreateModalOpen}
+          onClose={closeProjectCreateModal}
           onSuccess={addProject}
         />
       </div>
