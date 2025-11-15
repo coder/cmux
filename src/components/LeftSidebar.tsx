@@ -1,19 +1,29 @@
 import React from "react";
 import { cn } from "@/lib/utils";
+import type { FrontendWorkspaceMetadata } from "@/types/workspace";
+import type { Secret } from "@/types/secrets";
 import ProjectSidebar from "./ProjectSidebar";
 import { TitleBar } from "./TitleBar";
-import type { WorkspaceSelection } from "./ProjectSidebar";
+import { useApp } from "@/contexts/AppContext";
 
 interface LeftSidebarProps {
-  onSelectWorkspace: (selection: WorkspaceSelection) => void;
+  onAddProject: () => void;
+  onRemoveProject: (path: string) => void;
   lastReadTimestamps: Record<string, number>;
   onToggleUnread: (workspaceId: string) => void;
   collapsed: boolean;
   onToggleCollapsed: () => void;
+  onGetSecrets: (projectPath: string) => Promise<Secret[]>;
+  onUpdateSecrets: (projectPath: string, secrets: Secret[]) => Promise<void>;
+  sortedWorkspacesByProject: Map<string, FrontendWorkspaceMetadata[]>;
+  workspaceRecency: Record<string, number>;
 }
 
 export function LeftSidebar(props: LeftSidebarProps) {
   const { collapsed, onToggleCollapsed, ...projectSidebarProps } = props;
+
+  // Get app-level state from context
+  const { projects } = useApp();
 
   return (
     <>
@@ -58,6 +68,7 @@ export function LeftSidebar(props: LeftSidebarProps) {
         {!collapsed && <TitleBar />}
         <ProjectSidebar
           {...projectSidebarProps}
+          projects={projects}
           collapsed={collapsed}
           onToggleCollapsed={onToggleCollapsed}
         />
