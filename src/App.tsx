@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import "./styles/globals.css";
 import { useApp } from "./contexts/AppContext";
+import { useProjectContext } from "./contexts/ProjectContext";
 import type { WorkspaceSelection } from "./components/ProjectSidebar";
 import type { FrontendWorkspaceMetadata } from "./types/workspace";
 import { LeftSidebar } from "./components/LeftSidebar";
@@ -36,17 +37,8 @@ const THINKING_LEVELS: ThinkingLevel[] = ["off", "low", "medium", "high"];
 
 function AppInner() {
   // Get app-level state from context
-  const {
-    projects,
-    addProject,
-    removeProject,
-    workspaceMetadata,
-    setWorkspaceMetadata,
-    removeWorkspace,
-    renameWorkspace,
-    selectedWorkspace,
-    setSelectedWorkspace,
-  } = useApp();
+  const { workspaceMetadata, setWorkspaceMetadata, removeWorkspace, renameWorkspace, selectedWorkspace, setSelectedWorkspace } = useApp();
+  const { projects, addProject, removeProject } = useProjectContext();
   const [projectCreateModalOpen, setProjectCreateModalOpen] = useState(false);
 
   // Track when we're in "new workspace creation" mode (show FirstMessageInput)
@@ -179,12 +171,7 @@ function AppInner() {
     [removeProject, selectedWorkspace, setSelectedWorkspace]
   );
 
-  const handleAddWorkspace = useCallback(
-    (projectPath: string) => {
-      startWorkspaceCreation(projectPath);
-    },
-    [startWorkspaceCreation]
-  );
+
 
   // Memoize callbacks to prevent LeftSidebar/ProjectSidebar re-renders
   const handleAddProjectCallback = useCallback(() => {

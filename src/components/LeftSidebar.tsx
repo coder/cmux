@@ -4,7 +4,7 @@ import type { FrontendWorkspaceMetadata } from "@/types/workspace";
 import type { Secret } from "@/types/secrets";
 import ProjectSidebar from "./ProjectSidebar";
 import { TitleBar } from "./TitleBar";
-import { useApp } from "@/contexts/AppContext";
+import { useProjectContext } from "@/contexts/ProjectContext";
 
 interface LeftSidebarProps {
   onAddProject: () => void;
@@ -23,7 +23,7 @@ export function LeftSidebar(props: LeftSidebarProps) {
   const { collapsed, onToggleCollapsed, ...projectSidebarProps } = props;
 
   // Get app-level state from context
-  const { projects } = useApp();
+  const { projects } = useProjectContext();
 
   return (
     <>

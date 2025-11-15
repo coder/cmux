@@ -1,12 +1,12 @@
 import { useState, useEffect } from "react";
 import App from "../App";
 import { LoadingScreen } from "./LoadingScreen";
-import { useProjectManagement } from "../hooks/useProjectManagement";
 import { useWorkspaceStoreRaw } from "../stores/WorkspaceStore";
 import { useGitStatusStoreRaw } from "../stores/GitStatusStore";
 import { usePersistedState } from "../hooks/usePersistedState";
 import type { WorkspaceSelection } from "./ProjectSidebar";
 import { AppProvider } from "../contexts/AppContext";
+import { ProjectProvider, useProjectContext } from "../contexts/ProjectContext";
 import { WorkspaceProvider, useWorkspaceContext } from "../contexts/WorkspaceContext";
 
 /**
@@ -20,27 +20,32 @@ import { WorkspaceProvider, useWorkspaceContext } from "../contexts/WorkspaceCon
  * the need for conditional guards in effects.
  */
 export function AppLoader() {
+  return (
+    <ProjectProvider>
+      <AppLoaderMiddle />
+    </ProjectProvider>
+  );
+}
+
+function AppLoaderMiddle() {
   // Workspace selection - restored from localStorage immediately
   const [selectedWorkspace, setSelectedWorkspace] = usePersistedState<WorkspaceSelection | null>(
     "selectedWorkspace",
     null
   );
 
-  // Load projects
-  const projectManagement = useProjectManagement();
+  const { refreshProjects } = useProjectContext();
 
   // Render App with WorkspaceProvider wrapping it
   return (
     <WorkspaceProvider
       selectedWorkspace={selectedWorkspace}
       onSelectedWorkspaceUpdate={setSelectedWorkspace}
-      onProjectsUpdate={projectManagement.setProjects}
+      onProjectsUpdate={() => {
+        void refreshProjects();
+      }}
     >
       <AppLoaderInner
-        projects={projectManagement.projects}
-        setProjects={projectManagement.setProjects}
-        addProject={projectManagement.addProject}
-        removeProject={projectManagement.removeProject}
         selectedWorkspace={selectedWorkspace}
         setSelectedWorkspace={setSelectedWorkspace}
       />
@@ -52,10 +57,6 @@ export function AppLoader() {
  * Inner component that has access to WorkspaceContext
  */
 function AppLoaderInner(props: {
-  projects: ReturnType<typeof useProjectManagement>["projects"];
-  setProjects: ReturnType<typeof useProjectManagement>["setProjects"];
-  addProject: ReturnType<typeof useProjectManagement>["addProject"];
-  removeProject: ReturnType<typeof useProjectManagement>["removeProject"];
   selectedWorkspace: WorkspaceSelection | null;
   setSelectedWorkspace: (workspace: WorkspaceSelection | null) => void;
 }) {
@@ -164,10 +165,6 @@ function AppLoaderInner(props: {
   // Render App with all initialized data via context
   return (
     <AppProvider
-      projects={props.projects}
-      setProjects={props.setProjects}
-      addProject={props.addProject}
-      removeProject={props.removeProject}
       workspaceMetadata={workspaceContext.workspaceMetadata}
       setWorkspaceMetadata={workspaceContext.setWorkspaceMetadata}
       createWorkspace={workspaceContext.createWorkspace}

@@ -18,7 +18,7 @@ import { TooltipWrapper, Tooltip } from "./Tooltip";
 import SecretsModal from "./SecretsModal";
 import type { Secret } from "@/types/secrets";
 import { ForceDeleteModal } from "./ForceDeleteModal";
-import { WorkspaceListItem, type WorkspaceSelection } from "./WorkspaceListItem";
+import { WorkspaceListItem } from "./WorkspaceListItem";
 import { RenameProvider } from "@/contexts/WorkspaceRenameContext";
 import { useProjectContext } from "@/contexts/ProjectContext";
 import { useSortedWorkspacesByProject } from "@/hooks/useSortedWorkspacesByProject";
