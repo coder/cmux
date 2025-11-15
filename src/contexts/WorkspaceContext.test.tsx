@@ -6,7 +6,6 @@
 /* eslint-disable @typescript-eslint/consistent-type-assertions */
 import type { FrontendWorkspaceMetadata } from "@/types/workspace";
 import type { IPCApi } from "@/types/ipc";
-import type { WorkspaceSelection } from "@/components/ProjectSidebar";
 import type { ProjectConfig } from "@/config";
 import { act, cleanup, render, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, mock, test } from "bun:test";
@@ -612,9 +611,7 @@ describe("WorkspaceContext", () => {
   });
 });
 
-async function setup(props: {
-  onProjectsUpdate: (projects: Map<string, ProjectConfig>) => void;
-}) {
+async function setup(props: { onProjectsUpdate: (projects: Map<string, ProjectConfig>) => void }) {
   const contextRef = { current: null as WorkspaceContext | null };
   function ContextCapture() {
     contextRef.current = useWorkspaceContext();

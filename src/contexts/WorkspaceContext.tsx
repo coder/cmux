@@ -84,7 +84,7 @@ export function WorkspaceProvider(props: WorkspaceProviderProps) {
   >(new Map());
   const [loading, setLoading] = useState(true);
   const [pendingNewWorkspaceProject, setPendingNewWorkspaceProject] = useState<string | null>(null);
-  
+
   // Manage selected workspace internally with localStorage persistence
   const [selectedWorkspace, setSelectedWorkspace] = usePersistedState<WorkspaceSelection | null>(
     "selectedWorkspace",

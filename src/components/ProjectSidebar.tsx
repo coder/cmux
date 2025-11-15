@@ -20,9 +20,6 @@ import { ForceDeleteModal } from "./ForceDeleteModal";
 import { WorkspaceListItem } from "./WorkspaceListItem";
 import { RenameProvider } from "@/contexts/WorkspaceRenameContext";
 import { useProjectContext } from "@/contexts/ProjectContext";
-import { useSortedWorkspacesByProject } from "@/hooks/useSortedWorkspacesByProject";
-import { useApp } from "@/contexts/AppContext";
-import { useWorkspaceRecency } from "@/stores/WorkspaceStore";
 import { ChevronRight, KeyRound } from "lucide-react";
 import { useWorkspaceContext } from "@/contexts/WorkspaceContext";
 
