@@ -12,6 +12,7 @@ import type { WorkspaceSelection } from "@/components/ProjectSidebar";
 import type { RuntimeConfig } from "@/types/runtime";
 import type { ProjectConfig } from "@/config";
 import { deleteWorkspaceStorage } from "@/constants/storage";
+import { usePersistedState } from "@/hooks/usePersistedState";
 
 /**
  * Ensure workspace metadata has createdAt timestamp.
@@ -74,8 +75,6 @@ const WorkspaceContext = createContext<WorkspaceContext | undefined>(undefined);
 
 interface WorkspaceProviderProps {
   children: ReactNode;
-  selectedWorkspace: WorkspaceSelection | null;
-  onSelectedWorkspaceUpdate: (workspace: WorkspaceSelection | null) => void;
   onProjectsUpdate: (projects: Map<string, ProjectConfig>) => void;
 }
 
@@ -85,6 +84,12 @@ export function WorkspaceProvider(props: WorkspaceProviderProps) {
   >(new Map());
   const [loading, setLoading] = useState(true);
   const [pendingNewWorkspaceProject, setPendingNewWorkspaceProject] = useState<string | null>(null);
+  
+  // Manage selected workspace internally with localStorage persistence
+  const [selectedWorkspace, setSelectedWorkspace] = usePersistedState<WorkspaceSelection | null>(
+    "selectedWorkspace",
+    null
+  );
 
   const loadWorkspaceMetadata = useCallback(async () => {
     try {
@@ -115,6 +120,71 @@ export function WorkspaceProvider(props: WorkspaceProviderProps) {
       setLoading(false);
     })();
   }, [loadWorkspaceMetadata, props]);
+
+  // Restore workspace from URL hash (overrides localStorage)
+  // Runs once after metadata is loaded
+  useEffect(() => {
+    if (loading) return;
+
+    const hash = window.location.hash;
+    if (hash.startsWith("#workspace=")) {
+      const workspaceId = decodeURIComponent(hash.substring("#workspace=".length));
+
+      // Find workspace in metadata
+      const metadata = workspaceMetadata.get(workspaceId);
+
+      if (metadata) {
+        // Restore from hash (overrides localStorage)
+        setSelectedWorkspace({
+          workspaceId: metadata.id,
+          projectPath: metadata.projectPath,
+          projectName: metadata.projectName,
+          namedWorkspacePath: metadata.namedWorkspacePath,
+        });
+      }
+    }
+    // Only run once when loading finishes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading]);
+
+  // Check for launch project from server (for --add-project flag)
+  // This only applies in server mode, runs after metadata loads
+  useEffect(() => {
+    if (loading) return;
+
+    // Skip if we already have a selected workspace (from localStorage or URL hash)
+    if (selectedWorkspace) return;
+
+    const checkLaunchProject = async () => {
+      // Only available in server mode
+      if (!window.api.server?.getLaunchProject) return;
+
+      const launchProjectPath = await window.api.server.getLaunchProject();
+      if (!launchProjectPath) return;
+
+      // Find first workspace in this project
+      const projectWorkspaces = Array.from(workspaceMetadata.values()).filter(
+        (meta) => meta.projectPath === launchProjectPath
+      );
+
+      if (projectWorkspaces.length > 0) {
+        // Select the first workspace in the project
+        const metadata = projectWorkspaces[0];
+        setSelectedWorkspace({
+          workspaceId: metadata.id,
+          projectPath: metadata.projectPath,
+          projectName: metadata.projectName,
+          namedWorkspacePath: metadata.namedWorkspacePath,
+        });
+      }
+      // If no workspaces exist yet, just leave the project in the sidebar
+      // The user will need to create a workspace
+    };
+
+    void checkLaunchProject();
+    // Only run once when loading finishes or selectedWorkspace changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, selectedWorkspace]);
 
   // Subscribe to metadata updates (for create/rename/delete operations)
   useEffect(() => {
@@ -218,8 +288,8 @@ export function WorkspaceProvider(props: WorkspaceProviderProps) {
           await loadWorkspaceMetadata();
 
           // Clear selected workspace if it was removed
-          if (props.selectedWorkspace?.workspaceId === workspaceId) {
-            props.onSelectedWorkspaceUpdate(null);
+          if (selectedWorkspace?.workspaceId === workspaceId) {
+            setSelectedWorkspace(null);
           }
           return { success: true };
         } else {
@@ -232,7 +302,7 @@ export function WorkspaceProvider(props: WorkspaceProviderProps) {
         return { success: false, error: errorMessage };
       }
     },
-    [loadWorkspaceMetadata, props]
+    [loadWorkspaceMetadata, props, selectedWorkspace, setSelectedWorkspace]
   );
 
   const renameWorkspace = useCallback(
@@ -249,15 +319,15 @@ export function WorkspaceProvider(props: WorkspaceProviderProps) {
           await loadWorkspaceMetadata();
 
           // Update selected workspace if it was renamed
-          if (props.selectedWorkspace?.workspaceId === workspaceId) {
+          if (selectedWorkspace?.workspaceId === workspaceId) {
             const newWorkspaceId = result.data.newWorkspaceId;
 
             // Get updated workspace metadata from backend
             const newMetadata = await window.api.workspace.getInfo(newWorkspaceId);
             if (newMetadata) {
               ensureCreatedAt(newMetadata);
-              props.onSelectedWorkspaceUpdate({
-                projectPath: props.selectedWorkspace.projectPath,
+              setSelectedWorkspace({
+                projectPath: selectedWorkspace.projectPath,
                 projectName: newMetadata.projectName,
                 namedWorkspacePath: newMetadata.namedWorkspacePath,
                 workspaceId: newWorkspaceId,
@@ -275,7 +345,7 @@ export function WorkspaceProvider(props: WorkspaceProviderProps) {
         return { success: false, error: errorMessage };
       }
     },
-    [loadWorkspaceMetadata, props]
+    [loadWorkspaceMetadata, props, selectedWorkspace, setSelectedWorkspace]
   );
 
   const refreshWorkspaceMetadata = useCallback(async () => {
@@ -307,8 +377,8 @@ export function WorkspaceProvider(props: WorkspaceProviderProps) {
       renameWorkspace,
       refreshWorkspaceMetadata,
       setWorkspaceMetadata,
-      selectedWorkspace: props.selectedWorkspace,
-      setSelectedWorkspace: props.onSelectedWorkspaceUpdate,
+      selectedWorkspace,
+      setSelectedWorkspace,
       pendingNewWorkspaceProject,
       beginWorkspaceCreation,
       clearPendingWorkspaceCreation,
@@ -321,8 +391,8 @@ export function WorkspaceProvider(props: WorkspaceProviderProps) {
       removeWorkspace,
       renameWorkspace,
       refreshWorkspaceMetadata,
-      props.selectedWorkspace,
-      props.onSelectedWorkspaceUpdate,
+      selectedWorkspace,
+      setSelectedWorkspace,
       pendingNewWorkspaceProject,
       beginWorkspaceCreation,
       clearPendingWorkspaceCreation,

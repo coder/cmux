@@ -68,12 +68,9 @@ describe("WorkspaceContext", () => {
     });
 
     const onProjectsUpdate = mock(() => {});
-    const onSelectedWorkspaceUpdate = mock(() => {});
 
     const ctx = await setup({
-      selectedWorkspace: null,
       onProjectsUpdate,
-      onSelectedWorkspaceUpdate,
     });
 
     await waitFor(() => expect(ctx().workspaceMetadata.size).toBe(2));
@@ -93,12 +90,9 @@ describe("WorkspaceContext", () => {
     });
 
     const onProjectsUpdate = mock(() => {});
-    const onSelectedWorkspaceUpdate = mock(() => {});
 
     const ctx = await setup({
-      selectedWorkspace: null,
       onProjectsUpdate,
-      onSelectedWorkspaceUpdate,
     });
 
     // Should have empty workspaces after failed load
@@ -145,12 +139,9 @@ describe("WorkspaceContext", () => {
     });
 
     const onProjectsUpdate = mock(() => {});
-    const onSelectedWorkspaceUpdate = mock(() => {});
 
     const ctx = await setup({
-      selectedWorkspace: null,
       onProjectsUpdate,
-      onSelectedWorkspaceUpdate,
     });
 
     await waitFor(() => expect(ctx().workspaceMetadata.size).toBe(1));
@@ -187,12 +178,9 @@ describe("WorkspaceContext", () => {
     });
 
     const onProjectsUpdate = mock(() => {});
-    const onSelectedWorkspaceUpdate = mock(() => {});
 
     const ctx = await setup({
-      selectedWorkspace: null,
       onProjectsUpdate,
-      onSelectedWorkspaceUpdate,
     });
 
     await waitFor(() => expect(ctx().loading).toBe(false));
@@ -224,12 +212,9 @@ describe("WorkspaceContext", () => {
     });
 
     const onProjectsUpdate = mock(() => {});
-    const onSelectedWorkspaceUpdate = mock(() => {});
 
     const ctx = await setup({
-      selectedWorkspace: null,
       onProjectsUpdate,
-      onSelectedWorkspaceUpdate,
     });
 
     await waitFor(() => expect(ctx().loading).toBe(false));
@@ -261,22 +246,24 @@ describe("WorkspaceContext", () => {
     });
 
     const onProjectsUpdate = mock(() => {});
-    const onSelectedWorkspaceUpdate = mock(() => {});
-
-    const selectedWorkspace: WorkspaceSelection = {
-      workspaceId: "ws-1",
-      projectPath: "/alpha",
-      projectName: "alpha",
-      namedWorkspacePath: "/alpha-main",
-    };
 
     const ctx = await setup({
-      selectedWorkspace,
       onProjectsUpdate,
-      onSelectedWorkspaceUpdate,
     });
 
     await waitFor(() => expect(ctx().loading).toBe(false));
+
+    // Set the selected workspace via context API
+    act(() => {
+      ctx().setSelectedWorkspace({
+        workspaceId: "ws-1",
+        projectPath: "/alpha",
+        projectName: "alpha",
+        namedWorkspacePath: "/alpha-main",
+      });
+    });
+
+    expect(ctx().selectedWorkspace?.workspaceId).toBe("ws-1");
 
     let result: Awaited<ReturnType<WorkspaceContext["removeWorkspace"]>>;
     await act(async () => {
@@ -285,7 +272,8 @@ describe("WorkspaceContext", () => {
 
     expect(workspaceApi.remove).toHaveBeenCalledWith("ws-1", undefined);
     expect(result!.success).toBe(true);
-    expect(onSelectedWorkspaceUpdate).toHaveBeenCalledWith(null);
+    // Verify selectedWorkspace was cleared
+    expect(ctx().selectedWorkspace).toBeNull();
   });
 
   test("removeWorkspace handles failure gracefully", async () => {
@@ -308,12 +296,9 @@ describe("WorkspaceContext", () => {
     });
 
     const onProjectsUpdate = mock(() => {});
-    const onSelectedWorkspaceUpdate = mock(() => {});
 
     const ctx = await setup({
-      selectedWorkspace: null,
       onProjectsUpdate,
-      onSelectedWorkspaceUpdate,
     });
 
     await waitFor(() => expect(ctx().loading).toBe(false));
@@ -367,22 +352,24 @@ describe("WorkspaceContext", () => {
     });
 
     const onProjectsUpdate = mock(() => {});
-    const onSelectedWorkspaceUpdate = mock(() => {});
-
-    const selectedWorkspace: WorkspaceSelection = {
-      workspaceId: "ws-1",
-      projectPath: "/alpha",
-      projectName: "alpha",
-      namedWorkspacePath: "/alpha-main",
-    };
 
     const ctx = await setup({
-      selectedWorkspace,
       onProjectsUpdate,
-      onSelectedWorkspaceUpdate,
     });
 
     await waitFor(() => expect(ctx().loading).toBe(false));
+
+    // Set the selected workspace via context API
+    act(() => {
+      ctx().setSelectedWorkspace({
+        workspaceId: "ws-1",
+        projectPath: "/alpha",
+        projectName: "alpha",
+        namedWorkspacePath: "/alpha-main",
+      });
+    });
+
+    expect(ctx().selectedWorkspace?.workspaceId).toBe("ws-1");
 
     let result: Awaited<ReturnType<WorkspaceContext["renameWorkspace"]>>;
     await act(async () => {
@@ -392,7 +379,8 @@ describe("WorkspaceContext", () => {
     expect(workspaceApi.rename).toHaveBeenCalledWith("ws-1", "renamed");
     expect(result!.success).toBe(true);
     expect(workspaceApi.getInfo).toHaveBeenCalledWith("ws-2");
-    expect(onSelectedWorkspaceUpdate).toHaveBeenCalledWith({
+    // Verify selectedWorkspace was updated with new ID
+    expect(ctx().selectedWorkspace).toEqual({
       workspaceId: "ws-2",
       projectPath: "/alpha",
       projectName: "alpha",
@@ -420,12 +408,9 @@ describe("WorkspaceContext", () => {
     });
 
     const onProjectsUpdate = mock(() => {});
-    const onSelectedWorkspaceUpdate = mock(() => {});
 
     const ctx = await setup({
-      selectedWorkspace: null,
       onProjectsUpdate,
-      onSelectedWorkspaceUpdate,
     });
 
     await waitFor(() => expect(ctx().loading).toBe(false));
@@ -465,12 +450,9 @@ describe("WorkspaceContext", () => {
     });
 
     const onProjectsUpdate = mock(() => {});
-    const onSelectedWorkspaceUpdate = mock(() => {});
 
     const ctx = await setup({
-      selectedWorkspace: null,
       onProjectsUpdate,
-      onSelectedWorkspaceUpdate,
     });
 
     await waitFor(() => expect(ctx().loading).toBe(false));
@@ -490,12 +472,9 @@ describe("WorkspaceContext", () => {
     });
 
     const onProjectsUpdate = mock(() => {});
-    const onSelectedWorkspaceUpdate = mock(() => {});
 
     const ctx = await setup({
-      selectedWorkspace: null,
       onProjectsUpdate,
-      onSelectedWorkspaceUpdate,
     });
 
     await waitFor(() => expect(ctx().loading).toBe(false));
@@ -533,12 +512,9 @@ describe("WorkspaceContext", () => {
     });
 
     const onProjectsUpdate = mock(() => {});
-    const onSelectedWorkspaceUpdate = mock(() => {});
 
     const ctx = await setup({
-      selectedWorkspace: null,
       onProjectsUpdate,
-      onSelectedWorkspaceUpdate,
     });
 
     await waitFor(() => expect(ctx().loading).toBe(false));
@@ -592,12 +568,9 @@ describe("WorkspaceContext", () => {
     });
 
     const onProjectsUpdate = mock(() => {});
-    const onSelectedWorkspaceUpdate = mock(() => {});
 
     const ctx = await setup({
-      selectedWorkspace: null,
       onProjectsUpdate,
-      onSelectedWorkspaceUpdate,
     });
 
     await waitFor(() => expect(ctx().workspaceMetadata.has("ws-1")).toBe(true));
@@ -627,12 +600,9 @@ describe("WorkspaceContext", () => {
     });
 
     const onProjectsUpdate = mock(() => {});
-    const onSelectedWorkspaceUpdate = mock(() => {});
 
     const ctx = await setup({
-      selectedWorkspace: null,
       onProjectsUpdate,
-      onSelectedWorkspaceUpdate,
     });
 
     await waitFor(() => expect(ctx().workspaceMetadata.size).toBe(1));
@@ -643,9 +613,7 @@ describe("WorkspaceContext", () => {
 });
 
 async function setup(props: {
-  selectedWorkspace: WorkspaceSelection | null;
   onProjectsUpdate: (projects: Map<string, ProjectConfig>) => void;
-  onSelectedWorkspaceUpdate: (workspace: WorkspaceSelection | null) => void;
 }) {
   const contextRef = { current: null as WorkspaceContext | null };
   function ContextCapture() {
@@ -653,11 +621,7 @@ async function setup(props: {
     return null;
   }
   render(
-    <WorkspaceProvider
-      selectedWorkspace={props.selectedWorkspace}
-      onProjectsUpdate={props.onProjectsUpdate}
-      onSelectedWorkspaceUpdate={props.onSelectedWorkspaceUpdate}
-    >
+    <WorkspaceProvider onProjectsUpdate={props.onProjectsUpdate}>
       <ContextCapture />
     </WorkspaceProvider>
   );
