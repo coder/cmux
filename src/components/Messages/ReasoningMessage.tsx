@@ -49,7 +49,7 @@ export const ReasoningMessage: React.FC<ReasoningMessageProps> = ({ message, cla
   return (
     <div
       className={cn(
-        "my-2 px-2 py-1 bg-[color-mix(in_srgb,var(--color-thinking-mode)_5%,transparent)] rounded relative max-w-[680px]",
+        "my-2 px-2 py-1 bg-[color-mix(in_srgb,var(--color-thinking-mode)_5%,transparent)] rounded relative",
         className
       )}
     >
