@@ -418,6 +418,12 @@ export const ActiveWorkspaceWithChat: Story = {
           ],
         },
       ],
+      [
+        "/home/user/projects/another-app",
+        {
+          workspaces: [],
+        },
+      ],
     ]);
 
     const workspaces: FrontendWorkspaceMetadata[] = [
