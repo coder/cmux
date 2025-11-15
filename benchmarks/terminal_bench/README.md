@@ -1,6 +1,6 @@
 # Terminal-Bench Integration
 
-This directory contains the cmux agent adapter for [Terminal-Bench](https://github.com/benediktstroebl/terminal-bench), a benchmarking framework for evaluating agentic CLI/terminal capabilities.
+This directory contains the mux agent adapter for [Terminal-Bench](https://github.com/benediktstroebl/terminal-bench), a benchmarking framework for evaluating agentic CLI/terminal capabilities.
 
 ## Quick Start
 
@@ -57,7 +57,7 @@ TB_TIMEOUT=600 make benchmark-terminal TB_SAMPLE_SIZE=5
 
 ## Agent Configuration
 
-The cmux agent supports the following kwargs (passed via `--agent-kwarg`):
+The mux agent supports the following kwargs (passed via `--agent-kwarg`):
 
 - `model_name`: Model to use (e.g., `anthropic:claude-sonnet-4-5`, `openai:gpt-5-codex`)
 - `thinking_level`: Thinking level (`off`, `low`, `medium`, `high`)
@@ -101,8 +101,8 @@ Based on analysis of the Oct 30 nightly run (15-minute timeout):
 
 ## Files
 
-- `cmux_agent.py`: Main agent adapter implementing Terminal-Bench's agent interface
-- `cmux-run.sh`: Shell script that sets up environment and invokes cmux CLI
-- `cmux_payload.py`: Helper to package cmux app for containerized execution
-- `cmux_setup.sh.j2`: Jinja2 template for agent installation script
+- `mux_agent.py`: Main agent adapter implementing Terminal-Bench's agent interface
+- `mux-run.sh`: Shell script that sets up environment and invokes mux CLI
+- `mux_payload.py`: Helper to package mux app for containerized execution
+- `mux_setup.sh.j2`: Jinja2 template for agent installation script
 - `sample_tasks.py`: Utility to randomly sample tasks from dataset
