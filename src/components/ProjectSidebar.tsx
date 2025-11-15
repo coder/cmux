@@ -26,6 +26,7 @@ import { useApp } from "@/contexts/AppContext";
 import { useWorkspaceRecency } from "@/stores/WorkspaceStore";
 import { ChevronRight, KeyRound } from "lucide-react";
 import { useWorkspaceContext } from "@/contexts/WorkspaceContext";
+import { useProjectContext } from "@/contexts/ProjectContext";
 
 // Re-export WorkspaceSelection for backwards compatibility
 export type { WorkspaceSelection } from "./WorkspaceListItem";
@@ -158,29 +159,19 @@ const ProjectDragLayer: React.FC = () => {
 };
 
 interface ProjectSidebarProps {
-  projects: Map<string, ProjectConfig>;
-  onAddProject: () => void;
-  onRemoveProject: (path: string) => void;
   lastReadTimestamps: Record<string, number>;
   onToggleUnread: (workspaceId: string) => void;
   collapsed: boolean;
   onToggleCollapsed: () => void;
-  onGetSecrets: (projectPath: string) => Promise<Secret[]>;
-  onUpdateSecrets: (projectPath: string, secrets: Secret[]) => Promise<void>;
   sortedWorkspacesByProject: Map<string, FrontendWorkspaceMetadata[]>;
   workspaceRecency: Record<string, number>;
 }
 
 const ProjectSidebarInner: React.FC<ProjectSidebarProps> = ({
-  projects,
-  onAddProject,
-  onRemoveProject,
   lastReadTimestamps,
   onToggleUnread: _onToggleUnread,
   collapsed,
   onToggleCollapsed,
-  onGetSecrets,
-  onUpdateSecrets,
   sortedWorkspacesByProject,
   workspaceRecency,
 }) => {
@@ -192,6 +183,15 @@ const ProjectSidebarInner: React.FC<ProjectSidebarProps> = ({
     renameWorkspace: onRenameWorkspace,
     beginWorkspaceCreation: onAddWorkspace,
   } = useWorkspaceContext();
+
+  // Get project state and operations from context
+  const {
+    projects,
+    openProjectCreateModal: onAddProject,
+    removeProject: onRemoveProject,
+    getSecrets: onGetSecrets,
+    updateSecrets: onUpdateSecrets,
+  } = useProjectContext();
 
   // Workspace-specific subscriptions moved to WorkspaceListItem component
 

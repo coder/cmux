@@ -529,14 +529,10 @@ function AppInner() {
     <>
       <div className="bg-bg-dark mobile-layout flex h-screen overflow-hidden">
         <LeftSidebar
-          onAddProject={handleAddProjectCallback}
-          onRemoveProject={handleRemoveProjectCallback}
           lastReadTimestamps={lastReadTimestamps}
           onToggleUnread={onToggleUnread}
           collapsed={sidebarCollapsed}
           onToggleCollapsed={handleToggleSidebar}
-          onGetSecrets={handleGetSecrets}
-          onUpdateSecrets={handleUpdateSecrets}
           sortedWorkspacesByProject={sortedWorkspacesByProject}
           workspaceRecency={workspaceRecency}
         />
