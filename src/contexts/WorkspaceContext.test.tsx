@@ -6,12 +6,12 @@
 /* eslint-disable @typescript-eslint/consistent-type-assertions */
 import type { FrontendWorkspaceMetadata } from "@/types/workspace";
 import type { IPCApi } from "@/types/ipc";
-import type { ProjectConfig } from "@/config";
 import { act, cleanup, render, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, mock, test } from "bun:test";
 import { GlobalWindow } from "happy-dom";
 import type { WorkspaceContext } from "./WorkspaceContext";
 import { WorkspaceProvider, useWorkspaceContext } from "./WorkspaceContext";
+import { ProjectProvider } from "@/contexts/ProjectContext";
 
 // Helper to create test workspace metadata with default runtime config
 const createWorkspaceMetadata = (
@@ -66,7 +66,6 @@ describe("WorkspaceContext", () => {
       list: () => Promise.resolve([]),
     });
 
-
     const ctx = await setup();
 
     await waitFor(() => expect(ctx().workspaceMetadata.size).toBe(2));
@@ -84,7 +83,6 @@ describe("WorkspaceContext", () => {
     createMockProjectsAPI({
       list: () => Promise.resolve([]),
     });
-
 
     const ctx = await setup();
 
@@ -131,7 +129,6 @@ describe("WorkspaceContext", () => {
       list: () => Promise.resolve([]),
     });
 
-
     const ctx = await setup();
 
     await waitFor(() => expect(ctx().workspaceMetadata.size).toBe(1));
@@ -167,7 +164,6 @@ describe("WorkspaceContext", () => {
       list: () => Promise.resolve([]),
     });
 
-
     const ctx = await setup();
 
     await waitFor(() => expect(ctx().loading).toBe(false));
@@ -198,7 +194,6 @@ describe("WorkspaceContext", () => {
       list: () => Promise.resolve([]),
     });
 
-
     const ctx = await setup();
 
     await waitFor(() => expect(ctx().loading).toBe(false));
@@ -228,7 +223,6 @@ describe("WorkspaceContext", () => {
     createMockProjectsAPI({
       list: () => Promise.resolve([]),
     });
-
 
     const ctx = await setup();
 
@@ -275,7 +269,6 @@ describe("WorkspaceContext", () => {
     createMockProjectsAPI({
       list: () => Promise.resolve([]),
     });
-
 
     const ctx = await setup();
 
@@ -329,7 +322,6 @@ describe("WorkspaceContext", () => {
       list: () => Promise.resolve([]),
     });
 
-
     const ctx = await setup();
 
     await waitFor(() => expect(ctx().loading).toBe(false));
@@ -382,7 +374,6 @@ describe("WorkspaceContext", () => {
       list: () => Promise.resolve([]),
     });
 
-
     const ctx = await setup();
 
     await waitFor(() => expect(ctx().loading).toBe(false));
@@ -421,7 +412,6 @@ describe("WorkspaceContext", () => {
       list: () => Promise.resolve([]),
     });
 
-
     const ctx = await setup();
 
     await waitFor(() => expect(ctx().loading).toBe(false));
@@ -439,7 +429,6 @@ describe("WorkspaceContext", () => {
     createMockProjectsAPI({
       list: () => Promise.resolve([]),
     });
-
 
     const ctx = await setup();
 
@@ -476,7 +465,6 @@ describe("WorkspaceContext", () => {
     const projectsApi = createMockProjectsAPI({
       list: () => Promise.resolve([]),
     });
-
 
     const ctx = await setup();
 
@@ -530,7 +518,6 @@ describe("WorkspaceContext", () => {
       list: () => Promise.resolve([]),
     });
 
-
     const ctx = await setup();
 
     await waitFor(() => expect(ctx().workspaceMetadata.has("ws-1")).toBe(true));
@@ -559,7 +546,6 @@ describe("WorkspaceContext", () => {
       list: () => Promise.resolve([]),
     });
 
-
     const ctx = await setup();
 
     await waitFor(() => expect(ctx().workspaceMetadata.size).toBe(1));
@@ -575,10 +561,8 @@ async function setup() {
     contextRef.current = useWorkspaceContext();
     return null;
   }
-  
+
   // WorkspaceProvider needs ProjectProvider to call useProjectContext
-  const { ProjectProvider } = await import("@/contexts/ProjectContext");
-  
   render(
     <ProjectProvider>
       <WorkspaceProvider>

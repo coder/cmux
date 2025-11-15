@@ -4,7 +4,7 @@ import { LoadingScreen } from "./LoadingScreen";
 import { useWorkspaceStoreRaw } from "../stores/WorkspaceStore";
 import { useGitStatusStoreRaw } from "../stores/GitStatusStore";
 import { AppProvider } from "../contexts/AppContext";
-import { ProjectProvider, useProjectContext } from "../contexts/ProjectContext";
+import { ProjectProvider } from "../contexts/ProjectContext";
 import { WorkspaceProvider, useWorkspaceContext } from "../contexts/WorkspaceContext";
 
 /**

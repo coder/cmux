@@ -257,7 +257,9 @@ export function WorkspaceProvider(props: WorkspaceProviderProps) {
         throw new Error(result.error);
       }
     },
-    [props]
+    // refreshProjects is stable from context, doesn't need to be in deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [loadWorkspaceMetadata]
   );
 
   const removeWorkspace = useCallback(
