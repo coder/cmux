@@ -1,9 +1,9 @@
-import { useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import "./styles/globals.css";
 import { useApp } from "./contexts/AppContext";
 import { useProjectContext } from "./contexts/ProjectContext";
-import { useSortedWorkspacesByProject } from "./hooks/useSortedWorkspacesByProject";
 import type { WorkspaceSelection } from "./components/ProjectSidebar";
+import type { FrontendWorkspaceMetadata } from "./types/workspace";
 import { LeftSidebar } from "./components/LeftSidebar";
 import { ProjectCreateModal } from "./components/ProjectCreateModal";
 import { AIView } from "./components/AIView";
@@ -13,10 +13,11 @@ import { matchesKeybind, KEYBINDS } from "./utils/ui/keybinds";
 import { useResumeManager } from "./hooks/useResumeManager";
 import { useUnreadTracking } from "./hooks/useUnreadTracking";
 import { useAutoCompactContinue } from "./hooks/useAutoCompactContinue";
-import { useWorkspaceStoreRaw } from "./stores/WorkspaceStore";
+import { useWorkspaceStoreRaw, useWorkspaceRecency } from "./stores/WorkspaceStore";
 import { ChatInput } from "./components/ChatInput/index";
 import type { ChatInputAPI } from "./components/ChatInput/types";
 
+import { useStableReference, compareMaps } from "./hooks/useStableReference";
 import { CommandRegistryProvider, useCommandRegistry } from "./contexts/CommandRegistryContext";
 import type { CommandAction } from "./contexts/CommandRegistryContext";
 import { ModeProvider } from "./contexts/ModeContext";
@@ -28,6 +29,7 @@ import type { ThinkingLevel } from "./types/thinking";
 import { CUSTOM_EVENTS } from "./constants/events";
 import { isWorkspaceForkSwitchEvent } from "./utils/workspaceFork";
 import { getThinkingLevelKey } from "./constants/storage";
+import type { BranchListResult } from "./types/ipc";
 import { useTelemetry } from "./hooks/useTelemetry";
 import { useStartWorkspaceCreation, getFirstProjectPath } from "./hooks/useStartWorkspaceCreation";
 
@@ -45,16 +47,15 @@ function AppInner() {
   } = useApp();
   const {
     projects,
-    addProject,
-    removeProject: removeProjectFromContext,
-    isProjectCreateModalOpen,
+    removeProject,
     openProjectCreateModal,
+    isProjectCreateModalOpen,
     closeProjectCreateModal,
-    pendingNewWorkspaceProject,
-    beginWorkspaceCreation,
-    clearPendingWorkspaceCreation,
-    getBranchesForProject,
+    addProject,
   } = useProjectContext();
+
+  // Track when we're in "new workspace creation" mode (show FirstMessageInput)
+  const [pendingNewWorkspaceProject, setPendingNewWorkspaceProject] = useState<string | null>(null);
 
   // Auto-collapse sidebar on mobile by default
   const isMobile = typeof window !== "undefined" && window.innerWidth <= 768;
@@ -71,13 +72,7 @@ function AppInner() {
 
   const startWorkspaceCreation = useStartWorkspaceCreation({
     projects,
-    setPendingNewWorkspaceProject: (projectPath: string | null) => {
-      if (projectPath) {
-        beginWorkspaceCreation(projectPath);
-      } else {
-        clearPendingWorkspaceCreation();
-      }
-    },
+    setPendingNewWorkspaceProject,
     setSelectedWorkspace,
   });
 
@@ -97,22 +92,15 @@ function AppInner() {
   // Get workspace store for command palette
   const workspaceStore = useWorkspaceStoreRaw();
 
-  // Wrapper for setSelectedWorkspace that tracks telemetry
-  const handleWorkspaceSwitch = useCallback(
-    (newWorkspace: WorkspaceSelection | null) => {
-      // Track workspace switch when both old and new are non-null (actual switch, not init/clear)
-      if (
-        selectedWorkspace &&
-        newWorkspace &&
-        selectedWorkspace.workspaceId !== newWorkspace.workspaceId
-      ) {
-        telemetry.workspaceSwitched(selectedWorkspace.workspaceId, newWorkspace.workspaceId);
-      }
-
-      setSelectedWorkspace(newWorkspace);
-    },
-    [selectedWorkspace, setSelectedWorkspace, telemetry]
-  );
+  // Track telemetry when workspace selection changes
+  const prevWorkspaceRef = useRef<WorkspaceSelection | null>(null);
+  useEffect(() => {
+    const prev = prevWorkspaceRef.current;
+    if (prev && selectedWorkspace && prev.workspaceId !== selectedWorkspace.workspaceId) {
+      telemetry.workspaceSwitched(prev.workspaceId, selectedWorkspace.workspaceId);
+    }
+    prevWorkspaceRef.current = selectedWorkspace;
+  }, [selectedWorkspace, telemetry]);
 
   // Validate selectedWorkspace when metadata changes
   // Clear selection if workspace was deleted
@@ -189,22 +177,59 @@ function AppInner() {
       if (selectedWorkspace?.projectPath === path) {
         setSelectedWorkspace(null);
       }
-      if (pendingNewWorkspaceProject === path) {
-        clearPendingWorkspaceCreation();
-      }
-      await removeProjectFromContext(path);
+      await removeProject(path);
     },
-    [
-      clearPendingWorkspaceCreation,
-      pendingNewWorkspaceProject,
-      removeProjectFromContext,
-      selectedWorkspace,
-      setSelectedWorkspace,
-    ]
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [selectedWorkspace, setSelectedWorkspace]
   );
 
+  // Memoize callbacks to prevent LeftSidebar/ProjectSidebar re-renders
+
   // NEW: Get workspace recency from store
-  const sortedWorkspacesByProject = useSortedWorkspacesByProject();
+  const workspaceRecency = useWorkspaceRecency();
+
+  // Sort workspaces by recency (most recent first)
+  // Returns Map<projectPath, FrontendWorkspaceMetadata[]> for direct component use
+  // Use stable reference to prevent sidebar re-renders when sort order hasn't changed
+  const sortedWorkspacesByProject = useStableReference(
+    () => {
+      const result = new Map<string, FrontendWorkspaceMetadata[]>();
+      for (const [projectPath, config] of projects) {
+        // Transform Workspace[] to FrontendWorkspaceMetadata[] using workspace ID
+        const metadataList = config.workspaces
+          .map((ws) => (ws.id ? workspaceMetadata.get(ws.id) : undefined))
+          .filter((meta): meta is FrontendWorkspaceMetadata => meta !== undefined && meta !== null);
+
+        // Sort by recency
+        metadataList.sort((a, b) => {
+          const aTimestamp = workspaceRecency[a.id] ?? 0;
+          const bTimestamp = workspaceRecency[b.id] ?? 0;
+          return bTimestamp - aTimestamp;
+        });
+
+        result.set(projectPath, metadataList);
+      }
+      return result;
+    },
+    (prev, next) => {
+      // Compare Maps: check if size, workspace order, and metadata content are the same
+      if (
+        !compareMaps(prev, next, (a, b) => {
+          if (a.length !== b.length) return false;
+          // Check both ID and name to detect renames
+          return a.every((metadata, i) => {
+            const bMeta = b[i];
+            if (!bMeta || !metadata) return false; // Null-safe
+            return metadata.id === bMeta.id && metadata.name === bMeta.name;
+          });
+        })
+      ) {
+        return false;
+      }
+      return true;
+    },
+    [projects, workspaceMetadata, workspaceRecency]
+  );
 
   const handleNavigateWorkspace = useCallback(
     (direction: "next" | "prev") => {
@@ -303,11 +328,32 @@ function AppInner() {
     [startWorkspaceCreation]
   );
 
+  const getBranchesForProject = useCallback(
+    async (projectPath: string): Promise<BranchListResult> => {
+      const branchResult = await window.api.projects.listBranches(projectPath);
+      const sanitizedBranches = Array.isArray(branchResult?.branches)
+        ? branchResult.branches.filter((branch): branch is string => typeof branch === "string")
+        : [];
+
+      const recommended =
+        typeof branchResult?.recommendedTrunk === "string" &&
+        sanitizedBranches.includes(branchResult.recommendedTrunk)
+          ? branchResult.recommendedTrunk
+          : (sanitizedBranches[0] ?? "");
+
+      return {
+        branches: sanitizedBranches,
+        recommendedTrunk: recommended,
+      };
+    },
+    []
+  );
+
   const selectWorkspaceFromPalette = useCallback(
     (selection: WorkspaceSelection) => {
-      handleWorkspaceSwitch(selection);
+      setSelectedWorkspace(selection);
     },
-    [handleWorkspaceSwitch]
+    [setSelectedWorkspace]
   );
 
   const removeWorkspaceFromPalette = useCallback(
@@ -467,11 +513,12 @@ function AppInner() {
     <>
       <div className="bg-bg-dark mobile-layout flex h-screen overflow-hidden">
         <LeftSidebar
-          onSelectWorkspace={handleWorkspaceSwitch}
           lastReadTimestamps={lastReadTimestamps}
           onToggleUnread={onToggleUnread}
           collapsed={sidebarCollapsed}
           onToggleCollapsed={handleToggleSidebar}
+          sortedWorkspacesByProject={sortedWorkspacesByProject}
+          workspaceRecency={workspaceRecency}
         />
         <div className="mobile-main-content flex min-w-0 flex-1 flex-col overflow-hidden">
           <div className="mobile-layout flex flex-1 overflow-hidden">
@@ -511,7 +558,7 @@ function AppInner() {
                           setWorkspaceMetadata((prev) => new Map(prev).set(metadata.id, metadata));
 
                           // Switch to new workspace
-                          handleWorkspaceSwitch({
+                          setSelectedWorkspace({
                             workspaceId: metadata.id,
                             projectPath: metadata.projectPath,
                             projectName: metadata.projectName,
@@ -522,13 +569,13 @@ function AppInner() {
                           telemetry.workspaceCreated(metadata.id);
 
                           // Clear pending state
-                          clearPendingWorkspaceCreation();
+                          setPendingNewWorkspaceProject(null);
                         }}
                         onCancel={
                           pendingNewWorkspaceProject
                             ? () => {
                                 // User cancelled workspace creation - clear pending state
-                                clearPendingWorkspaceCreation();
+                                setPendingNewWorkspaceProject(null);
                               }
                             : undefined
                         }

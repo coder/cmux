@@ -1,15 +1,16 @@
 import React from "react";
 import { cn } from "@/lib/utils";
+import type { FrontendWorkspaceMetadata } from "@/types/workspace";
 import ProjectSidebar from "./ProjectSidebar";
 import { TitleBar } from "./TitleBar";
-import type { WorkspaceSelection } from "./ProjectSidebar";
 
 interface LeftSidebarProps {
-  onSelectWorkspace: (selection: WorkspaceSelection) => void;
   lastReadTimestamps: Record<string, number>;
   onToggleUnread: (workspaceId: string) => void;
   collapsed: boolean;
   onToggleCollapsed: () => void;
+  sortedWorkspacesByProject: Map<string, FrontendWorkspaceMetadata[]>;
+  workspaceRecency: Record<string, number>;
 }
 
 export function LeftSidebar(props: LeftSidebarProps) {
