@@ -10,6 +10,7 @@ import type { BashToolResult } from "./tools";
 import type { Secret } from "./secrets";
 import type { MuxProviderOptions } from "./providerOptions";
 import type { RuntimeConfig } from "./runtime";
+import type { TerminalSession, TerminalCreateParams, TerminalResizeParams } from "./terminal";
 import type {
   StreamStartEvent,
   StreamDeltaEvent,
@@ -301,6 +302,16 @@ export interface IPCApi {
   window: {
     setTitle(title: string): Promise<void>;
   };
+  terminal: {
+    create(params: TerminalCreateParams): Promise<TerminalSession>;
+    close(sessionId: string): Promise<void>;
+    resize(params: TerminalResizeParams): Promise<void>;
+    sendInput(sessionId: string, data: string): void;
+    onOutput(sessionId: string, callback: (data: string) => void): () => void;
+    onExit(sessionId: string, callback: (exitCode: number) => void): () => void;
+    openWindow(workspaceId: string): Promise<void>;
+    closeWindow(workspaceId: string): Promise<void>;
+  };
   update: {
     check(): Promise<void>;
     download(): Promise<void>;
@@ -309,6 +320,12 @@ export interface IPCApi {
   };
   server?: {
     getLaunchProject(): Promise<string | null>;
+  };
+  platform?: "electron" | "browser";
+  versions?: {
+    node?: string;
+    chrome?: string;
+    electron?: string;
   };
 }
 

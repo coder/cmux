@@ -24,7 +24,7 @@ export const WorkspaceHeader: React.FC<WorkspaceHeaderProps> = ({
 }) => {
   const gitStatus = useGitStatus(workspaceId);
   const handleOpenTerminal = useCallback(() => {
-    void window.api.workspace.openTerminal(workspaceId);
+    void window.api.terminal.openWindow(workspaceId);
   }, [workspaceId]);
 
   return (
@@ -53,7 +53,7 @@ export const WorkspaceHeader: React.FC<WorkspaceHeaderProps> = ({
             </svg>
           </button>
           <Tooltip className="tooltip" position="bottom" align="center">
-            Open in terminal ({formatKeybind(KEYBINDS.OPEN_TERMINAL)})
+            Open terminal window ({formatKeybind(KEYBINDS.OPEN_TERMINAL)})
           </Tooltip>
         </TooltipWrapper>
       </div>

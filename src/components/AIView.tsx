@@ -50,6 +50,7 @@ const AIViewInner: React.FC<AIViewProps> = ({
   // Track active tab to conditionally enable resize functionality
   // RightSidebar notifies us of tab changes via onTabChange callback
   const [activeTab, setActiveTab] = useState<TabType>("costs");
+
   const isReviewTabActive = activeTab === "review";
 
   // Resizable sidebar for Review tab only
@@ -195,7 +196,7 @@ const AIViewInner: React.FC<AIViewProps> = ({
   );
 
   const handleOpenTerminal = useCallback(() => {
-    void window.api.workspace.openTerminal(workspaceId);
+    void window.api.terminal.openWindow(workspaceId);
   }, [workspaceId]);
 
   // Auto-scroll when messages or todos update (during streaming)

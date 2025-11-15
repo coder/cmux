@@ -112,7 +112,7 @@ dev: node_modules/.installed build-main ## Start development server (Vite + node
 		"bun x nodemon --watch src --watch tsconfig.main.json --watch tsconfig.json --ext ts,tsx,json --ignore dist --ignore node_modules --exec node scripts/build-main-watch.js" \
 		"vite"
 else
-dev: node_modules/.installed build-main ## Start development server (Vite + tsgo watcher for 10x faster type checking)
+dev: node_modules/.installed build-main build-preload## Start development server (Vite + tsgo watcher for 10x faster type checking)
 	@bun x concurrently -k \
 		"bun x concurrently \"$(TSGO) -w -p tsconfig.main.json\" \"bun x tsc-alias -w -p tsconfig.main.json\"" \
 		"vite"

@@ -249,6 +249,33 @@ const webApi: IPCApi = {
       return Promise.resolve();
     },
   },
+  terminal: {
+    create: (params) => invokeIPC(IPC_CHANNELS.TERMINAL_CREATE, params),
+    close: (sessionId) => invokeIPC(IPC_CHANNELS.TERMINAL_CLOSE, sessionId),
+    resize: (params) => invokeIPC(IPC_CHANNELS.TERMINAL_RESIZE, params),
+    sendInput: (sessionId: string, data: string) => {
+      // Send via IPC - in browser mode this becomes an HTTP POST
+      void invokeIPC(IPC_CHANNELS.TERMINAL_INPUT, sessionId, data);
+    },
+    onOutput: (sessionId: string, callback: (data: string) => void) => {
+      // Subscribe to terminal output events via WebSocket
+      const channel = `terminal:output:${sessionId}`;
+      return wsManager.on(channel, callback as (data: unknown) => void);
+    },
+    onExit: (sessionId: string, callback: (exitCode: number) => void) => {
+      // Subscribe to terminal exit events via WebSocket
+      const channel = `terminal:exit:${sessionId}`;
+      return wsManager.on(channel, callback as (data: unknown) => void);
+    },
+    openWindow: (workspaceId) => {
+      // In browser mode, open a new window/tab with the terminal page
+      // Use a unique name with timestamp to create a new window each time
+      const url = `/terminal.html?workspaceId=${encodeURIComponent(workspaceId)}`;
+      window.open(url, `terminal-${workspaceId}-${Date.now()}`, "width=1000,height=600");
+      return invokeIPC(IPC_CHANNELS.TERMINAL_WINDOW_OPEN, workspaceId);
+    },
+    closeWindow: (workspaceId) => invokeIPC(IPC_CHANNELS.TERMINAL_WINDOW_CLOSE, workspaceId),
+  },
   update: {
     check: () => invokeIPC(IPC_CHANNELS.UPDATE_CHECK),
     download: () => invokeIPC(IPC_CHANNELS.UPDATE_DOWNLOAD),
@@ -263,6 +290,9 @@ const webApi: IPCApi = {
   server: {
     getLaunchProject: () => invokeIPC("server:getLaunchProject"),
   },
+  // In browser mode, set platform to "browser" to differentiate from Electron
+  platform: "browser" as const,
+  versions: {},
 };
 
 if (typeof window.api === "undefined") {

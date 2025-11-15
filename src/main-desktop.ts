@@ -128,8 +128,9 @@ process.on("unhandledRejection", (reason, promise) => {
   }
 });
 
-// Single instance lock
-const gotTheLock = app.requestSingleInstanceLock();
+// Single instance lock (can be disabled for development with CMUX_ALLOW_MULTIPLE_INSTANCES=1)
+const allowMultipleInstances = process.env.CMUX_ALLOW_MULTIPLE_INSTANCES === "1";
+const gotTheLock = allowMultipleInstances || app.requestSingleInstanceLock();
 console.log("Single instance lock acquired:", gotTheLock);
 
 if (!gotTheLock) {
@@ -307,15 +308,21 @@ async function loadServices(): Promise<void> {
     { Config: ConfigClass },
     { IpcMain: IpcMainClass },
     { UpdaterService: UpdaterServiceClass },
+    { TerminalWindowManager: TerminalWindowManagerClass },
   ] = await Promise.all([
     import("./config"),
     import("./services/ipcMain"),
     import("./services/updater"),
+    import("./services/terminalWindowManager"),
   ]);
   /* eslint-enable no-restricted-syntax */
   config = new ConfigClass();
   ipcMain = new IpcMainClass(config);
   await ipcMain.initialize();
+
+  // Set TerminalWindowManager for desktop mode (pop-out terminal windows)
+  const terminalWindowManager = new TerminalWindowManagerClass(config);
+  ipcMain.setTerminalWindowManager(terminalWindowManager);
 
   loadTokenizerModules().catch((error) => {
     console.error("Failed to preload tokenizer modules:", error);

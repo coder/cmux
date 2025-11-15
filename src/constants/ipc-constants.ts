@@ -32,6 +32,14 @@ export const IPC_CHANNELS = {
   WORKSPACE_EXECUTE_BASH: "workspace:executeBash",
   WORKSPACE_OPEN_TERMINAL: "workspace:openTerminal",
 
+  // Terminal channels
+  TERMINAL_CREATE: "terminal:create",
+  TERMINAL_CLOSE: "terminal:close",
+  TERMINAL_RESIZE: "terminal:resize",
+  TERMINAL_INPUT: "terminal:input",
+  TERMINAL_WINDOW_OPEN: "terminal:window:open",
+  TERMINAL_WINDOW_CLOSE: "terminal:window:close",
+
   // Window channels
   WINDOW_SET_TITLE: "window:setTitle",
 

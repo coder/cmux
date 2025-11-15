@@ -84,6 +84,11 @@ export function TitleBar() {
       return;
     }
 
+    // Skip update checks in browser mode - app updates only apply to Electron
+    if (window.api.platform === "browser") {
+      return;
+    }
+
     // Subscribe to update status changes (will receive current status immediately)
     const unsubscribe = window.api.update.onStatus((status) => {
       setUpdateStatus(status);

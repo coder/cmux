@@ -97,6 +97,22 @@ function setupMockAPI(options: {
     window: {
       setTitle: () => Promise.resolve(undefined),
     },
+    terminal: {
+      create: () =>
+        Promise.resolve({
+          sessionId: "mock-session",
+          workspaceId: "mock-workspace",
+          cols: 80,
+          rows: 24,
+        }),
+      close: () => Promise.resolve(undefined),
+      resize: () => Promise.resolve(undefined),
+      sendInput: () => undefined,
+      onOutput: () => () => undefined,
+      onExit: () => () => undefined,
+      openWindow: () => Promise.resolve(undefined),
+      closeWindow: () => Promise.resolve(undefined),
+    },
     update: {
       check: () => Promise.resolve(undefined),
       download: () => Promise.resolve(undefined),

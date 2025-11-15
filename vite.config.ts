@@ -57,6 +57,10 @@ export default defineConfig(({ mode }) => ({
     sourcemap: true,
     minify: "esbuild",
     rollupOptions: {
+      input: {
+        main: path.resolve(__dirname, "index.html"),
+        terminal: path.resolve(__dirname, "terminal.html"),
+      },
       output: {
         format: "es",
         inlineDynamicImports: false,
@@ -138,4 +142,5 @@ export default defineConfig(({ mode }) => ({
     // Force re-optimize dependencies
     force: false,
   },
+  assetsInclude: ["**/*.wasm"],
 }));
