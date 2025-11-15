@@ -38,8 +38,7 @@ const THINKING_LEVELS: ThinkingLevel[] = ["off", "low", "medium", "high"];
 function AppInner() {
   // Get app-level state from context
   const { workspaceMetadata, setWorkspaceMetadata, removeWorkspace, renameWorkspace, selectedWorkspace, setSelectedWorkspace } = useApp();
-  const { projects, addProject, removeProject } = useProjectContext();
-  const [projectCreateModalOpen, setProjectCreateModalOpen] = useState(false);
+  const { projects } = useProjectContext();
 
   // Track when we're in "new workspace creation" mode (show FirstMessageInput)
   const [pendingNewWorkspaceProject, setPendingNewWorkspaceProject] = useState<string | null>(null);
@@ -174,32 +173,7 @@ function AppInner() {
 
 
   // Memoize callbacks to prevent LeftSidebar/ProjectSidebar re-renders
-  const handleAddProjectCallback = useCallback(() => {
-    setProjectCreateModalOpen(true);
-  }, []);
 
-
-
-  const handleRemoveProjectCallback = useCallback(
-    (path: string) => {
-      void handleRemoveProject(path);
-    },
-    [handleRemoveProject]
-  );
-
-  const handleGetSecrets = useCallback(async (projectPath: string) => {
-    return await window.api.projects.secrets.get(projectPath);
-  }, []);
-
-  const handleUpdateSecrets = useCallback(
-    async (projectPath: string, secrets: Array<{ key: string; value: string }>) => {
-      const result = await window.api.projects.secrets.update(projectPath, secrets);
-      if (!result.success) {
-        console.error("Failed to update secrets:", result.error);
-      }
-    },
-    []
-  );
 
   // NEW: Get workspace recency from store
   const workspaceRecency = useWorkspaceRecency();
@@ -622,11 +596,7 @@ function AppInner() {
             workspaceId: selectedWorkspace?.workspaceId,
           })}
         />
-        <ProjectCreateModal
-          isOpen={projectCreateModalOpen}
-          onClose={() => setProjectCreateModalOpen(false)}
-          onSuccess={addProject}
-        />
+        <ProjectCreateModal />
       </div>
     </>
   );
