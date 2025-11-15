@@ -14,31 +14,17 @@ import { WorkspaceProvider, useWorkspaceContext } from "../contexts/WorkspaceCon
  * 3. Only render App when everything is ready
  *
  * WorkspaceContext handles workspace selection restoration (localStorage, URL hash, launch project).
+ * WorkspaceProvider must be nested inside ProjectProvider so it can call useProjectContext().
  * This ensures App.tsx can assume stores are always synced and removes
  * the need for conditional guards in effects.
  */
 export function AppLoader() {
   return (
     <ProjectProvider>
-      <AppLoaderMiddle />
+      <WorkspaceProvider>
+        <AppLoaderInner />
+      </WorkspaceProvider>
     </ProjectProvider>
-  );
-}
-
-/**
- * Middle component that has access to ProjectContext and wraps WorkspaceProvider
- */
-function AppLoaderMiddle() {
-  const { refreshProjects } = useProjectContext();
-
-  return (
-    <WorkspaceProvider
-      onProjectsUpdate={() => {
-        void refreshProjects();
-      }}
-    >
-      <AppLoaderInner />
-    </WorkspaceProvider>
   );
 }
 

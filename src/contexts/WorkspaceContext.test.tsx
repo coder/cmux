@@ -66,11 +66,8 @@ describe("WorkspaceContext", () => {
       list: () => Promise.resolve([]),
     });
 
-    const onProjectsUpdate = mock(() => {});
 
-    const ctx = await setup({
-      onProjectsUpdate,
-    });
+    const ctx = await setup();
 
     await waitFor(() => expect(ctx().workspaceMetadata.size).toBe(2));
     expect(workspaceApi.list).toHaveBeenCalled();
@@ -88,11 +85,8 @@ describe("WorkspaceContext", () => {
       list: () => Promise.resolve([]),
     });
 
-    const onProjectsUpdate = mock(() => {});
 
-    const ctx = await setup({
-      onProjectsUpdate,
-    });
+    const ctx = await setup();
 
     // Should have empty workspaces after failed load
     await waitFor(() => {
@@ -137,11 +131,8 @@ describe("WorkspaceContext", () => {
       list: () => Promise.resolve([]),
     });
 
-    const onProjectsUpdate = mock(() => {});
 
-    const ctx = await setup({
-      onProjectsUpdate,
-    });
+    const ctx = await setup();
 
     await waitFor(() => expect(ctx().workspaceMetadata.size).toBe(1));
 
@@ -176,11 +167,8 @@ describe("WorkspaceContext", () => {
       list: () => Promise.resolve([]),
     });
 
-    const onProjectsUpdate = mock(() => {});
 
-    const ctx = await setup({
-      onProjectsUpdate,
-    });
+    const ctx = await setup();
 
     await waitFor(() => expect(ctx().loading).toBe(false));
 
@@ -210,11 +198,8 @@ describe("WorkspaceContext", () => {
       list: () => Promise.resolve([]),
     });
 
-    const onProjectsUpdate = mock(() => {});
 
-    const ctx = await setup({
-      onProjectsUpdate,
-    });
+    const ctx = await setup();
 
     await waitFor(() => expect(ctx().loading).toBe(false));
 
@@ -244,11 +229,8 @@ describe("WorkspaceContext", () => {
       list: () => Promise.resolve([]),
     });
 
-    const onProjectsUpdate = mock(() => {});
 
-    const ctx = await setup({
-      onProjectsUpdate,
-    });
+    const ctx = await setup();
 
     await waitFor(() => expect(ctx().loading).toBe(false));
 
@@ -294,11 +276,8 @@ describe("WorkspaceContext", () => {
       list: () => Promise.resolve([]),
     });
 
-    const onProjectsUpdate = mock(() => {});
 
-    const ctx = await setup({
-      onProjectsUpdate,
-    });
+    const ctx = await setup();
 
     await waitFor(() => expect(ctx().loading).toBe(false));
 
@@ -350,11 +329,8 @@ describe("WorkspaceContext", () => {
       list: () => Promise.resolve([]),
     });
 
-    const onProjectsUpdate = mock(() => {});
 
-    const ctx = await setup({
-      onProjectsUpdate,
-    });
+    const ctx = await setup();
 
     await waitFor(() => expect(ctx().loading).toBe(false));
 
@@ -406,11 +382,8 @@ describe("WorkspaceContext", () => {
       list: () => Promise.resolve([]),
     });
 
-    const onProjectsUpdate = mock(() => {});
 
-    const ctx = await setup({
-      onProjectsUpdate,
-    });
+    const ctx = await setup();
 
     await waitFor(() => expect(ctx().loading).toBe(false));
 
@@ -448,11 +421,8 @@ describe("WorkspaceContext", () => {
       list: () => Promise.resolve([]),
     });
 
-    const onProjectsUpdate = mock(() => {});
 
-    const ctx = await setup({
-      onProjectsUpdate,
-    });
+    const ctx = await setup();
 
     await waitFor(() => expect(ctx().loading).toBe(false));
 
@@ -470,11 +440,8 @@ describe("WorkspaceContext", () => {
       list: () => Promise.resolve([]),
     });
 
-    const onProjectsUpdate = mock(() => {});
 
-    const ctx = await setup({
-      onProjectsUpdate,
-    });
+    const ctx = await setup();
 
     await waitFor(() => expect(ctx().loading).toBe(false));
 
@@ -510,11 +477,8 @@ describe("WorkspaceContext", () => {
       list: () => Promise.resolve([]),
     });
 
-    const onProjectsUpdate = mock(() => {});
 
-    const ctx = await setup({
-      onProjectsUpdate,
-    });
+    const ctx = await setup();
 
     await waitFor(() => expect(ctx().loading).toBe(false));
 
@@ -566,11 +530,8 @@ describe("WorkspaceContext", () => {
       list: () => Promise.resolve([]),
     });
 
-    const onProjectsUpdate = mock(() => {});
 
-    const ctx = await setup({
-      onProjectsUpdate,
-    });
+    const ctx = await setup();
 
     await waitFor(() => expect(ctx().workspaceMetadata.has("ws-1")).toBe(true));
 
@@ -598,11 +559,8 @@ describe("WorkspaceContext", () => {
       list: () => Promise.resolve([]),
     });
 
-    const onProjectsUpdate = mock(() => {});
 
-    const ctx = await setup({
-      onProjectsUpdate,
-    });
+    const ctx = await setup();
 
     await waitFor(() => expect(ctx().workspaceMetadata.size).toBe(1));
 
@@ -611,16 +569,22 @@ describe("WorkspaceContext", () => {
   });
 });
 
-async function setup(props: { onProjectsUpdate: (projects: Map<string, ProjectConfig>) => void }) {
+async function setup() {
   const contextRef = { current: null as WorkspaceContext | null };
   function ContextCapture() {
     contextRef.current = useWorkspaceContext();
     return null;
   }
+  
+  // WorkspaceProvider needs ProjectProvider to call useProjectContext
+  const { ProjectProvider } = await import("@/contexts/ProjectContext");
+  
   render(
-    <WorkspaceProvider onProjectsUpdate={props.onProjectsUpdate}>
-      <ContextCapture />
-    </WorkspaceProvider>
+    <ProjectProvider>
+      <WorkspaceProvider>
+        <ContextCapture />
+      </WorkspaceProvider>
+    </ProjectProvider>
   );
   await waitFor(() => expect(contextRef.current).toBeTruthy());
   return () => contextRef.current!;
