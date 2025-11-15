@@ -1,30 +1,17 @@
-import { beforeAll, afterAll, describe, test, expect, mock, jest } from "bun:test";
+import { describe, expect, test } from "bun:test";
 
+import type { MuxMessage } from "@/types/message";
+import type { LanguageModelV2Usage } from "@ai-sdk/provider";
 import {
+  collectUniqueToolNames,
+  countEncryptedWebSearchTokens,
   createDisplayUsage,
+  extractSyncMetadata,
   extractToolOutputData,
   isEncryptedWebSearch,
-  countEncryptedWebSearchTokens,
-  collectUniqueToolNames,
-  extractSyncMetadata,
   mergeResults,
   type TokenCountJob,
 } from "./tokenStatsCalculator";
-import type { LanguageModelV2Usage } from "@ai-sdk/provider";
-import type { MuxMessage } from "@/types/message";
-
-beforeAll(() => {
-  // Mock the tokenizer module before importing tokenStatsCalculator
-  mock.module("@/utils/main/tokenizer", () => ({
-    getTokenizerForModel: jest.fn(),
-    countTokensForData: jest.fn(),
-    getToolDefinitionTokens: jest.fn(),
-  }));
-});
-
-afterAll(() => {
-  mock.restore();
-});
 
 describe("createDisplayUsage", () => {
   test("uses usage.reasoningTokens when available", () => {
