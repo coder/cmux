@@ -1,11 +1,4 @@
-import { describe, test, expect, jest } from "@jest/globals";
-
-// Mock the tokenizer module before importing tokenStatsCalculator
-jest.mock("@/utils/main/tokenizer", () => ({
-  getTokenizerForModel: jest.fn(),
-  countTokensForData: jest.fn(),
-  getToolDefinitionTokens: jest.fn(),
-}));
+import { describe, test, expect, mock } from "bun:test";
 
 import {
   createDisplayUsage,
@@ -19,6 +12,13 @@ import {
 } from "./tokenStatsCalculator";
 import type { LanguageModelV2Usage } from "@ai-sdk/provider";
 import type { MuxMessage } from "@/types/message";
+
+// Mock the tokenizer module before importing tokenStatsCalculator
+mock.module("@/utils/main/tokenizer", () => ({
+  getTokenizerForModel: jest.fn(),
+  countTokensForData: jest.fn(),
+  getToolDefinitionTokens: jest.fn(),
+}));
 
 describe("createDisplayUsage", () => {
   test("uses usage.reasoningTokens when available", () => {
