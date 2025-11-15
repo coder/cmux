@@ -18,18 +18,27 @@ import { WorkspaceProvider, useWorkspaceContext } from "../contexts/WorkspaceCon
  * the need for conditional guards in effects.
  */
 export function AppLoader() {
+  return (
+    <ProjectProvider>
+      <AppLoaderMiddle />
+    </ProjectProvider>
+  );
+}
+
+/**
+ * Middle component that has access to ProjectContext and wraps WorkspaceProvider
+ */
+function AppLoaderMiddle() {
   const { refreshProjects } = useProjectContext();
 
   return (
-    <ProjectProvider>
-      <WorkspaceProvider
-        onProjectsUpdate={() => {
-          void refreshProjects();
-        }}
-      >
-        <AppLoaderInner />
-      </WorkspaceProvider>
-    </ProjectProvider>
+    <WorkspaceProvider
+      onProjectsUpdate={() => {
+        void refreshProjects();
+      }}
+    >
+      <AppLoaderInner />
+    </WorkspaceProvider>
   );
 }
 
