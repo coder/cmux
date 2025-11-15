@@ -1,6 +1,7 @@
 import type { UIMessage } from "ai";
 import type { LanguageModelV2Usage } from "@ai-sdk/provider";
 import type { StreamErrorType } from "./errors";
+import type { ImagePart } from "./ipc";
 import type { ToolPolicy } from "@/utils/tools/toolPolicy";
 
 // Parsed compaction request data (shared type for consistency)
@@ -95,7 +96,7 @@ export type DisplayedMessage =
       id: string; // Display ID for UI/React keys
       historyId: string; // Original MuxMessage ID for history operations
       content: string;
-      imageParts?: Array<{ url: string; mediaType?: string }>; // Optional image attachments
+      imageParts?: ImagePart[]; // Optional image attachments
       historySequence: number; // Global ordering across all messages
       timestamp?: number;
       compactionRequest?: {
@@ -177,6 +178,12 @@ export type DisplayedMessage =
       exitCode: number | null; // Final exit code (null while running)
       timestamp: number;
     };
+
+export interface QueuedMessage {
+  id: string;
+  content: string;
+  imageParts?: ImagePart[];
+}
 
 // Helper to create a simple text message
 export function createMuxMessage(

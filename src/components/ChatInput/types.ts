@@ -1,9 +1,11 @@
 import type { FrontendWorkspaceMetadata } from "@/types/workspace";
+import type { ImagePart } from "@/types/ipc";
 
 export interface ChatInputAPI {
   focus: () => void;
   restoreText: (text: string) => void;
   appendText: (text: string) => void;
+  restoreImages: (images: ImagePart[]) => void;
 }
 
 // Workspace variant: full functionality for existing workspaces
