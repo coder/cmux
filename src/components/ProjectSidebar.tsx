@@ -25,7 +25,6 @@ import { useApp } from "@/contexts/AppContext";
 import { useWorkspaceRecency } from "@/stores/WorkspaceStore";
 import { ChevronRight, KeyRound } from "lucide-react";
 import { useWorkspaceContext } from "@/contexts/WorkspaceContext";
-import { useProjectContext } from "@/contexts/ProjectContext";
 
 // Re-export WorkspaceSelection for backwards compatibility
 export type { WorkspaceSelection } from "./WorkspaceListItem";
